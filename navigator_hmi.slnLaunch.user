@@ -1,0 +1,12 @@
+[
+  {
+    "Name": "新建配置文件",
+    "Projects": [
+      {
+        "Path": "navigator_hmi\\navigator_hmi.csproj",
+        "Action": "Start",
+        "DebugTarget": "navigator_hmi"
+      }
+    ]
+  }
+]

@@ -1,0 +1,23 @@
+﻿<Window x:Class="editwindow.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:editwindow"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="450" Width="800">
+    <Grid ShowGridLines="True">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="20"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="20"/>
+        </Grid.RowDefinitions>
+        <StackPanel Orientation="Horizontal">
+            <Menu VerticalAlignment="Center" HorizontalAlignment="Left" Width="60"> 
+                文件(N)
+                <MenuItem Header="新建工程">
+                </MenuItem>
+            </Menu>
+        </StackPanel>
+    </Grid>
+</Window>
