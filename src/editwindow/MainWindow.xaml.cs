@@ -9,7 +9,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 
-namespace navigator_hmi
+namespace editwindow
 {
     /// <summary>
     /// Interaction logic for MainWindow.xaml
@@ -20,7 +20,5 @@ namespace navigator_hmi
         {
             InitializeComponent();
         }
-
-
     }
 }
