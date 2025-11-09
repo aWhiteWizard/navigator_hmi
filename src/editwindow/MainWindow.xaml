@@ -12,12 +12,17 @@
             <RowDefinition Height="*"/>
             <RowDefinition Height="20"/>
         </Grid.RowDefinitions>
-        <StackPanel Orientation="Horizontal">
-            <Menu VerticalAlignment="Center" HorizontalAlignment="Left" Width="60"> 
-                文件(N)
-                <MenuItem Header="新建工程">
-                </MenuItem>
-            </Menu>
-        </StackPanel>
+        <Menu Grid.Row="0">
+            <MenuItem Header="文件(N)">
+                <MenuItem Header="新建(N)"/>
+                <MenuItem Header="打开(O)"/>
+                <MenuItem Header="保存(S)"/>
+                <MenuItem Header="另存为(A)"/>
+                <MenuItem Header="关闭当前项目(X)"/>
+                <MenuItem Header="退出(Q)"/>
+            </MenuItem>
+            <MenuItem Header="编辑(E)"/>
+            <MenuItem Header="查看(V)"/>
+        </Menu>
     </Grid>
 </Window>
