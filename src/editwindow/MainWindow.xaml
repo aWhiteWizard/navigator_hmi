@@ -5,19 +5,42 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:editwindow"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
+        Title="NavigatorHMI" Height="450" Width="800">
     <Grid ShowGridLines="True">
         <Grid.RowDefinitions>
             <RowDefinition Height="20"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="20"/>
         </Grid.RowDefinitions>
-        <StackPanel Orientation="Horizontal">
-            <Menu VerticalAlignment="Center" HorizontalAlignment="Left" Width="60"> 
-                文件(N)
-                <MenuItem Header="新建工程">
-                </MenuItem>
-            </Menu>
-        </StackPanel>
+        <Grid Grid.Row="1" ShowGridLines="True">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="200"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="200"/>
+            </Grid.ColumnDefinitions>
+            <TabControl Grid.Row="1" Grid.Column="2"  TabStripPlacement="Top">
+                
+                <TabItem Header="Tab 1">
+                </TabItem>
+                <TabItem Header="Tab 2">
+                </TabItem>
+            </TabControl>
+        </Grid>
+
+        <Menu HorizontalAlignment="Left">
+            <MenuItem Header="文件">
+                <MenuItem Header="新建"/>
+                <MenuItem Header="打开"/>
+                <MenuItem Header="保存"/>
+                <MenuItem Header="另存为"/>
+                <MenuItem Header="关闭工程"/>
+            </MenuItem>
+            <MenuItem Header="编辑">
+                <MenuItem Header="撤销"/>
+            </MenuItem>
+            <MenuItem Header="视图">
+                <MenuItem Header="恢复默认布局"/>
+            </MenuItem>
+        </Menu>
     </Grid>
 </Window>
