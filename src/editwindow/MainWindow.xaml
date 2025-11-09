@@ -14,15 +14,51 @@
         </Grid.RowDefinitions>
         <Grid Grid.Row="1" ShowGridLines="True">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="200"/>
+                <ColumnDefinition Width="150"/>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="200"/>
+                <ColumnDefinition Width="150"/>
             </Grid.ColumnDefinitions>
+            <TreeView Grid.Row="0" Grid.Column="0">
+                <TreeViewItem Header="画面列表" IsSelected="True">
+                    <TreeViewItem Header="全局显示"/>
+                    <TreeViewItem Header="地图画面"/>
+                    <TreeViewItem Header="画面1" IsSelected ="True"/>
+                </TreeViewItem>
+                <TreeViewItem Header="变量列表">
+                    <TreeViewItem Header="变量"/>
+                    <TreeViewItem Header="加载图像"/>
+                    <TreeViewItem Header="加载文本"/>
+                </TreeViewItem>
+                <TreeViewItem Header="连接列表">
+                    <TreeViewItem Header="串口设置"/>
+                    <TreeViewItem Header="网络设置"/>
+                </TreeViewItem>
+            </TreeView>
+            <Border Grid.Row="1" Grid.Column="1" BorderBrush="Black" BorderThickness="2" Margin="3">
+                <Canvas x:Name="drawingCanvas" Background="White" />
+                <!-- MouseLeftButtonDown="DrawingCanvas_MouseLeftButtonDown" -->
+            </Border>
             <TabControl Grid.Row="1" Grid.Column="2"  TabStripPlacement="Top">
-                
-                <TabItem Header="Tab 1">
+                <TabItem Header="一般控件">
+                    <StackPanel Orientation="Vertical">
+                        <Button Content="Point"/>
+                        <Button Content="Line" />
+                        <Button Content="Label"/>
+                        <Button Content="Button"/>
+                        <Button Content="Rectange"/>
+                        <Button Content="Circle"/>
+                        <Button Content="IOField"/>
+                        <Button Content="Frame"/>
+                        <Button Content="CheckBox"/>
+                        <Button Content="TextBox"/>
+                    </StackPanel>
                 </TabItem>
-                <TabItem Header="Tab 2">
+                <TabItem Header="窗口控件">
+                    <StackPanel Orientation="Vertical">
+                        <Button Content="User View"/>
+                        <Button Content="Alarm View"/>
+                        <Button Content="Robot List"/>
+                    </StackPanel>
                 </TabItem>
             </TabControl>
         </Grid>

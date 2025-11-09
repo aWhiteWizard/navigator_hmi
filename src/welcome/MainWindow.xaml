@@ -17,7 +17,7 @@
                 <ColumnDefinition Width="450"/>
                 <ColumnDefinition Width="*"/> 
             </Grid.ColumnDefinitions>
-            <Image Grid.Column="1" Source="F:\code\navigator_hmi\src\picture\welcome.PNG"></Image>
+            <Image Grid.Column="1" Source="F:\code\navigator_hmi\src\picture\welcome_cat.png"></Image>
             <Label Grid.Column="0" Content="NavigatorHMI" HorizontalAlignment="Left" Margin="20,0,0,20" VerticalAlignment="Center" FontSize="24" FontWeight="Black"/>
         </Grid>
         <Grid Grid.Row="1" ShowGridLines="False" Height="340">
