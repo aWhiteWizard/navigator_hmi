@@ -17,3 +17,7 @@
 obj/
 bin/
 .vs/
+.png/
+.svg/
+.cr
+.picture
