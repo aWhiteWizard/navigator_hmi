@@ -1,5 +1,5 @@
 ﻿using Microsoft.Win32;
-using NavigatorHMI.WelcomeWindow;
+using NavigatorHMI.Common;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,8 +13,9 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using NavigatorHMI.ViewModels;
 
-namespace NavigatorHMI
+namespace NavigatorHMI.Views
 {
     /// <summary>
     /// NewProjectDialog.xaml 的交互逻辑
@@ -27,6 +28,7 @@ namespace NavigatorHMI
         public NewProjectDialog()
         {
             InitializeComponent();
+            this.DataContext = new DeviceConfigViewModel();
         }
 
         private void OpenPathSelectDialog_Click(object sender, RoutedEventArgs e)
@@ -96,11 +98,6 @@ namespace NavigatorHMI
         private void CreateProjectCancelBtn_Click(object sender, RoutedEventArgs e)
         {
             this.Close();
-        }
-        
-        private void HelpTextBtn_Click(object sender, RoutedEventArgs e)
-        {
-            //弹窗显示帮助信息
-        }
+        }  
     }
 }

@@ -5,7 +5,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 
-namespace NavigatorHMI.WelcomeWindow
+namespace NavigatorHMI.Views
 {
     public partial class WelComeWindow : Window
     {

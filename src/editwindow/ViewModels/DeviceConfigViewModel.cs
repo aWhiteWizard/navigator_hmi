@@ -1,9 +1,14 @@
-﻿using NavigatorHMI.Models;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
+using NavigatorHMI.Common;
+using NavigatorHMI.Models;
+using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Runtime.CompilerServices;
 using System.Linq;
-using System;
+using System.Runtime.CompilerServices;
+using System.Windows.Input;
 
 namespace NavigatorHMI.ViewModels
 {

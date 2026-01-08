@@ -9,7 +9,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 
-namespace NavigatorHMI.EditWindow.ProjectWindow
+namespace NavigatorHMI.ProjectTree
 {
     public class ProjectBarDrawer : UserControl
     {
