@@ -1,98 +1,101 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Drawing;
-using System.Xml.Linq;
+using System.Runtime.CompilerServices;
+
+using ProtoBuf;
 
 namespace NavigatorHMI.Common
 {
+    [ProtoContract]
     public class HMIProject : INotifyPropertyChanged
     {
+        // 隐式实现事件
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        // 辅助方法，用于触发属性变更通知
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
         private string _name;
-        private string _filePath;
-        private DateTime _lastModified;
-        private bool _isDirty;
-
-        #region 基本属性
-        public Guid Id { get; set; } = Guid.NewGuid();
-
-        public string Name { 
+        [ProtoMember(1)]
+        public string Name
+        {
             get => _name;
-            set 
+            set
             {
                 if (_name != value)
                 {
                     _name = value;
                     OnPropertyChanged(nameof(Name));
-                    IsDirty = true;
                 }
             }
         }
-        public string FilePath
+
+        private DateTime _createTime;
+        [ProtoMember(2)]
+        public DateTime CreateTime
         {
-            get => _filePath;
+            get => _createTime;
             set
             {
-                _filePath = value;
-                OnPropertyChanged(nameof(FilePath));
-                OnPropertyChanged(nameof(IsTemporary));
-                OnPropertyChanged(nameof(FileName));
-            }
-        }
-
-        #endregion
-        /// <summary>
-        /// 是否为临时工程
-        /// </summary>
-        public bool IsTemporary => string.IsNullOrEmpty(FilePath);
-
-        /// <summary>
-        /// 创建时间
-        /// </summary>
-        public DateTime CreateTime { get; set; } = DateTime.Now;
-
-        /// <summary>
-        /// 文件名称（不包含路径）
-        /// </summary>
-        public string FileName => !string.IsNullOrEmpty(FilePath)
-            ? System.IO.Path.GetFileName(FilePath)
-            : $"{Name}.hmiproj";
-        /// <summary>
-        /// 最后修改时间
-        /// </summary>
-        public DateTime LastModified
-        {
-            get => _lastModified;
-            set
-            {
-                _lastModified = value;
-                OnPropertyChanged(nameof(LastModified));
-            }
-        }
-            /// <summary>
-            /// 是否已修改（需要保存）
-            /// </summary>
-            public bool IsDirty
-        {
-            get => _isDirty;
-            set
-            {
-                if (_isDirty != value)
+                if (_createTime != value)
                 {
-                    _isDirty = value;
-                    OnPropertyChanged(nameof(IsDirty));
-                    if (value) LastModified = DateTime.Now;
+                    _createTime = value;
+                    OnPropertyChanged(nameof(CreateTime));
                 }
             }
         }
 
-            public event PropertyChangedEventHandler PropertyChanged;
-        protected virtual void OnPropertyChanged(string propertyName)
+        private DateTime _lastModifiedTime;
+        [ProtoMember(3)]
+        public DateTime LastModifiedTime
         {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            get => _lastModifiedTime;
+            set
+            {
+                if (_lastModifiedTime != value)
+                {
+                    _lastModifiedTime = value;
+                    OnPropertyChanged(nameof(LastModifiedTime));
+                }
+            }
         }
 
+        private string _version;
+        [ProtoMember(4)]
+        public string Version
+        {
+            get => _version;
+            set
+            {
+                if (_version != value)
+                {
+                    _version = value;
+                    OnPropertyChanged(nameof(Version));
+                }
+            }
+        }
 
-        
+        [ProtoMember(5)]
+        public List<Screen> Screens { get; set; } = new List<Screen>();
+
+        private string _projectFilePath;
+        [ProtoMember(6)]
+        public string ProjectFilePath
+        {
+            get => _projectFilePath;
+            set
+            {
+                if (_projectFilePath != value)
+                {
+                    _projectFilePath = value;
+                    OnPropertyChanged(nameof(ProjectFilePath));
+                }
+            }
+        }
     }
 }

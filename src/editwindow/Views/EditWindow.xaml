@@ -88,9 +88,9 @@
             <Grid Grid.Column="1">
                 <Border BorderBrush="Black" BorderThickness="2" Margin="3" x:Name="canvasContainer">
                     <!-- 初始画布 -->
-                    <Canvas x:Name="CanvasScene1" Background="White" 
+                    <Canvas x:Name="GlobalScene" Background="White" 
                            Visibility="Visible">
-                        <TextBlock Text="画面1" Foreground="LightGray" FontSize="36" 
+                        <TextBlock Text="地图画面" Foreground="LightGray" FontSize="36" 
                                   Canvas.Left="50" Canvas.Top="50"/>
                     </Canvas>
                 </Border>

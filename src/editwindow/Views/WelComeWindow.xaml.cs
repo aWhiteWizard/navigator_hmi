@@ -17,7 +17,7 @@ namespace NavigatorHMI.Views
         public WelComeWindow()
         {
             InitializeComponent();
-            Loaded += WelcomeWindow_Loaded;
+            // Loaded += WelcomeWindow_Loaded;
             OpenProjectPath.AllowDrop = true;
             OpenProjectPath.PreviewDragOver += OpenProjectPath_PreviewDragOver;
             OpenProjectPath.Drop += OpenProjectPath_Drop;
@@ -46,7 +46,6 @@ namespace NavigatorHMI.Views
                     string filePath = files[0];
                     try
                     {
-                        var project = LoadProject(filePath);
                         // OpenProjectRequested?.Invoke(this, new ProjectEventArgs(project));
                     }
                     catch (Exception ex)
@@ -76,21 +75,6 @@ namespace NavigatorHMI.Views
             
         }
 
-        // 加载工程文件
-        private HMIProject LoadProject(string filePath)
-        {
-            // 这里实现工程文件加载逻辑
-            // 简化版：直接创建工程对象
-            return new HMIProject
-            {
-                Id = Guid.NewGuid(),
-                Name = Path.GetFileNameWithoutExtension(filePath),
-                FilePath = filePath,
-                CreateTime = DateTime.Now,
-                LastModified = DateTime.Now
-                // Pages = new System.Collections.ObjectModel.ObservableCollection<Page>()
-            };
-        }
         #endregion
 
         #region 新建工程
@@ -101,29 +85,11 @@ namespace NavigatorHMI.Views
             var dialog = new NewProjectDialog();
             if (dialog.ShowDialog() == true)
             {
-                // 创建新工程
-                var project = CreateNewProject(dialog.ProjectName);
-
                 // 触发事件，通知主窗口导航到编辑页面
                 // NewProjectRequested?.Invoke(this, new ProjectEventArgs(project));
             }
         }
 
-        // 创建新工程
-        private HMIProject CreateNewProject(string projectName)
-        {
-            return new HMIProject
-            {
-                Id = Guid.NewGuid(),
-                Name = projectName,
-                CreateTime = DateTime.Now,
-                LastModified = DateTime.Now,
-                // Pages = new System.Collections.ObjectModel.ObservableCollection<Page>
-                //{
-                //    new Page { Name = "主页面" }
-                //}
-            };
-        }
 
         #endregion
 

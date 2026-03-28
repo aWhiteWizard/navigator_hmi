@@ -30,15 +30,26 @@
         <Grid Grid.Row="1">
             <DockPanel LastChildFill="True" VerticalAlignment="Center" Height="20" Margin="0,0,0,0">
                 <TextBlock Text="工程名:" FontSize="12" VerticalAlignment="Center"  HorizontalAlignment="Left" Margin="20,0,0,0"/>
-                <TextBox Name="ProjectNameTextBox" AcceptsReturn="False" Height="20" TextWrapping="NoWrap" Margin="52,0,40,0" VerticalScrollBarVisibility="Hidden"/>
+                <TextBox Name="ProjectNameTextBox" 
+                         AcceptsReturn="False" 
+                         Height="20" 
+                         TextWrapping="NoWrap" 
+                         Margin="52,0,40,0" 
+                         VerticalScrollBarVisibility="Hidden"
+                         Text="{Binding ProjectName, UpdateSourceTrigger=PropertyChanged}"/>
             </DockPanel>
         </Grid>
         <Grid Grid.Row="2">
             <DockPanel LastChildFill="True" VerticalAlignment="Center" Height="20" Margin="0,0,0,0">
                 <TextBlock Text="工程路径:" FontSize="12" VerticalAlignment="Center"  HorizontalAlignment="Left" Margin="20,0,0,0"/>
                 <Button Name="ProjectPathSelectBtn" Content="..." Width="20" DockPanel.Dock="Right" Margin="10,0,40,0"  Click="OpenPathSelectDialog_Click"/>
-                <TextBox Name="ProjectPathTextBox" AcceptsReturn="False" Height="20" TextWrapping="NoWrap" Margin="40,0,0,0" VerticalScrollBarVisibility="Hidden" />
-
+                <TextBox Name="ProjectPathTextBox" 
+                         AcceptsReturn="False" 
+                         Height="20" 
+                         TextWrapping="NoWrap" 
+                         Margin="40,0,0,0" 
+                         VerticalScrollBarVisibility="Hidden"
+                         Text="{Binding ProjectPath, UpdateSourceTrigger=PropertyChanged}"/>
             </DockPanel>
         </Grid>
         <Grid Grid.Row="3">
@@ -67,7 +78,7 @@
             </DockPanel>
         </Grid>
         <Grid Grid.Row="6">
-            <Button Name="CreateProjectBtn" Content="创建工程" Width="80" Height="30" HorizontalAlignment="Right" Margin="0,0,140,0" Click="CreateProjectBtn_Click"/>
+            <Button Name="CreateProjectBtn" Content="创建工程" Width="80" Height="30" HorizontalAlignment="Right" Margin="0,0,140,0" Command="{Binding NewProject}"/>
             <Button Name="CreateProjectCancelBtn" Content="取消" Width="80" Height="30" HorizontalAlignment="Right" Margin="0,0,40,0" Click="CreateProjectCancelBtn_Click"/>
         </Grid>
     </Grid>

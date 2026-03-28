@@ -1,8 +1,7 @@
 ﻿<Application x:Class="NavigatorHMI.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:NavigatorHMI"
-             StartupUri="Views/WelComeWindow.xaml">
+             xmlns:local="clr-namespace:NavigatorHMI">
     <Application.Resources>
          
     </Application.Resources>
