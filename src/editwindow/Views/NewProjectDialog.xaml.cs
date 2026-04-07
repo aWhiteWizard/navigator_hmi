@@ -22,7 +22,6 @@ namespace NavigatorHMI.Views
     /// </summary>
     public partial class NewProjectDialog : Window
     {
-        public string ProjectName;
         public event EventHandler<ProjectEventArgs> NewProjectRequested;
 
         public NewProjectDialog()
@@ -92,11 +91,14 @@ namespace NavigatorHMI.Views
 
         private void CreateProjectBtn_Click(object sender, RoutedEventArgs e)
         {
-
+            RecentProjectManager.Instance.AddRecentProject(ProjectPathTextBox.Text + "\\"+  ProjectNameTextBox.Text + ".hmiproj");
+            DialogResult = true;  // 关键：设置为 true
+            this.Close();
         }
 
         private void CreateProjectCancelBtn_Click(object sender, RoutedEventArgs e)
         {
+            DialogResult = false;  // 关键：设置为 false
             this.Close();
         }  
     }

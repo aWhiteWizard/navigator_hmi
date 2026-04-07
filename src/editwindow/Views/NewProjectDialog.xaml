@@ -78,7 +78,7 @@
             </DockPanel>
         </Grid>
         <Grid Grid.Row="6">
-            <Button Name="CreateProjectBtn" Content="创建工程" Width="80" Height="30" HorizontalAlignment="Right" Margin="0,0,140,0" Command="{Binding NewProject}"/>
+            <Button Name="CreateProjectBtn" Content="创建工程" Width="80" Height="30" HorizontalAlignment="Right" Margin="0,0,140,0" Command="{Binding NewProject}" Click="CreateProjectBtn_Click"/>
             <Button Name="CreateProjectCancelBtn" Content="取消" Width="80" Height="30" HorizontalAlignment="Right" Margin="0,0,40,0" Click="CreateProjectCancelBtn_Click"/>
         </Grid>
     </Grid>

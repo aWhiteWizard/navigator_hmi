@@ -61,6 +61,7 @@ namespace NavigatorHMI.ViewModels
         public ICommand OpenProject { get; }
         public ICommand BrowsePathCommand { get; }
         public Action CancelCreateProjectAction { get; set; }
+        public Action CloseWindow { get; set; }
         public DeviceConfigViewModel()
         {
             SaveCommand = new RelayCommand(ExecuteSave, CanSave);
@@ -137,6 +138,9 @@ namespace NavigatorHMI.ViewModels
             CurrentProject = newProject;
 
             MessageBox.Show("新项目已创建！");
+
+            CloseWindow ?.Invoke();
+            
         }
 
         private void ExecuteOpenProject()

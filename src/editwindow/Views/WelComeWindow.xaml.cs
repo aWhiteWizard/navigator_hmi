@@ -1,28 +1,41 @@
-﻿using Microsoft.Win32;
-using NavigatorHMI.Common;
-using System;
+﻿using System;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using Microsoft.Win32;
+using NavigatorHMI.Common;
+using NavigatorHMI.ViewModels;
+using ProtoBuf;
 
 namespace NavigatorHMI.Views
 {
     public partial class WelComeWindow : Window
     {
-
-        public event EventHandler<ProjectEventArgs> NewProjectRequested;
         public event EventHandler<ProjectEventArgs> OpenProjectRequested;
+
 
         #region 加载欢迎页面
         public WelComeWindow()
         {
             InitializeComponent();
-            // Loaded += WelcomeWindow_Loaded;
-            OpenProjectPath.AllowDrop = true;
-            OpenProjectPath.PreviewDragOver += OpenProjectPath_PreviewDragOver;
-            OpenProjectPath.Drop += OpenProjectPath_Drop;
+
         }
-        
+
+        // 打开历史记录中的工程
+        public void OpenRecentProject(string filePath)
+        {
+            if (File.Exists(filePath))
+            {
+                this.LoadRecentProjects(filePath);
+            }
+            else
+            {
+                MessageBox.Show($"工程文件不存在：{filePath}", "提示",
+                               MessageBoxButton.OK, MessageBoxImage.Warning);
+                // 可选：从历史记录中移除无效路径
+                //_recentManager.RemoveInvalidPath(filePath);
+            }
+        }
         private void OpenProjectPath_PreviewDragOver(object sender, DragEventArgs e)
         {
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
@@ -36,35 +49,16 @@ namespace NavigatorHMI.Views
             e.Handled = true;
         }
 
-        private void OpenProjectPath_Drop(object sender, DragEventArgs e)
+        private void WelComeWindowLoaded(object sender, RoutedEventArgs e)
         {
-            if (e.Data.GetDataPresent(DataFormats.FileDrop))
-            {
-                string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
-                if (files.Length > 0)
-                {
-                    string filePath = files[0];
-                    try
-                    {
-                        // OpenProjectRequested?.Invoke(this, new ProjectEventArgs(project));
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show($"打开工程失败: {ex.Message}", "错误",
-                            MessageBoxButton.OK, MessageBoxImage.Error);
-                    }
-                }
-            }
+            RecentProjectsListBox.ItemsSource = RecentProjectManager.Instance.RecentOpenedProject;
         }
 
-        private void WelcomeWindow_Loaded(object sender, RoutedEventArgs e)
-        {
-           LoadRecentProjects();
-        }
-
-        private void LoadRecentProjects()
+        private void LoadRecentProjects(string file_path)
         {
             // 加载最近项目列表
+            //ToDo: 接下来做这个，点击列表中的工程，如果工程存在则打开，不存在则变灰
+
         }
         #endregion
 
@@ -72,7 +66,48 @@ namespace NavigatorHMI.Views
         // 打开工程按钮点击事件
         private void OpenProject_Click(object sender, RoutedEventArgs e)
         {
-            
+            // 1. 创建打开文件对话框
+            var dialog = new Microsoft.Win32.OpenFileDialog();
+            dialog.Title = "选择工程文件";
+            dialog.Filter = "组态工程文件|*.hmiproj";
+            dialog.DefaultExt = ".hmiproj";
+            dialog.CheckFileExists = true;
+
+            // 2. 显示对话框，判断用户是否点击“打开”
+            if (dialog.ShowDialog() == true)
+            {
+                string filePath = dialog.FileName;
+
+                try
+                {
+                    // 3. 反序列化加载工程对象（使用 protobuf-net）
+                    HMIProject project;
+                    using (var fs = new FileStream(filePath, FileMode.Open))
+                    {
+                        project = Serializer.Deserialize<HMIProject>(fs);
+                    }
+
+                    // 更新工程路径和修改时间
+                    project.ProjectFilePath = filePath;
+                    project.LastModifiedTime = DateTime.Now;
+
+                    // 4. 添加到最近打开列表（假设 App.RecentManager 是全局单例）
+                    RecentProjectManager.Instance.AddRecentProject(filePath);
+
+                    // 5. 打开编辑窗口（假设 EditWindow 可接收工程对象）
+                    var editWindow = new EditWindow();
+                    // var viewModel = new EditWindow(project);  // 需要提前定义 EditorViewModel
+                    // editWindow.DataContext = viewModel;
+                    editWindow.Show();
+
+                    // 6. 关闭当前欢迎窗口
+                    this.Close();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"打开工程失败：{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
         }
 
         #endregion
@@ -81,45 +116,28 @@ namespace NavigatorHMI.Views
         // 新建工程按钮点击事件
         private void CreateNewProject_Click(object sender, RoutedEventArgs e)
         {
-            // 显示新建工程对话框
+            // 隐藏当前欢迎窗口
+            this.Hide();
+
             var dialog = new NewProjectDialog();
-            if (dialog.ShowDialog() == true)
+            // 假设 NewProjectDialog 内部点击“确定”时会设置 DialogResult = true
+            bool? result = dialog.ShowDialog();
+
+            if (result == true)
             {
-                // 触发事件，通知主窗口导航到编辑页面
-                // NewProjectRequested?.Invoke(this, new ProjectEventArgs(project));
+                // 用户确认创建了工程 → 彻底关闭欢迎窗口（或打开编辑窗口后关闭）
+                // 例如：打开主编辑窗口
+                var editor = new EditWindow();
+                editor.Show();
+                this.Close(); // 关闭欢迎窗口
+            }
+            else
+            {
+                // 用户取消 → 重新显示欢迎窗口
+                this.Show();
             }
         }
-
-
         #endregion
-
-        private void SelectProjectPath_Click(object sender, RoutedEventArgs e)
-        {
-            OpenFileDialog openFileDialog = new OpenFileDialog();
-            openFileDialog.Filter = "HMI工程文件 (*.hmiproj)|*.hmiproj|所有文件 (*.*)|*.*";
-
-            if (openFileDialog.ShowDialog() == true)
-            {
-                OpenProjectPath.Text = openFileDialog.FileName;
-
-                string selectedFilePath = openFileDialog.FileName;
-                if (ValidateHmiProjectFile(selectedFilePath))
-                {
-                    OpenProjectPath.Text = selectedFilePath;
-                    OnProjectPathSelected(selectedFilePath);
-                }
-                else
-                {
-                    MessageBox.Show(
-                    "请选择有效的.hmiproj工程文件",
-                    "文件类型错误",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning
-                    );
-                }
-            }
-
-        }
 
         // ============ 辅助方法 ============
 
@@ -147,6 +165,7 @@ namespace NavigatorHMI.Views
             // 例如：更新UI、加载工程信息等
             Console.WriteLine($"已选择HMI工程文件: {filePath}");
         }
+
     }
 
     /// <summary>

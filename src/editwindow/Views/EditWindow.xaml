@@ -66,7 +66,7 @@
                         </TreeViewItem>
                         <TreeViewItem Header="全局显示"/>
                         <TreeViewItem Header="地图画面" IsSelected ="True"/>
-                        <TreeViewItem Header="自定义画面">
+                        <TreeViewItem Header="自定义画面" ItemsSource="{Binding Project}">
                             <TreeViewItem Header="画面1" ContextMenu="{StaticResource SceneContextMenu}" MouseDoubleClick="ScreenTreeView_MouseDoubleClick">
                                 <TreeViewItem.Tag>Scene1</TreeViewItem.Tag>
                             </TreeViewItem>
