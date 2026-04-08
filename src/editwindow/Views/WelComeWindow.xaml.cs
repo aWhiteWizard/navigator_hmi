@@ -2,6 +2,7 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using Microsoft.Win32;
 using NavigatorHMI.Common;
 using NavigatorHMI.ViewModels;
@@ -11,9 +12,6 @@ namespace NavigatorHMI.Views
 {
     public partial class WelComeWindow : Window
     {
-        public event EventHandler<ProjectEventArgs> OpenProjectRequested;
-
-
         #region 加载欢迎页面
         public WelComeWindow()
         {
@@ -21,47 +19,54 @@ namespace NavigatorHMI.Views
 
         }
 
-        // 打开历史记录中的工程
-        public void OpenRecentProject(string filePath)
-        {
-            if (File.Exists(filePath))
-            {
-                this.LoadRecentProjects(filePath);
-            }
-            else
-            {
-                MessageBox.Show($"工程文件不存在：{filePath}", "提示",
-                               MessageBoxButton.OK, MessageBoxImage.Warning);
-                // 可选：从历史记录中移除无效路径
-                //_recentManager.RemoveInvalidPath(filePath);
-            }
-        }
-        private void OpenProjectPath_PreviewDragOver(object sender, DragEventArgs e)
-        {
-            if (e.Data.GetDataPresent(DataFormats.FileDrop))
-            {
-                e.Effects = DragDropEffects.Copy;
-            }
-            else
-            {
-                e.Effects = DragDropEffects.None;
-            }
-            e.Handled = true;
-        }
-
         private void WelComeWindowLoaded(object sender, RoutedEventArgs e)
         {
             RecentProjectsListBox.ItemsSource = RecentProjectManager.Instance.RecentOpenedProject;
         }
 
-        private void LoadRecentProjects(string file_path)
-        {
-            // 加载最近项目列表
-            //ToDo: 接下来做这个，点击列表中的工程，如果工程存在则打开，不存在则变灰
-
-        }
         #endregion
 
+        private void RecentProjectsListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (RecentProjectsListBox.SelectedItem is RecentOpenedFileItems selected)
+            {
+                // 清除选中状态
+                RecentProjectsListBox.SelectedItem = null;
+
+                // 检查文件是否存在
+                if (!selected.IsFileExists)
+                {
+                    // 提示用户文件不存在，并询问是否从列表中移除
+                    var result = MessageBox.Show(
+                        $"工程文件不存在：{selected.Path}\n\n是否从最近列表中移除该项？",
+                        "文件不存在",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Question);
+
+                    if (result == MessageBoxResult.Yes)
+                    {
+                        // 从管理器中移除该项
+                        RecentProjectManager.Instance.RemoveRecentProject(selected.Path);
+                        // 刷新 ListBox 绑定
+                        this.RefreshRecentList();
+                    }
+                    else
+                    {
+                        this.RefreshRecentList();
+                    }
+                    return;
+                }
+
+                // 打开工程（调用已有的 OpenProject 方法）
+                this.OpenProject(selected.Path);
+            }
+        }
+        private void RefreshRecentList()
+        {
+            // 简单刷新：重新绑定
+            RecentProjectsListBox.ItemsSource = null;
+            RecentProjectsListBox.ItemsSource = RecentProjectManager.Instance.RecentOpenedProject;
+        }
         #region 打开工程
         // 打开工程按钮点击事件
         private void OpenProject_Click(object sender, RoutedEventArgs e)
@@ -91,22 +96,35 @@ namespace NavigatorHMI.Views
                     project.ProjectFilePath = filePath;
                     project.LastModifiedTime = DateTime.Now;
 
-                    // 4. 添加到最近打开列表（假设 App.RecentManager 是全局单例）
-                    RecentProjectManager.Instance.AddRecentProject(filePath);
-
-                    // 5. 打开编辑窗口（假设 EditWindow 可接收工程对象）
-                    var editWindow = new EditWindow();
-                    // var viewModel = new EditWindow(project);  // 需要提前定义 EditorViewModel
-                    // editWindow.DataContext = viewModel;
-                    editWindow.Show();
-
-                    // 6. 关闭当前欢迎窗口
-                    this.Close();
+                    this.OpenProject(project.ProjectFilePath);
                 }
                 catch (Exception ex)
                 {
                     MessageBox.Show($"打开工程失败：{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
+            }
+        }
+
+        private void OpenProject(string filePath)
+        {
+            try
+            {
+                // 先隐藏幻影页面，准备新工程信息
+                this.Hide();
+                // 添加到最近打开列表（假设 App.RecentManager 是全局单例）
+                RecentProjectManager.Instance.AddRecentProject(filePath);
+                // 打开编辑窗口（假设 EditWindow 可接收工程对象）
+                var editWindow = new EditWindow();
+                // var viewModel = new EditWindow(project);  // 需要提前定义 EditorViewModel
+                // editWindow.DataContext = viewModel;
+                editWindow.Show(); // ToDo: 暂时显示编译页面，需要添加读取工程信息逻辑
+                // 关闭当前欢迎窗口
+                this.Close();
+            }
+            catch (Exception ex)
+            {
+                this.Show();
+                MessageBox.Show($"打开编辑页面失败：{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -166,17 +184,27 @@ namespace NavigatorHMI.Views
             Console.WriteLine($"已选择HMI工程文件: {filePath}");
         }
 
-    }
-
-    /// <summary>
-    /// 页面相关事件参数
-    /// </summary>
-    public class ProjectEventArgs : EventArgs
-    {
-        public Guid ProjectId { get; }
-        public ProjectEventArgs( Guid projectId)
+        private void ClearInvalidProjects_Click(object sender, RoutedEventArgs e)
         {
-            ProjectId = projectId;
+            // 提示用户文件不存在，并询问是否从列表中移除
+            var result = MessageBox.Show(
+                "是否从最近列表中移除所有不存在的项？",
+                "提示",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                // 从管理器中移除该项
+                RecentProjectManager.Instance.RemoveAllInvalidProjects();
+                // 刷新 ListBox 绑定
+                this.RefreshRecentList();
+            }
+            else
+            {
+                // 不移除，刷新列表
+                this.RefreshRecentList();
+            }
         }
     }
 }

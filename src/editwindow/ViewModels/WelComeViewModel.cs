@@ -32,8 +32,12 @@ namespace NavigatorHMI.ViewModels
         public String Name {  get; set; }
         public String Path { get; set; }
         public DateTime LastOpenedTime { get; set; }
+
         [JsonIgnore]
         public ICommand OpenCommand { get; set; }
+
+        [JsonIgnore]
+        public bool IsFileExists => System.IO.File.Exists(Path);
 
     }
 
@@ -119,7 +123,7 @@ namespace NavigatorHMI.ViewModels
             }
         }
 
-        public void SaveToFile() 
+        public void SaveToFile()
         {
             string file_path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, recent_opened_file);
             var options = new JsonSerializerOptions
@@ -129,6 +133,24 @@ namespace NavigatorHMI.ViewModels
             };
             string json = JsonSerializer.Serialize(_recent_opened_files, options);
             File.WriteAllText(file_path, json);
+        }
+
+        public void RemoveRecentProject(string filePath)
+        {
+            var item = _recent_opened_files.FirstOrDefault(p => p.Path == filePath);
+            if (item != null)
+            {
+                _recent_opened_files.Remove(item);
+                SaveToFile();
+            }
+        }
+
+        public void RemoveAllInvalidProjects()
+        {
+            // 移除所有文件不存在的项
+            int removedCount = _recent_opened_files.RemoveAll(p => !File.Exists(p.Path));
+            if (removedCount > 0)
+                SaveToFile();
         }
     }
 }

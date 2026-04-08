@@ -22,8 +22,6 @@ namespace NavigatorHMI.Views
     /// </summary>
     public partial class NewProjectDialog : Window
     {
-        public event EventHandler<ProjectEventArgs> NewProjectRequested;
-
         public NewProjectDialog()
         {
             InitializeComponent();

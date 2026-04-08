@@ -38,20 +38,49 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
                 <Label Grid.Row="0" Content="打开最近编辑的文档" HorizontalAlignment="Left" Margin="20,0,0,0" VerticalAlignment="Center" FontSize="18" />
+                <Button HorizontalAlignment="Right" Width="20" Height="20" Margin="0,0,20,0" Click="ClearInvalidProjects_Click"/>
                 <ListBox x:Name="RecentProjectsListBox" 
-                         Grid.Row="2" Width="370" Margin="20,20,10,20" 
-                         BorderBrush="White" 
-                         HorizontalAlignment="Left">
+                    Grid.Row="2" Width="370" Margin="20,20,10,20" 
+                    BorderBrush="White" 
+                    HorizontalAlignment="Left"
+                    SelectionChanged="RecentProjectsListBox_SelectionChanged">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <StackPanel>
-                                <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
-                                <TextBlock Text="{Binding Path}" FontSize="10" Foreground="Gray"/>
+                                <!-- 名称：文件不存在时变灰+删除线 -->
+                                <TextBlock Text="{Binding Name}" FontWeight="Bold">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="Black"/>
+                                            <Setter Property="TextDecorations" Value="None"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsFileExists}" Value="False">
+                                                    <Setter Property="Foreground" Value="Gray"/>
+                                                    <Setter Property="TextDecorations" Value="Strikethrough"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+
+                                <!-- 路径：文件不存在时也变灰（可选） -->
+                                <TextBlock Text="{Binding Path}" FontSize="10" Foreground="Gray">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsFileExists}" Value="False">
+                                                    <Setter Property="Foreground" Value="LightGray"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+
+                                <!-- 时间：不变，保持原样 -->
                                 <TextBlock Text="{Binding LastOpenedTime}" FontSize="9" Foreground="DarkGray"/>
                             </StackPanel>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
-
                 </ListBox>
             </Grid>
         </Grid>
