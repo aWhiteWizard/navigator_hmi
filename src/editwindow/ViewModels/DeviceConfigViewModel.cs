@@ -1,11 +1,4 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
-using CommunityToolkit.Mvvm.Messaging;
-using NavigatorHMI.Common;
-using NavigatorHMI.Models;
-using NavigatorHMI.Views;
-using ProtoBuf;
-using System;
+﻿using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
@@ -13,6 +6,14 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
+using NavigatorHMI.Common;
+using NavigatorHMI.Models;
+using NavigatorHMI.Views;
+using ProtoBuf;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
 
 namespace NavigatorHMI.ViewModels
 {
@@ -56,6 +57,7 @@ namespace NavigatorHMI.ViewModels
                 OnPropertyChanged("ProjectName");
             }
         }
+
         public ICommand SaveCommand { get; }
         public ICommand NewProject { get; }
         public ICommand OpenProject { get; }
@@ -67,33 +69,14 @@ namespace NavigatorHMI.ViewModels
             SaveCommand = new RelayCommand(ExecuteSave, CanSave);
             NewProject = new RelayCommand(ExecuteCreateNewProject);
             OpenProject = new RelayCommand(ExecuteOpenProject);
-            // 创建设备模型
-            var navigatorHmi_v1 = new DeviceModel
-            {
-                Name = "NavigatorHMI_V1",
-                SupportedSizes = new ObservableCollection<string>
-                {
-                    "1024x600",
-                    "720x720",
-                }
-            };
 
-            var testReserved = new DeviceModel
-            {
-                Name = "测试",
-                SupportedSizes = new ObservableCollection<string>
-                {
-                    "0x0"
-                }
-            };
-
-            // 添加到集合
-            DeviceModels.Add(navigatorHmi_v1);
-            DeviceModels.Add(testReserved);
+            FilteredDeviceModels = new ObservableCollection<DeviceModel>();
 
             // 默认选择第一个设备
-            if (DeviceModels.Count > 0)
-                SelectedDeviceModel = DeviceModels[0];
+            if (DeviceVersions.Count > 0)
+                SelectedDeviceVersion = DeviceVersions[0];
+
+            FilterDeviceModels();
         }
         private void ExecuteSave()
         {
@@ -127,10 +110,12 @@ namespace NavigatorHMI.ViewModels
             {
                 Name = ProjectName,
                 CreateTime = DateTime.Now,
-                Version = "1.0",
+                Version = SelectedDeviceVersion.Version,
                 LastModifiedTime = DateTime.Now,
                 Screens = new List<Screen>(),
-                ProjectFilePath = fullPath
+                ProjectFilePath = fullPath,
+                DeviceHeight = int.Parse(SelectedDeviceModel.Height),
+                DeviceWidth = int.Parse(SelectedDeviceModel.Width)
             };
 
             SaveProject(newProject, fullPath);
@@ -138,6 +123,10 @@ namespace NavigatorHMI.ViewModels
             CurrentProject = newProject;
 
             MessageBox.Show("新项目已创建！");
+
+            EditWindow editWindow = new EditWindow(CurrentProject);
+
+            editWindow.Show();
 
             CloseWindow ?.Invoke();
             
@@ -149,6 +138,13 @@ namespace NavigatorHMI.ViewModels
             MessageBox.Show("打开项目功能尚未实现！");
         }
 
+        // 创建设备模型
+        public List<DeviceModel> DeviceModels { get; } = new List<DeviceModel>
+        {
+            new DeviceModel { Name = "NavigatorHMI_4'",Version = "V1", Width = "720", Height = "720" },
+            new DeviceModel { Name = "NavigatorHMI_7'", Version = "V1", Width = "1024", Height = "600" },
+            new DeviceModel { Name = "Test_HMI", Version = "Test_Version", Width = "999", Height = "999" },
+        };
 
         // 选中的设备（现在是DeviceModel对象）
         private DeviceModel _selectedDeviceModel;
@@ -159,45 +155,50 @@ namespace NavigatorHMI.ViewModels
             {
                 _selectedDeviceModel = value;
                 OnPropertyChanged("SelectedDeviceModel");
-                UpdateSizes();
             }
         }
 
-        // 选中的尺寸（仍然是字符串）
-        private string _selectedSize;
-        public string SelectedSize
+        // 可用版本集合
+        public List<DeviceVersion> DeviceVersions { get; } = new List<DeviceVersion>
         {
-            get => _selectedSize;
+            new DeviceVersion { Version = "V1" },
+            new DeviceVersion { Version = "Test_Version" },
+        };
+        // 选中的版本（现在是DeviceModel对象）
+        private DeviceVersion _selectedDeviceVersion;
+        public DeviceVersion SelectedDeviceVersion
+        {
+            get => _selectedDeviceVersion;
             set
             {
-                _selectedSize = value;
-                OnPropertyChanged("SelectedSize");
+                _selectedDeviceVersion = value;
+                OnPropertyChanged("SelectedDeviceVersion");
+                FilterDeviceModels();  // 版本变化时筛选
             }
         }
-
-        // 设备模型集合（DeviceModel对象）
-        public ObservableCollection<DeviceModel> DeviceModels { get; } = new ObservableCollection<DeviceModel>();
-
-        // 可用尺寸集合
-        public ObservableCollection<string> AvailableSizes { get; } = new ObservableCollection<string>();
-        private void UpdateSizes()
+        private ObservableCollection<DeviceModel> _filteredDeviceModels;
+        public ObservableCollection<DeviceModel> FilteredDeviceModels
         {
-            AvailableSizes.Clear();
-
-            if (SelectedDeviceModel != null && SelectedDeviceModel.SupportedSizes != null)
-            {
-                // 从选中的设备模型中获取支持的尺寸
-                foreach (var size in SelectedDeviceModel.SupportedSizes)
-                {
-                    AvailableSizes.Add(size);
+            get => _filteredDeviceModels;
+            set { 
+                    _filteredDeviceModels = value;
+                    OnPropertyChanged("FilteredDeviceModels"); 
                 }
+        }
+        private void FilterDeviceModels()
+        {
+            if (SelectedDeviceVersion == null)
+            {
+                FilteredDeviceModels.Clear();
+                return;
             }
 
-            // 自动选择第一个尺寸
-            if (AvailableSizes.Count > 0)
-                SelectedSize = AvailableSizes[0];
-            else
-                SelectedSize = null;
+            var filtered = DeviceModels.Where(m => m.Version == SelectedDeviceVersion.Version).ToList();
+            FilteredDeviceModels.Clear();
+            foreach (var model in filtered)
+                FilteredDeviceModels.Add(model);
+            if (FilteredDeviceModels.Count != 0)
+                SelectedDeviceModel = FilteredDeviceModels[0];
         }
 
         private void SaveProject(HMIProject project, string filePath)

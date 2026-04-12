@@ -19,10 +19,11 @@ namespace NavigatorHMI.Views
     /// </summary>
     public partial class EditWindow : Window
     {
-
-        public EditWindow()
+        private HMIProject currentProject;
+        public EditWindow(HMIProject project)
         {
             InitializeComponent();
+            currentProject = project;
             Loaded += EditWindow_Loaded;
             Closing += EditWindow_Closing;
         }

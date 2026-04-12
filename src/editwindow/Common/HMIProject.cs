@@ -97,5 +97,41 @@ namespace NavigatorHMI.Common
                 }
             }
         }
+
+        [ProtoMember(7)]
+        private int _deviceWidth;
+
+        public int DeviceWidth
+        {
+            get => _deviceWidth;
+            set
+            {
+                if (_deviceWidth != value)
+                {
+                    {
+                        _deviceWidth = value;
+                        OnPropertyChanged(nameof(DeviceWidth));
+                    }
+                }
+            }
+        }
+
+        [ProtoMember(8)]
+        private int _deviceHeight;
+        public int DeviceHeight
+        {
+            get => _deviceHeight;
+            set
+            {
+                if (_deviceHeight != value)
+                {
+                    {
+                        _deviceHeight = value;
+                        OnPropertyChanged(nameof(DeviceHeight));
+                    }
+                }
+            }
+        }
+
     }
 }

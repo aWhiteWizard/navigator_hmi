@@ -56,9 +56,13 @@ namespace NavigatorHMI.Views
                     }
                     return;
                 }
-
+                HMIProject project;
+                using (var fs = new FileStream(selected.Path, FileMode.Open))
+                {
+                    project = Serializer.Deserialize<HMIProject>(fs);
+                }
                 // 打开工程（调用已有的 OpenProject 方法）
-                this.OpenProject(selected.Path);
+                this.OpenProject(project);
             }
         }
         private void RefreshRecentList()
@@ -96,7 +100,7 @@ namespace NavigatorHMI.Views
                     project.ProjectFilePath = filePath;
                     project.LastModifiedTime = DateTime.Now;
 
-                    this.OpenProject(project.ProjectFilePath);
+                    this.OpenProject(project);
                 }
                 catch (Exception ex)
                 {
@@ -105,18 +109,18 @@ namespace NavigatorHMI.Views
             }
         }
 
-        private void OpenProject(string filePath)
+        private void OpenProject(HMIProject project)
         {
             try
             {
                 // 先隐藏幻影页面，准备新工程信息
                 this.Hide();
+                MessageBox.Show("打开工程尺寸：" + project.DeviceWidth + "x" + project.DeviceHeight);
+                MessageBox.Show("打开工程路径：" + project.ProjectFilePath);
                 // 添加到最近打开列表（假设 App.RecentManager 是全局单例）
-                RecentProjectManager.Instance.AddRecentProject(filePath);
+                RecentProjectManager.Instance.AddRecentProject(project.ProjectFilePath);
                 // 打开编辑窗口（假设 EditWindow 可接收工程对象）
-                var editWindow = new EditWindow();
-                // var viewModel = new EditWindow(project);  // 需要提前定义 EditorViewModel
-                // editWindow.DataContext = viewModel;
+                var editWindow = new EditWindow(project);
                 editWindow.Show(); // ToDo: 暂时显示编译页面，需要添加读取工程信息逻辑
                 // 关闭当前欢迎窗口
                 this.Close();
@@ -145,8 +149,6 @@ namespace NavigatorHMI.Views
             {
                 // 用户确认创建了工程 → 彻底关闭欢迎窗口（或打开编辑窗口后关闭）
                 // 例如：打开主编辑窗口
-                var editor = new EditWindow();
-                editor.Show();
                 this.Close(); // 关闭欢迎窗口
             }
             else

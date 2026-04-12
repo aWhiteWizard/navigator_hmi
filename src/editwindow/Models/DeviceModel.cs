@@ -27,15 +27,58 @@ namespace NavigatorHMI.Models
                 OnPropertyChanged("Name");
             }
         }
-
-        private ObservableCollection<string> _supportedSizes;
-        public ObservableCollection<string> SupportedSizes
+        private string _width;
+        public string Width
         {
-            get => _supportedSizes;
+            get => _width;
             set
             {
-                _supportedSizes = value;
-                OnPropertyChanged("SupportedSizes");
+                _width = value;
+                OnPropertyChanged("Width");
+            }
+        }
+
+        private string _height;
+        public string Height
+        {
+            get => _height;
+            set
+            {
+                _height = value;
+                OnPropertyChanged("Height");
+            }
+        }
+
+        private string _version;
+        public string Version
+        {
+            get => _version;
+            set
+            {
+                _version = value;
+                OnPropertyChanged("Version");
+            }
+        }
+    }
+
+    public class DeviceVersion : INotifyPropertyChanged
+    {
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        private void OnPropertyChanged(string propertyName)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+
+        private string _version;
+        public string Version
+        {
+            get => _version;
+            set
+            {
+                _version = value;
+                OnPropertyChanged("Version");
             }
         }
     }

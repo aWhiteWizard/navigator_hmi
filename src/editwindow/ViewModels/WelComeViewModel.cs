@@ -22,9 +22,6 @@ namespace NavigatorHMI.ViewModels
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
-
-        private Array _recent_project;
-        
     }
 
     public class RecentOpenedFileItems

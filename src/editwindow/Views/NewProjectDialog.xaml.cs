@@ -82,7 +82,7 @@ namespace NavigatorHMI.Views
 
         private void CreateProjectBtn_Click(object sender, RoutedEventArgs e)
         {
-            RecentProjectManager.Instance.AddRecentProject(ProjectPathTextBox.Text + "\\"+  ProjectNameTextBox.Text + ".hmiproj");
+            RecentProjectManager.Instance.AddRecentProject(ProjectPathTextBox.Text + "\\" + ProjectNameTextBox.Text + ".hmiproj");
             DialogResult = true;  // 关键：设置为 true
             this.Close();
         }

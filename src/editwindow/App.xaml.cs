@@ -1,14 +1,15 @@
-﻿using CommunityToolkit.Mvvm.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection;
-using NavigatorHMI.ViewModels;
-using NavigatorHMI.Views;
+﻿using System;
 using System.Configuration;
 using System.Data;
+using System.IO;
 using System.Runtime.ConstrainedExecution;
 using System.Windows;
-using System.IO;
-using System;
+using CommunityToolkit.Mvvm.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using NavigatorHMI.Common;
+using NavigatorHMI.ViewModels;
+using NavigatorHMI.Views;
+using ProtoBuf;
 
 
 namespace NavigatorHMI
@@ -100,7 +101,13 @@ namespace NavigatorHMI
         private void OpenEditWindowDirectly(string filePath)
         {
             // 创建编辑窗口并设置数据ProjectData projectData, 
-            var editWindow = new EditWindow();
+            HMIProject project;
+            using (var fs = new FileStream(filePath, FileMode.Open))
+            {
+                project = Serializer.Deserialize<HMIProject>(fs);
+            }
+
+            var editWindow = new EditWindow(project);
             // editWindow.ProjectData = projectData;
             // editWindow.ProjectFilePath = filePath;
 

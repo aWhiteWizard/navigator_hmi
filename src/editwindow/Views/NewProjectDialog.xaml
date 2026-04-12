@@ -54,25 +54,26 @@
         </Grid>
         <Grid Grid.Row="3">
             <DockPanel LastChildFill="True" VerticalAlignment="Center" Height="20" Margin="0,0,0,0">
-                <TextBlock Text="机型选择:" FontSize="12" VerticalAlignment="Center"  HorizontalAlignment="Left" Margin="20,0,0,0"/>
-                <ComboBox Name="ModelComboBox" 
-                          ItemsSource="{Binding DeviceModels}"
-                          SelectedItem="{Binding SelectedDeviceModel, Mode=TwoWay}"
+                <TextBlock Text="版本选择:" FontSize="12" VerticalAlignment="Center"  HorizontalAlignment="Left" Margin="20,0,0,0"/>
+                <ComboBox Name="SizeComboBox" 
+                          ItemsSource="{Binding DeviceVersions}"
+                          SelectedItem="{Binding SelectedDeviceVersion, Mode=TwoWay}"
                           Height="20" 
-                          Margin="40,0,40,0" 
-                          DisplayMemberPath="Name"
+                          Margin="40,0,40,0"
+                          DisplayMemberPath="Version"
                           VerticalAlignment="Center">
                 </ComboBox>
             </DockPanel>
         </Grid>
         <Grid Grid.Row="4">
             <DockPanel LastChildFill="True" VerticalAlignment="Center" Height="20" Margin="0,0,0,0">
-                <TextBlock Text="尺寸选择:" FontSize="12" VerticalAlignment="Center"  HorizontalAlignment="Left" Margin="20,0,0,0"/>
-                <ComboBox Name="SizeComboBox" 
-                          ItemsSource="{Binding AvailableSizes}"
-                          SelectedItem="{Binding SelectedSize, Mode=TwoWay}"
+                <TextBlock Text="机型选择:" FontSize="12" VerticalAlignment="Center"  HorizontalAlignment="Left" Margin="20,0,0,0"/>
+                <ComboBox Name="ModelComboBox" 
+                          ItemsSource="{Binding FilteredDeviceModels}"
+                          SelectedItem="{Binding SelectedDeviceModel, Mode=TwoWay}"
                           Height="20" 
-                          Margin="40,0,40,0"
+                          Margin="40,0,40,0" 
+                          DisplayMemberPath="Name"
                           VerticalAlignment="Center">
                 </ComboBox>
             </DockPanel>
