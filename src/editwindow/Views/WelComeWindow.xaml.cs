@@ -157,33 +157,6 @@ namespace NavigatorHMI.Views
         }
         #endregion
 
-        // ============ 辅助方法 ============
-
-        /// <summary>
-        /// 验证HMI工程文件
-        /// </summary>
-        private bool ValidateHmiProjectFile(string filePath)
-        {
-            try
-            {
-                string extension = Path.GetExtension(filePath).ToLower();
-                return extension == ".hmiproj" && File.Exists(filePath);
-            }
-            catch
-            {
-                return false;
-            }
-        }
-        /// <summary>
-        /// 文件选择后的处理
-        /// </summary>
-        private void OnProjectPathSelected(string filePath)
-        {
-            // 这里可以添加文件选择后的处理逻辑
-            // 例如：更新UI、加载工程信息等
-            Console.WriteLine($"已选择HMI工程文件: {filePath}");
-        }
-
         private void ClearInvalidProjects_Click(object sender, RoutedEventArgs e)
         {
             // 提示用户文件不存在，并询问是否从列表中移除

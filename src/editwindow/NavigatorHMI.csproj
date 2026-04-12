@@ -22,9 +22,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.1" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.5" />
     <PackageReference Include="protobuf-net" Version="3.2.56" />
+    <PackageReference Include="WindowsAPICodePack" Version="8.0.15.1" />
   </ItemGroup>
 
   <ItemGroup>
