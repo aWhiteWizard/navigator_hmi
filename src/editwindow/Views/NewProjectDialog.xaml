@@ -1,0 +1,86 @@
+﻿<Window x:Class="NavigatorHMI.Views.NewProjectDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:NavigatorHMI"
+        xmlns:vm="clr-namespace:NavigatorHMI.ViewModels"
+        mc:Ignorable="d"
+        Title="NewProjectDialog" Height="450" Width="800">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="80"/>
+            <RowDefinition Height="40"/>
+            <RowDefinition Height="40"/>
+            <RowDefinition Height="40"/>
+            <RowDefinition Height="40"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="40"/>
+        </Grid.RowDefinitions>
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="120"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="新建工程" FontSize="12" FontWeight="Black" VerticalAlignment="Top"  HorizontalAlignment="Left" Margin="20,10,0,0"/>
+            <TextBlock Text="输入工程名并设置存储位置" FontSize="12" VerticalAlignment="Top"  HorizontalAlignment="Left" Margin="70,40,0,0"/>
+            <Image Grid.Column="1" Source="F:\code\navigator_hmi\src\picture\未来科技工坊_白底蓝花.png" Width="100" Height="60" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="0,10,10,0"/>
+            <Border Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="0,0,0,1" VerticalAlignment="Bottom"/>
+        </Grid>
+        <Grid Grid.Row="1">
+            <DockPanel LastChildFill="True" VerticalAlignment="Center" Height="20" Margin="0,0,0,0">
+                <TextBlock Text="工程名:" FontSize="12" VerticalAlignment="Center"  HorizontalAlignment="Left" Margin="20,0,0,0"/>
+                <TextBox Name="ProjectNameTextBox" 
+                         AcceptsReturn="False" 
+                         Height="20" 
+                         TextWrapping="NoWrap" 
+                         Margin="52,0,40,0" 
+                         VerticalScrollBarVisibility="Hidden"
+                         Text="{Binding ProjectName, UpdateSourceTrigger=PropertyChanged}"/>
+            </DockPanel>
+        </Grid>
+        <Grid Grid.Row="2">
+            <DockPanel LastChildFill="True" VerticalAlignment="Center" Height="20" Margin="0,0,0,0">
+                <TextBlock Text="工程路径:" FontSize="12" VerticalAlignment="Center"  HorizontalAlignment="Left" Margin="20,0,0,0"/>
+                <Button Name="ProjectPathSelectBtn" Content="..." Width="20" DockPanel.Dock="Right" Margin="10,0,40,0"  Click="OpenPathSelectDialog_Click"/>
+                <TextBox Name="ProjectPathTextBox" 
+                         AcceptsReturn="False" 
+                         Height="20" 
+                         TextWrapping="NoWrap" 
+                         Margin="40,0,0,0" 
+                         VerticalScrollBarVisibility="Hidden"
+                         Text="{Binding ProjectPath, UpdateSourceTrigger=PropertyChanged}"/>
+            </DockPanel>
+        </Grid>
+        <Grid Grid.Row="3">
+            <DockPanel LastChildFill="True" VerticalAlignment="Center" Height="20" Margin="0,0,0,0">
+                <TextBlock Text="版本选择:" FontSize="12" VerticalAlignment="Center"  HorizontalAlignment="Left" Margin="20,0,0,0"/>
+                <ComboBox Name="SizeComboBox" 
+                          ItemsSource="{Binding DeviceVersions}"
+                          SelectedItem="{Binding SelectedDeviceVersion, Mode=TwoWay}"
+                          Height="20" 
+                          Margin="40,0,40,0"
+                          DisplayMemberPath="Version"
+                          VerticalAlignment="Center">
+                </ComboBox>
+            </DockPanel>
+        </Grid>
+        <Grid Grid.Row="4">
+            <DockPanel LastChildFill="True" VerticalAlignment="Center" Height="20" Margin="0,0,0,0">
+                <TextBlock Text="机型选择:" FontSize="12" VerticalAlignment="Center"  HorizontalAlignment="Left" Margin="20,0,0,0"/>
+                <ComboBox Name="ModelComboBox" 
+                          ItemsSource="{Binding FilteredDeviceModels}"
+                          SelectedItem="{Binding SelectedDeviceModel, Mode=TwoWay}"
+                          Height="20" 
+                          Margin="40,0,40,0" 
+                          DisplayMemberPath="Name"
+                          VerticalAlignment="Center">
+                </ComboBox>
+            </DockPanel>
+        </Grid>
+        <Grid Grid.Row="6">
+            <Button Name="CreateProjectBtn" Content="创建工程" Width="80" Height="30" HorizontalAlignment="Right" Margin="0,0,140,0" Command="{Binding NewProject}" Click="CreateProjectBtn_Click"/>
+            <Button Name="CreateProjectCancelBtn" Content="取消" Width="80" Height="30" HorizontalAlignment="Right" Margin="0,0,40,0" Click="CreateProjectCancelBtn_Click"/>
+        </Grid>
+    </Grid>
+</Window>
