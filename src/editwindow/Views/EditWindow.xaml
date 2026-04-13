@@ -4,8 +4,25 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:NavigatorHMI"
+        xmlns:vm="clr-namespace:NavigatorHMI.ViewModels"
         mc:Ignorable="d"
         Title="NavigatorHMI" Height="450" Width="800">
+    <Window.Resources>
+        <!-- 5x5 点阵画刷 -->
+        <DrawingBrush x:Key="DotGridBrush" 
+                      TileMode="Tile" 
+                      Viewport="0,0,5,5" 
+                      ViewportUnits="Absolute">
+            <DrawingBrush.Drawing>
+                <DrawingGroup>
+                    <!-- 白色背景（可选，如果画布本身是白色可以省略） -->
+                    <GeometryDrawing Geometry="M0,0 L5,0 L5,5 L0,5 Z" Brush="Gainsboro"/>
+                    <!-- 浅灰色点 -->
+                    <GeometryDrawing Geometry="M2.5,2.5 A0.5,0.5 0 1,1 2.5,2.4" Brush="Black"/>
+                </DrawingGroup>
+            </DrawingBrush.Drawing>
+        </DrawingBrush>
+    </Window.Resources>
     <Grid ShowGridLines="True">
         <Grid.RowDefinitions>
             <RowDefinition Height="20"/>
@@ -22,6 +39,7 @@
                     <MenuItem Header="另存为"/>
                     <MenuItem Header="关闭工程"/>
                 </MenuItem>
+                <MenuItem Header="保存" Click="SaveCurrentProject_Click"/>
                 <MenuItem Header="编辑">
                     <MenuItem Header="撤销"/>
                 </MenuItem>
@@ -41,60 +59,62 @@
             
             <!--  第一列：项目属性  -->
             <Grid Grid.Column="0">
-                <TreeView Grid.Row="0" Grid.Column="0">
-                    <!-- 右键菜单资源 -->
+                <!-- 左侧工程树 -->
+                <TreeView Grid.Column="0" 
+                  ItemsSource="{Binding TreeRoots}"
+                  BorderBrush="LightGray">
                     <TreeView.Resources>
-                        <ContextMenu x:Key="SceneContextMenu" x:Shared="False">
-                            <MenuItem Header="剪切" Click="CutScene_Click">
-                            </MenuItem>
-                            <MenuItem Header="复制" Click="CopyScene_Click">
-                            </MenuItem>
-                            <MenuItem Header="粘贴" Click="PasteScene_Click" Name="PasteMenuItem">
-                            </MenuItem>
-                            <!--
-                            <Separator/>
-                            <MenuItem Header="重命名" Click="RenameScene_Click">
-                            </MenuItem>
-                            <MenuItem Header="删除" Click="DeleteScene_Click">
-                            </MenuItem>-->
-                        </ContextMenu>
+                        <!-- 普通画面节点 -->
+                        <HierarchicalDataTemplate DataType="{x:Type vm:ScreenItemNode}" 
+                                          ItemsSource="{Binding Children}">
+                            <TextBlock Text="{Binding Name}" />
+                        </HierarchicalDataTemplate>
+
+                        <!-- 自定义画面列表根节点 -->
+                        <HierarchicalDataTemplate DataType="{x:Type vm:CustomScreensRootNode}" 
+                                          ItemsSource="{Binding Children}">
+                            <TextBlock Text="{Binding Name}" FontWeight="Bold" />
+                        </HierarchicalDataTemplate>
+
+                        <!-- 添加画面按钮节点 -->
+                        <DataTemplate DataType="{x:Type vm:AddScreenNode}">
+                            <TextBlock Text="{Binding Name}" Foreground="Green" Cursor="Hand" />
+                        </DataTemplate>
                     </TreeView.Resources>
 
-                    <TreeViewItem Header="画面列表" IsSelected="True">
-                        <TreeViewItem x:Name="addScreenItem" Header="添加画面">
-                            <TreeViewItem.Tag>AddNewScreen</TreeViewItem.Tag>
-                        </TreeViewItem>
-                        <TreeViewItem Header="全局显示"/>
-                        <TreeViewItem Header="地图画面" IsSelected ="True"/>
-                        <TreeViewItem Header="自定义画面" ItemsSource="{Binding Project}">
-                            <TreeViewItem Header="画面1" ContextMenu="{StaticResource SceneContextMenu}" MouseDoubleClick="ScreenTreeView_MouseDoubleClick">
-                                <TreeViewItem.Tag>Scene1</TreeViewItem.Tag>
-                            </TreeViewItem>
-                        </TreeViewItem>
-                    </TreeViewItem>
-                    <TreeViewItem Header="变量列表">
-                        <TreeViewItem Header="变量"/>
-                        <TreeViewItem Header="加载图像"/>
-                        <TreeViewItem Header="加载文本"/>
-                    </TreeViewItem>
-                    <TreeViewItem Header="连接列表">
-                        <TreeViewItem Header="串口设置"/>
-                        <TreeViewItem Header="网络设置"/>
-                    </TreeViewItem>
+                    <!-- 为每个树节点附加双击事件 -->
+                    <TreeView.ItemContainerStyle>
+                        <Style TargetType="TreeViewItem">
+                            <EventSetter Event="MouseDoubleClick" Handler="TreeViewItem_DoubleClick"/>
+                        </Style>
+                    </TreeView.ItemContainerStyle>
                 </TreeView>
             </Grid>
 
             <!-- 第二列：画布区域 -->
             <Grid Grid.Column="1">
-                <Border BorderBrush="Black" BorderThickness="2" Margin="3" x:Name="canvasContainer">
-                    <!-- 初始画布 -->
-                    <Canvas x:Name="GlobalScene" Background="White" 
-                           Visibility="Visible">
-                        <TextBlock Text="地图画面" Foreground="LightGray" FontSize="36" 
-                                  Canvas.Left="50" Canvas.Top="50"/>
-                    </Canvas>
+                <Border BorderBrush="Black" Background="Gray" BorderThickness="2" Margin="3" x:Name="canvasContainer">
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                        <Canvas x:Name="DrawingCanvas"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Top"
+                                Background="{StaticResource DotGridBrush}"
+                                Width="{Binding DeviceWidth}" 
+                                Height="{Binding DeviceHeight}">
+                            <!-- 动态控件会添加到这里 -->
+                        </Canvas>
+                    </ScrollViewer>
                 </Border>
-            </Grid><!-- 第二列结尾：画布区域 -->
+
+                <!-- 调试信息：当前画面名称 -->
+                <TextBlock Text="{Binding CurrentScreen.Name, FallbackValue=未选择画面}"
+                               FontSize="14" FontWeight="Bold" 
+                               Foreground="Red" Background="#80FFFFFF"
+                               Padding="5" Margin="5"
+                               Canvas.Left="5" Canvas.Top="5"
+                               Panel.ZIndex="1000"/>
+            </Grid>
+            <!-- 第二列结尾：画布区域 -->
             
             <!-- 第三列：控件面板 -->
             <Grid Grid.Column="2">

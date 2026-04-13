@@ -18,7 +18,7 @@
                 <ColumnDefinition Width="450"/>
                 <ColumnDefinition Width="*"/> 
             </Grid.ColumnDefinitions>
-            <Image Grid.Column="1" Source="F:\code\navigator_hmi\src\picture\未来科技工坊_白底蓝花.png"></Image>
+            <Image Grid.Column="1" Source="/Images/未来科技工坊_白底蓝花.png"></Image>
             <Label Grid.Column="0" Content="NavigatorHMI" HorizontalAlignment="Left" Margin="20,0,0,20" VerticalAlignment="Center" FontSize="24" FontWeight="Black"/>
         </Grid>
         <Grid Grid.Row="1" ShowGridLines="False" Height="340">
@@ -38,7 +38,18 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
                 <Label Grid.Row="0" Content="打开最近编辑的文档" HorizontalAlignment="Left" Margin="20,0,0,0" VerticalAlignment="Center" FontSize="18" />
-                <Button HorizontalAlignment="Right" Width="20" Height="20" Margin="0,0,20,0" Click="ClearInvalidProjects_Click"/>
+                <Button HorizontalAlignment="Right" Width="20" Height="20" Margin="0,0,20,0" Click="ClearInvalidProjects_Click">
+                    <Viewbox Stretch="Uniform" Margin="2">
+                        <Path Fill="DarkSeaGreen" 
+                              Data="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"
+                              Stretch="Uniform" Width="16" Height="16">
+                            <Path.RenderTransform>
+                                <!-- 逆时针旋转90度，中心点为图标中心 (8,8) -->
+                                <RotateTransform Angle="-90" CenterX="8" CenterY="8"/>
+                            </Path.RenderTransform>
+                        </Path>
+                    </Viewbox>
+                </Button>
                 <ListBox x:Name="RecentProjectsListBox" 
                     Grid.Row="2" Width="370" Margin="20,20,10,20" 
                     BorderBrush="White" 

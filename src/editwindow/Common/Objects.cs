@@ -5,6 +5,13 @@ using System.Runtime.CompilerServices;
 
 namespace NavigatorHMI.Common
 {
+    public enum ScreenType
+    {
+        Template,
+        WorldMap,
+        Custom
+    };
+
     [ProtoContract]
     public class Screen : INotifyPropertyChanged
     {
@@ -32,9 +39,12 @@ namespace NavigatorHMI.Common
             set { _height = value; OnPropertyChanged(); }
         }
 
-        // 画面上的控件列表
         [ProtoMember(4)]
+        public ScreenType Type { get; set; }
+        // 画面上的控件列表
+        [ProtoMember(5)]
         public List<Widget> Widgets { get; set; } = new List<Widget>();
+
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)

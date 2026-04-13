@@ -10,6 +10,8 @@
 
   <ItemGroup>
     <None Remove="Common\HelpDialog.xaml.cs~RF1811924.TMP" />
+    <None Remove="Images\未来科技工坊_白底蓝花.png" />
+    <None Remove="Images\未来科技工坊_蓝底白花.png" />
   </ItemGroup>
 
   <ItemGroup>
@@ -30,5 +32,14 @@
 
   <ItemGroup>
     <Folder Include="Views\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Images\未来科技工坊_白底蓝花.png">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
+    <Resource Include="Images\未来科技工坊_蓝底白花.png">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </Resource>
   </ItemGroup>
 </Project>

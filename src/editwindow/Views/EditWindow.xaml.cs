@@ -1,6 +1,7 @@
-﻿using NavigatorHMI.Common;
-using System;
+﻿using System;
+using System.IO;
 using System.Linq.Expressions;
+using System.Security.RightsManagement;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -11,6 +12,9 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using NavigatorHMI.Common;
+using NavigatorHMI.ViewModels;
+using ProtoBuf;
 
 namespace NavigatorHMI.Views
 {
@@ -19,15 +23,24 @@ namespace NavigatorHMI.Views
     /// </summary>
     public partial class EditWindow : Window
     {
-        private HMIProject currentProject;
+        public HMIProject currentProject;
         public EditWindow(HMIProject project)
         {
             InitializeComponent();
             currentProject = project;
+            EditWindowViewModel editWindowViewModel = new EditWindowViewModel(currentProject);
+            this.DataContext = editWindowViewModel;
+            // 监听当前画面的变化
+            editWindowViewModel.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(editWindowViewModel.CurrentScreen))
+                {
+                    LoadCanvas(editWindowViewModel.CurrentScreen);
+                }
+            };
             Loaded += EditWindow_Loaded;
             Closing += EditWindow_Closing;
         }
-
         private void EditWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
         {
             // 检查是否有未保存的更改
@@ -40,7 +53,7 @@ namespace NavigatorHMI.Views
 
                 if (result == MessageBoxResult.Yes)
                 {
-                    SaveProject();
+                    SaveProject(currentProject, currentProject.ProjectFilePath);
                 }
                 else if (result == MessageBoxResult.Cancel)
                 {
@@ -48,7 +61,35 @@ namespace NavigatorHMI.Views
                 }
             }
         }
-
+        private void TreeViewItem_DoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            var item = sender as TreeViewItem;
+            var node = item?.DataContext as ProjectTreeViewModel;
+            node?.DoubleClickCommand?.Execute(null);
+        }
+        //加载画面
+        private void LoadCanvas(Screen screen)
+        {
+            DrawingCanvas.Children.Clear();
+            if (screen == null) return;
+            // 根据 screen.Widgets 动态创建控件并添加到 DrawingCanvas
+            foreach (var widget in screen.Widgets)
+            {
+                // 示例：添加按钮控件
+                if (widget is ButtonWidget btnWidget)
+                {
+                    var btn = new Button
+                    {
+                        Content = btnWidget.Text,
+                        Width = btnWidget.Width,
+                        Height = btnWidget.Height
+                    };
+                    Canvas.SetLeft(btn, btnWidget.X);
+                    Canvas.SetTop(btn, btnWidget.Y);
+                    DrawingCanvas.Children.Add(btn);
+                }
+            }
+        }
         private void EditWindow_Loaded(object sender, RoutedEventArgs e)
         {
             // 初始化控件引用
@@ -80,6 +121,11 @@ namespace NavigatorHMI.Views
                 //     InitializeNewProject();
                 // }
             //  }
+        }
+
+        private void SaveCurrentProject_Click(object sender, RoutedEventArgs e)
+        {
+            SaveProject(currentProject, currentProject.ProjectFilePath);
         }
 
         private void InitializeControls()
@@ -118,21 +164,23 @@ namespace NavigatorHMI.Views
         }
 
         // 保存工程方法
-        private void SaveProject()
+        private void SaveProject(HMIProject project, string filePath)
         {
-            // 从UI更新ProjectData
-            // UpdateProjectDataFromUI();
+            // 确保目录存在
+            string directory = System.IO.Path.GetDirectoryName(filePath);
+            if (!Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
 
-            // if (IsFromFile && !string.IsNullOrEmpty(ProjectFilePath))
-            // {
-                // 保存到现有文件
-           //      SaveToFile(ProjectFilePath);
-           //  }
-           // else
-           // {
-                // 另存为
-           //     SaveProjectAs();
-           //  }
+            using (var fs = File.Create(filePath))
+            {
+                Serializer.Serialize(fs, project);
+            }
+
+            // 保存成功后，更新工程对象中的路径和修改时间
+            project.ProjectFilePath = filePath;
+            project.LastModifiedTime = DateTime.Now;
         }
 
         private void SaveToFile(string filePath)
