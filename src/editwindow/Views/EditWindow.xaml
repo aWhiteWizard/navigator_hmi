@@ -100,19 +100,20 @@
                                 VerticalAlignment="Top"
                                 Background="{StaticResource DotGridBrush}"
                                 Width="{Binding DeviceWidth}" 
-                                Height="{Binding DeviceHeight}">
+                                Height="{Binding DeviceHeight}"
+                                MouseLeftButtonDown="Canvas_MouseLeftButtonDown">
                             <!-- 动态控件会添加到这里 -->
-                        </Canvas>
-                    </ScrollViewer>
-                </Border>
-
-                <!-- 调试信息：当前画面名称 -->
-                <TextBlock Text="{Binding CurrentScreen.Name, FallbackValue=未选择画面}"
+                            
+                            <!-- 调试信息：当前画面名称 -->
+                            <TextBlock Text="{Binding CurrentScreen.Name, FallbackValue=未选择画面}"
                                FontSize="14" FontWeight="Bold" 
                                Foreground="Red" Background="#80FFFFFF"
                                Padding="5" Margin="5"
                                Canvas.Left="5" Canvas.Top="5"
                                Panel.ZIndex="1000"/>
+                        </Canvas>
+                    </ScrollViewer>
+                </Border>
             </Grid>
             <!-- 第二列结尾：画布区域 -->
             
@@ -124,8 +125,10 @@
                             <Button Content="Point"/>
                             <Button Content="Line" />
                             <Button Content="Label"/>
-                            <Button Content="Button"/>
-                            <Button Content="Rectange"/>
+                            <Button x:Name="AddButtonModeBtn" 
+                                    Content="Button"
+                                    Click="ToggleAddButtonMode"/>
+                             <Button Content="Rectange"/>
                             <Button Content="Circle"/>
                             <Button Content="IOField"/>
                             <Button Content="Frame"/>

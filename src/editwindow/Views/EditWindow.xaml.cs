@@ -31,16 +31,13 @@ namespace NavigatorHMI.Views
             EditWindowViewModel editWindowViewModel = new EditWindowViewModel(currentProject);
             this.DataContext = editWindowViewModel;
             // 监听当前画面的变化
-            editWindowViewModel.PropertyChanged += (s, e) =>
-            {
-                if (e.PropertyName == nameof(editWindowViewModel.CurrentScreen))
-                {
-                    LoadCanvas(editWindowViewModel.CurrentScreen);
-                }
-            };
-            Loaded += EditWindow_Loaded;
-            Closing += EditWindow_Closing;
+            // 订阅画面切换时的刷新
+            editWindowViewModel.CanvasReloadRequested += LoadCanvas;
+            // 订阅同一画面内的刷新（例如添加控件）
+            editWindowViewModel.RefreshCanvasRequested += () => LoadCanvas(editWindowViewModel.CurrentScreen);
+            LoadCanvas(editWindowViewModel.CurrentScreen);
         }
+        private bool _isAddButtonMode = false;   // 是否处于添加按钮模式
         private void EditWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
         {
             // 检查是否有未保存的更改
@@ -183,48 +180,49 @@ namespace NavigatorHMI.Views
             project.LastModifiedTime = DateTime.Now;
         }
 
-        private void SaveToFile(string filePath)
+        private void ToggleAddButtonMode(object sender, RoutedEventArgs e)
         {
-            /*
-            try
+            _isAddButtonMode = !_isAddButtonMode;
+            if (_isAddButtonMode)
             {
-                ProjectData.LastModified = DateTime.Now;
-
-                // 序列化为JSON
-                string json = Newtonsoft.Json.JsonConvert.SerializeObject(
-                    ProjectData, Newtonsoft.Json.Formatting.Indented);
-
-                File.WriteAllText(filePath, json);
-
-                MessageBox.Show("工程保存成功！", "提示",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
+                DrawingCanvas.Cursor = Cursors.Cross;
+                AddButtonModeBtn.Content = "Adding Button";
             }
-            catch (Exception ex)
+            else
             {
-                MessageBox.Show($"保存工程时出错：{ex.Message}",
-                    "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                DrawingCanvas.Cursor = Cursors.Arrow;
+                AddButtonModeBtn.Content = "Button";
             }
-            */
         }
 
-        public void ScreenTreeView_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        // 画布点击事件：在点击位置添加按钮
+        private void Canvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
+            if (!_isAddButtonMode) return;
+
+            // 获取点击位置相对于画布的坐标
+            Point pos = e.GetPosition(DrawingCanvas);
+
+            // 创建数据模型
+            var newButton = new ButtonWidget
+            {
+                X = pos.X,
+                Y = pos.Y,
+                Width = 80,    // 默认宽度
+                Height = 30,   // 默认高度
+                Text = "新按钮"
+            };
+
+            // 添加到当前画面的 Widgets 列表
+            var vm = this.DataContext as EditWindowViewModel;
+            vm.CurrentScreen.Widgets.Add(newButton);
+            
+            vm.NotifyCanvasRefreshNeeded();
+            // 可选：自动退出添加模式（如果需要一次性放置，可以取消注释下面两行）
+
+            ToggleAddButtonMode(null, null);
         }
 
-        private void CutScene_Click(object sender, RoutedEventArgs e)
-        {
-            // 暂不实现
-        }
-
-        private void CopyScene_Click(object sender, RoutedEventArgs e)
-        {
-            // 暂不实现
-        }
-
-        private void PasteScene_Click(object sender, RoutedEventArgs e)
-        {
-            // 暂不实现
-        }
 
     }
 }

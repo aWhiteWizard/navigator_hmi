@@ -36,6 +36,13 @@ namespace NavigatorHMI.ViewModels
         }
 
         public event Action<Screen> CanvasReloadRequested;
+        // 新增：同一画面内数据变化时（如添加/删除控件）触发刷新
+        public event Action RefreshCanvasRequested;
+        // 当控件列表发生变化时调用这个方法
+        public void NotifyCanvasRefreshNeeded()
+        {
+            RefreshCanvasRequested?.Invoke();
+        }
 
         public ObservableCollection<ProjectTreeViewModel> TreeRoots { get; } = new ObservableCollection<ProjectTreeViewModel>();
 
