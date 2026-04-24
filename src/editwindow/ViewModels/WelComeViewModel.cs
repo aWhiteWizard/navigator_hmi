@@ -24,6 +24,29 @@ namespace NavigatorHMI.ViewModels
         }
     }
 
+    public static class ConfigFilePath
+    {
+        // 项目根目录（.csproj所在目录）
+        private static readonly string ProjectDirectory =
+            Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory)
+                     .FullName;
+
+        // output 文件夹路径
+        private static readonly string OutputDirectory =
+            Path.Combine(ProjectDirectory, "config");
+
+        // 最终文件路径
+        public static readonly string RecentOpenedFilePath =
+            Path.Combine(OutputDirectory, "RecentOpenedFile.json");
+
+        static ConfigFilePath()
+        {
+            // 确保 output 文件夹存在
+            if (!Directory.Exists(OutputDirectory))
+                Directory.CreateDirectory(OutputDirectory);
+        }
+    }
+
     public class RecentOpenedFileItems
     {
         public String Name {  get; set; }
@@ -49,7 +72,7 @@ namespace NavigatorHMI.ViewModels
             LoadFromFile();
         }
 
-        private const string recent_opened_file = @"D:\workspace\test_project\RecentOpenedFile.json";
+        private string recent_opened_file = ConfigFilePath.RecentOpenedFilePath; 
         private List<RecentOpenedFileItems> _recent_opened_files = new List<RecentOpenedFileItems>();
 
         public List<RecentOpenedFileItems> RecentOpenedProject => _recent_opened_files;
