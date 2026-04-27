@@ -6,6 +6,7 @@
         xmlns:local="clr-namespace:NavigatorHMI"
         xmlns:vm="clr-namespace:NavigatorHMI.ViewModels"
         mc:Ignorable="d"
+        Closing="EditWindow_Closing"
         Title="NavigatorHMI" Height="450" Width="800">
     <Window.Resources>
         <!-- 5x5 点阵画刷 -->
@@ -35,9 +36,9 @@
                 <MenuItem Header="文件">
                     <MenuItem Header="新建"/>
                     <MenuItem Header="打开"/>
-                    <MenuItem Header="保存"/>
+                    <MenuItem Header="保存" Click="SaveCurrentProject_Click"/>
                     <MenuItem Header="另存为"/>
-                    <MenuItem Header="关闭工程"/>
+                    <MenuItem Header="关闭工程" Click="CloseCurrentProject_Click"/>
                 </MenuItem>
                 <MenuItem Header="保存" Click="SaveCurrentProject_Click"/>
                 <MenuItem Header="编辑">
@@ -61,8 +62,10 @@
             <Grid Grid.Column="0">
                 <!-- 左侧工程树 -->
                 <TreeView Grid.Column="0" 
+                  x:Name="ProjectTreeView"
                   ItemsSource="{Binding TreeRoots}"
-                  BorderBrush="LightGray">
+                  BorderBrush="LightGray"
+                  PreviewKeyDown="ProjectTreeView_PreviewKeyDown">
                     <TreeView.Resources>
                         <!-- 普通画面节点 -->
                         <HierarchicalDataTemplate DataType="{x:Type vm:ScreenItemNode}" 
