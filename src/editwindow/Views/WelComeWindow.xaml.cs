@@ -115,8 +115,6 @@ namespace NavigatorHMI.Views
             {
                 // 先隐藏幻影页面，准备新工程信息
                 this.Hide();
-                MessageBox.Show("打开工程尺寸：" + project.DeviceWidth + "x" + project.DeviceHeight);
-                MessageBox.Show("打开工程路径：" + project.ProjectFilePath);
                 // 添加到最近打开列表（假设 App.RecentManager 是全局单例）
                 RecentProjectManager.Instance.AddRecentProject(project.ProjectFilePath);
                 // 打开编辑窗口（假设 EditWindow 可接收工程对象）

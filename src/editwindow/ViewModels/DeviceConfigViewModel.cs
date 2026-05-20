@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Windows;
+using System.Windows.Forms;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -14,6 +15,8 @@ using NavigatorHMI.Models;
 using NavigatorHMI.Views;
 using ProtoBuf;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
+using MessageBox = System.Windows.MessageBox;
+using Screen = NavigatorHMI.Common.Screen;
 
 namespace NavigatorHMI.ViewModels
 {
@@ -117,7 +120,8 @@ namespace NavigatorHMI.ViewModels
                 DeviceHeight = int.Parse(SelectedDeviceModel.Height),
                 DeviceWidth = int.Parse(SelectedDeviceModel.Width)
             };
-
+            newProject.Screens.Add(new Screen { Name = "世界地图", Type = ScreenType.WorldMap });
+            newProject.Screens.Add(new Screen { Name = "全局画面", Type = ScreenType.Template });
             SaveProject(newProject, fullPath);
 
             CurrentProject = newProject;

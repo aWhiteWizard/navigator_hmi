@@ -1,16 +1,22 @@
-﻿using NavigatorHMI.Common;
-using System;
+﻿using System;
+using System.IO;
 using System.Linq.Expressions;
+using System.Security.RightsManagement;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Documents;
+using System.Windows.Forms.VisualStyles;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using CommunityToolkit.Mvvm.Messaging;
+using NavigatorHMI.Common;
+using NavigatorHMI.ViewModels;
+using ProtoBuf;
 
 namespace NavigatorHMI.Views
 {
@@ -19,163 +25,217 @@ namespace NavigatorHMI.Views
     /// </summary>
     public partial class EditWindow : Window
     {
-        private HMIProject currentProject;
+        public HMIProject currentProject;
+        // 记录工程是否被编辑过（有未保存的更改）
+        private bool isProjectDirty = false;
+        // 跳过关闭检查（用于菜单关闭）
+        private bool skipClosingCheck = false;
+
         public EditWindow(HMIProject project)
         {
             InitializeComponent();
+            WeakReferenceMessenger.Default.Register<ScreenAddedMessage>(this, OnScreenAdded);
+            this.Title = project.ProjectFilePath;
             currentProject = project;
-            Loaded += EditWindow_Loaded;
-            Closing += EditWindow_Closing;
+            EditWindowViewModel editWindowViewModel = new EditWindowViewModel(currentProject);
+            this.DataContext = editWindowViewModel;
+            // 监听当前画面的变化
+            // 订阅画面切换时的刷新
+            editWindowViewModel.CanvasReloadRequested += LoadCanvas;
+            // 订阅同一画面内的刷新（例如添加控件）
+            editWindowViewModel.RefreshCanvasRequested += () => LoadCanvas(editWindowViewModel.CurrentScreen);
+            LoadCanvas(editWindowViewModel.CurrentScreen);
+            isProjectDirty = false;
         }
 
+        private void OnScreenAdded(object recipient, ScreenAddedMessage message)
+        {
+            // 如果需要在 UI 线程上操作（比如改变标题），Dispatcher 是安全的
+            Dispatcher.Invoke(() =>
+            {
+                isProjectDirty = true;
+                this.Title = currentProject.ProjectFilePath + "*";
+            });
+        }
+
+        private bool _isAddButtonMode = false;   // 是否处于添加按钮模式
         private void EditWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
         {
-            // 检查是否有未保存的更改
-            if (HasUnsavedChanges())
+            // 如果是因为菜单关闭而触发的，直接放行
+            if (skipClosingCheck)
             {
-                var result = MessageBox.Show("工程有未保存的更改，是否保存？",
-                    "保存更改",
-                    MessageBoxButton.YesNoCancel,
-                    MessageBoxImage.Question);
+                skipClosingCheck = false;
+                return;
+            }
 
-                if (result == MessageBoxResult.Yes)
-                {
-                    SaveProject();
-                }
-                else if (result == MessageBoxResult.Cancel)
-                {
-                    e.Cancel = true;
-                }
+            // 应用退出时的检查
+            if (!TryCloseProject(true))
+            {
+                e.Cancel = true;   // 用户取消，阻止窗口关闭（应用不退出）
             }
         }
-
-        private void EditWindow_Loaded(object sender, RoutedEventArgs e)
+        private void TreeViewItem_DoubleClick(object sender, MouseButtonEventArgs e)
         {
-            // 初始化控件引用
-            InitializeControls();
-
-            // 检查是否是从文件打开的
-            // if (ProjectData != null)
-            // {
-                // IsFromFile = !string.IsNullOrEmpty(ProjectFilePath);
-
-                // 设置窗口标题
-                // string titlePrefix = IsFromFile ? "编辑" : "新建";
-                // Title = $"{titlePrefix}工程 - {ProjectData.ProjectName}";
-
-                // if (_titleText != null)
-                // {
-                //     _titleText.Text = ProjectData.ProjectName;
-                // }
-
-                // 加载数据到UI
-                // LoadProjectDataToUI();
-
-                // 更新菜单状态
-                // UpdateMenuStates();
-
-                // 如果是新建的工程，可能需要初始化一些默认值
-                // if (!IsFromFile)
-                // {
-                //     InitializeNewProject();
-                // }
-            //  }
+            var item = sender as TreeViewItem;
+            var node = item?.DataContext as ProjectTreeViewModel;
+            node?.DoubleClickCommand?.Execute(null);
         }
-
-        private void InitializeControls()
+        //加载画面
+        private void LoadCanvas(Screen screen)
         {
-            // 获取标题文本控件（假设在XAML中有这个控件）
-           // _titleText = FindName("TitleText") as TextBlock;
-
-            // 获取菜单项
-            if (FindName("MainMenu") is Menu mainMenu)
+            DrawingCanvas.Children.Clear();
+            if (screen == null) return;
+            // 根据 screen.Widgets 动态创建控件并添加到 DrawingCanvas
+            foreach (var widget in screen.Widgets)
             {
-                // 查找文件菜单
-                foreach (MenuItem item in mainMenu.Items)
+                // 示例：添加按钮控件
+                if (widget is ButtonWidget btnWidget)
                 {
-                    if (item.Header.ToString() == "文件(_F)")
+                    var btn = new Button
                     {
-                        foreach (MenuItem subItem in item.Items)
-                        {
-                            if (subItem.Name == "SaveMenuItem")
-                            { }
-                                // _saveMenuItem = subItem;
-                            else if (subItem.Name == "SaveAsMenuItem")
-                            { }
-                                // _saveAsMenuItem = subItem;
-                        }
-                        break;
-                    }
+                        Content = btnWidget.Text,
+                        Width = btnWidget.Width,
+                        Height = btnWidget.Height
+                    };
+                    Canvas.SetLeft(btn, btnWidget.X);
+                    Canvas.SetTop(btn, btnWidget.Y);
+                    DrawingCanvas.Children.Add(btn);
                 }
             }
         }
 
-        private bool HasUnsavedChanges()
+        private void SaveCurrentProject_Click(object sender, RoutedEventArgs e)
         {
-            // 这里实现检查是否有未保存更改的逻辑
-            // 可以比较当前UI状态与原始ProjectData
-            return false; // 简化示例
+            SaveProject(currentProject, currentProject.ProjectFilePath);
+        }
+
+        private void CloseCurrentProject_Click(object sender, RoutedEventArgs e)
+        {
+            // 检查未保存修改（仅关闭工程，不是应用退出）
+            if (!TryCloseProject(false))
+                return; // 用户取消了，不关闭工程
+
+            // 清空工程相关数据
+            isProjectDirty = false;
+
+            // 打开欢迎窗口
+            WelComeWindow welcome = new WelComeWindow();
+            welcome.Show();
+
+            // 关闭当前 EditWindow（注意：会触发 Closing 事件）
+            skipClosingCheck = true;   // 设置跳过标志，防止 Closing 中重复检查
+            this.Close();
+        }
+
+        // 公共方法：检查未保存更改，返回 true 表示可以继续关闭，false 表示用户取消
+        private bool TryCloseProject(bool isAppClosing)
+        {
+            // 如果没有打开任何工程或没有未保存修改，直接允许
+            if (string.IsNullOrEmpty(currentProject.ProjectFilePath) || !isProjectDirty)
+                return true;
+
+            // 弹出询问对话框
+            MessageBoxResult result = MessageBox.Show(
+                "当前工程有未保存的修改，是否保存？",
+                "提示",
+                MessageBoxButton.YesNoCancel,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                SaveProject(currentProject, currentProject.ProjectFilePath);
+                return true;
+            }
+            else if (result == MessageBoxResult.No)
+            {
+                return true;       // 不保存，丢弃更改
+            }
+            else // Cancel
+            {
+                return false;      // 用户取消，不关闭
+            }
         }
 
         // 保存工程方法
-        private void SaveProject()
+        private void SaveProject(HMIProject project, string filePath)
         {
-            // 从UI更新ProjectData
-            // UpdateProjectDataFromUI();
-
-            // if (IsFromFile && !string.IsNullOrEmpty(ProjectFilePath))
-            // {
-                // 保存到现有文件
-           //      SaveToFile(ProjectFilePath);
-           //  }
-           // else
-           // {
-                // 另存为
-           //     SaveProjectAs();
-           //  }
-        }
-
-        private void SaveToFile(string filePath)
-        {
-            /*
-            try
+            // 确保目录存在
+            string directory = System.IO.Path.GetDirectoryName(filePath);
+            if (!Directory.Exists(directory))
             {
-                ProjectData.LastModified = DateTime.Now;
-
-                // 序列化为JSON
-                string json = Newtonsoft.Json.JsonConvert.SerializeObject(
-                    ProjectData, Newtonsoft.Json.Formatting.Indented);
-
-                File.WriteAllText(filePath, json);
-
-                MessageBox.Show("工程保存成功！", "提示",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
+                Directory.CreateDirectory(directory);
             }
-            catch (Exception ex)
+
+            using (var fs = File.Create(filePath))
             {
-                MessageBox.Show($"保存工程时出错：{ex.Message}",
-                    "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                Serializer.Serialize(fs, project);
             }
-            */
+
+            // 保存成功后，更新工程对象中的路径和修改时间
+            project.ProjectFilePath = filePath;
+            project.LastModifiedTime = DateTime.Now;
+            isProjectDirty = false;
+            this.Title = project.ProjectFilePath;
         }
 
-        public void ScreenTreeView_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        private void ToggleAddButtonMode(object sender, RoutedEventArgs e)
         {
+            _isAddButtonMode = !_isAddButtonMode;
+            if (_isAddButtonMode)
+            {
+                DrawingCanvas.Cursor = Cursors.Cross;
+                AddButtonModeBtn.Content = "Adding Button";
+            }
+            else
+            {
+                DrawingCanvas.Cursor = Cursors.Arrow;
+                AddButtonModeBtn.Content = "Button";
+            }
         }
 
-        private void CutScene_Click(object sender, RoutedEventArgs e)
+        // 画布点击事件：在点击位置添加按钮
+        private void Canvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            // 暂不实现
+            if (!_isAddButtonMode) return;
+
+            // 获取点击位置相对于画布的坐标
+            Point pos = e.GetPosition(DrawingCanvas);
+
+            // 创建数据模型
+            var newButton = new ButtonWidget
+            {
+                X = pos.X,
+                Y = pos.Y,
+                Width = 80,    // 默认宽度
+                Height = 30,   // 默认高度
+                Text = "新按钮"
+            };
+
+            // 添加到当前画面的 Widgets 列表
+            var vm = this.DataContext as EditWindowViewModel;
+            vm.CurrentScreen.Widgets.Add(newButton);
+            isProjectDirty = true;
+            this.Title = currentProject.ProjectFilePath + "*";
+
+            vm.NotifyCanvasRefreshNeeded();
+            // 可选：自动退出添加模式（如果需要一次性放置，可以取消注释下面两行）
+
+            ToggleAddButtonMode(null, null);
         }
 
-        private void CopyScene_Click(object sender, RoutedEventArgs e)
+        private void ProjectTreeView_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            // 暂不实现
-        }
-
-        private void PasteScene_Click(object sender, RoutedEventArgs e)
-        {
-            // 暂不实现
+            if (e.Key == Key.Delete)
+            {
+                var selectedItem = ProjectTreeView.SelectedItem as ScreenItemNode;
+                if (selectedItem != null && selectedItem.DeleteCommand.CanExecute(null))
+                {
+                    selectedItem.DeleteCommand.Execute(null);
+                    e.Handled = true;
+                    isProjectDirty = true;
+                    this.Title = currentProject.ProjectFilePath + "*";
+                }
+            }
         }
 
     }

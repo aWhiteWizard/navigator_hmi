@@ -24,7 +24,7 @@
             </Grid.ColumnDefinitions>
             <TextBlock Text="新建工程" FontSize="12" FontWeight="Black" VerticalAlignment="Top"  HorizontalAlignment="Left" Margin="20,10,0,0"/>
             <TextBlock Text="输入工程名并设置存储位置" FontSize="12" VerticalAlignment="Top"  HorizontalAlignment="Left" Margin="70,40,0,0"/>
-            <Image Grid.Column="1" Source="F:\code\navigator_hmi\src\picture\未来科技工坊_白底蓝花.png" Width="100" Height="60" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="0,10,10,0"/>
+            <Image Grid.Column="1" Source="/Images/未来科技工坊_白底蓝花.png" Width="100" Height="60" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="0,10,10,0"/>
             <Border Grid.ColumnSpan="2" BorderBrush="Gray" BorderThickness="0,0,0,1" VerticalAlignment="Bottom"/>
         </Grid>
         <Grid Grid.Row="1">
