@@ -223,6 +223,22 @@ namespace NavigatorHMI.Views
             ToggleAddButtonMode(null, null);
         }
 
+        private void Button_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            var btn = sender as Button;
+            if (btn?.DataContext is ButtonWidget clickedWidget)
+            {
+                var vm = this.DataContext as EditWindowViewModel;
+                if (vm?.CurrentScreen?.Widgets != null)
+                {
+                    // 将所有 Widget 的 IsSelected 设为 false，再将当前设为 true
+                    foreach (var w in vm.CurrentScreen.Widgets)
+                        w.IsSelected = (w == clickedWidget);
+                }
+            }
+            // 让按钮继续触发 Click 事件（如果需要）
+            e.Handled = false;
+        }
 
     }
 }

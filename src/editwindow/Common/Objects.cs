@@ -91,6 +91,14 @@ public abstract class Widget : INotifyPropertyChanged
         set { _height = value; OnPropertyChanged(); }
     }
 
+    private bool _isSelected;
+    [ProtoMember(5)]
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set { _isSelected = value; OnPropertyChanged(); }
+    }
+
     public event PropertyChangedEventHandler PropertyChanged;
     protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));

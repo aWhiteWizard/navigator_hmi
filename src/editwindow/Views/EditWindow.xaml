@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:NavigatorHMI"
         xmlns:vm="clr-namespace:NavigatorHMI.ViewModels"
+        xmlns:common="clr-namespace:NavigatorHMI.Common"
         mc:Ignorable="d"
         Title="NavigatorHMI" Height="450" Width="800">
     <Window.Resources>
@@ -102,8 +103,35 @@
                                 Width="{Binding DeviceWidth}" 
                                 Height="{Binding DeviceHeight}"
                                 MouseLeftButtonDown="Canvas_MouseLeftButtonDown">
-                            <!-- 动态控件会添加到这里 -->
-                            
+                            <!-- 用于显示所有 Widget 的 ItemsControl -->
+                            <ItemsControl ItemsSource="{Binding CurrentScreen.Widgets}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <Canvas />
+                                        <!-- 这个内部的 Canvas 会作为绝对布局容器 -->
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+
+                                <!-- 每个 Widget 的容器样式：定位到 X,Y 坐标 -->
+                                <ItemsControl.ItemContainerStyle>
+                                    <Style TargetType="ContentPresenter">
+                                        <Setter Property="Canvas.Left" Value="{Binding X}" />
+                                        <Setter Property="Canvas.Top" Value="{Binding Y}" />
+                                    </Style>
+                                </ItemsControl.ItemContainerStyle>
+
+                                <!-- 每个 Widget 的外观模板 -->
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Content="{Binding Text}"
+                                                Width="{Binding Width}"
+                                                Height="{Binding Height}"
+                                                common:SelectorHelper.IsSelected="{Binding IsSelected, Mode=TwoWay}"
+                                                PreviewMouseLeftButtonDown="Button_PreviewMouseLeftButtonDown" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
                             <!-- 调试信息：当前画面名称 -->
                             <TextBlock Text="{Binding CurrentScreen.Name, FallbackValue=未选择画面}"
                                FontSize="14" FontWeight="Bold" 
