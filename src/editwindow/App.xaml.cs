@@ -44,10 +44,9 @@ namespace NavigatorHMI
                 if (IsValidProjectFile(filePath))
                 {
                     // 读取工程数据
-                    // var projectData = LoadProjectFromFile(filePath);
-
+                    HMIProject hmi_project = LoadProjectFromFile(filePath);
                     // 直接打开编辑窗口projectData, 
-                    OpenEditWindowDirectly(filePath);
+                    OpenEditWindowDirectly(hmi_project);
                 }
                 else
                 {
@@ -69,7 +68,7 @@ namespace NavigatorHMI
         {
             // 检查文件扩展名
             string extension = Path.GetExtension(filePath).ToLower();
-            if (extension != ".nproj" && extension != ".navigator")  // 你的工程文件扩展名
+            if (extension != ".hmiproj")  // 你的工程文件扩展名
             {
                 return false;
             }
@@ -83,36 +82,38 @@ namespace NavigatorHMI
             return true;
         }
 
-        // private HMIProject LoadProjectFromFile(string filePath)
-        private bool LoadProjectFromFile(string filePath)
+        private HMIProject LoadProjectFromFile(string filePath)
         {
             // 这里实现从文件加载工程数据的逻辑
-            // 你可以使用 JSON、XML 或其他格式
+            // 反序列化加载工程对象（使用 protobuf-net）
+            HMIProject project = new HMIProject();
+            try
+            {
 
-            // string json = File.ReadAllText(filePath);
-            // var projectData = Newtonsoft.Json.JsonConvert.DeserializeObject<HMIProject>(json);
+                using (var fs = new FileStream(filePath, FileMode.Open))
+                {
+                    project = Serializer.Deserialize<HMIProject>(fs);
+                }
 
-            // 设置文件路径
-            // projectData.FilePath = filePath;
+                // 更新工程路径和修改时间
+                project.ProjectFilePath = filePath;
+                project.LastModifiedTime = DateTime.Now;
 
-            return Path.Exists(filePath);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"打开工程失败：{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            // 得到工程对象文件
+            return project;
         }
 
-        private void OpenEditWindowDirectly(string filePath)
+        private void OpenEditWindowDirectly(HMIProject project)
         {
-            // 创建编辑窗口并设置数据ProjectData projectData, 
-            HMIProject project;
-            using (var fs = new FileStream(filePath, FileMode.Open))
-            {
-                project = Serializer.Deserialize<HMIProject>(fs);
-            }
-
+            // 添加到最近打开列表（假设 App.RecentManager 是全局单例）
+            RecentProjectManager.Instance.AddRecentProject(project.ProjectFilePath);
+            // 打开编辑窗口
             var editWindow = new EditWindow(project);
-            // editWindow.ProjectData = projectData;
-            // editWindow.ProjectFilePath = filePath;
-
-            // 设置为主窗口
-            MainWindow = editWindow;
             editWindow.Show();
         }
 

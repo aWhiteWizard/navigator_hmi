@@ -56,6 +56,18 @@ namespace NavigatorHMI.ViewModels
             mapNode.OnSelected += s => CurrentScreen = s;
             var customRoot = new CustomScreensRootNode(project);
             customRoot.OnScreenSelected += s => CurrentScreen = s;
+            customRoot.OnScreenDeleted += (deletedScreen) =>
+            {
+                if (CurrentScreen == deletedScreen)
+                {
+                    // 切换到其他可用画面（比如全局画面或地图画面）
+                    CurrentScreen = project.Screens.FirstOrDefault(s => s.Type != ScreenType.Custom);
+                    // 或者设置为 null，并让画布显示空白
+                    // CurrentScreen = null;
+                    // 触发画布刷新
+                    CanvasReloadRequested?.Invoke(CurrentScreen);
+                }
+            };
 
             TreeRoots.Add(globalNode);
             TreeRoots.Add(mapNode);
