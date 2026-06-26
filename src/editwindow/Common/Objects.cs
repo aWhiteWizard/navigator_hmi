@@ -1,7 +1,8 @@
-﻿using ProtoBuf;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using ProtoBuf;
 
 namespace NavigatorHMI.Common
 {
@@ -43,8 +44,7 @@ namespace NavigatorHMI.Common
         public ScreenType Type { get; set; }
         // 画面上的控件列表
         [ProtoMember(5)]
-        public List<Widget> Widgets { get; set; } = new List<Widget>();
-
+        public ObservableCollection<Widget> Widgets { get; set; } = new ObservableCollection<Widget>();
 
         public event PropertyChangedEventHandler PropertyChanged;
         protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
@@ -92,13 +92,12 @@ public abstract class Widget : INotifyPropertyChanged
     }
 
     private bool _isSelected;
-    [ProtoMember(5)]
+    [ProtoIgnore]  // 加上这个，序列化时会忽略
     public bool IsSelected
     {
         get => _isSelected;
         set { _isSelected = value; OnPropertyChanged(); }
     }
-
     public event PropertyChangedEventHandler PropertyChanged;
     protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
         => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));

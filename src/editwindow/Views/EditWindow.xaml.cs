@@ -223,6 +223,36 @@ namespace NavigatorHMI.Views
             ToggleAddButtonMode(null, null);
         }
 
+        private void Button_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+             System.Diagnostics.Debug.WriteLine("✅ Button_PreviewMouseLeftButtonDown 触发了！");
+            // 1. 获取被点击的 Button 控件
+            var btn = sender as Button;
+            if (btn == null) return;
 
+            // 2. 从 Button 的 DataContext 中获取对应的 ButtonWidget 数据模型
+            var clickedWidget = btn.DataContext as ButtonWidget;
+            if (clickedWidget == null) return;
+
+            // 3. 获取 ViewModel（确保你能访问到当前画面的 Widgets 列表）
+            var vm = this.DataContext as EditWindowViewModel;
+            if (vm?.CurrentScreen?.Widgets == null) return;
+
+            // 4. 将所有 Widget 的 IsSelected 设为 false，再将当前设为 true
+            foreach (var widget in vm.CurrentScreen.Widgets)
+            {
+                widget.IsSelected = false;
+            }
+            clickedWidget.IsSelected = true;
+
+            // 5. 让按钮的 Click 事件等继续触发（如果需要的话）
+            e.Handled = false;
+        }
+
+        private void ItemsControl_Loaded(object sender, RoutedEventArgs e)
+        {
+            var ic = sender as ItemsControl;
+            System.Diagnostics.Debug.WriteLine($"ItemsControl 子项数量: {ic.Items.Count}");
+        }
     }
 }
