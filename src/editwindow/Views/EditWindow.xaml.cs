@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel;
 using System.IO;
 using System.Linq.Expressions;
 using System.Security.RightsManagement;
@@ -25,28 +26,171 @@ namespace NavigatorHMI.Views
     /// </summary>
     public partial class EditWindow : Window
     {
-        public HMIProject currentProject;
-        // 记录工程是否被编辑过（有未保存的更改）
-        private bool isProjectDirty = false;
-        // 跳过关闭检查（用于菜单关闭）
-        private bool skipClosingCheck = false;
+        private EditWindowViewModel _viewModel;
+        private ButtonWidget _selectedWidget;
+        private bool _isAddButtonMode = false;
+        private HMIProject currentProject;
+        private bool isProjectDirty;
+
+        #region 拖拽变量
+
+        private bool _isDragging = false;
+        private Point _dragStartPoint;
+        private ButtonWidget _draggingWidget;
+        private double _dragStartX;
+        private double _dragStartY;
+        private const double DRAG_THRESHOLD = 5;
+
+        #endregion
 
         public EditWindow(HMIProject project)
         {
             InitializeComponent();
-            WeakReferenceMessenger.Default.Register<ScreenAddedMessage>(this, OnScreenAdded);
-            this.Title = project.ProjectFilePath;
+
+            // 1. 先创建 ViewModel 并设置 DataContext
+            _viewModel = new EditWindowViewModel(project);
+            this.DataContext = _viewModel;
+
+            // 2. 保存项目引用
             currentProject = project;
-            EditWindowViewModel editWindowViewModel = new EditWindowViewModel(currentProject);
-            this.DataContext = editWindowViewModel;
-            // 监听当前画面的变化
-            // 订阅画面切换时的刷新
-            editWindowViewModel.CanvasReloadRequested += LoadCanvas;
-            // 订阅同一画面内的刷新（例如添加控件）
-            editWindowViewModel.RefreshCanvasRequested += () => LoadCanvas(editWindowViewModel.CurrentScreen);
-            LoadCanvas(editWindowViewModel.CurrentScreen);
+            this.Title = project.ProjectFilePath;
+
+            // 3. 订阅事件
+            WeakReferenceMessenger.Default.Register<ScreenAddedMessage>(this, OnScreenAdded);
+
+            // 4. 在 Loaded 事件中初始化 UI
+            this.Loaded += EditWindow_Loaded;
+
+            // 5. 订阅 ViewModel 事件
+            _viewModel.CanvasReloadRequested += LoadCanvas;
+            _viewModel.RefreshCanvasRequested += () => LoadCanvas(_viewModel.CurrentScreen);
+
+            // 6. 初始加载
+            LoadCanvas(_viewModel.CurrentScreen);
+
             isProjectDirty = false;
+            this.CheckBinding();
         }
+
+        private void EditWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            // 确保 ItemsControl 在 Canvas 中
+            EnsureItemsControlInCanvas();
+
+            // 订阅 ViewModel 的 PropertyChanged
+            if (_viewModel != null)
+            {
+                _viewModel.PropertyChanged += ViewModel_PropertyChanged;
+            }
+
+            // 诊断输出
+            System.Diagnostics.Debug.WriteLine($"✅ EditWindow 加载完成");
+            System.Diagnostics.Debug.WriteLine($"   CurrentScreen: {_viewModel?.CurrentScreen?.Name}");
+            System.Diagnostics.Debug.WriteLine($"   Widgets 数量: {_viewModel?.CurrentScreen?.Widgets?.Count}");
+        }
+
+        /// <summary>
+        /// 创建 ItemsControl
+        /// </summary>
+        private ItemsControl CreateItemsControl(Screen screen)
+        {
+            var itemsControl = new ItemsControl();
+            itemsControl.Name = "MyItemsControl";
+            itemsControl.Background = new SolidColorBrush(Colors.Yellow) { Opacity = 0.3 };
+
+            // 设置 ItemsPanel
+            var panelTemplate = new ItemsPanelTemplate();
+            var factory = new FrameworkElementFactory(typeof(Canvas));
+            panelTemplate.VisualTree = factory;
+            itemsControl.ItemsPanel = panelTemplate;
+
+            // 设置 ItemContainerStyle
+            var style = new Style(typeof(ContentPresenter));
+            style.Setters.Add(new Setter(Canvas.LeftProperty, new Binding("X")));
+            style.Setters.Add(new Setter(Canvas.TopProperty, new Binding("Y")));
+            itemsControl.ItemContainerStyle = style;
+
+            // 设置 ItemTemplate
+            var dataTemplate = new DataTemplate();
+            var buttonFactory = new FrameworkElementFactory(typeof(Button));
+            buttonFactory.SetBinding(Button.ContentProperty, new Binding("Text"));
+            buttonFactory.SetBinding(Button.WidthProperty, new Binding("Width"));
+            buttonFactory.SetBinding(Button.HeightProperty, new Binding("Height"));
+            buttonFactory.SetBinding(SelectorHelper.IsSelectedProperty, new Binding("IsSelected") { Mode = BindingMode.TwoWay });
+            // 添加事件
+            buttonFactory.AddHandler(Button.ClickEvent, new RoutedEventHandler(Button_Click));
+            buttonFactory.AddHandler(Button.PreviewMouseLeftButtonDownEvent, new MouseButtonEventHandler(Button_PreviewMouseLeftButtonDown));
+            buttonFactory.AddHandler(Button.MouseLeftButtonDownEvent, new MouseButtonEventHandler(Button_MouseLeftButtonDown));
+            buttonFactory.AddHandler(Button.MouseMoveEvent, new MouseEventHandler(Button_MouseMove));
+            buttonFactory.AddHandler(Button.MouseLeftButtonUpEvent, new MouseButtonEventHandler(Button_MouseLeftButtonUp));
+
+            dataTemplate.VisualTree = buttonFactory;
+            itemsControl.ItemTemplate = dataTemplate;
+
+            return itemsControl;
+        }
+
+        private void EnsureItemsControlInCanvas()
+        {
+            var existingItemsControl = DrawingCanvas.Children.OfType<ItemsControl>().FirstOrDefault();
+            if (existingItemsControl == null)
+            {
+                // 如果没有 ItemsControl，重新加载当前画面
+                if (_viewModel?.CurrentScreen != null)
+                {
+                    LoadCanvas(_viewModel.CurrentScreen);
+                }
+            }
+        }
+
+        private void CheckBinding()
+        {
+            var vm = this.DataContext as EditWindowViewModel;
+            if (vm?.CurrentScreen == null)
+            {
+                System.Diagnostics.Debug.WriteLine("❌ CurrentScreen 为 null");
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine($"✅ CurrentScreen 存在, Widgets 数量: {vm.CurrentScreen.Widgets.Count}");
+            }
+        }
+
+        private void ViewModel_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(EditWindowViewModel.CurrentScreen))
+            {
+                // 画面切换时，清除选中状态
+                ClearAllSelection();
+                System.Diagnostics.Debug.WriteLine("✅ 画面切换，已清除选中状态");
+
+                // ItemsControl 会自动更新，因为绑定已经处理了
+            }
+        }
+
+        private void ClearAllSelection()
+        {
+            var vm = this.DataContext as EditWindowViewModel;
+            if (vm?.CurrentScreen?.Widgets == null) return;
+
+            // 清除数据模型的选中状态
+            foreach (var widget in vm.CurrentScreen.Widgets)
+            {
+                widget.IsSelected = false;
+            }
+
+            // 清除 UI 上的装饰器
+            foreach (UIElement child in DrawingCanvas.Children)
+            {
+                if (child is Button btn)
+                {
+                    SelectorHelper.SetIsSelected(btn, false);
+                }
+            }
+
+            _selectedWidget = null;
+        }
+
 
         private void OnScreenAdded(object recipient, ScreenAddedMessage message)
         {
@@ -58,7 +202,7 @@ namespace NavigatorHMI.Views
             });
         }
 
-        private bool _isAddButtonMode = false;   // 是否处于添加按钮模式
+        private bool skipClosingCheck = false;
         private void EditWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
         {
             // 如果是因为菜单关闭而触发的，直接放行
@@ -84,6 +228,50 @@ namespace NavigatorHMI.Views
         private void LoadCanvas(Screen screen)
         {
             DrawingCanvas.Children.Clear();
+            if (screen == null)
+            {
+                System.Diagnostics.Debug.WriteLine("❌ LoadCanvas: screen 为 null");
+                return;
+            }
+
+            System.Diagnostics.Debug.WriteLine($"✅ LoadCanvas: {screen.Name}, Widgets 数量: {screen.Widgets.Count}");
+
+            // 移除旧的 ItemsControl
+            var existingItemsControl = DrawingCanvas.Children.OfType<ItemsControl>().FirstOrDefault();
+            if (existingItemsControl != null)
+            {
+                DrawingCanvas.Children.Remove(existingItemsControl);
+            }
+
+            // 移除旧的按钮（如果直接用 Canvas.Children 添加的）
+            var buttonsToRemove = DrawingCanvas.Children.OfType<Button>().ToList();
+            foreach (var btn in buttonsToRemove)
+            {
+                DrawingCanvas.Children.Remove(btn);
+            }
+
+            // 创建新的 ItemsControl
+            var itemsControl = CreateItemsControl(screen);
+
+            // 添加到画布
+            DrawingCanvas.Children.Add(itemsControl);
+
+            // 设置位置和 ZIndex
+            Canvas.SetLeft(itemsControl, 0);
+            Canvas.SetTop(itemsControl, 0);
+            Panel.SetZIndex(itemsControl, 999);
+
+            // 设置尺寸
+            itemsControl.Width = screen.Width > 0 ? screen.Width : _viewModel.DeviceWidth;
+            itemsControl.Height = screen.Height > 0 ? screen.Height : _viewModel.DeviceHeight;
+
+            // 绑定 ItemsSource
+            itemsControl.SetBinding(ItemsControl.ItemsSourceProperty, new Binding("CurrentScreen.Widgets"));
+
+            System.Diagnostics.Debug.WriteLine($"✅ ItemsControl 已创建并添加到 Canvas");
+            System.Diagnostics.Debug.WriteLine($"   尺寸: {itemsControl.Width}x{itemsControl.Height}");
+            System.Diagnostics.Debug.WriteLine($"   Widgets 数量: {screen.Widgets.Count}");
+
             if (screen == null) return;
             // 根据 screen.Widgets 动态创建控件并添加到 DrawingCanvas
             foreach (var widget in screen.Widgets)
@@ -192,67 +380,251 @@ namespace NavigatorHMI.Views
                 AddButtonModeBtn.Content = "Button";
             }
         }
-
         // 画布点击事件：在点击位置添加按钮
         private void Canvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
+            // 1. 判断点击的是否是按钮或其子元素
+            var source = e.OriginalSource as DependencyObject;
+            var clickedButton = FindVisualParent<Button>(source);
+
+            if (clickedButton != null)
+            {
+                // 点击的是按钮，让 Button_Click 处理选中逻辑
+                // 这里不处理，直接返回
+                return;
+            }
+
+            // 2. 点击的是空白区域 → 清除所有选中状态
+            ClearAllSelection();
+
+            // 3. 如果不在添加模式，不执行添加
             if (!_isAddButtonMode) return;
 
-            // 获取点击位置相对于画布的坐标
-            Point pos = e.GetPosition(DrawingCanvas);
+            // 4. 添加新按钮
+            if (_viewModel?.CurrentScreen == null) return;
 
-            // 创建数据模型
+            Point pos = e.GetPosition(DrawingCanvas);
             var newButton = new ButtonWidget
             {
-                X = pos.X,
-                Y = pos.Y,
-                Width = 80,    // 默认宽度
-                Height = 30,   // 默认高度
+                X = pos.X - 40,
+                Y = pos.Y - 15,
+                Width = 80,
+                Height = 30,
                 Text = "新按钮"
             };
 
-            // 添加到当前画面的 Widgets 列表
-            var vm = this.DataContext as EditWindowViewModel;
-            vm.CurrentScreen.Widgets.Add(newButton);
+            _viewModel.CurrentScreen.Widgets.Add(newButton);
             isProjectDirty = true;
             this.Title = currentProject.ProjectFilePath + "*";
-
-            vm.NotifyCanvasRefreshNeeded();
-            // 可选：自动退出添加模式（如果需要一次性放置，可以取消注释下面两行）
 
             ToggleAddButtonMode(null, null);
         }
 
-        private void Button_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        private Button FindVisualParent<Button>(DependencyObject child) where Button : DependencyObject
         {
-             System.Diagnostics.Debug.WriteLine("✅ Button_PreviewMouseLeftButtonDown 触发了！");
-            // 1. 获取被点击的 Button 控件
+            while (child != null)
+            {
+                if (child is Button button) return button;
+                child = VisualTreeHelper.GetParent(child);
+            }
+            return null;
+        }
+        #region 拖拽事件
+        private void Button_Click(object sender, RoutedEventArgs e)
+        {
             var btn = sender as Button;
             if (btn == null) return;
 
-            // 2. 从 Button 的 DataContext 中获取对应的 ButtonWidget 数据模型
-            var clickedWidget = btn.DataContext as ButtonWidget;
-            if (clickedWidget == null) return;
+            var widget = btn.DataContext as ButtonWidget;
+            if (widget == null) return;
 
-            // 3. 获取 ViewModel（确保你能访问到当前画面的 Widgets 列表）
             var vm = this.DataContext as EditWindowViewModel;
             if (vm?.CurrentScreen?.Widgets == null) return;
 
-            // 4. 将所有 Widget 的 IsSelected 设为 false，再将当前设为 true
-            foreach (var widget in vm.CurrentScreen.Widgets)
+            // 清除所有 Widget 的选中状态
+            foreach (var w in vm.CurrentScreen.Widgets)
             {
-                widget.IsSelected = false;
+                w.IsSelected = false;
             }
-            clickedWidget.IsSelected = true;
+            widget.IsSelected = true;
 
-            // 5. 让按钮的 Click 事件等继续触发（如果需要的话）
-            e.Handled = false;
+            // 更新 UI 装饰器
+            foreach (UIElement child in DrawingCanvas.Children)
+            {
+                if (child is Button b)
+                {
+                    var w = b.DataContext as ButtonWidget;
+                    if (w != null)
+                    {
+                        SelectorHelper.SetIsSelected(b, w.IsSelected);
+                    }
+                }
+            }
         }
 
-        private void ItemsControl_Loaded(object sender, RoutedEventArgs e)
+        /// <summary>
+        /// 预览鼠标按下：记录起始位置
+        /// </summary>
+        private void Button_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            var ic = sender as ItemsControl;
-            System.Diagnostics.Debug.WriteLine($"ItemsControl 子项数量: {ic.Items.Count}");
+            var button = sender as Button;
+            if (button != null)
+            {
+                _dragStartPoint = e.GetPosition(DrawingCanvas);
+            }
         }
+
+        /// <summary>
+        /// 鼠标按下：开始拖拽
+        /// </summary>
+        private void Button_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            var btn = sender as Button;
+            if (btn == null) return;
+
+            var widget = btn.DataContext as ButtonWidget;
+            if (widget == null) return;
+            // 如果按钮没有被选中，先选中它
+            if (!widget.IsSelected)
+            {
+                SelectButton(widget);
+            }
+
+            // 开始拖拽
+            _isDragging = true;
+            _draggingWidget = widget;
+            _dragStartX = widget.X;
+            _dragStartY = widget.Y;
+
+            // 捕获鼠标
+            btn.CaptureMouse();
+
+            System.Diagnostics.Debug.WriteLine($"🔄 开始拖拽: {widget.Text}");
+        }
+
+        /// <summary>
+        /// 鼠标移动：拖拽过程中更新位置
+        /// </summary>
+        private void Button_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (!_isDragging || _draggingWidget == null) return;
+
+            Point currentPos = e.GetPosition(DrawingCanvas);
+
+            double offsetX = currentPos.X - _dragStartPoint.X;
+            double offsetY = currentPos.Y - _dragStartPoint.Y;
+
+            double newX = _dragStartX + offsetX;
+            double newY = _dragStartY + offsetY;
+
+            // 限制在画布范围内
+            var vm = this.DataContext as EditWindowViewModel;
+            if (vm?.CurrentScreen != null)
+            {
+                newX = Math.Max(0, Math.Min(newX, vm.CurrentScreen.Width - _draggingWidget.Width));
+                newY = Math.Max(0, Math.Min(newY, vm.CurrentScreen.Height - _draggingWidget.Height));
+            }
+
+            // 更新数据模型（UI 会自动更新）
+            _draggingWidget.X = newX;
+            _draggingWidget.Y = newY;
+
+            // 标记工程已修改
+            if (!isProjectDirty)
+            {
+                isProjectDirty = true;
+                this.Title = currentProject.ProjectFilePath + "*";
+            }
+        }
+
+        /// <summary>
+        /// 鼠标释放：结束拖拽
+        /// </summary>
+        private void Button_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (!_isDragging) return;
+
+            var button = sender as Button;
+            if (button != null)
+            {
+                button.ReleaseMouseCapture();
+            }
+
+            // 判断是否真的拖拽了
+            Point currentPos = e.GetPosition(DrawingCanvas);
+            double distance = Math.Sqrt(
+                Math.Pow(currentPos.X - _dragStartPoint.X, 2) +
+                Math.Pow(currentPos.Y - _dragStartPoint.Y, 2)
+            );
+
+            if (distance < DRAG_THRESHOLD && _draggingWidget != null)
+            {
+                // 点击操作，选中按钮（如果还没选中的话）
+                if (!_draggingWidget.IsSelected)
+                {
+                    SelectButton(_draggingWidget);
+                }
+            }
+            else if (_draggingWidget != null)
+            {
+                System.Diagnostics.Debug.WriteLine($"🔄 结束拖拽: {_draggingWidget.Text} 到 ({_draggingWidget.X}, {_draggingWidget.Y})");
+            }
+
+            _isDragging = false;
+            _draggingWidget = null;
+        }
+
+        #endregion
+
+        #region 辅助方法
+
+        /// <summary>
+        /// 选中指定的按钮
+        /// </summary>
+        private void SelectButton(ButtonWidget widget)
+        {
+            var vm = this.DataContext as EditWindowViewModel;
+            if (vm?.CurrentScreen?.Widgets == null) return;
+
+            // 清除所有选中
+            foreach (var w in vm.CurrentScreen.Widgets)
+            {
+                w.IsSelected = false;
+            }
+            widget.IsSelected = true;
+
+            // 更新 UI
+            UpdateSelectionUI();
+
+            _selectedWidget = widget;
+            System.Diagnostics.Debug.WriteLine($"✅ 选中按钮: {widget.Text}");
+        }
+
+        /// <summary>
+        /// 更新 UI 上的选中状态
+        /// </summary>
+        private void UpdateSelectionUI()
+        {
+            var itemsControl = DrawingCanvas.Children.OfType<ItemsControl>().FirstOrDefault();
+            if (itemsControl == null) return;
+
+            for (int i = 0; i < itemsControl.Items.Count; i++)
+            {
+                var container = itemsControl.ItemContainerGenerator.ContainerFromIndex(i) as ContentPresenter;
+                if (container != null)
+                {
+                    var button = VisualTreeHelper.GetChild(container, 0) as Button;
+                    if (button != null)
+                    {
+                        var widget = button.DataContext as ButtonWidget;
+                        if (widget != null)
+                        {
+                            SelectorHelper.SetIsSelected(button, widget.IsSelected);
+                        }
+                    }
+                }
+            }
+        }
+        #endregion
     }
 }

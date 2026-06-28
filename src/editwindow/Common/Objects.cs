@@ -92,7 +92,7 @@ public abstract class Widget : INotifyPropertyChanged
     }
 
     private bool _isSelected;
-    [ProtoIgnore]  // 加上这个，序列化时会忽略
+    [ProtoIgnore]
     public bool IsSelected
     {
         get => _isSelected;

@@ -31,6 +31,7 @@ namespace NavigatorHMI.ViewModels
                 _currentScreen = value;
                 OnPropertyChanged();
                 // 通知画布重新加载
+                OnPropertyChanged(nameof(CurrentScreen.Widgets));
                 CanvasReloadRequested?.Invoke(value);
             }
         }
