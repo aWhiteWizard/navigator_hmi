@@ -91,7 +91,7 @@ namespace NavigatorHMI.ViewModels
         {
             int nextNum = _project.Screens.Count(s => s.Type == ScreenType.Custom) + 1;
             string newName = $"画面{nextNum}";
-            var newScreen = new Screen { Name = newName, Type = ScreenType.Custom, Widgets = new ObservableCollection<Widget>() };
+            var newScreen = new Screen { Name = newName, Type = ScreenType.Custom, Height = _project.DeviceHeight, Width = _project.DeviceWidth, Widgets = new ObservableCollection<Widget>() };
             _project.Screens.Add(newScreen);
             AddScreenNodeInternal(newScreen);
             // 发送消息：告诉所有订阅者，“新画面已添加”

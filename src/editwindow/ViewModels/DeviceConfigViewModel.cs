@@ -120,8 +120,8 @@ namespace NavigatorHMI.ViewModels
                 DeviceHeight = int.Parse(SelectedDeviceModel.Height),
                 DeviceWidth = int.Parse(SelectedDeviceModel.Width)
             };
-            newProject.Screens.Add(new Screen { Name = "世界地图", Type = ScreenType.WorldMap });
-            newProject.Screens.Add(new Screen { Name = "全局画面", Type = ScreenType.Template });
+            newProject.Screens.Add(new Screen { Name = "世界地图", Type = ScreenType.WorldMap, Height=newProject.DeviceHeight, Width=newProject.DeviceWidth });
+            newProject.Screens.Add(new Screen { Name = "全局画面", Type = ScreenType.Template, Height = newProject.DeviceHeight, Width = newProject.DeviceWidth });
             SaveProject(newProject, fullPath);
 
             CurrentProject = newProject;
