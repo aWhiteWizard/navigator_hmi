@@ -1,0 +1,16 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch WPF App",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/src/editwindow/bin/Debug/net8.0-windows/NavigatorHMI.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/editwindow",
+            "console": "internalConsole",
+            "stopAtEntry": false
+        }
+    ]
+}

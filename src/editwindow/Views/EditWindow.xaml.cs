@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel;
 using System.IO;
 using System.Linq.Expressions;
@@ -597,24 +597,38 @@ namespace NavigatorHMI.Views
         }
 
         /// <summary>
-        /// 更新 UI 上的选中状态
+        /// 遍历 <see cref="DrawingCanvas"/> 中的 <see cref="ItemsControl"/>，
+        /// 将每个按钮的选中视觉效果同步到对应 <see cref="ButtonWidget.IsSelected"/> 数据状态。
         /// </summary>
+        /// <remarks>
+        /// 由于 WPF 的 <see cref="ItemsControl"/> 使用虚拟化容器生成 UI 元素，
+        /// 数据模型上的 <c>IsSelected</c> 属性变更不会自动刷新按钮的附加属性。
+        /// 此方法手动遍历所有已生成的项容器，通过 <see cref="SelectorHelper.SetIsSelected"/>
+        /// 将数据层的选中状态同步到 UI 层，确保选中高亮与实际数据一致。
+        /// 调用时机：<see cref="SelectButton(ButtonWidget)"/> 修改数据模型选中状态之后。
+        /// </remarks>
         private void UpdateSelectionUI()
         {
+            // 从 Canvas 子元素中查找 ItemsControl（按钮列表的宿主控件）
             var itemsControl = DrawingCanvas.Children.OfType<ItemsControl>().FirstOrDefault();
             if (itemsControl == null) return;
 
+            // 遍历所有数据项对应的 UI 容器，逐一同步选中状态
             for (int i = 0; i < itemsControl.Items.Count; i++)
             {
+                // 通过 ItemContainerGenerator 获取第 i 个数据项对应的 ContentPresenter
                 var container = itemsControl.ItemContainerGenerator.ContainerFromIndex(i) as ContentPresenter;
                 if (container != null)
                 {
+                    // ContentPresenter 的第一个视觉子元素即为数据模板生成的 Button
                     var button = VisualTreeHelper.GetChild(container, 0) as Button;
                     if (button != null)
                     {
+                        // 从 Button 的 DataContext 获取对应的数据模型
                         var widget = button.DataContext as ButtonWidget;
                         if (widget != null)
                         {
+                            // 将数据模型的 IsSelected 同步到按钮的附加属性，触发选中高亮样式
                             SelectorHelper.SetIsSelected(button, widget.IsSelected);
                         }
                     }
