@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
@@ -13,8 +13,6 @@ using CommunityToolkit.Mvvm.Messaging;
 using NavigatorHMI.Common;
 using NavigatorHMI.Models;
 using NavigatorHMI.Views;
-using ProtoBuf;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
 using MessageBox = System.Windows.MessageBox;
 using Screen = NavigatorHMI.Common.Screen;
 
@@ -207,21 +205,7 @@ namespace NavigatorHMI.ViewModels
 
         private void SaveProject(HMIProject project, string filePath)
         {
-            // 确保目录存在
-            string directory = Path.GetDirectoryName(filePath);
-            if (!Directory.Exists(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
-            using (var fs = File.Create(filePath))
-            {
-                Serializer.Serialize(fs, project);
-            }
-
-            // 保存成功后，更新工程对象中的路径和修改时间
-            project.ProjectFilePath = filePath;
-            project.LastModifiedTime = DateTime.Now;
+            ProjectFileService.Save(project, filePath);
         }
     }
 }
