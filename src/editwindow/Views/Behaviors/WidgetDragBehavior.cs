@@ -151,7 +151,6 @@ namespace NavigatorHMI.Views.Behaviors
 
             // 限制在画布（Screen）范围内，确保 Widget 完全可见
             var vm = _viewModelProvider();
-            System.Diagnostics.Debug.WriteLine($"current Screen {vm.CurrentScreen.Name}: width = {vm.CurrentScreen.Width}, height = {vm.CurrentScreen.Height}");
             if (vm?.CurrentScreen != null)
             {
                 newX = Math.Max(0, Math.Min(newX, vm.CurrentScreen.Width - _draggingWidget.Width));
