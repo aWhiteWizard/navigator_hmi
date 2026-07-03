@@ -62,7 +62,8 @@ namespace NavigatorHMI.Views
                 () => _viewModel,
                 MarkProjectDirty,
                 cursor => this.Cursor = cursor,
-                _selectionManager);
+                _selectionManager,
+                OnWidgetRightClick);
 
             // 4. 订阅事件
             WeakReferenceMessenger.Default.Register<ScreenAddedMessage>(this, OnScreenAdded);
@@ -190,12 +191,14 @@ namespace NavigatorHMI.Views
 
             // 使用工厂创建 ItemsControl（不再在 code-behind 中手写模板）
             var itemsControl = WidgetItemsControlFactory.Create(  
-                screen,  
-                _dragBehavior.OnButtonClick,  
-                _dragBehavior.OnPreviewMouseLeftButtonDown,  
-                _dragBehavior.OnMouseLeftButtonDown,  
-                _dragBehavior.OnMouseMove,  
-                _dragBehavior.OnMouseLeftButtonUp);  
+                screen,
+                _dragBehavior.OnButtonClick,
+                _dragBehavior.OnPreviewMouseLeftButtonDown,
+                _dragBehavior.OnMouseLeftButtonDown,
+                _dragBehavior.OnMouseMove,
+                _dragBehavior.OnMouseLeftButtonUp,
+                _dragBehavior.OnPreviewMouseRightButtonDown,
+                _dragBehavior.OnMouseRightButtonUp);  
 
             // 添加到画布
             DrawingCanvas.Children.Add(itemsControl);
@@ -259,6 +262,55 @@ namespace NavigatorHMI.Views
             AddButtonModeBtn.Content = "Button";
         }
 
+        #endregion
+
+        #region 右键菜单
+        /// <summary>
+        /// 右键点击 Widget 时触发，在鼠标位置显示上下文菜单 Popup。
+        /// </summary>
+        /// <param name="widget">被右键点击的 Widget</param>
+        /// <param name="screenPos">相对于窗口的鼠标坐标</param>
+        private void OnWidgetRightClick(Widget widget, Point screenPos)
+        {
+            // 保存当前操作的 Widget 引用
+            WidgetContextMenu.Tag = widget;  // 用 Tag 暂存引用
+
+            // 设置 Popup 位置（偏移一点避免遮挡鼠标）
+            WidgetContextMenu.HorizontalOffset = screenPos.X + 5;
+            WidgetContextMenu.VerticalOffset = screenPos.Y + 5;
+
+            // 显示 Popup
+            WidgetContextMenu.IsOpen = true;
+        }
+
+        /// <summary>
+        /// 右键菜单「删除」按钮点击：从当前画面移除选中的 Widget。
+        /// </summary>
+        private void DeleteWidget_Click(object sender, RoutedEventArgs e)
+        {
+            var widget = WidgetContextMenu.Tag as Widget;
+            if (widget == null) return;
+
+            var vm = _viewModel;
+            if (vm?.CurrentScreen == null) return;
+
+            // 从集合中移除
+            vm.CurrentScreen.Widgets.Remove(widget);
+
+            // 清除选中状态（装饰器也会随之清除）
+            _selectionManager.ClearAllSelection();
+
+            // 标记工程已修改
+            MarkProjectDirty();
+
+            // 刷新画布
+            _viewModel.NotifyCanvasRefreshNeeded();
+
+            // 关闭 Popup
+            WidgetContextMenu.IsOpen = false;
+
+            System.Diagnostics.Debug.WriteLine($"🗑 已删除 Widget: {(widget as ButtonWidget)?.Text ?? widget.GetType().Name}");
+        }
         #endregion
 
         #region 添加模式

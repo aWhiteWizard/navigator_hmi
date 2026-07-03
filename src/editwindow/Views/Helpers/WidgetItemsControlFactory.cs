@@ -29,6 +29,8 @@ namespace NavigatorHMI.Views.Helpers
         /// <param name="mouseLeftButtonDownHandler">MouseLeftButtonDown（开始拖拽）</param>
         /// <param name="mouseMoveHandler">MouseMove（拖拽移动）</param>
         /// <param name="mouseLeftButtonUpHandler">MouseLeftButtonUp（结束拖拽）</param>
+        /// <param name="PreviewMouseRightButtonDownEvent">PreviewMouseRightButtonDown（右键控件）</param>
+        /// <param name="MouseRightButtonUpEvent">MouseRightButtonUp（打开菜单）</param>
         /// <returns>配置完成的 ItemsControl 实例，其 ItemsSource 由调用方通过 SetBinding 绑定</returns>
         public static ItemsControl Create(
             Screen screen,
@@ -36,7 +38,9 @@ namespace NavigatorHMI.Views.Helpers
             MouseButtonEventHandler previewMouseLeftButtonDownHandler,
             MouseButtonEventHandler mouseLeftButtonDownHandler,
             MouseEventHandler mouseMoveHandler,
-            MouseButtonEventHandler mouseLeftButtonUpHandler)
+            MouseButtonEventHandler mouseLeftButtonUpHandler,
+            MouseButtonEventHandler previewMouseRightButtonDownHandler,
+            MouseButtonEventHandler mouseRightButtonUpHandler)
         {
             var itemsControl = new ItemsControl();
             itemsControl.Name = "MyItemsControl";
@@ -49,8 +53,8 @@ namespace NavigatorHMI.Views.Helpers
 
             // 设置 ItemContainerStyle — 将数据模型的 X/Y 绑定到 Canvas.Left/Top
             var style = new Style(typeof(ContentPresenter));
-            style.Setters.Add(new Setter(Canvas.LeftProperty, new Binding("X") { Mode = BindingMode.TwoWay }));
-            style.Setters.Add(new Setter(Canvas.TopProperty, new Binding("Y") { Mode = BindingMode.TwoWay }));
+            style.Setters.Add(new Setter(Canvas.LeftProperty, new Binding("X") { Mode = BindingMode.OneWay }));
+            style.Setters.Add(new Setter(Canvas.TopProperty, new Binding("Y") { Mode = BindingMode.OneWay }));
             itemsControl.ItemContainerStyle = style;
 
             // 设置 ItemTemplate — 为每个 Widget 数据项生成一个 Button
@@ -67,6 +71,9 @@ namespace NavigatorHMI.Views.Helpers
             buttonFactory.AddHandler(Button.MouseLeftButtonDownEvent, mouseLeftButtonDownHandler, handledEventsToo: true);
             buttonFactory.AddHandler(Button.MouseMoveEvent, mouseMoveHandler, handledEventsToo: true);
             buttonFactory.AddHandler(Button.MouseLeftButtonUpEvent, mouseLeftButtonUpHandler, handledEventsToo: true);
+
+            buttonFactory.AddHandler(Button.PreviewMouseRightButtonDownEvent, previewMouseRightButtonDownHandler, true);
+            buttonFactory.AddHandler(Button.MouseRightButtonUpEvent, mouseRightButtonUpHandler, handledEventsToo: true);
 
             dataTemplate.VisualTree = buttonFactory;
             itemsControl.ItemTemplate = dataTemplate;

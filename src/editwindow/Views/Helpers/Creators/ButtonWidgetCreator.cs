@@ -1,5 +1,6 @@
-﻿using System.Windows;
-using NavigatorHMI.Common;
+﻿using NavigatorHMI.Common;
+using System.Windows;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace NavigatorHMI.Views.Helpers.Creators
 {
@@ -23,7 +24,8 @@ namespace NavigatorHMI.Views.Helpers.Creators
                 Y = position.Y - 15,   // 居中偏移：高度的一半
                 Width = 80,
                 Height = 30,
-                Text = "新按钮"
+                Text = "新按钮",
+                ObjectName = "新按钮"
             };
         }
     }

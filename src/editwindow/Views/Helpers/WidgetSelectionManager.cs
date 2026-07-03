@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -41,7 +41,7 @@ namespace NavigatorHMI.Views.Helpers
         /// 修改数据模型后自动调用 <see cref="UpdateSelectionUI"/> 同步 UI 装饰器。
         /// </summary>
         /// <param name="widget">要选中的 <see cref="ButtonWidget"/> 实例</param>
-        public void SelectWidget(ButtonWidget widget)
+        public void SelectWidget(Widget widget)
         {
             if (widget == null) return;
 
@@ -59,7 +59,7 @@ namespace NavigatorHMI.Views.Helpers
             // 同步 UI 装饰器
             UpdateSelectionUI();
 
-            System.Diagnostics.Debug.WriteLine($"✅ 选中按钮: {widget.Text}");
+            System.Diagnostics.Debug.WriteLine($"✅ 选中按钮: {(widget as ButtonWidget)?.Text ?? widget.GetType().Name}");
         }
 
         /// <summary>

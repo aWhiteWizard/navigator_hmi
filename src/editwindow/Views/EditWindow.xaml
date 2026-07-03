@@ -70,13 +70,13 @@
                     <TreeView.Resources>
                         <!-- 普通画面节点 -->
                         <HierarchicalDataTemplate DataType="{x:Type vm:ScreenItemNode}" 
-                                          ItemsSource="{Binding Children}">
+                                                  ItemsSource="{Binding Children}">
                             <TextBlock Text="{Binding Name}" />
                         </HierarchicalDataTemplate>
 
                         <!-- 自定义画面列表根节点 -->
                         <HierarchicalDataTemplate DataType="{x:Type vm:CustomScreensRootNode}" 
-                                          ItemsSource="{Binding Children}">
+                                                  ItemsSource="{Binding Children}">
                             <TextBlock Text="{Binding Name}" FontWeight="Bold" />
                         </HierarchicalDataTemplate>
 
@@ -97,6 +97,23 @@
 
             <!-- 第二列：画布区域 -->
             <Grid Grid.Column="1">
+                <Popup x:Name="WidgetContextMenu" 
+                    Placement="Absolute" 
+                    StaysOpen="False"
+                    AllowsTransparency="True">
+                    <Border Background="White" 
+                        BorderBrush="LightGray" 
+                        BorderThickness="1" 
+                        CornerRadius="4"
+                        Padding="2">
+                        <StackPanel>
+                            <Button Content="🗑 删除" 
+                                Click="DeleteWidget_Click"
+                                Width="80" Height="28"
+                                Margin="2"/>
+                        </StackPanel>
+                    </Border>
+                </Popup>
                 <Border BorderBrush="Black" Background="Gray" BorderThickness="2" Margin="3" x:Name="canvasContainer">
                     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                         <Canvas x:Name="DrawingCanvas"

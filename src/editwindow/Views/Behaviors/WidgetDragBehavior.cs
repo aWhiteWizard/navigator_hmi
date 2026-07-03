@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -37,7 +37,7 @@ namespace NavigatorHMI.Views.Behaviors
         private readonly Action _markDirtyCallback;
         private readonly Action<Cursor> _setCursorCallback;
         private readonly WidgetSelectionManager _selectionManager;
-
+        private readonly Action<Widget, Point>? _onRightClickCallback;
         #endregion
 
         /// <summary>
@@ -54,13 +54,15 @@ namespace NavigatorHMI.Views.Behaviors
             Func<EditWindowViewModel> viewModelProvider,
             Action markDirtyCallback,
             Action<Cursor> setCursorCallback,
-            WidgetSelectionManager selectionManager)
+            WidgetSelectionManager selectionManager,
+            Action<Widget, Point>? onRightClickCallback = null)
         {
             _canvas = canvas ?? throw new ArgumentNullException(nameof(canvas));
             _viewModelProvider = viewModelProvider ?? throw new ArgumentNullException(nameof(viewModelProvider));
             _markDirtyCallback = markDirtyCallback ?? throw new ArgumentNullException(nameof(markDirtyCallback));
             _setCursorCallback = setCursorCallback ?? throw new ArgumentNullException(nameof(setCursorCallback));
             _selectionManager = selectionManager ?? throw new ArgumentNullException(nameof(selectionManager));
+            _onRightClickCallback = onRightClickCallback;  // ← 在构造函数体里
         }
 
         #region 事件处理方法（internal — 供 WidgetItemsControlFactory 在 DataTemplate 中绑定）
@@ -149,6 +151,7 @@ namespace NavigatorHMI.Views.Behaviors
 
             // 限制在画布（Screen）范围内，确保 Widget 完全可见
             var vm = _viewModelProvider();
+            System.Diagnostics.Debug.WriteLine($"current Screen {vm.CurrentScreen.Name}: width = {vm.CurrentScreen.Width}, height = {vm.CurrentScreen.Height}");
             if (vm?.CurrentScreen != null)
             {
                 newX = Math.Max(0, Math.Min(newX, vm.CurrentScreen.Width - _draggingWidget.Width));
@@ -205,6 +208,42 @@ namespace NavigatorHMI.Views.Behaviors
             // 重置拖拽状态
             _isDragging = false;
             _draggingWidget = null;
+        }
+
+        /// <summary>
+        /// 右键预览：记录鼠标位置，获取 Widget 数据上下文。
+        /// </summary>
+        internal void OnPreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            var btn = sender as Button;
+            if (btn == null) return;
+
+            var widget = btn.DataContext as Widget;
+            if (widget == null) return;
+
+            // 先选中该控件
+            _selectionManager.SelectWidget(widget);
+
+            // 标记事件已处理，防止冒泡到 Canvas
+            e.Handled = true;
+        }
+
+        /// <summary>
+        /// 右键释放：触发回调，在鼠标位置显示上下文菜单。
+        /// </summary>
+        internal void OnMouseRightButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            var btn = sender as Button;
+            if (btn == null) return;
+
+            var widget = btn.DataContext as Widget;
+            if (widget == null) return;
+
+            // 获取相对于窗口的鼠标位置，传给回调显示 Popup
+            Point screenPos = e.GetPosition(null); // 相对于窗口
+            _onRightClickCallback?.Invoke(widget, screenPos);
+
+            e.Handled = true;
         }
 
         #endregion

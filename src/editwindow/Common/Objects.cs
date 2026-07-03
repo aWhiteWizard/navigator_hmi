@@ -91,6 +91,14 @@ public abstract class Widget : INotifyPropertyChanged
         set { _height = value; OnPropertyChanged(); }
     }
 
+    private string _object_name;
+    [ProtoMember(5)]
+    public string ObjectName
+    {
+        get => _object_name;
+        set { _object_name = value; OnPropertyChanged(); }
+    }
+
     private bool _isSelected;
     [ProtoIgnore]
     public bool IsSelected
