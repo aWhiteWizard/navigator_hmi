@@ -26,6 +26,13 @@
             </DrawingBrush.Drawing>
         </DrawingBrush>
     </Window.Resources>
+    <!-- ✅ 新增：Ctrl+S 热键绑定 -->
+    <Window.CommandBindings>
+        <CommandBinding Command="Save" Executed="SaveCurrentProject_Click" />
+    </Window.CommandBindings>
+    <Window.InputBindings>
+        <KeyBinding Key="S" Modifiers="Control" Command="Save" />
+    </Window.InputBindings>
     <Grid ShowGridLines="True">
         <Grid.RowDefinitions>
             <RowDefinition Height="20"/>
@@ -38,11 +45,11 @@
                 <MenuItem Header="文件">
                     <MenuItem Header="新建"/>
                     <MenuItem Header="打开"/>
-                    <MenuItem Header="保存" Click="SaveCurrentProject_Click"/>
+                    <MenuItem Header="保存" Command="Save"/>
                     <MenuItem Header="另存为"/>
                     <MenuItem Header="关闭工程" Click="CloseCurrentProject_Click"/>
                 </MenuItem>
-                <MenuItem Header="保存" Click="SaveCurrentProject_Click"/>
+                <MenuItem Header="保存" Command="Save"/>
                 <MenuItem Header="编辑">
                     <MenuItem Header="撤销"/>
                 </MenuItem>
