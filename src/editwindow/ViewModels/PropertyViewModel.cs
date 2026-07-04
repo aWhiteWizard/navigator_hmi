@@ -20,7 +20,13 @@ namespace NavigatorHMI.ViewModels
             {
                 if (_selectedWidget != value)
                 {
+                    // 取消订阅旧 widget 的 PropertyChanged
+                    if (_selectedWidget != null)
+                        _selectedWidget.PropertyChanged -= OnSelectedWidgetPropertyChanged;
                     _selectedWidget = value;
+                    // 订阅新 widget 的 PropertyChanged（实时同步 ResizeAdorner 的修改）
+                    if (value != null)
+                        value.PropertyChanged += OnSelectedWidgetPropertyChanged;
                     OnPropertyChanged();
                     OnPropertyChanged(nameof(IsPropertyVisible));
                     OnPropertyChanged(nameof(IsButtonWidget));
@@ -45,8 +51,38 @@ namespace NavigatorHMI.ViewModels
                             FillColor = rect.FillColor;
                     }
                 }
+
             }
         }
+
+        /// <summary>
+        /// 当选中 Widget 的属性（如 X/Y/Width/Height）发生改变时，
+        /// 同步更新 PropertyViewModel 对应的属性，使属性窗口 UI 实时刷新。
+        /// </summary>
+        private void OnSelectedWidgetPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (sender != _selectedWidget) return;
+
+            switch (e.PropertyName)
+            {
+                case nameof(Widget.X):
+                    X = _selectedWidget.X;
+                    break;
+                case nameof(Widget.Y):
+                    Y = _selectedWidget.Y;
+                    break;
+                case nameof(Widget.Width):
+                    Width = _selectedWidget.Width;
+                    break;
+                case nameof(Widget.Height):
+                    Height = _selectedWidget.Height;
+                    break;
+                case nameof(Widget.ObjectName):
+                    ObjectName = _selectedWidget.ObjectName;
+                    break;
+            }
+        }
+
 
         /// <summary>是否有 Widget 被选中（属性面板可见性控制）。</summary>
         public bool IsPropertyVisible => _selectedWidget != null;

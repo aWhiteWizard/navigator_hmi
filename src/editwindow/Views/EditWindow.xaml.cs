@@ -365,8 +365,12 @@ namespace NavigatorHMI.Views
 
             if (widget != null)
             {
-                if (_propertyWindow == null)
+                if (_propertyWindow == null || !_propertyWindow.IsVisible)
                 {
+                    if (_propertyWindow != null)
+                    {
+                        try { _propertyWindow.Close(); } catch { }
+                    }
                     _propertyWindow = new PerprotyWindow();
                     _propertyWindow.Owner = this;
                 }
@@ -388,6 +392,7 @@ namespace NavigatorHMI.Views
                     _propertyWindow.Hide();
             }
         }
+
 
 
         #endregion
