@@ -25,6 +25,7 @@
                 </DrawingGroup>
             </DrawingBrush.Drawing>
         </DrawingBrush>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
     </Window.Resources>
     <!-- ✅ 新增：Ctrl+S 热键绑定 -->
     <Window.CommandBindings>
@@ -77,9 +78,31 @@
                     <TreeView.Resources>
                         <!-- 普通画面节点 -->
                         <HierarchicalDataTemplate DataType="{x:Type vm:ScreenItemNode}" 
-                                                  ItemsSource="{Binding Children}">
-                            <TextBlock Text="{Binding Name}" />
+                          ItemsSource="{Binding Children}">
+                            <Grid>
+                                <!-- 显示态（默认） -->
+                                <StackPanel x:Name="DisplayPanel" Orientation="Horizontal">
+                                    <TextBlock Text="✅" 
+                                        Visibility="{Binding IsCurrent, Converter={StaticResource BoolToVisibilityConverter}}"
+                                        Margin="0,0,4,0" FontSize="12"/>
+                                    <TextBlock Text="{Binding Name}" />
+                                </StackPanel>
+                                <!-- 编辑态 -->
+                                <TextBox x:Name="EditTextBox"
+                                     Text="{Binding EditName, UpdateSourceTrigger=PropertyChanged}"
+                                     KeyDown="EditNameTextBox_KeyDown"
+                                     Loaded="EditNameTextBox_Loaded"
+                                     MinWidth="60"
+                                     Visibility="Collapsed"/>
+                            </Grid>
+                            <DataTemplate.Triggers>
+                                <DataTrigger Binding="{Binding IsEditing}" Value="True">
+                                    <Setter TargetName="DisplayPanel" Property="Visibility" Value="Collapsed"/>
+                                    <Setter TargetName="EditTextBox" Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
                         </HierarchicalDataTemplate>
+
 
                         <!-- 自定义画面列表根节点 -->
                         <HierarchicalDataTemplate DataType="{x:Type vm:CustomScreensRootNode}" 
@@ -97,6 +120,7 @@
                     <TreeView.ItemContainerStyle>
                         <Style TargetType="TreeViewItem">
                             <EventSetter Event="MouseDoubleClick" Handler="TreeViewItem_DoubleClick"/>
+                            <EventSetter Event="MouseRightButtonDown" Handler="TreeViewItem_RightClick"/>
                         </Style>
                     </TreeView.ItemContainerStyle>
                 </TreeView>
@@ -114,10 +138,25 @@
                         CornerRadius="4"
                         Padding="2">
                         <StackPanel>
-                            <Button Content="🗑 删除" 
-                                Click="DeleteWidget_Click"
-                                Width="80" Height="28"
-                                Margin="2"/>
+                            <!-- Button Content="❌ 剪切" Click="CutWidget_Click"  Width="80" Height="28" Margin="2"/ -->
+                            <!-- Button Content="❌ 复制" Click="CopyWidget_Click"  Width="80" Height="28" Margin="2"/ -->
+                            <!-- Button Content="❌ 粘贴" Click="PauseWidget_Click"  Width="80" Height="28" Margin="2"/ -->
+                            <Button Content="🗑 删除"  Click="DeleteWidget_Click" Width="80" Height="28" Margin="2"/>
+                        </StackPanel>
+                    </Border>
+                </Popup>
+                <Popup x:Name="TreeContextMenu" 
+                    Placement="Absolute" 
+                    StaysOpen="True"
+                    AllowsTransparency="True">
+                    <Border Background="White" 
+                        BorderBrush="LightGray" 
+                        BorderThickness="1" 
+                        CornerRadius="4"
+                        Padding="2">
+                        <StackPanel>
+                            <Button Content="✏ 重命名" Click="RenameScreen_Click" Width="80" Height="28" Margin="2"/>
+                            <Button Content="🗑 删除画面" Click="DeleteScreen_Click" Width="80" Height="28" Margin="2"/>
                         </StackPanel>
                     </Border>
                 </Popup>

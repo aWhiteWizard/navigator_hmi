@@ -36,6 +36,10 @@ namespace NavigatorHMI.Views
         private readonly WidgetSelectionManager _selectionManager;
         private readonly WidgetDragBehavior _dragBehavior;
 
+        // 树形视图和 Widget 的右键菜单处理器
+        private readonly TreeViewContextMenuHandler _treeContextMenuHandler;
+        private readonly WidgetContextMenuHandler _widgetContextMenuHandler;
+
         #endregion
 
         #region 构造函数 & 初始化
@@ -52,48 +56,95 @@ namespace NavigatorHMI.Views
             currentProject = project;
             this.Title = project.ProjectFilePath;
 
-            // 3. 初始化widget的专职类
+            // 3. 先初始化 _selectionManager（_widgetContextMenuHandler 依赖它）
             _selectionManager = new WidgetSelectionManager(
                 DrawingCanvas,
                 () => _viewModel);
 
+            // 4. 初始化右键菜单处理器
+            _treeContextMenuHandler = new TreeViewContextMenuHandler(
+                TreeContextMenu,
+                MarkProjectDirty);
+
+            _widgetContextMenuHandler = new WidgetContextMenuHandler(
+                WidgetContextMenu,
+                () => _viewModel,
+                _selectionManager,
+                MarkProjectDirty,
+                () => _viewModel.NotifyCanvasRefreshNeeded());
+
+            // 5. 初始化 _dragBehavior
             _dragBehavior = new WidgetDragBehavior(
                 DrawingCanvas,
                 () => _viewModel,
                 MarkProjectDirty,
                 cursor => this.Cursor = cursor,
                 _selectionManager,
-                OnWidgetRightClick);
+                _widgetContextMenuHandler.Show);
 
-            // 4. 订阅事件
+            // 5. 订阅事件
             WeakReferenceMessenger.Default.Register<ScreenAddedMessage>(this, OnScreenAdded);
 
-            // 5. 在 Loaded 事件中初始化 UI
+            // 6. 在 Loaded 事件中初始化 UI
             this.Loaded += EditWindow_Loaded;
 
-            // 6. 订阅 ViewModel 事件
+            // 7. 订阅 ViewModel 事件
             _viewModel.CanvasReloadRequested += LoadCanvas;
             _viewModel.RefreshCanvasRequested += () => LoadCanvas(_viewModel.CurrentScreen);
 
-            // 7. 初始加载
+            // 8. 初始加载
             LoadCanvas(_viewModel.CurrentScreen);
 
             isProjectDirty = false;
             this.CheckBinding();
+
+            // 全局点击监听：点击 Popup 外部时关闭菜单
+            this.PreviewMouseLeftButtonDown += (s, e) =>
+            {
+                if (TreeContextMenu.IsOpen)
+                {
+                    var clicked = e.OriginalSource as DependencyObject;
+                    if (clicked != null && !IsDescendantOf(clicked, TreeContextMenu.Child))
+                    {
+                        TreeContextMenu.IsOpen = false;
+                    }
+                }
+
+                if (WidgetContextMenu.IsOpen)
+                {
+                    var clicked = e.OriginalSource as DependencyObject;
+                    if (clicked != null && !IsDescendantOf(clicked, WidgetContextMenu.Child))
+                    {
+                        WidgetContextMenu.IsOpen = false;
+                    }
+                }
+            };
+        }
+
+        /// <summary>
+        /// 判断 child 是否是 parent 的视觉子树后代。
+        /// </summary>
+        private static bool IsDescendantOf(DependencyObject child, DependencyObject parent)
+        {
+            if (child == null || parent == null) return false;
+            var current = child;
+            while (current != null)
+            {
+                if (current == parent) return true;
+                current = VisualTreeHelper.GetParent(current);
+            }
+            return false;
         }
 
         private void EditWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            // 确保 ItemsControl 在 Canvas 中
             EnsureItemsControlInCanvas();
 
-            // 订阅 ViewModel 的 PropertyChanged
             if (_viewModel != null)
             {
                 _viewModel.PropertyChanged += ViewModel_PropertyChanged;
             }
 
-            // 诊断输出
             System.Diagnostics.Debug.WriteLine($"✅ EditWindow 加载完成");
             System.Diagnostics.Debug.WriteLine($"   CurrentScreen: {_viewModel?.CurrentScreen?.Name}");
             System.Diagnostics.Debug.WriteLine($"   Widgets 数量: {_viewModel?.CurrentScreen?.Widgets?.Count}");
@@ -101,17 +152,15 @@ namespace NavigatorHMI.Views
 
         private void EditWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
         {
-            // 如果是因为菜单关闭而触发的，直接放行
             if (skipClosingCheck)
             {
                 skipClosingCheck = false;
                 return;
             }
 
-            // 应用退出时的检查
             if (!TryCloseProject(true))
             {
-                e.Cancel = true;   // 用户取消，阻止窗口关闭（应用不退出）
+                e.Cancel = true;
             }
         }
 
@@ -141,7 +190,6 @@ namespace NavigatorHMI.Views
             var existingItemsControl = DrawingCanvas.Children.OfType<ItemsControl>().FirstOrDefault();
             if (existingItemsControl == null)
             {
-                // 如果没有 ItemsControl，重新加载当前画面
                 if (_viewModel?.CurrentScreen != null)
                 {
                     LoadCanvas(_viewModel.CurrentScreen);
@@ -166,7 +214,6 @@ namespace NavigatorHMI.Views
         {
             if (e.PropertyName == nameof(EditWindowViewModel.CurrentScreen))
             {
-                // 画面切换时，清除选中状态
                 _selectionManager.ClearAllSelection();
                 System.Diagnostics.Debug.WriteLine("✅ 画面切换，已清除选中状态");
             }
@@ -178,7 +225,6 @@ namespace NavigatorHMI.Views
         /// </summary>
         private void LoadCanvas(Screen screen)
         {
-            // 清除所有子元素
             DrawingCanvas.Children.Clear();
 
             if (screen == null)
@@ -189,8 +235,7 @@ namespace NavigatorHMI.Views
 
             System.Diagnostics.Debug.WriteLine($"✅ LoadCanvas: {screen.Name}, Widgets 数量: {screen.Widgets.Count}");
 
-            // 使用工厂创建 ItemsControl（不再在 code-behind 中手写模板）
-            var itemsControl = WidgetItemsControlFactory.Create(  
+            var itemsControl = WidgetItemsControlFactory.Create(
                 screen,
                 _dragBehavior.OnButtonClick,
                 _dragBehavior.OnPreviewMouseLeftButtonDown,
@@ -198,26 +243,21 @@ namespace NavigatorHMI.Views
                 _dragBehavior.OnMouseMove,
                 _dragBehavior.OnMouseLeftButtonUp,
                 _dragBehavior.OnPreviewMouseRightButtonDown,
-                _dragBehavior.OnMouseRightButtonUp);  
+                _dragBehavior.OnMouseRightButtonUp);
 
-            // 添加到画布
             DrawingCanvas.Children.Add(itemsControl);
             Canvas.SetLeft(itemsControl, 0);
             Canvas.SetTop(itemsControl, 0);
             Panel.SetZIndex(itemsControl, 999);
 
-            // 设置尺寸
             var vm = this.DataContext as EditWindowViewModel;
             itemsControl.Width = screen.Width > 0 ? screen.Width : (vm?.DeviceWidth ?? 800);
             itemsControl.Height = screen.Height > 0 ? screen.Height : (vm?.DeviceHeight ?? 600);
 
-            // 绑定 ItemsSource
             itemsControl.SetBinding(ItemsControl.ItemsSourceProperty, new Binding("CurrentScreen.Widgets"));
 
-            // 保存引用
             _myItemsControl = itemsControl;
 
-            // 清除选中状态和装饰器
             _selectionManager.ClearAllSelection();
             SelectorHelper.ClearAllAdorners();
 
@@ -231,23 +271,22 @@ namespace NavigatorHMI.Views
         /// </summary>
         private void Canvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            // 1. 判断点击的是否是按钮或其子元素
+            if (TreeContextMenu.IsOpen)
+            {
+                TreeContextMenu.IsOpen = false;
+            }
+
             var source = e.OriginalSource as DependencyObject;
             var clickedButton = FindVisualParent<Button>(source);
 
             if (clickedButton != null)
             {
-                // 点击的是按钮，让拖拽/选中逻辑处理，这里直接返回
                 return;
             }
 
-            // 2. 点击的是空白区域 → 清除所有选中状态
             _selectionManager.ClearAllSelection();
 
-            // 3. 如果不在添加模式，不执行添加
             if (_currentWidgetCreator == null) return;
-
-            // 4. 创建 Widget（通过策略模式委托给 IWidgetCreator）
             if (_viewModel?.CurrentScreen == null) return;
 
             Point pos = e.GetPosition(DrawingCanvas);
@@ -256,7 +295,6 @@ namespace NavigatorHMI.Views
             _viewModel.CurrentScreen.Widgets.Add(widget);
             MarkProjectDirty();
 
-            // 添加完成后退出添加模式
             _currentWidgetCreator = null;
             DrawingCanvas.Cursor = Cursors.Arrow;
             AddButtonModeBtn.Content = "Button";
@@ -264,60 +302,28 @@ namespace NavigatorHMI.Views
 
         #endregion
 
-        #region 右键菜单
+        #region Widget 右键菜单（委托给 WidgetContextMenuHandler）
+
         /// <summary>
         /// 右键点击 Widget 时触发，在鼠标位置显示上下文菜单 Popup。
+        /// 委托给 <see cref="WidgetContextMenuHandler.Show"/>。
         /// </summary>
-        /// <param name="widget">被右键点击的 Widget</param>
-        /// <param name="screenPos">相对于窗口的鼠标坐标</param>
         private void OnWidgetRightClick(Widget widget, Point screenPos)
-        {
-            // 保存当前操作的 Widget 引用
-            WidgetContextMenu.Tag = widget;  // 用 Tag 暂存引用
-
-            // 设置 Popup 位置（偏移一点避免遮挡鼠标）
-            WidgetContextMenu.HorizontalOffset = screenPos.X + 5;
-            WidgetContextMenu.VerticalOffset = screenPos.Y + 5;
-
-            // 显示 Popup
-            WidgetContextMenu.IsOpen = true;
-        }
+            => _widgetContextMenuHandler.Show(widget, screenPos);
 
         /// <summary>
         /// 右键菜单「删除」按钮点击：从当前画面移除选中的 Widget。
+        /// 委托给 <see cref="WidgetContextMenuHandler.OnDeleteWidgetClick"/>。
         /// </summary>
         private void DeleteWidget_Click(object sender, RoutedEventArgs e)
-        {
-            var widget = WidgetContextMenu.Tag as Widget;
-            if (widget == null) return;
+            => _widgetContextMenuHandler.OnDeleteWidgetClick(sender, e);
 
-            var vm = _viewModel;
-            if (vm?.CurrentScreen == null) return;
-
-            // 从集合中移除
-            vm.CurrentScreen.Widgets.Remove(widget);
-
-            // 清除选中状态（装饰器也会随之清除）
-            _selectionManager.ClearAllSelection();
-
-            // 标记工程已修改
-            MarkProjectDirty();
-
-            // 刷新画布
-            _viewModel.NotifyCanvasRefreshNeeded();
-
-            // 关闭 Popup
-            WidgetContextMenu.IsOpen = false;
-
-            System.Diagnostics.Debug.WriteLine($"🗑 已删除 Widget: {(widget as ButtonWidget)?.Text ?? widget.GetType().Name}");
-        }
         #endregion
 
         #region 添加模式
 
         private void ToggleAddButtonMode(object sender, RoutedEventArgs e)
         {
-            // 切换：进入 Button 添加模式 / 退出添加模式
             if (_currentWidgetCreator == null)
             {
                 _currentWidgetCreator = new ButtonWidgetCreator();
@@ -348,7 +354,7 @@ namespace NavigatorHMI.Views
 
         #endregion
 
-        #region 项目保存 & 关闭（保留在 code-behind，方案 B）
+        #region 项目保存 & 关闭
 
         private void SaveCurrentProject_Click(object sender, RoutedEventArgs e)
         {
@@ -357,19 +363,15 @@ namespace NavigatorHMI.Views
 
         private void CloseCurrentProject_Click(object sender, RoutedEventArgs e)
         {
-            // 检查未保存修改（仅关闭工程，不是应用退出）
             if (!TryCloseProject(false))
-                return; // 用户取消了，不关闭工程
+                return;
 
-            // 清空工程相关数据
             isProjectDirty = false;
 
-            // 打开欢迎窗口
             WelComeWindow welcome = new WelComeWindow();
             welcome.Show();
 
-            // 关闭当前 EditWindow（注意：会触发 Closing 事件）
-            skipClosingCheck = true;   // 设置跳过标志，防止 Closing 中重复检查
+            skipClosingCheck = true;
             this.Close();
         }
 
@@ -378,11 +380,9 @@ namespace NavigatorHMI.Views
         /// </summary>
         private bool TryCloseProject(bool isAppClosing)
         {
-            // 如果没有打开任何工程或没有未保存修改，直接允许
             if (string.IsNullOrEmpty(currentProject.ProjectFilePath) || !isProjectDirty)
                 return true;
 
-            // 弹出询问对话框
             MessageBoxResult result = MessageBox.Show(
                 "当前工程有未保存的修改，是否保存？",
                 "提示",
@@ -396,11 +396,11 @@ namespace NavigatorHMI.Views
             }
             else if (result == MessageBoxResult.No)
             {
-                return true;       // 不保存，丢弃更改
+                return true;
             }
-            else // Cancel
+            else
             {
-                return false;      // 用户取消，不关闭
+                return false;
             }
         }
 
@@ -420,7 +420,6 @@ namespace NavigatorHMI.Views
 
         private void OnScreenAdded(object recipient, ScreenAddedMessage message)
         {
-            // 如果需要在 UI 线程上操作（比如改变标题），Dispatcher 是安全的
             Dispatcher.Invoke(() =>
             {
                 MarkProjectDirty();
@@ -433,6 +432,45 @@ namespace NavigatorHMI.Views
             var node = item?.DataContext as ProjectTreeViewModel;
             node?.DoubleClickCommand?.Execute(null);
         }
+
+        #endregion
+
+        #region 树形视图右键编辑菜单（委托给 TreeViewContextMenuHandler）
+
+        /// <summary>
+        /// 右键点击树节点：选中节点并显示上下文菜单。
+        /// 委托给 <see cref="TreeViewContextMenuHandler.OnTreeViewItemRightClick"/>。
+        /// </summary>
+        private void TreeViewItem_RightClick(object sender, MouseButtonEventArgs e)
+            => _treeContextMenuHandler.OnTreeViewItemRightClick(sender, e);
+
+        /// <summary>
+        /// 树节点右键菜单「删除画面」点击。
+        /// 委托给 <see cref="TreeViewContextMenuHandler.OnDeleteScreenClick"/>。
+        /// </summary>
+        private void DeleteScreen_Click(object sender, RoutedEventArgs e)
+            => _treeContextMenuHandler.OnDeleteScreenClick(sender, e);
+
+        /// <summary>
+        /// 右键菜单「重命名」按钮点击：进入编辑模式。
+        /// 委托给 <see cref="TreeViewContextMenuHandler.OnRenameScreenClick"/>。
+        /// </summary>
+        private void RenameScreen_Click(object sender, RoutedEventArgs e)
+            => _treeContextMenuHandler.OnRenameScreenClick(sender, e);
+
+        /// <summary>
+        /// EditNameTextBox 加载后自动获取焦点并全选文本。
+        /// 委托给 <see cref="TreeViewContextMenuHandler.OnEditNameTextBoxLoaded"/>。
+        /// </summary>
+        private void EditNameTextBox_Loaded(object sender, RoutedEventArgs e)
+            => _treeContextMenuHandler.OnEditNameTextBoxLoaded(sender, e);
+
+        /// <summary>
+        /// EditNameTextBox 按键处理：回车确认，Escape 取消。
+        /// 委托给 <see cref="TreeViewContextMenuHandler.OnEditNameTextBoxKeyDown"/>。
+        /// </summary>
+        private void EditNameTextBox_KeyDown(object sender, KeyEventArgs e)
+            => _treeContextMenuHandler.OnEditNameTextBoxKeyDown(sender, e);
 
         #endregion
     }

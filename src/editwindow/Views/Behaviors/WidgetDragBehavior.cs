@@ -88,9 +88,16 @@ namespace NavigatorHMI.Views.Behaviors
         /// </summary>
         internal void OnPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (sender is Button)
+            if (sender is Button btn)
             {
                 _dragStartPoint = e.GetPosition(_canvas);
+
+                // 🆕 同时记录 widget 起始坐标（和 OnMouseLeftButtonDown 中的一致）
+                if (btn.DataContext is ButtonWidget widget)
+                {
+                    _dragStartX = widget.X;
+                    _dragStartY = widget.Y;
+                }
             }
         }
 
@@ -116,8 +123,8 @@ namespace NavigatorHMI.Views.Behaviors
             // 进入拖拽状态
             _isDragging = true;
             _draggingWidget = widget;
-            _dragStartX = widget.X;
-            _dragStartY = widget.Y;
+            // _dragStartX = widget.X;
+            // _dragStartY = widget.Y;
 
             // 切换光标为十字箭头，提示用户进入拖拽模式
             _setCursorCallback(Cursors.SizeAll);
@@ -136,6 +143,13 @@ namespace NavigatorHMI.Views.Behaviors
         internal void OnMouseMove(object sender, MouseEventArgs e)
         {
             if (!_isDragging || _draggingWidget == null) return;
+
+            if (Mouse.LeftButton != MouseButtonState.Pressed)
+            {
+                _isDragging = false;
+                _draggingWidget = null;
+                return;
+            }
 
             // 确保光标保持为十字箭头（可能被其他元素暂时修改）
             _setCursorCallback(Cursors.SizeAll);
@@ -219,6 +233,18 @@ namespace NavigatorHMI.Views.Behaviors
 
             var widget = btn.DataContext as Widget;
             if (widget == null) return;
+
+            // 🆕 强制终止可能残留的拖拽状态
+            // 场景：用户左键拖到一半松开→右键点击同一按钮→移动鼠标
+            // 如果不重置 _isDragging，MouseMove 会误认为在拖拽中
+            _isDragging = false;
+            _draggingWidget = null;
+
+            // 🆕 释放鼠标捕获（如果按钮正被左键拖拽捕获中）
+            btn.ReleaseMouseCapture();
+
+            // 🆕 恢复默认光标（可能被左键拖拽改成了 SizeAll）
+            _setCursorCallback(Cursors.Arrow);
 
             // 先选中该控件
             _selectionManager.SelectWidget(widget);

@@ -28,11 +28,42 @@ namespace NavigatorHMI.ViewModels
             get => _currentScreen;
             set
             {
+                if (_currentScreen == value) return;
+
+                var oldScreen = _currentScreen;
                 _currentScreen = value;
                 OnPropertyChanged();
+
+                // 🆕 更新树节点的 IsCurrent 状态
+                UpdateTreeNodeCurrentStatus(oldScreen, value);
+
                 // 通知画布重新加载
                 OnPropertyChanged(nameof(CurrentScreen.Widgets));
                 CanvasReloadRequested?.Invoke(value);
+            }
+        }
+
+        /// <summary>
+        /// 更新树节点中画面的当前状态标记。
+        /// 切换画面时，旧画面取消标记，新画面打上标记。
+        /// </summary>
+        private void UpdateTreeNodeCurrentStatus(Screen oldScreen, Screen newScreen)
+        {
+            foreach (var root in TreeRoots)
+            {
+                UpdateNodeRecursive(root, newScreen);
+            }
+        }
+
+        private static void UpdateNodeRecursive(ProjectTreeViewModel node, Screen currentScreen)
+        {
+            if (node is ScreenItemNode screenNode)
+            {
+                screenNode.IsCurrent = (screenNode.Screen == currentScreen);
+            }
+            foreach (var child in node.Children)
+            {
+                UpdateNodeRecursive(child, currentScreen);
             }
         }
 

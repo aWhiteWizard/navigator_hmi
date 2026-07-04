@@ -20,10 +20,59 @@ namespace NavigatorHMI.ViewModels
         public ICommand DoubleClickCommand { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
-        private void OnPropertyChanged(string propertyName)
+        protected void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
+
+        private bool _isCurrent;
+        public bool IsCurrent
+        {
+            get => _isCurrent;
+            set
+            {
+                if (_isCurrent != value)
+                {
+                    _isCurrent = value;
+                    OnPropertyChanged(nameof(IsCurrent));
+                }
+            }
+        }
+        private bool _isEditing;
+        public bool IsEditing
+        {
+            get => _isEditing;
+            set
+            {
+                if (_isEditing != value)
+                {
+                    _isEditing = value;
+                    OnPropertyChanged(nameof(IsEditing));
+                }
+            }
+        }
+
+        private string _editName;
+        public string EditName
+        {
+            get => _editName;
+            set
+            {
+                if (_editName != value)
+                {
+                    _editName = value;
+                    OnPropertyChanged(nameof(EditName));
+                }
+            }
+        }
+
+        /// <summary>重命名命令：进入编辑模式</summary>
+        public ICommand StartRenameCommand { get; set; }
+
+        /// <summary>确认重命名命令：按回车提交</summary>
+        public ICommand ConfirmRenameCommand { get; set; }
+
+
     }
 
     public class ScreenItemNode : ProjectTreeViewModel
@@ -41,14 +90,27 @@ namespace NavigatorHMI.ViewModels
                              screen.Type != ScreenType.Template &&
                              screen.Type != ScreenType.WorldMap;
             DeleteCommand = new RelayCommand(() => deleteCallback?.Invoke(this), () => canDelete);
+            // 进入编辑模式
+            StartRenameCommand = new RelayCommand(() =>
+            {
+                EditName = Name;       // 预填当前名称
+                IsEditing = true;
+            });
+
+            // 确认重命名
+            ConfirmRenameCommand = new RelayCommand(() =>
+            {
+                if (!string.IsNullOrWhiteSpace(EditName))
+                {
+                    Screen.Name = EditName;
+                    // 更新节点名称并通知 UI
+                    Name = EditName;
+                    OnPropertyChanged(nameof(Name));
+                }
+                IsEditing = false;
+            });
         }
         public event Action<Screen> OnSelected;
-
-        private bool CanDelete()
-        {
-            // 禁止删除全局画面和地图画面（假设它们的 Type 为 Global 或 Map）
-            return Screen.Type != ScreenType.Template && Screen.Type != ScreenType.WorldMap;
-        }// ToDo:这个可以删了？
     }
 
     public class CustomScreensRootNode : ProjectTreeViewModel
@@ -89,8 +151,21 @@ namespace NavigatorHMI.ViewModels
 
         public void AddNewScreen()
         {
-            int nextNum = _project.Screens.Count(s => s.Type == ScreenType.Custom) + 1;
+            // 🆕 从所有 "画面N" 中提取编号，找最大编号 + 1，避免编号重复
+            var existingNums = _project.Screens
+                .Where(s => s.Type == ScreenType.Custom)
+                .Select(s => {
+                    // 尝试从名称 "画面N" 中提取数字 N
+                    if (s.Name.StartsWith("画面") && int.TryParse(s.Name.Substring(2), out int n))
+                        return n;
+                    return 0;
+                })
+                .Where(n => n > 0)
+                .ToList();
+
+            int nextNum = existingNums.Count > 0 ? existingNums.Max() + 1 : 1;
             string newName = $"画面{nextNum}";
+
             var newScreen = new Screen { Name = newName, Type = ScreenType.Custom, Height = _project.DeviceHeight, Width = _project.DeviceWidth, Widgets = new ObservableCollection<Widget>() };
             _project.Screens.Add(newScreen);
             AddScreenNodeInternal(newScreen);
