@@ -152,11 +152,11 @@ namespace NavigatorHMI.Views.Helpers
         /// <summary>
         /// 在视觉树中向上查找指定类型的父元素。
         /// </summary>
-        private static T? FindVisualParent<T>(DependencyObject child) where T : DependencyObject
+        private static Template? FindVisualParent<Template>(DependencyObject child) where Template : DependencyObject
         {
             while (child != null)
             {
-                if (child is T parent) return parent;
+                if (child is Template parent) return parent;
                 child = VisualTreeHelper.GetParent(child);
             }
             return null;
