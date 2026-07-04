@@ -1,4 +1,4 @@
-﻿<Window x:Class="NavigatorHMI.Views.EditWindow"
+<Window x:Class="NavigatorHMI.Views.EditWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -33,6 +33,7 @@
     </Window.CommandBindings>
     <Window.InputBindings>
         <KeyBinding Key="S" Modifiers="Control" Command="Save" />
+        <KeyBinding Key="Z" Modifiers="Control" Command="{Binding UndoCommand}" />
     </Window.InputBindings>
     <Grid ShowGridLines="True">
         <Grid.RowDefinitions>
@@ -52,7 +53,9 @@
                 </MenuItem>
                 <MenuItem Header="保存" Command="Save"/>
                 <MenuItem Header="编辑">
-                    <MenuItem Header="撤销"/>
+                    <MenuItem Header="撤销" 
+                              Command="{Binding UndoCommand}"
+                              InputGestureText="Ctrl+Z"/>
                 </MenuItem>
                 <MenuItem Header="视图">
                     <MenuItem Header="恢复默认布局"/>

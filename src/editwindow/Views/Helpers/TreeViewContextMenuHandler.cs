@@ -18,6 +18,7 @@ namespace NavigatorHMI.Views.Helpers
     {
         private readonly Popup _treeContextMenu;
         private readonly Action _markProjectDirty;
+        private readonly Action? _pushUndoCallback;
 
         /// <summary>当前右键点击的树节点，用于菜单按钮回调时传递操作目标</summary>
         private ScreenItemNode? _rightClickedTreeNode;
@@ -27,10 +28,12 @@ namespace NavigatorHMI.Views.Helpers
         /// </summary>
         /// <param name="treeContextMenu">XAML 中定义的 TreeContextMenu Popup 控件</param>
         /// <param name="markProjectDirty">标记工程已修改的回调（通常指向 EditWindow.MarkProjectDirty）</param>
-        public TreeViewContextMenuHandler(Popup treeContextMenu, Action markProjectDirty)
+        /// <param name="pushUndoCallback">保存 Undo 快照的回调（可选），在修改数据前调用</param>
+        public TreeViewContextMenuHandler(Popup treeContextMenu, Action markProjectDirty, Action? pushUndoCallback = null)
         {
             _treeContextMenu = treeContextMenu ?? throw new ArgumentNullException(nameof(treeContextMenu));
             _markProjectDirty = markProjectDirty ?? throw new ArgumentNullException(nameof(markProjectDirty));
+            _pushUndoCallback = pushUndoCallback;
         }
 
         /// <summary>
@@ -83,6 +86,8 @@ namespace NavigatorHMI.Views.Helpers
 
             if (node.DeleteCommand.CanExecute(null))
             {
+                // 在删除前保存 Undo 快照
+                _pushUndoCallback?.Invoke();
                 node.DeleteCommand.Execute(null);
                 _markProjectDirty();
             }
@@ -132,6 +137,8 @@ namespace NavigatorHMI.Views.Helpers
                 var node = tb?.DataContext as ScreenItemNode;
                 if (node != null)
                 {
+                    // 在重命名前保存 Undo 快照
+                    _pushUndoCallback?.Invoke();
                     node.ConfirmRenameCommand.Execute(null);
                     _markProjectDirty();
                 }
@@ -152,11 +159,11 @@ namespace NavigatorHMI.Views.Helpers
         /// <summary>
         /// 在视觉树中向上查找指定类型的父元素。
         /// </summary>
-        private static Template? FindVisualParent<Template>(DependencyObject child) where Template : DependencyObject
+        private static T? FindVisualParent<T>(DependencyObject child) where T : DependencyObject
         {
             while (child != null)
             {
-                if (child is Template parent) return parent;
+                if (child is T parent) return parent;
                 child = VisualTreeHelper.GetParent(child);
             }
             return null;

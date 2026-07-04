@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -6,6 +6,9 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Input;
+using CommunityToolkit.Mvvm.Input;
+using NavigatorHMI.Views.Helpers;
 using NavigatorHMI.Common;
 
 namespace NavigatorHMI.ViewModels
@@ -70,6 +73,8 @@ namespace NavigatorHMI.ViewModels
         public event Action<Screen> CanvasReloadRequested;
         // 新增：同一画面内数据变化时（如添加/删除控件）触发刷新
         public event Action RefreshCanvasRequested;
+        // 撤销操作执行后触发，用于通知 View 层标记工程已修改
+        public event Action? ProjectDirtyRequested;
         // 当控件列表发生变化时调用这个方法
         public void NotifyCanvasRefreshNeeded()
         {
@@ -77,6 +82,20 @@ namespace NavigatorHMI.ViewModels
         }
 
         public ObservableCollection<ProjectTreeViewModel> TreeRoots { get; } = new ObservableCollection<ProjectTreeViewModel>();
+
+        private readonly UndoManager _undoManager = new();
+        public ICommand UndoCommand { get; private set; }
+
+        /// <summary>
+        /// 在执行修改操作之前保存当前画面的 Undo 快照。
+        /// </summary>
+        public void PushUndoSnapshot()
+        {
+            if (CurrentScreen != null)
+            {
+                _undoManager.PushSnapshot(CurrentScreen);
+            }
+        }
 
         public EditWindowViewModel(HMIProject project)
         {
@@ -107,6 +126,21 @@ namespace NavigatorHMI.ViewModels
 
             // 默认选中全局画面
             CurrentScreen = project.Screens.First(s => s.Type == ScreenType.WorldMap);
+
+            UndoCommand = new RelayCommand(
+                () =>
+                {
+                    if (CurrentScreen == null) return;
+                    var restored = _undoManager.Undo(CurrentScreen);
+                    if (restored != null)
+                    {
+                        CurrentScreen.Widgets.Clear();
+                        foreach (var w in restored)
+                            CurrentScreen.Widgets.Add(w);
+                        RefreshCanvasRequested?.Invoke();
+                        ProjectDirtyRequested?.Invoke();
+                    }
+                });
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

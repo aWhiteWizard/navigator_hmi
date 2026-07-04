@@ -18,6 +18,7 @@ namespace NavigatorHMI.Views.Helpers
         private readonly WidgetSelectionManager _selectionManager;
         private readonly Action _markProjectDirty;
         private readonly Action _notifyCanvasRefresh;
+        private readonly Action? _pushUndoCallback;
 
         /// <summary>
         /// 初始化 <see cref="WidgetContextMenuHandler"/> 实例。
@@ -27,18 +28,21 @@ namespace NavigatorHMI.Views.Helpers
         /// <param name="selectionManager">Widget 选中状态管理器，用于删除后清除选中状态</param>
         /// <param name="markProjectDirty">标记工程已修改的回调</param>
         /// <param name="notifyCanvasRefresh">通知画布刷新的回调</param>
+        /// <param name="pushUndoCallback">保存 Undo 快照的回调（可选），在修改数据前调用</param>
         public WidgetContextMenuHandler(
             Popup widgetContextMenu,
             Func<EditWindowViewModel> viewModelProvider,
             WidgetSelectionManager selectionManager,
             Action markProjectDirty,
-            Action notifyCanvasRefresh)
+            Action notifyCanvasRefresh,
+            Action? pushUndoCallback = null)
         {
             _widgetContextMenu = widgetContextMenu ?? throw new ArgumentNullException(nameof(widgetContextMenu));
             _viewModelProvider = viewModelProvider ?? throw new ArgumentNullException(nameof(viewModelProvider));
             _selectionManager = selectionManager ?? throw new ArgumentNullException(nameof(selectionManager));
             _markProjectDirty = markProjectDirty ?? throw new ArgumentNullException(nameof(markProjectDirty));
             _notifyCanvasRefresh = notifyCanvasRefresh ?? throw new ArgumentNullException(nameof(notifyCanvasRefresh));
+            _pushUndoCallback = pushUndoCallback;
         }
 
         /// <summary>
@@ -71,6 +75,9 @@ namespace NavigatorHMI.Views.Helpers
 
             var vm = _viewModelProvider();
             if (vm?.CurrentScreen == null) return;
+
+            // 在删除前保存 Undo 快照
+            _pushUndoCallback?.Invoke();
 
             // 从集合中移除
             vm.CurrentScreen.Widgets.Remove(widget);

@@ -38,6 +38,8 @@ namespace NavigatorHMI.Views.Behaviors
         private readonly Action<Cursor> _setCursorCallback;
         private readonly WidgetSelectionManager _selectionManager;
         private readonly Action<Widget, Point>? _onRightClickCallback;
+        private readonly Action? _pushUndoCallback;
+
         #endregion
 
         /// <summary>
@@ -48,6 +50,8 @@ namespace NavigatorHMI.Views.Behaviors
         /// <param name="markDirtyCallback">标记工程已修改的回调，拖拽移动时调用以更新窗口标题</param>
         /// <param name="setCursorCallback">设置窗口光标的回调，拖拽时切换为 SizeAll，结束时恢复 Arrow</param>
         /// <param name="selectionManager">选中状态管理器，处理点击选中逻辑（SelectWidget / ClearAllSelection）</param>
+        /// <param name="onRightClickCallback">右键点击回调（可选），用于显示上下文菜单</param>
+        /// <param name="pushUndoCallback">保存 Undo 快照的回调（可选），在开始拖拽修改位置前调用</param>
         /// <exception cref="ArgumentNullException">任一参数为 null 时抛出</exception>
         public WidgetDragBehavior(
             Canvas canvas,
@@ -55,14 +59,16 @@ namespace NavigatorHMI.Views.Behaviors
             Action markDirtyCallback,
             Action<Cursor> setCursorCallback,
             WidgetSelectionManager selectionManager,
-            Action<Widget, Point>? onRightClickCallback = null)
+            Action<Widget, Point>? onRightClickCallback = null,
+            Action? pushUndoCallback = null)
         {
             _canvas = canvas ?? throw new ArgumentNullException(nameof(canvas));
             _viewModelProvider = viewModelProvider ?? throw new ArgumentNullException(nameof(viewModelProvider));
             _markDirtyCallback = markDirtyCallback ?? throw new ArgumentNullException(nameof(markDirtyCallback));
             _setCursorCallback = setCursorCallback ?? throw new ArgumentNullException(nameof(setCursorCallback));
             _selectionManager = selectionManager ?? throw new ArgumentNullException(nameof(selectionManager));
-            _onRightClickCallback = onRightClickCallback;  // ← 在构造函数体里
+            _onRightClickCallback = onRightClickCallback;
+            _pushUndoCallback = pushUndoCallback;
         }
 
         #region 事件处理方法（internal — 供 WidgetItemsControlFactory 在 DataTemplate 中绑定）
@@ -92,7 +98,7 @@ namespace NavigatorHMI.Views.Behaviors
             {
                 _dragStartPoint = e.GetPosition(_canvas);
 
-                // 🆕 同时记录 widget 起始坐标（和 OnMouseLeftButtonDown 中的一致）
+                // 同时记录 widget 起始坐标（和 OnMouseLeftButtonDown 中的一致）
                 if (btn.DataContext is ButtonWidget widget)
                 {
                     _dragStartX = widget.X;
@@ -120,11 +126,12 @@ namespace NavigatorHMI.Views.Behaviors
                 _selectionManager.SelectWidget(widget);
             }
 
+            // 在开始拖拽前保存 Undo 快照
+            _pushUndoCallback?.Invoke();
+
             // 进入拖拽状态
             _isDragging = true;
             _draggingWidget = widget;
-            // _dragStartX = widget.X;
-            // _dragStartY = widget.Y;
 
             // 切换光标为十字箭头，提示用户进入拖拽模式
             _setCursorCallback(Cursors.SizeAll);
@@ -234,16 +241,16 @@ namespace NavigatorHMI.Views.Behaviors
             var widget = btn.DataContext as Widget;
             if (widget == null) return;
 
-            // 🆕 强制终止可能残留的拖拽状态
+            // 强制终止可能残留的拖拽状态
             // 场景：用户左键拖到一半松开→右键点击同一按钮→移动鼠标
             // 如果不重置 _isDragging，MouseMove 会误认为在拖拽中
             _isDragging = false;
             _draggingWidget = null;
 
-            // 🆕 释放鼠标捕获（如果按钮正被左键拖拽捕获中）
+            // 释放鼠标捕获（如果按钮正被左键拖拽捕获中）
             btn.ReleaseMouseCapture();
 
-            // 🆕 恢复默认光标（可能被左键拖拽改成了 SizeAll）
+            // 恢复默认光标（可能被左键拖拽改成了 SizeAll）
             _setCursorCallback(Cursors.Arrow);
 
             // 先选中该控件

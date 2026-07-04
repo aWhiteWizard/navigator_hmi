@@ -61,38 +61,42 @@ namespace NavigatorHMI.Views
                 DrawingCanvas,
                 () => _viewModel);
 
-            // 4. 初始化右键菜单处理器
+            // 4. 初始化右键菜单处理器（注入 Undo 快照回调）
             _treeContextMenuHandler = new TreeViewContextMenuHandler(
                 TreeContextMenu,
-                MarkProjectDirty);
+                MarkProjectDirty,
+                () => _viewModel.PushUndoSnapshot());
 
             _widgetContextMenuHandler = new WidgetContextMenuHandler(
                 WidgetContextMenu,
                 () => _viewModel,
                 _selectionManager,
                 MarkProjectDirty,
-                () => _viewModel.NotifyCanvasRefreshNeeded());
+                () => _viewModel.NotifyCanvasRefreshNeeded(),
+                () => _viewModel.PushUndoSnapshot());
 
-            // 5. 初始化 _dragBehavior
+            // 5. 初始化 _dragBehavior（注入 Undo 快照回调）
             _dragBehavior = new WidgetDragBehavior(
                 DrawingCanvas,
                 () => _viewModel,
                 MarkProjectDirty,
                 cursor => this.Cursor = cursor,
                 _selectionManager,
-                _widgetContextMenuHandler.Show);
+                _widgetContextMenuHandler.Show,
+                () => _viewModel.PushUndoSnapshot());
 
-            // 5. 订阅事件
+            // 6. 订阅事件
             WeakReferenceMessenger.Default.Register<ScreenAddedMessage>(this, OnScreenAdded);
 
-            // 6. 在 Loaded 事件中初始化 UI
+            // 7. 在 Loaded 事件中初始化 UI
             this.Loaded += EditWindow_Loaded;
 
-            // 7. 订阅 ViewModel 事件
+            // 8. 订阅 ViewModel 事件
             _viewModel.CanvasReloadRequested += LoadCanvas;
             _viewModel.RefreshCanvasRequested += () => LoadCanvas(_viewModel.CurrentScreen);
+            _viewModel.ProjectDirtyRequested += MarkProjectDirty;
 
-            // 8. 初始加载
+            // 9. 初始加载
             LoadCanvas(_viewModel.CurrentScreen);
 
             isProjectDirty = false;
@@ -288,6 +292,9 @@ namespace NavigatorHMI.Views
 
             if (_currentWidgetCreator == null) return;
             if (_viewModel?.CurrentScreen == null) return;
+
+            // 在添加 Widget 前保存 Undo 快照
+            _viewModel.PushUndoSnapshot();
 
             Point pos = e.GetPosition(DrawingCanvas);
             var widget = _currentWidgetCreator.Create(pos);
