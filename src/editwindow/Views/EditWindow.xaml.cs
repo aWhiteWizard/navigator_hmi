@@ -39,6 +39,10 @@ namespace NavigatorHMI.Views
         // 树形视图和 Widget 的右键菜单处理器
         private readonly TreeViewContextMenuHandler _treeContextMenuHandler;
         private readonly WidgetContextMenuHandler _widgetContextMenuHandler;
+        // 属性窗口
+        private readonly PropertyViewModel _propertyViewModel;
+        private PerprotyWindow? _propertyWindow;
+
 
         #endregion
 
@@ -123,6 +127,9 @@ namespace NavigatorHMI.Views
                     }
                 }
             };
+            // 10. 初始化属性窗口
+            _propertyViewModel = new PropertyViewModel();
+            _selectionManager.WidgetSelected += OnWidgetSelected;
         }
 
         /// <summary>
@@ -344,6 +351,44 @@ namespace NavigatorHMI.Views
                 AddButtonModeBtn.Content = "Button";
             }
         }
+
+        #endregion
+
+        #region 属性窗口
+
+        /// <summary>
+        /// 选中状态变化时，在鼠标位置旁边弹出属性窗口或隐藏。
+        /// </summary>
+        private void OnWidgetSelected(Widget? widget)
+        {
+            _propertyViewModel.SelectedWidget = widget;
+
+            if (widget != null)
+            {
+                if (_propertyWindow == null)
+                {
+                    _propertyWindow = new PerprotyWindow();
+                    _propertyWindow.Owner = this;
+                }
+
+                // 获取鼠标在屏幕上的坐标，将窗口定位到鼠标右下方
+                var mousePos = Mouse.GetPosition(this);
+                var screenPos = this.PointToScreen(mousePos);
+
+                _propertyWindow.Left = screenPos.X + 15;
+                _propertyWindow.Top = screenPos.Y;
+                _propertyWindow.DataContext = _propertyViewModel;
+
+                if (!_propertyWindow.IsVisible)
+                    _propertyWindow.Show();
+            }
+            else
+            {
+                if (_propertyWindow?.IsVisible == true)
+                    _propertyWindow.Hide();
+            }
+        }
+
 
         #endregion
 

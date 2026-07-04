@@ -27,7 +27,6 @@
         </DrawingBrush>
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
     </Window.Resources>
-    <!-- ✅ 新增：Ctrl+S 热键绑定 -->
     <Window.CommandBindings>
         <CommandBinding Command="Save" Executed="SaveCurrentProject_Click" />
     </Window.CommandBindings>
@@ -51,7 +50,6 @@
                     <MenuItem Header="另存为"/>
                     <MenuItem Header="关闭工程" Click="CloseCurrentProject_Click"/>
                 </MenuItem>
-                <MenuItem Header="保存" Command="Save"/>
                 <MenuItem Header="编辑">
                     <MenuItem Header="撤销" 
                               Command="{Binding UndoCommand}"

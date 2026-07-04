@@ -36,10 +36,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Views\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Resource Include="Images\未来科技工坊_白底蓝花.png">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </Resource>
