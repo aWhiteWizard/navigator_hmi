@@ -82,10 +82,26 @@ namespace NavigatorHMI.Views
 
         private void CreateProjectBtn_Click(object sender, RoutedEventArgs e)
         {
-            RecentProjectManager.Instance.AddRecentProject(ProjectPathTextBox.Text + "\\" + ProjectNameTextBox.Text + ".hmiproj");
-            DialogResult = true;  // 关键：设置为 true
+            // 在选择的路径下创建工程同名的文件夹
+            string projectFolder = System.IO.Path.Combine(ProjectPathTextBox.Text, ProjectNameTextBox.Text);
+            System.IO.Directory.CreateDirectory(projectFolder);
+
+            // 工程文件路径改为放在该文件夹下
+            string projectFilePath = System.IO.Path.Combine(projectFolder, ProjectNameTextBox.Text + ".hmiproj");
+
+            // 把文件夹路径设回 ViewModel 的 ProjectPath（原本是父目录，现在改为子目录）
+            var vm = this.DataContext as DeviceConfigViewModel;
+            if (vm != null)
+            {
+                vm.ProjectPath = projectFolder;  // 关键：让 ViewModel 知道目标文件夹
+            }
+
+            RecentProjectManager.Instance.AddRecentProject(projectFilePath);
+            DialogResult = true;
             this.Close();
         }
+
+
 
         private void CreateProjectCancelBtn_Click(object sender, RoutedEventArgs e)
         {

@@ -67,6 +67,64 @@ namespace NavigatorHMI.Views.Helpers
         }
 
         /// <summary>
+        /// 选中指定的 Widget（仅修改状态，不触发事件通知）。
+        /// 清除其他所有 Widget 的选中状态并同步 UI 装饰器，但不触发 <see cref="WidgetSelected"/> 事件。
+        /// 用于单击选中等不需要弹出属性窗口的场景。
+        /// </summary>
+        /// <param name="widget">要选中的 <see cref="ButtonWidget"/> 实例</param>
+        public void SelectWidgetSilent(Widget widget)
+        {
+            if (widget == null) return;
+
+            var vm = _viewModelProvider();
+            if (vm?.CurrentScreen?.Widgets == null) return;
+
+            // 清除所有 Widget 的数据模型选中状态
+            foreach (var w in vm.CurrentScreen.Widgets)
+            {
+                w.IsSelected = false;
+            }
+            // 设置目标 Widget 为选中
+            widget.IsSelected = true;
+
+            // 同步 UI 装饰器
+            UpdateSelectionUI();
+
+            System.Diagnostics.Debug.WriteLine($"✅ 静默选中: {(widget as ButtonWidget)?.Text ?? widget.GetType().Name}");
+        }
+
+        // 双击检测字段
+        private DateTime _lastClickTime;
+        private Point _lastClickPosition;
+
+        /// <summary>
+        /// 统一处理 Widget 的点击事件，自动区分单击和双击。
+        /// 单击 → 静默选中（不触发 <see cref="WidgetSelected"/> 事件，不弹出属性窗口）。
+        /// 双击 → 完整选中（触发事件弹出属性窗口）。
+        /// 所有 Widget 类型统一通过此方法处理点击，新增控件无需重复实现双击检测。
+        /// </summary>
+        /// <param name="widget">被点击的 Widget 实例</param>
+        /// <param name="clickPosition">点击位置（相对于画布坐标，通过 <c>Mouse.GetPosition(canvas)</c> 获取）</param>
+        public void HandleWidgetClick(Widget widget, Point clickPosition)
+        {
+            if (widget == null) return;
+
+            var now = DateTime.Now;
+
+            bool isDoubleClick = (now - _lastClickTime).TotalMilliseconds < 500
+                              && Math.Abs(clickPosition.X - _lastClickPosition.X) < 10
+                              && Math.Abs(clickPosition.Y - _lastClickPosition.Y) < 10;
+
+            _lastClickTime = now;
+            _lastClickPosition = clickPosition;
+
+            if (isDoubleClick)
+                SelectWidget(widget);       // 完整选中→弹出属性窗口
+            else
+                SelectWidgetSilent(widget); // 静默选中→不弹窗
+        }
+
+        /// <summary>
         /// 清除所有 Widget 的选中状态。
         /// 同时清除数据模型层（<see cref="ButtonWidget.IsSelected"/>）
         /// 和 UI 层（通过 <see cref="SelectorHelper.SetIsSelected"/>）的选中标记。

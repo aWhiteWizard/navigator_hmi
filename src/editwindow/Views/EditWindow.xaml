@@ -9,6 +9,7 @@
         mc:Ignorable="d"
         WindowState="Maximized"
         Closing="EditWindow_Closing"
+        PreviewKeyDown="EditWindow_PreviewKeyDown"
         Title="NavigatorHMI" Height="450" Width="800">
     <Window.Resources>
         <!-- 5x5 点阵画刷 -->
@@ -57,6 +58,9 @@
                 </MenuItem>
                 <MenuItem Header="视图">
                     <MenuItem Header="恢复默认布局"/>
+                </MenuItem>
+                <MenuItem Header="调试">
+                    <MenuItem Header="生成" Click="BuildProject_Click" InputGestureText="F5"/>
                 </MenuItem>
             </Menu>
         </Grid>

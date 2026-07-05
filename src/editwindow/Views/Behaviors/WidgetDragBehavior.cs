@@ -85,7 +85,8 @@ namespace NavigatorHMI.Views.Behaviors
             var widget = btn.DataContext as ButtonWidget;
             if (widget == null) return;
 
-            _selectionManager.SelectWidget(widget);
+            var clickPos = Mouse.GetPosition(_canvas);
+            _selectionManager.HandleWidgetClick(widget, clickPos);
         }
 
         /// <summary>
@@ -123,7 +124,7 @@ namespace NavigatorHMI.Views.Behaviors
             // 如果按钮尚未被选中，先选中它（点击目标即选中）
             if (!widget.IsSelected)
             {
-                _selectionManager.SelectWidget(widget);
+                _selectionManager.SelectWidgetSilent(widget);
             }
 
             // 在开始拖拽前保存 Undo 快照
@@ -212,7 +213,7 @@ namespace NavigatorHMI.Views.Behaviors
                 // 移动距离小于阈值 → 视为点击而非拖拽，确保按钮被选中
                 if (!_draggingWidget.IsSelected)
                 {
-                    _selectionManager.SelectWidget(_draggingWidget);
+                    _selectionManager.SelectWidgetSilent(_draggingWidget);
                 }
             }
             else if (_draggingWidget != null)
@@ -252,7 +253,7 @@ namespace NavigatorHMI.Views.Behaviors
             _setCursorCallback(Cursors.Arrow);
 
             // 先选中该控件
-            _selectionManager.SelectWidget(widget);
+            _selectionManager.SelectWidgetSilent(widget);
 
             // 标记事件已处理，防止冒泡到 Canvas
             e.Handled = true;

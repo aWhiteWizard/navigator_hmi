@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Windows;
 using System.Windows.Controls.Primitives;
 using NavigatorHMI.Common;
@@ -95,6 +95,49 @@ namespace NavigatorHMI.Views.Helpers
             _widgetContextMenu.IsOpen = false;
 
             System.Diagnostics.Debug.WriteLine($"🗑 已删除 Widget: {(widget as ButtonWidget)?.Text ?? widget.GetType().Name}");
+        }
+
+        /// <summary>
+        /// 删除当前选中的 Widget（从数据模型中查找 IsSelected 为 true 的 Widget）。
+        /// 供 Delete 键快捷键调用，无需依赖右键菜单的 Tag 存储。
+        /// </summary>
+        public void DeleteSelectedWidget()
+        {
+            var vm = _viewModelProvider();
+            if (vm?.CurrentScreen == null) return;
+
+            // 查找当前选中的 Widget
+            Widget? selected = null;
+            foreach (var w in vm.CurrentScreen.Widgets)
+            {
+                if (w.IsSelected)
+                {
+                    selected = w;
+                    break;
+                }
+            }
+
+            if (selected == null) return;
+
+            // 在删除前保存 Undo 快照
+            _pushUndoCallback?.Invoke();
+
+            // 从集合中移除
+            vm.CurrentScreen.Widgets.Remove(selected);
+
+            // 清除选中状态
+            _selectionManager.ClearAllSelection();
+
+            // 标记工程已修改
+            _markProjectDirty();
+
+            // 刷新画布
+            _notifyCanvasRefresh();
+
+            // 关闭 Popup（如果有）
+            _widgetContextMenu.IsOpen = false;
+
+            System.Diagnostics.Debug.WriteLine($"🗑 已通过 Delete 键删除 Widget: {(selected as ButtonWidget)?.Text ?? selected.GetType().Name}");
         }
     }
 }

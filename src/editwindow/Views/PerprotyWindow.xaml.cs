@@ -1,5 +1,6 @@
 using NavigatorHMI.ViewModels;
 using System.Windows;
+using System.Windows.Input;
 
 namespace NavigatorHMI.Views
 {
@@ -8,9 +9,19 @@ namespace NavigatorHMI.Views
     /// </summary>
     public partial class PerprotyWindow : Window
     {
+        /// <summary>ESC 键按下时的回调，由 EditWindow 注入清除选中逻辑</summary>
+        public Action? OnEscapePressed { get; set; }
         public PerprotyWindow()
         {
             InitializeComponent();
+            PreviewKeyDown += (s, e) =>
+            {
+                if (e.Key == Key.Escape)
+                {
+                    OnEscapePressed?.Invoke();
+                    e.Handled = true;
+                }
+            };
         }
 
         /// <summary>

@@ -1,11 +1,3 @@
-using System;
-using System.ComponentModel;
-using System.IO;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Input;
-using System.Windows.Media;
 using CommunityToolkit.Mvvm.Messaging;
 using NavigatorHMI.Common;
 using NavigatorHMI.ViewModels;
@@ -13,6 +5,16 @@ using NavigatorHMI.Views.Behaviors;
 using NavigatorHMI.Views.Helpers;
 using NavigatorHMI.Views.Helpers.Creators;
 using ProtoBuf;
+using Sunny.UI.Win32;
+using System;
+using System.ComponentModel;
+using System.IO;
+using System.Runtime.InteropServices;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Input;
+using System.Windows.Media;
 
 namespace NavigatorHMI.Views
 {
@@ -23,6 +25,18 @@ namespace NavigatorHMI.Views
     public partial class EditWindow : Window
     {
         #region 私有字段
+        // 类内部
+        [StructLayout(LayoutKind.Sequential)]
+        private struct RECT
+        {
+            public int Left, Top, Right, Bottom;
+        }
+
+        [DllImport("user32.dll")]
+        private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+        private double DpiScaleX => PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice.M11 ?? 1.0;
+        private double DpiScaleY => PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice.M22 ?? 1.0;
 
         private ItemsControl _myItemsControl;
         private EditWindowViewModel _viewModel;
@@ -340,6 +354,24 @@ namespace NavigatorHMI.Views
         private void DeleteWidget_Click(object sender, RoutedEventArgs e)
             => _widgetContextMenuHandler.OnDeleteWidgetClick(sender, e);
 
+        /// <summary>
+        /// 窗口级预览键盘按下事件：
+        /// - Delete 键：删除当前选中的 Widget
+        /// - ESC 键：关闭属性窗口
+        /// </summary>
+        private void EditWindow_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Delete && Keyboard.Modifiers == ModifierKeys.None)
+            {
+                // 如果焦点在文本框内，不处理（避免干扰 TreeView 重命名编辑操作）
+                if (Keyboard.FocusedElement is TextBox) return;
+
+                _widgetContextMenuHandler.DeleteSelectedWidget();
+                e.Handled = true;
+            }
+        }
+
+
         #endregion
 
         #region 添加模式
@@ -383,7 +415,7 @@ namespace NavigatorHMI.Views
                     _propertyWindow.Hide();
             }
         }
- 
+
         /// <summary>
         /// 显示/定位属性窗口（共用方法）。
         /// </summary>
@@ -397,24 +429,65 @@ namespace NavigatorHMI.Views
                 }
                 _propertyWindow = new PerprotyWindow();
                 _propertyWindow.Owner = this;
+                _propertyWindow.OnEscapePressed = () => _selectionManager.ClearAllSelection();
             }
- 
-            // 获取鼠标在屏幕上的坐标，将窗口定位到鼠标右下方
-            var mousePos = Mouse.GetPosition(this);
-            var screenPos = this.PointToScreen(mousePos);
- 
-            _propertyWindow.Left = mousePos.X + 15;
-            _propertyWindow.Top = mousePos.Y + 25;
+
+            // 先设置 DataContext 再 Show
             _propertyWindow.DataContext = _propertyViewModel;
 
-            // 始终显示并定位（调用方负责决定何时隐藏）
+            var winWidth = _propertyWindow.ActualWidth;
+            var winHeight = _propertyWindow.ActualHeight;
+
+            // 直接基于 Owner 窗口的 DIP 坐标计算子窗口位置
+            // mousePos 和 Left/Top 都是 DIP，天然同坐标系
+            var mousePos = Mouse.GetPosition(this);
+
+            // 先计算鼠标相对于 Owner 窗口左上角的 DIP 偏移
+            var targetLeft = mousePos.X + 15;
+            var targetTop = mousePos.Y + 25;
+
+            // 检查屏幕边界需要屏幕坐标
+            var screenPos = this.PointToScreen(mousePos);
+            var screen = System.Windows.Forms.Screen.FromPoint(
+                new System.Drawing.Point((int)screenPos.X, (int)screenPos.Y));
+            var workingArea = screen.WorkingArea;
+
+            // 将 workingArea 转为 DIP（粗略计算窗口最大尺寸）
+            // 子窗口的 Left/Top 在 Owner 坐标系中，需要知道 Owner 的屏幕位置
+            var ownerScreenOrigin = this.PointToScreen(new Point(0, 0));
+
+            // workingArea 是屏幕物理像素，Owner 左上角屏幕物理像素 = ownerScreenOrigin
+            // 所以子窗口的 Left/Top（DIP）的最大值是：
+            // (workingArea.Right - ownerScreenOrigin.X) - winWidth
+            // 但这是物理像素差值，DPI 缩放会引入误差，直接用 PointToScreen 反推更精确
+
+            // 更精确的边界检测：将目标 DIP 位置转为屏幕像素检查
+            var targetScreenX = ownerScreenOrigin.X + (int)(targetLeft * DpiScaleX);
+            var targetScreenY = ownerScreenOrigin.Y + (int)(targetTop * DpiScaleY);
+
+            var screenRightDIP = (workingArea.Right - ownerScreenOrigin.X) / DpiScaleX - winWidth;
+            var screenBottomDIP = (workingArea.Bottom - ownerScreenOrigin.Y) / DpiScaleY - winHeight;
+
+            if (targetLeft > screenRightDIP)
+                targetLeft = screenRightDIP;
+            if (targetTop > screenBottomDIP)
+                targetTop = screenBottomDIP;
+            if (targetLeft < 0)
+                targetLeft = 0;
+            if (targetTop < 0)
+                targetTop = 0;
+
+            _propertyWindow.Left = targetLeft;
+            _propertyWindow.Top = targetTop;
+
             if (!_propertyWindow.IsVisible)
                 _propertyWindow.Show();
             else if (_propertyWindow.WindowState == WindowState.Minimized)
                 _propertyWindow.WindowState = WindowState.Normal;
-            _propertyWindow.Activate();
 
+            _propertyWindow.Activate();
         }
+
 
         /// <summary>
         /// 显示画面属性：将 Screen 设置到 PropertyViewModel 并弹出属性窗口。
@@ -460,13 +533,14 @@ namespace NavigatorHMI.Views
 
             if (isDoubleClick)
             {
-                // 双击 → 显示画面属性
                 var source = e.OriginalSource as DependencyObject;
                 if (FindVisualParent<Button>(source) != null) return;
 
+                // 双击画布空白处 → 显示画面属性
                 if (_viewModel?.CurrentScreen != null)
                     ShowScreenProperty(_viewModel.CurrentScreen);
             }
+
         }
 
 
@@ -604,6 +678,38 @@ namespace NavigatorHMI.Views
         private void EditNameTextBox_KeyDown(object sender, KeyEventArgs e)
             => _treeContextMenuHandler.OnEditNameTextBoxKeyDown(sender, e);
 
+        #endregion
+
+        #region 生成xml文件
+        /// <summary>
+        /// 生成项目（F5 / 菜单点击）：先校验错误，无错误则输出 XML。
+        /// </summary>
+        private void BuildProject_Click(object sender, RoutedEventArgs e)
+        {
+            var result = ProjectGenerator.Generate(currentProject);
+
+            if (result.HasErrors)
+            {
+                MessageBox.Show(
+                    string.Join(Environment.NewLine, result.Errors),
+                    "生成错误",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+            else
+            {
+                string outputPath = Path.Combine(
+                    Path.GetDirectoryName(currentProject.ProjectFilePath),
+                    "output",
+                    Path.GetFileNameWithoutExtension(currentProject.ProjectFilePath) + ".xml");
+
+                MessageBox.Show(
+                    $"生成成功！\n输出文件：{outputPath}",
+                    "生成完成",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+        }
         #endregion
     }
 }
