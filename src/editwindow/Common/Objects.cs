@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
@@ -64,7 +65,7 @@ public abstract class Widget : INotifyPropertyChanged
     public double X
     {
         get => _x;
-        set { _x = value; OnPropertyChanged(); }
+        set { _x = Math.Round(value, 3); OnPropertyChanged(); }
     }
 
     private double _y;
@@ -72,7 +73,7 @@ public abstract class Widget : INotifyPropertyChanged
     public double Y
     {
         get => _y;
-        set { _y = value; OnPropertyChanged(); }
+        set { _y = Math.Round(value, 3); OnPropertyChanged(); }
     }
 
     private double _width;
@@ -80,7 +81,7 @@ public abstract class Widget : INotifyPropertyChanged
     public double Width
     {
         get => _width;
-        set { _width = value; OnPropertyChanged(); }
+        set { _width = Math.Round(value, 3); OnPropertyChanged(); }
     }
 
     private double _height;
@@ -88,7 +89,7 @@ public abstract class Widget : INotifyPropertyChanged
     public double Height
     {
         get => _height;
-        set { _height = value; OnPropertyChanged(); }
+        set { _height = Math.Round(value, 3); OnPropertyChanged(); }
     }
 
     private string _object_name;

@@ -153,8 +153,6 @@ namespace NavigatorHMI.Views.Behaviors
 
             if (Mouse.LeftButton != MouseButtonState.Pressed)
             {
-                _isDragging = false;
-                _draggingWidget = null;
                 return;
             }
 

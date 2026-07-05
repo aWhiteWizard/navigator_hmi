@@ -14,7 +14,7 @@ namespace NavigatorHMI.Views.Helpers.Creators
     /// // 进入添加模式
     /// _currentWidgetCreator = new ButtonWidgetCreator();
     /// // 画布点击时
-    /// var widget = _currentWidgetCreator.Create(clickPosition);
+    /// var widget = _currentWidgetCreator.Create(clickPosition, currentScreen);
     /// // 添加后退出添加模式
     /// _currentWidgetCreator = null;
     /// </code>
@@ -27,7 +27,8 @@ namespace NavigatorHMI.Views.Helpers.Creators
         /// 各实现类负责设置默认位置（通常以点击位置居中）、尺寸和类型特有属性。
         /// </summary>
         /// <param name="position">相对于画布的点击位置</param>
+        /// <param name="screen">当前画面，用于在创建时自动分配唯一 ObjectName</param>
         /// <returns>创建好的 Widget 实例，已设置默认的 X/Y/Width/Height 及类型特有属性</returns>
-        Widget Create(Point position);
+        Widget Create(Point position, Screen screen);
     }
 }

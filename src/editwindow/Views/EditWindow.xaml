@@ -169,7 +169,9 @@
                                 Background="{StaticResource DotGridBrush}"
                                 Width="{Binding DeviceWidth}" 
                                 Height="{Binding DeviceHeight}"
-                                MouseLeftButtonDown="Canvas_MouseLeftButtonDown">
+                                MouseLeftButtonDown="Canvas_MouseLeftButtonDown"
+                                MouseDown="Canvas_MouseDown">
+
                             <!-- 调试信息 -->
                             <TextBlock Text="{Binding CurrentScreen.Widgets.Count, StringFormat='Widgets: {0}'}" 
                                        Canvas.Left="10" Canvas.Top="10" 

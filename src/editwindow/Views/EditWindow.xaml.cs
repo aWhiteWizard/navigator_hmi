@@ -192,6 +192,7 @@ namespace NavigatorHMI.Views
             }
         }
 
+
         #endregion
 
         #region ItemsControl & 画布
@@ -297,14 +298,21 @@ namespace NavigatorHMI.Views
 
             _selectionManager.ClearAllSelection();
 
-            if (_currentWidgetCreator == null) return;
+            // 非添加模式下，双击画布空白处显示画面属性
+            // 非添加模式下，单击画布空白处关闭属性窗口
+            if (_currentWidgetCreator == null)
+            {
+                HidePropertyWindow();
+                return;
+            }
+
             if (_viewModel?.CurrentScreen == null) return;
 
             // 在添加 Widget 前保存 Undo 快照
             _viewModel.PushUndoSnapshot();
 
             Point pos = e.GetPosition(DrawingCanvas);
-            var widget = _currentWidgetCreator.Create(pos);
+            var widget = _currentWidgetCreator.Create(pos, _viewModel.CurrentScreen);
 
             _viewModel.CurrentScreen.Widgets.Add(widget);
             MarkProjectDirty();
@@ -361,30 +369,13 @@ namespace NavigatorHMI.Views
         /// </summary>
         private void OnWidgetSelected(Widget? widget)
         {
+             // 设置当前编辑的画面引用，供 ObjectName 重复检测使用
+             _propertyViewModel.CurrentScreen = _viewModel.CurrentScreen;
             _propertyViewModel.SelectedWidget = widget;
 
             if (widget != null)
             {
-                if (_propertyWindow == null || !_propertyWindow.IsVisible)
-                {
-                    if (_propertyWindow != null)
-                    {
-                        try { _propertyWindow.Close(); } catch { }
-                    }
-                    _propertyWindow = new PerprotyWindow();
-                    _propertyWindow.Owner = this;
-                }
-
-                // 获取鼠标在屏幕上的坐标，将窗口定位到鼠标右下方
-                var mousePos = Mouse.GetPosition(this);
-                var screenPos = this.PointToScreen(mousePos);
-
-                _propertyWindow.Left = screenPos.X + 15;
-                _propertyWindow.Top = screenPos.Y;
-                _propertyWindow.DataContext = _propertyViewModel;
-
-                if (!_propertyWindow.IsVisible)
-                    _propertyWindow.Show();
+                ShowPropertyWindow();
             }
             else
             {
@@ -392,7 +383,91 @@ namespace NavigatorHMI.Views
                     _propertyWindow.Hide();
             }
         }
+ 
+        /// <summary>
+        /// 显示/定位属性窗口（共用方法）。
+        /// </summary>
+        private void ShowPropertyWindow()
+        {
+            if (_propertyWindow == null || !_propertyWindow.IsVisible)
+            {
+                if (_propertyWindow != null)
+                {
+                    try { _propertyWindow.Close(); } catch { }
+                }
+                _propertyWindow = new PerprotyWindow();
+                _propertyWindow.Owner = this;
+            }
+ 
+            // 获取鼠标在屏幕上的坐标，将窗口定位到鼠标右下方
+            var mousePos = Mouse.GetPosition(this);
+            var screenPos = this.PointToScreen(mousePos);
+ 
+            _propertyWindow.Left = mousePos.X + 15;
+            _propertyWindow.Top = mousePos.Y + 25;
+            _propertyWindow.DataContext = _propertyViewModel;
 
+            // 始终显示并定位（调用方负责决定何时隐藏）
+            if (!_propertyWindow.IsVisible)
+                _propertyWindow.Show();
+            else if (_propertyWindow.WindowState == WindowState.Minimized)
+                _propertyWindow.WindowState = WindowState.Normal;
+            _propertyWindow.Activate();
+
+        }
+
+        /// <summary>
+        /// 显示画面属性：将 Screen 设置到 PropertyViewModel 并弹出属性窗口。
+        /// </summary>
+        private void ShowScreenProperty(Screen screen)
+        {
+            _propertyViewModel.SelectedScreen = screen;
+            ShowPropertyWindow();
+        }
+
+        /// <summary>
+        /// 隐藏属性窗口（如果可见）。
+        /// </summary>
+        private void HidePropertyWindow()
+        {
+            if (_propertyWindow?.IsVisible == true)
+            {
+                _propertyViewModel.SelectedScreen = null;
+                _propertyWindow.Hide();
+            }
+        }
+
+        private DateTime _lastClickTime;
+        private Point _lastClickPosition;
+
+        /// <summary>
+        /// 画布鼠标按下事件：检测单击和双击。
+        /// </summary>
+        private void Canvas_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton != MouseButton.Left) return;
+
+            var now = DateTime.Now;
+            var pos = e.GetPosition(DrawingCanvas);
+
+            // 检测双击：两次点击间隔 < 500ms 且距离 < 10px
+            bool isDoubleClick = (now - _lastClickTime).TotalMilliseconds < 500
+                              && Math.Abs(pos.X - _lastClickPosition.X) < 10
+                              && Math.Abs(pos.Y - _lastClickPosition.Y) < 10;
+
+            _lastClickTime = now;
+            _lastClickPosition = pos;
+
+            if (isDoubleClick)
+            {
+                // 双击 → 显示画面属性
+                var source = e.OriginalSource as DependencyObject;
+                if (FindVisualParent<Button>(source) != null) return;
+
+                if (_viewModel?.CurrentScreen != null)
+                    ShowScreenProperty(_viewModel.CurrentScreen);
+            }
+        }
 
 
         #endregion

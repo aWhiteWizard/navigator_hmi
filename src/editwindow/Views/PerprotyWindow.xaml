@@ -6,13 +6,14 @@
         xmlns:vm="clr-namespace:NavigatorHMI.ViewModels"
         xmlns:common="clr-namespace:NavigatorHMI.Common"
         mc:Ignorable="d"
-        Title="属性" Height="200" Width="280"
+        Title="属性" Width="280" SizeToContent="Height" MaxHeight="400"
         WindowStyle="ToolWindow"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         Topmost="False">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+
         <Style x:Key="GroupHeaderStyle" TargetType="TextBlock">
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="FontSize" Value="12"/>
@@ -31,14 +32,196 @@
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="TextAlignment" Value="Right"/>
+            <Style.Triggers>
+                <Trigger Property="IsReadOnly" Value="True">
+                    <Setter Property="Background" Value="#F0F0F0"/>
+                    <Setter Property="Foreground" Value="#999999"/>
+                    <Setter Property="BorderBrush" Value="#D0D0D0"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
         <Style x:Key="TextBoxStyle" TargetType="TextBox">
             <Setter Property="Height" Value="22"/>
             <Setter Property="Margin" Value="2"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="FontSize" Value="11"/>
+            <Style.Triggers>
+                <Trigger Property="IsReadOnly" Value="True">
+                    <Setter Property="Background" Value="#F0F0F0"/>
+                    <Setter Property="Foreground" Value="#999999"/>
+                    <Setter Property="BorderBrush" Value="#D0D0D0"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
+         <!-- ObjectName TextBox 样式：ObjectName 重复时变红 -->
+         <Style x:Key="ObjectNameBoxStyle" TargetType="TextBox" BasedOn="{StaticResource TextBoxStyle}">
+             <Style.Triggers>
+                 <DataTrigger Binding="{Binding HasDuplicateObjectName}" Value="True">
+                     <Setter Property="Background" Value="#FFE0E0"/>
+                     <Setter Property="BorderBrush" Value="Red"/>
+                 </DataTrigger>
+             </Style.Triggers>
+         </Style>
+
+
+        <!-- ── 通用子面板（可复用） ── -->
+
+        <!-- 位置子面板（X/Y） -->
+        <DataTemplate x:Key="PositionPanel">
+            <StackPanel>
+                <TextBlock Text="位置" Style="{StaticResource GroupHeaderStyle}"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="25"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="5"/>
+                        <ColumnDefinition Width="25"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Label Grid.Column="0" Content="X:" Style="{StaticResource LabelStyle}"/>
+                    <TextBox Grid.Column="1" Text="{Binding X, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource NumberBoxStyle}"/>
+                    <Label Grid.Column="3" Content="Y:" Style="{StaticResource LabelStyle}"/>
+                    <TextBox Grid.Column="4" Text="{Binding Y, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource NumberBoxStyle}"/>
+                </Grid>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- 尺寸子面板（W/H） -->
+        <DataTemplate x:Key="SizePanel">
+            <StackPanel>
+                <TextBlock Text="尺寸" Style="{StaticResource GroupHeaderStyle}"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="25"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="5"/>
+                        <ColumnDefinition Width="25"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Label Grid.Column="0" Content="W:" Style="{StaticResource LabelStyle}"/>
+                    <TextBox Grid.Column="1" Text="{Binding Width, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource NumberBoxStyle}"/>
+                    <Label Grid.Column="3" Content="H:" Style="{StaticResource LabelStyle}"/>
+                    <TextBox Grid.Column="4" Text="{Binding Height, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource NumberBoxStyle}"/>
+                </Grid>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- 名称子面板（ObjectName） -->
+        <DataTemplate x:Key="NamePanel">
+            <StackPanel>
+                <TextBlock Text="名称" Style="{StaticResource GroupHeaderStyle}"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="75"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Label Grid.Column="0" Content="ObjectName:" Style="{StaticResource LabelStyle}"/>
+                     <TextBox Grid.Column="1" Text="{Binding ObjectName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource ObjectNameBoxStyle}"/>
+                </Grid>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- ── 各类型完整面板 ── -->
+
+        <!-- Screen 面板 -->
+        <DataTemplate x:Key="ScreenPanel">
+            <StackPanel>
+                <TextBlock Text="画面名称" Style="{StaticResource GroupHeaderStyle}"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="65"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Label Grid.Column="0" Content="名称:" Style="{StaticResource LabelStyle}"/>
+                    <TextBox Grid.Column="1" Text="{Binding ScreenName, UpdateSourceTrigger=LostFocus}" IsReadOnly="{Binding IsScreenNameReadOnly}" Style="{StaticResource TextBoxStyle}"/>
+                </Grid>
+
+                <TextBlock Text="尺寸" Style="{StaticResource GroupHeaderStyle}"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="25"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="5"/>
+                        <ColumnDefinition Width="25"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Label Grid.Column="0" Content="W:" Style="{StaticResource LabelStyle}"/>
+                    <TextBox Grid.Column="1" Text="{Binding ScreenWidth, Mode=OneWay}" IsReadOnly="True" Style="{StaticResource NumberBoxStyle}"/>
+                    <Label Grid.Column="3" Content="H:" Style="{StaticResource LabelStyle}"/>
+                    <TextBox Grid.Column="4" Text="{Binding ScreenHeight, Mode=OneWay}" IsReadOnly="True" Style="{StaticResource NumberBoxStyle}"/>
+                </Grid>
+
+                <TextBlock Text="类型" Style="{StaticResource GroupHeaderStyle}"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="65"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Label Grid.Column="0" Content="类型:" Style="{StaticResource LabelStyle}"/>
+                    <TextBlock Grid.Column="1" Text="{Binding ScreenTypeText}"
+                               VerticalAlignment="Center" Margin="4,0" FontSize="11"/>
+                </Grid>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- ButtonWidget 面板 -->
+        <DataTemplate x:Key="ButtonPanel">
+            <StackPanel>
+                <ContentControl ContentTemplate="{StaticResource PositionPanel}" Content="{Binding}"/>
+                <ContentControl ContentTemplate="{StaticResource SizePanel}" Content="{Binding}"/>
+                <ContentControl ContentTemplate="{StaticResource NamePanel}" Content="{Binding}"/>
+                <Separator Margin="4,2"/>
+                <TextBlock Text="外观" Style="{StaticResource GroupHeaderStyle}"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="50"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Label Grid.Column="0" Content="Text:" Style="{StaticResource LabelStyle}"/>
+                    <TextBox Grid.Column="1" Text="{Binding ButtonText, UpdateSourceTrigger=LostFocus}" Style="{StaticResource TextBoxStyle}"/>
+                </Grid>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- TextWidget 面板 -->
+        <DataTemplate x:Key="TextPanel">
+            <StackPanel>
+                <ContentControl ContentTemplate="{StaticResource PositionPanel}" Content="{Binding}"/>
+                <ContentControl ContentTemplate="{StaticResource SizePanel}" Content="{Binding}"/>
+                <ContentControl ContentTemplate="{StaticResource NamePanel}" Content="{Binding}"/>
+                <Separator Margin="4,2"/>
+                <TextBlock Text="外观" Style="{StaticResource GroupHeaderStyle}"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="60"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Label Grid.Column="0" Content="Content:" Style="{StaticResource LabelStyle}"/>
+                    <TextBox Grid.Column="1" Text="{Binding TextContent, UpdateSourceTrigger=LostFocus}" Style="{StaticResource TextBoxStyle}"/>
+                </Grid>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- RectangleWidget 面板 -->
+        <DataTemplate x:Key="RectanglePanel">
+            <StackPanel>
+                <ContentControl ContentTemplate="{StaticResource PositionPanel}" Content="{Binding}"/>
+                <ContentControl ContentTemplate="{StaticResource SizePanel}" Content="{Binding}"/>
+                <ContentControl ContentTemplate="{StaticResource NamePanel}" Content="{Binding}"/>
+                <Separator Margin="4,2"/>
+                <TextBlock Text="外观" Style="{StaticResource GroupHeaderStyle}"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="65"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Label Grid.Column="0" Content="FillColor:" Style="{StaticResource LabelStyle}"/>
+                    <TextBox Grid.Column="1" Text="{Binding FillColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource TextBoxStyle}"/>
+                </Grid>
+            </StackPanel>
+        </DataTemplate>
     </Window.Resources>
+
     <Grid Margin="4">
         <!-- 无选中提示 -->
         <TextBlock Text="请选择一个控件"
@@ -59,128 +242,36 @@
         </TextBlock>
 
         <!-- 属性面板内容 - 包在 ScrollViewer 中支持滚动 -->
-        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
                       Visibility="{Binding IsPropertyVisible, Converter={StaticResource BoolToVisibilityConverter}}">
             <StackPanel>
-
                 <!-- 标题 -->
                 <TextBlock Text="{Binding WidgetTypeName, StringFormat='属性 - {0}'}" 
                        FontWeight="Bold" FontSize="13" Margin="4,2"/>
                 <Separator Margin="4,2"/>
 
-                <!-- 位置分组 -->
-                <TextBlock Text="位置" Style="{StaticResource GroupHeaderStyle}"/>
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="25"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="5"/>
-                        <ColumnDefinition Width="25"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <Label Grid.Column="0" Content="X:" Style="{StaticResource LabelStyle}"/>
-                    <TextBox Grid.Column="1" Text="{Binding X, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource NumberBoxStyle}"/>
-                    <Label Grid.Column="3" Content="Y:" Style="{StaticResource LabelStyle}"/>
-                    <TextBox Grid.Column="4" Text="{Binding Y, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource NumberBoxStyle}"/>
-                </Grid>
-
-                <!-- 尺寸分组 -->
-                <TextBlock Text="尺寸" Style="{StaticResource GroupHeaderStyle}"/>
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="25"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="5"/>
-                        <ColumnDefinition Width="25"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <Label Grid.Column="0" Content="W:" Style="{StaticResource LabelStyle}"/>
-                    <TextBox Grid.Column="1" Text="{Binding Width, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource NumberBoxStyle}"/>
-                    <Label Grid.Column="3" Content="H:" Style="{StaticResource LabelStyle}"/>
-                    <TextBox Grid.Column="4" Text="{Binding Height, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource NumberBoxStyle}"/>
-                </Grid>
-
-                <!-- 名称分组 -->
-                <TextBlock Text="名称" Style="{StaticResource GroupHeaderStyle}"/>
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="75"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <Label Grid.Column="0" Content="ObjectName:" Style="{StaticResource LabelStyle}"/>
-                    <TextBox Grid.Column="1" Text="{Binding ObjectName, UpdateSourceTrigger=LostFocus}" Style="{StaticResource TextBoxStyle}"/>
-                </Grid>
-
-                <Separator Margin="4,2"/>
-
-                <!-- ButtonWidget 特有 -->
-                <StackPanel>
-                    <StackPanel.Style>
-                        <Style TargetType="StackPanel">
-                            <Setter Property="Visibility" Value="Collapsed"/>
+                <!-- 根据 SelectedObjectType 切换内容面板 -->
+                <ContentControl Content="{Binding}">
+                    <ContentControl.Style>
+                        <Style TargetType="ContentControl">
+                            <Setter Property="ContentTemplate" Value="{x:Null}"/>
                             <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsButtonWidget}" Value="True">
-                                    <Setter Property="Visibility" Value="Visible"/>
+                                <DataTrigger Binding="{Binding SelectedObjectType}" Value="Screen">
+                                    <Setter Property="ContentTemplate" Value="{StaticResource ScreenPanel}"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding SelectedObjectType}" Value="ButtonWidget">
+                                    <Setter Property="ContentTemplate" Value="{StaticResource ButtonPanel}"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding SelectedObjectType}" Value="TextWidget">
+                                    <Setter Property="ContentTemplate" Value="{StaticResource TextPanel}"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding SelectedObjectType}" Value="RectangleWidget">
+                                    <Setter Property="ContentTemplate" Value="{StaticResource RectanglePanel}"/>
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
-                    </StackPanel.Style>
-                    <TextBlock Text="外观" Style="{StaticResource GroupHeaderStyle}"/>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="50"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <Label Grid.Column="0" Content="Text:" Style="{StaticResource LabelStyle}"/>
-                        <TextBox Grid.Column="1" Text="{Binding ButtonText, UpdateSourceTrigger=LostFocus}" Style="{StaticResource TextBoxStyle}"/>
-                    </Grid>
-                </StackPanel>
-
-                <!-- TextWidget 特有 -->
-                <StackPanel>
-                    <StackPanel.Style>
-                        <Style TargetType="StackPanel">
-                            <Setter Property="Visibility" Value="Collapsed"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsTextWidget}" Value="True">
-                                    <Setter Property="Visibility" Value="Visible"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </StackPanel.Style>
-                    <TextBlock Text="外观" Style="{StaticResource GroupHeaderStyle}"/>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="60"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <Label Grid.Column="0" Content="Content:" Style="{StaticResource LabelStyle}"/>
-                        <TextBox Grid.Column="1" Text="{Binding TextContent, UpdateSourceTrigger=LostFocus}" Style="{StaticResource TextBoxStyle}"/>
-                    </Grid>
-                </StackPanel>
-
-                <!-- RectangleWidget 特有 -->
-                <StackPanel>
-                    <StackPanel.Style>
-                        <Style TargetType="StackPanel">
-                            <Setter Property="Visibility" Value="Collapsed"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsRectangleWidget}" Value="True">
-                                    <Setter Property="Visibility" Value="Visible"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </StackPanel.Style>
-                    <TextBlock Text="外观" Style="{StaticResource GroupHeaderStyle}"/>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="65"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <Label Grid.Column="0" Content="FillColor:" Style="{StaticResource LabelStyle}"/>
-                        <TextBox Grid.Column="1" Text="{Binding FillColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource TextBoxStyle}"/>
-                    </Grid>
-                </StackPanel>
+                    </ContentControl.Style>
+                </ContentControl>
             </StackPanel>
         </ScrollViewer>
     </Grid>

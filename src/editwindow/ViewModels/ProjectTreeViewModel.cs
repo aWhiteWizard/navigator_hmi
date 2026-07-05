@@ -84,6 +84,15 @@ namespace NavigatorHMI.ViewModels
         {
             Screen = screen;
             Name = screen.Name;
+            // 监听 Screen.Name 变更，同步更新树节点名称
+            screen.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(Screen.Name))
+                {
+                    Name = screen.Name;
+                    OnPropertyChanged(nameof(Name));
+                }
+            };
             DoubleClickCommand = new RelayCommand(() => OnSelected?.Invoke(screen));
             // 只有当 deleteCallback 不为 null 且画面不是 Template/WorldMap 时，才启用删除命令
             bool canDelete = deleteCallback != null &&
