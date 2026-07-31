@@ -11,16 +11,22 @@ namespace NavigatorHMI.ViewModels
     /// </summary>
     public enum PropertyTargetType
     {
-        /// <summary>未选中任何对象。</summary>
         None,
-        /// <summary>选中了画面 (Screen)。</summary>
         Screen,
-        /// <summary>选中了按钮控件 (ButtonWidget)。</summary>
         ButtonWidget,
-        /// <summary>选中了文本控件 (TextWidget)。</summary>
         TextWidget,
-        /// <summary>选中了矩形控件 (RectangleWidget)。</summary>
-        RectangleWidget
+        RectangleWidget,
+        LabelWidget,
+        ImageWidget,
+        NumericDisplayWidget,
+        SwitchWidget,
+        LineWidget,
+        CircleWidget,
+        IOFieldWidget,
+        CheckBoxWidget,
+        TextBoxWidget,
+        FrameWidget,
+        ProgressBarWidget
     }
 
     /// <summary>
@@ -92,6 +98,17 @@ namespace NavigatorHMI.ViewModels
                          ButtonWidget => PropertyTargetType.ButtonWidget,
                          TextWidget => PropertyTargetType.TextWidget,
                          RectangleWidget => PropertyTargetType.RectangleWidget,
+                         LabelWidget => PropertyTargetType.LabelWidget,
+                         ImageWidget => PropertyTargetType.ImageWidget,
+                         NumericDisplayWidget => PropertyTargetType.NumericDisplayWidget,
+                         SwitchWidget => PropertyTargetType.SwitchWidget,
+                         LineWidget => PropertyTargetType.LineWidget,
+                         CircleWidget => PropertyTargetType.CircleWidget,
+                         IOFieldWidget => PropertyTargetType.IOFieldWidget,
+                         CheckBoxWidget => PropertyTargetType.CheckBoxWidget,
+                         TextBoxWidget => PropertyTargetType.TextBoxWidget,
+                         FrameWidget => PropertyTargetType.FrameWidget,
+                         ProgressBarWidget => PropertyTargetType.ProgressBarWidget,
                          _ => PropertyTargetType.None
                      };
                      OnPropertyChanged(nameof(SelectedObjectType));
@@ -104,15 +121,25 @@ namespace NavigatorHMI.ViewModels
                         Width = value.Width;
                         Height = value.Height;
                         ObjectName = value.ObjectName;
-                        // 切换选中控件后刷新重复检测
                         RefreshDuplicateCheck();
 
-                        if (value is ButtonWidget btn)
-                            ButtonText = btn.Text;
-                        else if (value is TextWidget txt)
-                            TextContent = txt.Content;
-                        else if (value is RectangleWidget rect)
-                            FillColor = rect.FillColor;
+                        switch (value)
+                        {
+                            case ButtonWidget btn: ButtonText = btn.Text; break;
+                            case TextWidget txt: TextContent = txt.Content; break;
+                            case RectangleWidget rect: RectFillColor = rect.FillColor; break;
+                            case LabelWidget lbl: LabelText = lbl.Text; LabelFontSize = lbl.FontSize; LabelTextColor = lbl.TextColor; break;
+                            case ImageWidget img: ImagePath = img.ImagePath; break;
+                            case NumericDisplayWidget nd: NumericPrefix = nd.Prefix; NumericSuffix = nd.Suffix; NumericDecimalPlaces = nd.DecimalPlaces; NumericFontSize = nd.FontSize; NumericTextColor = nd.TextColor; break;
+                            case SwitchWidget sw: SwitchIsOn = sw.IsOn; SwitchOnText = sw.OnText; SwitchOffText = sw.OffText; break;
+                            case LineWidget line: LineX2 = line.X2; LineY2 = line.Y2; LineStrokeColor = line.StrokeColor; LineStrokeThickness = line.StrokeThickness; break;
+                            case CircleWidget c: CircleFillColor = c.FillColor; CircleStrokeColor = c.StrokeColor; CircleStrokeThickness = c.StrokeThickness; break;
+                            case IOFieldWidget io: IOFieldContent = io.Content; IOFieldIsReadOnly = io.IsReadOnly; break;
+                            case CheckBoxWidget cb: CheckBoxText = cb.Text; CheckBoxIsChecked = cb.IsChecked; break;
+                            case TextBoxWidget tbx: TextBoxContent = tbx.Content; TextBoxIsPassword = tbx.IsPassword; break;
+                            case FrameWidget f: FrameTitle = f.Title; FrameFillColor = f.FillColor; break;
+                            case ProgressBarWidget pb: ProgressValue = pb.Value; ProgressMin = pb.Min; ProgressMax = pb.Max; ProgressFillColor = pb.FillColor; break;
+                        }
                     }
                 }
 
@@ -158,12 +185,20 @@ namespace NavigatorHMI.ViewModels
          public bool IsWidgetSelected => _selectedWidget != null;
          /// <summary>控件类型名称（选中画面时显示"画面"）。</summary>
          public string WidgetTypeName => _selectedScreen != null ? "画面" : _selectedWidget?.GetType().Name ?? "";
-        /// <summary>是否为 ButtonWidget。</summary>
         public bool IsButtonWidget => _selectedWidget is ButtonWidget;
-        /// <summary>是否为 TextWidget。</summary>
         public bool IsTextWidget => _selectedWidget is TextWidget;
-        /// <summary>是否为 RectangleWidget。</summary>
         public bool IsRectangleWidget => _selectedWidget is RectangleWidget;
+        public bool IsLabelWidget => _selectedWidget is LabelWidget;
+        public bool IsImageWidget => _selectedWidget is ImageWidget;
+        public bool IsNumericDisplayWidget => _selectedWidget is NumericDisplayWidget;
+        public bool IsSwitchWidget => _selectedWidget is SwitchWidget;
+        public bool IsLineWidget => _selectedWidget is LineWidget;
+        public bool IsCircleWidget => _selectedWidget is CircleWidget;
+        public bool IsIOFieldWidget => _selectedWidget is IOFieldWidget;
+        public bool IsCheckBoxWidget => _selectedWidget is CheckBoxWidget;
+        public bool IsTextBoxWidget => _selectedWidget is TextBoxWidget;
+        public bool IsFrameWidget => _selectedWidget is FrameWidget;
+        public bool IsProgressBarWidget => _selectedWidget is ProgressBarWidget;
          private PropertyTargetType _selectedObjectType;
          /// <summary>当前选中对象的类型，供 XAML DataTemplate 切换使用。</summary>
          public PropertyTargetType SelectedObjectType
@@ -421,20 +456,87 @@ namespace NavigatorHMI.ViewModels
             }
         }
 
-        private string _fillColor = "";
-        public string FillColor
+        private string _rectFillColor = "";
+        public string RectFillColor
         {
-            get => _fillColor;
-            set
-            {
-                if (_fillColor != value)
-                {
-                    _fillColor = value;
-                    OnPropertyChanged();
-                    if (_selectedWidget is RectangleWidget rect) rect.FillColor = value;
-                }
-            }
+            get => _rectFillColor;
+            set { if (_rectFillColor != value) { _rectFillColor = value; OnPropertyChanged(); if (_selectedWidget is RectangleWidget rect) rect.FillColor = value; } }
         }
+
+        private string _labelText = "";
+        public string LabelText { get => _labelText; set { if (_labelText != value) { _labelText = value; OnPropertyChanged(); if (_selectedWidget is LabelWidget lbl) lbl.Text = value; } } }
+
+        private double _labelFontSize = 14;
+        public double LabelFontSize { get => _labelFontSize; set { if (Math.Abs(_labelFontSize - value) > 0.001) { _labelFontSize = value; OnPropertyChanged(); if (_selectedWidget is LabelWidget lbl) lbl.FontSize = value; } } }
+
+        private string _labelTextColor = "#000000";
+        public string LabelTextColor { get => _labelTextColor; set { if (_labelTextColor != value) { _labelTextColor = value; OnPropertyChanged(); if (_selectedWidget is LabelWidget lbl) lbl.TextColor = value; } } }
+
+        private string _imagePath = "";
+        public string ImagePath { get => _imagePath; set { if (_imagePath != value) { _imagePath = value; OnPropertyChanged(); if (_selectedWidget is ImageWidget img) img.ImagePath = value; } } }
+
+        private string _numericPrefix = "";
+        public string NumericPrefix { get => _numericPrefix; set { if (_numericPrefix != value) { _numericPrefix = value; OnPropertyChanged(); if (_selectedWidget is NumericDisplayWidget nd) nd.Prefix = value; } } }
+        private string _numericSuffix = "";
+        public string NumericSuffix { get => _numericSuffix; set { if (_numericSuffix != value) { _numericSuffix = value; OnPropertyChanged(); if (_selectedWidget is NumericDisplayWidget nd) nd.Suffix = value; } } }
+        private int _numericDecimalPlaces = 1;
+        public int NumericDecimalPlaces { get => _numericDecimalPlaces; set { if (_numericDecimalPlaces != value) { _numericDecimalPlaces = value; OnPropertyChanged(); if (_selectedWidget is NumericDisplayWidget nd) nd.DecimalPlaces = value; } } }
+        private double _numericFontSize = 16;
+        public double NumericFontSize { get => _numericFontSize; set { if (Math.Abs(_numericFontSize - value) > 0.001) { _numericFontSize = value; OnPropertyChanged(); if (_selectedWidget is NumericDisplayWidget nd) nd.FontSize = value; } } }
+        private string _numericTextColor = "#000000";
+        public string NumericTextColor { get => _numericTextColor; set { if (_numericTextColor != value) { _numericTextColor = value; OnPropertyChanged(); if (_selectedWidget is NumericDisplayWidget nd) nd.TextColor = value; } } }
+
+        private bool _switchIsOn = false;
+        public bool SwitchIsOn { get => _switchIsOn; set { if (_switchIsOn != value) { _switchIsOn = value; OnPropertyChanged(); if (_selectedWidget is SwitchWidget sw) sw.IsOn = value; } } }
+        private string _switchOnText = "ON";
+        public string SwitchOnText { get => _switchOnText; set { if (_switchOnText != value) { _switchOnText = value; OnPropertyChanged(); if (_selectedWidget is SwitchWidget sw) sw.OnText = value; } } }
+        private string _switchOffText = "OFF";
+        public string SwitchOffText { get => _switchOffText; set { if (_switchOffText != value) { _switchOffText = value; OnPropertyChanged(); if (_selectedWidget is SwitchWidget sw) sw.OffText = value; } } }
+
+        private double _lineX2 = 100;
+        public double LineX2 { get => _lineX2; set { if (Math.Abs(_lineX2 - value) > 0.001) { _lineX2 = value; OnPropertyChanged(); if (_selectedWidget is LineWidget ln) ln.X2 = value; } } }
+        private double _lineY2 = 0;
+        public double LineY2 { get => _lineY2; set { if (Math.Abs(_lineY2 - value) > 0.001) { _lineY2 = value; OnPropertyChanged(); if (_selectedWidget is LineWidget ln) ln.Y2 = value; } } }
+        private string _lineStrokeColor = "#000000";
+        public string LineStrokeColor { get => _lineStrokeColor; set { if (_lineStrokeColor != value) { _lineStrokeColor = value; OnPropertyChanged(); if (_selectedWidget is LineWidget ln) ln.StrokeColor = value; } } }
+        private double _lineStrokeThickness = 1;
+        public double LineStrokeThickness { get => _lineStrokeThickness; set { if (Math.Abs(_lineStrokeThickness - value) > 0.001) { _lineStrokeThickness = value; OnPropertyChanged(); if (_selectedWidget is LineWidget ln) ln.StrokeThickness = value; } } }
+
+        private string _circleFillColor = "#FFFFFF";
+        public string CircleFillColor { get => _circleFillColor; set { if (_circleFillColor != value) { _circleFillColor = value; OnPropertyChanged(); if (_selectedWidget is CircleWidget c) c.FillColor = value; } } }
+        private string _circleStrokeColor = "#000000";
+        public string CircleStrokeColor { get => _circleStrokeColor; set { if (_circleStrokeColor != value) { _circleStrokeColor = value; OnPropertyChanged(); if (_selectedWidget is CircleWidget c) c.StrokeColor = value; } } }
+        private double _circleStrokeThickness = 1;
+        public double CircleStrokeThickness { get => _circleStrokeThickness; set { if (Math.Abs(_circleStrokeThickness - value) > 0.001) { _circleStrokeThickness = value; OnPropertyChanged(); if (_selectedWidget is CircleWidget c) c.StrokeThickness = value; } } }
+
+        private string _ioFieldContent = "";
+        public string IOFieldContent { get => _ioFieldContent; set { if (_ioFieldContent != value) { _ioFieldContent = value; OnPropertyChanged(); if (_selectedWidget is IOFieldWidget io) io.Content = value; } } }
+        private bool _ioFieldIsReadOnly = false;
+        public bool IOFieldIsReadOnly { get => _ioFieldIsReadOnly; set { if (_ioFieldIsReadOnly != value) { _ioFieldIsReadOnly = value; OnPropertyChanged(); if (_selectedWidget is IOFieldWidget io) io.IsReadOnly = value; } } }
+
+        private string _checkBoxText = "CheckBox";
+        public string CheckBoxText { get => _checkBoxText; set { if (_checkBoxText != value) { _checkBoxText = value; OnPropertyChanged(); if (_selectedWidget is CheckBoxWidget cb) cb.Text = value; } } }
+        private bool _checkBoxIsChecked = false;
+        public bool CheckBoxIsChecked { get => _checkBoxIsChecked; set { if (_checkBoxIsChecked != value) { _checkBoxIsChecked = value; OnPropertyChanged(); if (_selectedWidget is CheckBoxWidget cb) cb.IsChecked = value; } } }
+
+        private string _textBoxContent = "";
+        public string TextBoxContent { get => _textBoxContent; set { if (_textBoxContent != value) { _textBoxContent = value; OnPropertyChanged(); if (_selectedWidget is TextBoxWidget tbx) tbx.Content = value; } } }
+        private bool _textBoxIsPassword = false;
+        public bool TextBoxIsPassword { get => _textBoxIsPassword; set { if (_textBoxIsPassword != value) { _textBoxIsPassword = value; OnPropertyChanged(); if (_selectedWidget is TextBoxWidget tbx) tbx.IsPassword = value; } } }
+
+        private string _frameTitle = "Group";
+        public string FrameTitle { get => _frameTitle; set { if (_frameTitle != value) { _frameTitle = value; OnPropertyChanged(); if (_selectedWidget is FrameWidget f) f.Title = value; } } }
+        private string _frameFillColor = "#FFFFFF";
+        public string FrameFillColor { get => _frameFillColor; set { if (_frameFillColor != value) { _frameFillColor = value; OnPropertyChanged(); if (_selectedWidget is FrameWidget f) f.FillColor = value; } } }
+
+        private double _progressValue = 0;
+        public double ProgressValue { get => _progressValue; set { if (Math.Abs(_progressValue - value) > 0.001) { _progressValue = value; OnPropertyChanged(); if (_selectedWidget is ProgressBarWidget pb) pb.Value = value; } } }
+        private double _progressMin = 0;
+        public double ProgressMin { get => _progressMin; set { if (Math.Abs(_progressMin - value) > 0.001) { _progressMin = value; OnPropertyChanged(); if (_selectedWidget is ProgressBarWidget pb) pb.Min = value; } } }
+        private double _progressMax = 100;
+        public double ProgressMax { get => _progressMax; set { if (Math.Abs(_progressMax - value) > 0.001) { _progressMax = value; OnPropertyChanged(); if (_selectedWidget is ProgressBarWidget pb) pb.Max = value; } } }
+        private string _progressFillColor = "#3399FF";
+        public string ProgressFillColor { get => _progressFillColor; set { if (_progressFillColor != value) { _progressFillColor = value; OnPropertyChanged(); if (_selectedWidget is ProgressBarWidget pb) pb.FillColor = value; } } }
 
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string? name = null)

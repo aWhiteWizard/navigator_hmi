@@ -11,7 +11,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
             Parameters = new()
             {
                 ["screen_name"] = new() { Type = "string", Required = true },
-                ["widget_type"] = new() { Type = "enum", Required = true, EnumValues = new[] { "button", "text", "rectangle" } },
+                ["widget_type"] = new() { Type = "enum", Required = true, EnumValues = new[] { "button", "text", "rectangle", "label", "image", "numeric", "switch", "line", "circle", "iofield", "checkbox", "textbox", "frame", "progressbar" } },
                 ["x"] = new() { Type = "int", Required = true },
                 ["y"] = new() { Type = "int", Required = true },
                 ["width"] = new() { Type = "int", DefaultValue = 100 },
@@ -30,7 +30,23 @@ namespace NavigatorHMI.CommandLayer.Handlers
             var screen = WidgetHelper.FindScreen(project, parameters["screen_name"]!.ToString()!);
             if (screen == null) return CommandResult.Fail("NOT_FOUND", "画面不存在");
             var widgetType = parameters["widget_type"]!.ToString()!;
-            Widget widget = widgetType switch { "text" => new TextWidget(), "rectangle" => new RectangleWidget(), _ => new ButtonWidget { Text = "Button" } };
+            Widget widget = widgetType switch
+            {
+                "text" => new TextWidget(),
+                "rectangle" => new RectangleWidget(),
+                "label" => new LabelWidget { Text = "Label" },
+                "image" => new ImageWidget(),
+                "numeric" => new NumericDisplayWidget(),
+                "switch" => new SwitchWidget(),
+                "line" => new LineWidget { X2 = 100, Y2 = 0 },
+                "circle" => new CircleWidget(),
+                "iofield" => new IOFieldWidget(),
+                "checkbox" => new CheckBoxWidget(),
+                "textbox" => new TextBoxWidget(),
+                "frame" => new FrameWidget(),
+                "progressbar" => new ProgressBarWidget(),
+                _ => new ButtonWidget { Text = "Button" }
+            };
             widget.X = Convert.ToDouble(parameters["x"] ?? 0); widget.Y = Convert.ToDouble(parameters["y"] ?? 0);
             widget.Width = Convert.ToDouble(parameters.GetValueOrDefault("width", 100)); widget.Height = Convert.ToDouble(parameters.GetValueOrDefault("height", 40));
             widget.ObjectName = $"{widgetType}_{screen.Widgets.Count + 1}";
@@ -94,6 +110,29 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 case ButtonWidget btn when key == "text": btn.Text = value; break;
                 case TextWidget txt when key == "content": txt.Content = value; break;
                 case RectangleWidget rect when key == "fillColor": rect.FillColor = value; break;
+                case LabelWidget lbl when key == "text": lbl.Text = value; break;
+                case LabelWidget lbl when key == "textColor": lbl.TextColor = value; break;
+                case LabelWidget lbl when key == "fontSize": lbl.FontSize = double.Parse(value); break;
+                case ImageWidget img when key == "imagePath": img.ImagePath = value; break;
+                case NumericDisplayWidget nd when key == "prefix": nd.Prefix = value; break;
+                case NumericDisplayWidget nd when key == "suffix": nd.Suffix = value; break;
+                case NumericDisplayWidget nd when key == "decimalPlaces": nd.DecimalPlaces = int.Parse(value); break;
+                case SwitchWidget sw when key == "isOn": sw.IsOn = bool.Parse(value); break;
+                case LineWidget line when key == "strokeColor": line.StrokeColor = value; break;
+                case LineWidget line when key == "strokeThickness": line.StrokeThickness = double.Parse(value); break;
+                case CircleWidget c when key == "fillColor": c.FillColor = value; break;
+                case CircleWidget c when key == "strokeColor": c.StrokeColor = value; break;
+                case IOFieldWidget io when key == "content": io.Content = value; break;
+                case IOFieldWidget io when key == "isReadOnly": io.IsReadOnly = bool.Parse(value); break;
+                case CheckBoxWidget cb when key == "text": cb.Text = value; break;
+                case CheckBoxWidget cb when key == "isChecked": cb.IsChecked = bool.Parse(value); break;
+                case TextBoxWidget tb when key == "content": tb.Content = value; break;
+                case TextBoxWidget tb when key == "isPassword": tb.IsPassword = bool.Parse(value); break;
+                case FrameWidget f when key == "title": f.Title = value; break;
+                case FrameWidget f when key == "fillColor": f.FillColor = value; break;
+                case ProgressBarWidget pb when key == "value": pb.Value = double.Parse(value); break;
+                case ProgressBarWidget pb when key == "min": pb.Min = double.Parse(value); break;
+                case ProgressBarWidget pb when key == "max": pb.Max = double.Parse(value); break;
                 default: return CommandResult.Fail("UNKNOWN_PROPERTY", $"不支持属性: {key}");
             }
             return CommandResult.Ok();

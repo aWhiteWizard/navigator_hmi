@@ -46,9 +46,9 @@ namespace NavigatorHMI.Views
         private EditWindowViewModel _viewModel;
         /// <summary>当前激活的 Widget 创建策略，null 表示不在添加模式</summary>
         private IWidgetCreator? _currentWidgetCreator = null;
-        private HMIProject currentProject;
-        private bool isProjectDirty;
-        private bool skipClosingCheck = false;
+        private HMIProject _currentProject;
+        private bool _isProjectDirty;
+        private bool _skipClosingCheck = false;
 
         // 画布缩放
         private double _zoomLevel = 1.0;
@@ -94,7 +94,7 @@ namespace NavigatorHMI.Views
             this.DataContext = _viewModel;
 
             // 2. 保存项目引用
-            currentProject = project;
+            _currentProject = project;
             this.Title = project.ProjectFilePath;
 
             // 画布缩放
@@ -143,7 +143,7 @@ namespace NavigatorHMI.Views
 
             LoadCanvas(_viewModel.CurrentScreen);
 
-            isProjectDirty = false;
+            _isProjectDirty = false;
             this.CheckBinding();
 
             // 全局点击监听：点击 Popup 外部时关闭菜单
@@ -203,9 +203,9 @@ namespace NavigatorHMI.Views
 
         private void EditWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
         {
-            if (skipClosingCheck)
+            if (_skipClosingCheck)
             {
-                skipClosingCheck = false;
+                _skipClosingCheck = false;
                 return;
             }
 
@@ -225,10 +225,10 @@ namespace NavigatorHMI.Views
         /// </summary>
         private void MarkProjectDirty()
         {
-            if (!isProjectDirty)
+            if (!_isProjectDirty)
             {
-                isProjectDirty = true;
-                this.Title = currentProject.ProjectFilePath + "*";
+                _isProjectDirty = true;
+                this.Title = _currentProject.ProjectFilePath + "*";
             }
         }
 
@@ -377,8 +377,8 @@ namespace NavigatorHMI.Views
         {
             if (TreeContextMenu.IsOpen) { TreeContextMenu.IsOpen = false; }
 
-            // 点击了 Widget 按钮 → 交给已有逻辑
-            if (FindVisualParent<Button>(e.OriginalSource as DependencyObject) != null) return;
+            // 点击了 Widget → 交给已有逻辑
+            if (FindWidgetElement(e.OriginalSource as DependencyObject) != null) return;
 
             _selectionManager.ClearAllSelection();
             HidePropertyWindow();
@@ -403,9 +403,7 @@ namespace NavigatorHMI.Views
             var widget = _currentWidgetCreator.Create(pos, _viewModel.CurrentScreen);
             _viewModel.CurrentScreen.Widgets.Add(widget);
             MarkProjectDirty();
-            _currentWidgetCreator = null;
-            DrawingCanvas.Cursor = Cursors.Arrow;
-            AddButtonModeBtn.Content = "Button";
+            ExitAddMode();
         }
 
         #endregion
@@ -448,20 +446,64 @@ namespace NavigatorHMI.Views
 
         #region 添加模式
 
-        private void ToggleAddButtonMode(object sender, RoutedEventArgs e)
+        private Button? _activeToolboxBtn;
+        private string? _activeToolboxTag;
+        private object? _activeToolboxOriginalContent;  // 保存按钮原始 Content（可能为图标/文本）
+
+        private void ToggleAddWidgetMode(object sender, RoutedEventArgs e)
         {
-            if (_currentWidgetCreator == null)
+            if (sender is not Button btn || btn.Tag is not string tag) return;
+
+            // 如果已经在添加模式且点击了同一个按钮 → 退出
+            if (_currentWidgetCreator != null && _activeToolboxTag == tag)
             {
-                _currentWidgetCreator = new ButtonWidgetCreator();
+                ExitAddMode();
+                return;
+            }
+
+            // 先退出之前的模式，恢复原按钮内容
+            if (_activeToolboxBtn != null && _activeToolboxOriginalContent != null)
+                _activeToolboxBtn.Content = _activeToolboxOriginalContent;
+
+            // 进入新的添加模式
+            _currentWidgetCreator = tag switch
+            {
+                "Button" => new ButtonWidgetCreator(),
+                "Text" => new TextWidgetCreator(),
+                "Rectangle" => new RectangleWidgetCreator(),
+                "Label" => new LabelWidgetCreator(),
+                "Image" => new ImageWidgetCreator(),
+                "Numeric" => new NumericDisplayWidgetCreator(),
+                "Switch" => new SwitchWidgetCreator(),
+                "Line" => new LineWidgetCreator(),
+                "Circle" => new CircleWidgetCreator(),
+                "IOField" => new IOFieldWidgetCreator(),
+                "CheckBox" => new CheckBoxWidgetCreator(),
+                "TextBox" => new TextBoxWidgetCreator(),
+                "Frame" => new FrameWidgetCreator(),
+                "ProgressBar" => new ProgressBarWidgetCreator(),
+                _ => null
+            };
+
+            if (_currentWidgetCreator != null)
+            {
+                _activeToolboxBtn = btn;
+                _activeToolboxTag = tag;
+                _activeToolboxOriginalContent = btn.Content;  // 保存原始内容
                 DrawingCanvas.Cursor = Cursors.Cross;
-                AddButtonModeBtn.Content = "Adding Button";
+                btn.Content = $"➕ {_activeToolboxOriginalContent}";
             }
-            else
-            {
-                _currentWidgetCreator = null;
-                DrawingCanvas.Cursor = Cursors.Arrow;
-                AddButtonModeBtn.Content = "Button";
-            }
+        }
+
+        private void ExitAddMode()
+        {
+            _currentWidgetCreator = null;
+            DrawingCanvas.Cursor = Cursors.Arrow;
+            if (_activeToolboxBtn != null && _activeToolboxOriginalContent != null)
+                _activeToolboxBtn.Content = _activeToolboxOriginalContent;
+            _activeToolboxBtn = null;
+            _activeToolboxTag = null;
+            _activeToolboxOriginalContent = null;
         }
 
         #endregion
@@ -516,7 +558,7 @@ namespace NavigatorHMI.Views
             if (e.ChangedButton == MouseButton.Right)
             {
                 // 点击了 Widget 则交给 Widget 自己的右键菜单
-                if (FindVisualParent<Button>(e.OriginalSource as DependencyObject) != null) return;
+                if (FindWidgetElement(e.OriginalSource as DependencyObject) != null) return;
 
                 var mousePos = Mouse.GetPosition(this);
                 TreeContextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Absolute;
@@ -547,7 +589,7 @@ namespace NavigatorHMI.Views
             if (isDoubleClick)
             {
                 var source = e.OriginalSource as DependencyObject;
-                if (FindVisualParent<Button>(source) != null) return;
+                if (FindWidgetElement(source) != null) return;
 
                 // 双击画布空白处 → 显示画面属性
                 if (_viewModel?.CurrentScreen != null)
@@ -561,14 +603,27 @@ namespace NavigatorHMI.Views
 
         #region 视觉树查找
 
-        private Button FindVisualParent<Button>(DependencyObject child) where Button : DependencyObject
+        /// <summary>查找视觉树中第一个 DataContext 为 Widget 的 FrameworkElement。</summary>
+        private FrameworkElement? FindWidgetElement(DependencyObject? child)
         {
             while (child != null)
             {
-                if (child is Button button) return button;
+                if (child is FrameworkElement fe && fe.DataContext is Widget)
+                    return fe;
                 child = VisualTreeHelper.GetParent(child);
             }
             return null;
+        }
+
+        /// <summary>判断视觉树中是否存在 Button（用于工具栏拖拽检测）。</summary>
+        private static bool IsDescendantOfButton(DependencyObject? child)
+        {
+            while (child != null)
+            {
+                if (child is System.Windows.Controls.Button) return true;
+                child = VisualTreeHelper.GetParent(child);
+            }
+            return false;
         }
 
         #endregion
@@ -577,7 +632,7 @@ namespace NavigatorHMI.Views
 
         private void SaveCurrentProject_Click(object sender, RoutedEventArgs e)
         {
-            SaveProject(currentProject, currentProject.ProjectFilePath);
+            SaveProject(_currentProject, _currentProject.ProjectFilePath);
         }
 
         private void CloseCurrentProject_Click(object sender, RoutedEventArgs e)
@@ -585,12 +640,12 @@ namespace NavigatorHMI.Views
             if (!TryCloseProject(false))
                 return;
 
-            isProjectDirty = false;
+            _isProjectDirty = false;
 
             WelComeWindow welcome = new WelComeWindow();
             welcome.Show();
 
-            skipClosingCheck = true;
+            _skipClosingCheck = true;
             this.Close();
         }
 
@@ -599,7 +654,7 @@ namespace NavigatorHMI.Views
         /// </summary>
         private bool TryCloseProject(bool isAppClosing)
         {
-            if (string.IsNullOrEmpty(currentProject.ProjectFilePath) || !isProjectDirty)
+            if (string.IsNullOrEmpty(_currentProject.ProjectFilePath) || !_isProjectDirty)
                 return true;
 
             MessageBoxResult result = MessageBox.Show(
@@ -610,7 +665,7 @@ namespace NavigatorHMI.Views
 
             if (result == MessageBoxResult.Yes)
             {
-                SaveProject(currentProject, currentProject.ProjectFilePath);
+                SaveProject(_currentProject, _currentProject.ProjectFilePath);
                 return true;
             }
             else if (result == MessageBoxResult.No)
@@ -629,7 +684,7 @@ namespace NavigatorHMI.Views
         private void SaveProject(HMIProject project, string filePath)
         {
             ProjectFileService.Save(project, filePath);
-            isProjectDirty = false;
+            _isProjectDirty = false;
             this.Title = project.ProjectFilePath;
         }
 
@@ -718,7 +773,7 @@ namespace NavigatorHMI.Views
         private void Toolbar_MouseDown(object sender, MouseButtonEventArgs e)
         {
             // 点击按钮时不启动拖拽
-            if (FindVisualParent<Button>(e.OriginalSource as DependencyObject) != null) return;
+            if (IsDescendantOfButton(e.OriginalSource as DependencyObject)) return;
             if (sender is ToolBar tb && e.LeftButton == MouseButtonState.Pressed)
             {
                 _dragSource = tb;
@@ -1019,8 +1074,8 @@ namespace NavigatorHMI.Views
 
         private void NewProject_Click(object sender, RoutedEventArgs e)
         {
-            skipClosingCheck = true;
-            isProjectDirty = false;
+            _skipClosingCheck = true;
+            _isProjectDirty = false;
             Close();
             // 关闭后由 App.xaml.cs 的 ShutdownMode/启动逻辑回到 WelcomeWindow
         }
@@ -1029,10 +1084,10 @@ namespace NavigatorHMI.Views
             var dlg = new Microsoft.Win32.SaveFileDialog { Filter = "工程文件|*.hmiproj", DefaultExt = ".hmiproj" };
             if (dlg.ShowDialog() == true)
             {
-                ProjectFileService.Save(currentProject, dlg.FileName);
-                currentProject.ProjectFilePath = dlg.FileName;
-                _viewModel.CommandService.ReplaceProject(currentProject);
-                isProjectDirty = false;
+                ProjectFileService.Save(_currentProject, dlg.FileName);
+                _currentProject.ProjectFilePath = dlg.FileName;
+                _viewModel.CommandService.ReplaceProject(_currentProject);
+                _isProjectDirty = false;
                 Title = $"NavigatorHMI - {dlg.FileName}";
             }
         }

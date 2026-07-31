@@ -16,9 +16,20 @@ namespace NavigatorHMI.Common
         private readonly VisualCollection _visualChildren;
         private readonly Thumb[] _thumbs;
         private readonly FrameworkElement _adornedElement;
-        private readonly ButtonWidget _widget;
+        private readonly Widget _widget;
+        private static readonly Pen _selectionPen = CreateSelectionPen();
 
-        public ResizeAdorner(FrameworkElement adornedElement, ButtonWidget widget) : base(adornedElement)
+        private static Pen CreateSelectionPen()
+        {
+            var pen = new Pen(Brushes.Black, 1)
+            {
+                DashStyle = new DashStyle(new double[] { 3, 3 }, 0)
+            };
+            pen.Freeze();
+            return pen;
+        }
+
+        public ResizeAdorner(FrameworkElement adornedElement, Widget widget) : base(adornedElement)
         {
             _adornedElement = adornedElement;
             _widget = widget;
@@ -71,10 +82,10 @@ namespace NavigatorHMI.Common
             return finalSize;
         }
 
-        private void Thumb_DragDelta(object sender, DragDeltaEventArgs e)
+private void Thumb_DragDelta(object sender, DragDeltaEventArgs e)
         {
             var thumb = sender as Thumb;
-            var dir = (ResizeDirection)thumb.Tag;
+            var dir = (ResizeDirection)thumb!.Tag;
             double newX = _widget.X;
             double newY = _widget.Y;
             double newW = _widget.Width;
@@ -122,6 +133,41 @@ namespace NavigatorHMI.Common
             newW = Math.Max(20, newW);
             newH = Math.Max(20, newH);
 
+            // 类型特化处理
+            if (_widget is LineWidget line)
+            {
+                // Line: X2/Y2 跟随边界框增量同步（保持视觉效果一致）
+                line.X2 += (newW - _widget.Width);
+                line.Y2 += (newH - _widget.Height);
+            }
+            else if (_widget is CircleWidget)
+            {
+                // Circle: 角拖拽时保持 1:1 正圆比例；边中点拖拽允许椭圆（设计意图：灵活调整）
+                if (dir is ResizeDirection.TopLeft or ResizeDirection.TopRight
+                         or ResizeDirection.BottomLeft or ResizeDirection.BottomRight)
+                {
+                    double size = Math.Max(newW, newH);
+                    // 锚定对角不变：以被拖拽角的对角为 anchor，反算正圆左上角坐标
+                    // 只计算被实际消费的 anchor 维度
+                    if (dir == ResizeDirection.TopLeft || dir == ResizeDirection.BottomLeft)
+                    {
+                        double anchorX = dir == ResizeDirection.BottomLeft
+                            ? _widget.X + _widget.Width   // 锚定 TopRight X
+                            : _widget.X + _widget.Width;  // 锚定 BottomRight X
+                        newX = anchorX - size;
+                    }
+                    if (dir == ResizeDirection.TopLeft || dir == ResizeDirection.TopRight)
+                    {
+                        double anchorY = dir == ResizeDirection.TopRight
+                            ? _widget.Y + _widget.Height  // 锚定 BottomLeft Y
+                            : _widget.Y + _widget.Height; // 锚定 BottomRight Y
+                        newY = anchorY - size;
+                    }
+                    newW = size;
+                    newH = size;
+                }
+            }
+
             _widget.X = newX;
             _widget.Y = newY;
             _widget.Width = newW;
@@ -131,9 +177,7 @@ namespace NavigatorHMI.Common
         protected override void OnRender(DrawingContext drawingContext)
         {
             Rect rect = new Rect(0, 0, _adornedElement.ActualWidth, _adornedElement.ActualHeight);
-            Pen pen = new Pen(Brushes.Black, 1);
-            pen.DashStyle = new DashStyle(new double[] { 3, 3 }, 0);
-            drawingContext.DrawRectangle(null, pen, rect);
+            drawingContext.DrawRectangle(null, _selectionPen, rect);
         }
 
         protected override int VisualChildrenCount => _visualChildren.Count;

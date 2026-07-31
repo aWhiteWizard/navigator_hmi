@@ -140,12 +140,12 @@ namespace NavigatorHMI.Views.Helpers
                 widget.IsSelected = false;
             }
 
-            // 清除 UI 上按钮的装饰器 — 遍历画布中所有 Button 子元素
+            // 清除 UI 上控件的装饰器 — 遍历画布中所有子元素
             foreach (UIElement child in _canvas.Children)
             {
-                if (child is Button btn)
+                if (child is FrameworkElement fe)
                 {
-                    SelectorHelper.SetIsSelected(btn, false);
+                    SelectorHelper.SetIsSelected(fe, false);
                 }
             }
             // 通知属性窗口（或其它订阅者）选中已清除
@@ -178,16 +178,16 @@ namespace NavigatorHMI.Views.Helpers
                 var container = itemsControl.ItemContainerGenerator.ContainerFromIndex(i) as ContentPresenter;
                 if (container != null)
                 {
-                    // ContentPresenter 的第一个视觉子元素即为数据模板生成的 Button
-                    var button = VisualTreeHelper.GetChild(container, 0) as Button;
-                    if (button != null)
+                    // ContentPresenter 的第一个视觉子元素即为数据模板生成的控件
+                    var element = VisualTreeHelper.GetChild(container, 0) as FrameworkElement;
+                    if (element != null)
                     {
-                        // 从 Button 的 DataContext 获取对应的数据模型
-                        var widget = button.DataContext as ButtonWidget;
+                        // 从控件的 DataContext 获取对应的数据模型
+                        var widget = element.DataContext as Widget;
                         if (widget != null)
                         {
-                            // 将数据模型的 IsSelected 同步到按钮的附加属性，触发选中高亮样式
-                            SelectorHelper.SetIsSelected(button, widget.IsSelected);
+                            // 将数据模型的 IsSelected 同步到控件的附加属性，触发选中高亮样式
+                            SelectorHelper.SetIsSelected(element, widget.IsSelected);
                         }
                     }
                 }

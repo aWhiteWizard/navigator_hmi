@@ -117,8 +117,217 @@
             <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="FillColor:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding FillColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+                <TextBox Grid.Column="1" Text="{Binding RectFillColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
         </Grid></StackPanel></DataTemplate>
+
+        <!-- LabelWidget 属性 -->
+        <DataTemplate x:Key="PropLabel"><StackPanel>
+            <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
+            <Separator Margin="4,2"/>
+            <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Text:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding LabelText, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="FontSize:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding LabelFontSize, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Color:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding LabelTextColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+            </Grid></StackPanel></DataTemplate>
+
+        <!-- ImageWidget 属性 -->
+        <DataTemplate x:Key="PropImage"><StackPanel>
+            <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
+            <Separator Margin="4,2"/>
+            <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Path:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding ImagePath, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+            </Grid></StackPanel></DataTemplate>
+
+        <!-- NumericDisplayWidget 属性 -->
+        <DataTemplate x:Key="PropNumericDisplay"><StackPanel>
+            <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
+            <Separator Margin="4,2"/>
+            <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Prefix:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding NumericPrefix, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Suffix:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding NumericSuffix, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Decimals:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding NumericDecimalPlaces, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="FontSize:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding NumericFontSize, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Color:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding NumericTextColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+            </Grid></StackPanel></DataTemplate>
+
+        <!-- SwitchWidget 属性 -->
+        <DataTemplate x:Key="PropSwitch"><StackPanel>
+            <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
+            <Separator Margin="4,2"/>
+            <TextBlock Text="状态" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="IsOn:" Style="{StaticResource PropLabel}"/>
+                <CheckBox Grid.Column="1" IsChecked="{Binding SwitchIsOn}" VerticalAlignment="Center"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="OnText:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding SwitchOnText, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="OffText:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding SwitchOffText, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+            </Grid></StackPanel></DataTemplate>
+
+        <!-- LineWidget 属性 -->
+        <DataTemplate x:Key="PropLine"><StackPanel>
+            <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
+            <Separator Margin="4,2"/>
+            <TextBlock Text="终点" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="30"/><ColumnDefinition Width="*"/><ColumnDefinition Width="30"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="X2:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding LineX2, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+                <Label Grid.Column="2" Content="Y2:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="3" Text="{Binding LineY2, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+            </Grid>
+            <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="110"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="StrokeColor:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding LineStrokeColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="110"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Thickness:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding LineStrokeThickness, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+            </Grid></StackPanel></DataTemplate>
+
+        <!-- CircleWidget 属性 -->
+        <DataTemplate x:Key="PropCircle"><StackPanel>
+            <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
+            <Separator Margin="4,2"/>
+            <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="FillColor:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding CircleFillColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="StrokeColor:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding CircleStrokeColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Thickness:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding CircleStrokeThickness, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+            </Grid></StackPanel></DataTemplate>
+
+        <!-- IOFieldWidget 属性 -->
+        <DataTemplate x:Key="PropIOField"><StackPanel>
+            <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
+            <Separator Margin="4,2"/>
+            <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Content:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding IOFieldContent, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="ReadOnly:" Style="{StaticResource PropLabel}"/>
+                <CheckBox Grid.Column="1" IsChecked="{Binding IOFieldIsReadOnly}" VerticalAlignment="Center"/>
+            </Grid></StackPanel></DataTemplate>
+
+        <!-- CheckBoxWidget 属性 -->
+        <DataTemplate x:Key="PropCheckBox"><StackPanel>
+            <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
+            <Separator Margin="4,2"/>
+            <TextBlock Text="状态" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Checked:" Style="{StaticResource PropLabel}"/>
+                <CheckBox Grid.Column="1" IsChecked="{Binding CheckBoxIsChecked}" VerticalAlignment="Center"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Text:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding CheckBoxText, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+            </Grid></StackPanel></DataTemplate>
+
+        <!-- TextBoxWidget 属性 -->
+        <DataTemplate x:Key="PropTextBoxWidget"><StackPanel>
+            <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
+            <Separator Margin="4,2"/>
+            <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Content:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding TextBoxContent, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Password:" Style="{StaticResource PropLabel}"/>
+                <CheckBox Grid.Column="1" IsChecked="{Binding TextBoxIsPassword}" VerticalAlignment="Center"/>
+            </Grid></StackPanel></DataTemplate>
+
+        <!-- FrameWidget 属性 -->
+        <DataTemplate x:Key="PropFrame"><StackPanel>
+            <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
+            <Separator Margin="4,2"/>
+            <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="50"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Title:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding FrameTitle, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="FillColor:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding FrameFillColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+            </Grid></StackPanel></DataTemplate>
+
+        <!-- ProgressBarWidget 属性 -->
+        <DataTemplate x:Key="PropProgressBar"><StackPanel>
+            <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
+            <Separator Margin="4,2"/>
+            <TextBlock Text="参数" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="50"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Value:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding ProgressValue, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="50"/><ColumnDefinition Width="*"/><ColumnDefinition Width="50"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Min:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding ProgressMin, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+                <Label Grid.Column="2" Content="Max:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="3" Text="{Binding ProgressMax, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="FillColor:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding ProgressFillColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+            </Grid></StackPanel></DataTemplate>
     </Window.Resources>
 
     <Window.CommandBindings><CommandBinding Command="Save" Executed="SaveCurrentProject_Click"/></Window.CommandBindings>
@@ -274,10 +483,20 @@
                             <avalon:LayoutAnchorable Title="控件面板" ContentId="toolbox">
                                 <TabControl TabStripPlacement="Top">
                                     <TabItem Header="一般控件"><StackPanel Orientation="Vertical">
-                                        <Button Content="Point"/><Button Content="Line"/><Button Content="Label"/>
-                                        <Button x:Name="AddButtonModeBtn" Content="Button" Click="ToggleAddButtonMode"/>
-                                        <Button Content="Rectange"/><Button Content="Circle"/><Button Content="IOField"/>
-                                        <Button Content="Frame"/><Button Content="CheckBox"/><Button Content="TextBox"/>
+                                        <Button Content="Label" Tag="Label" Click="ToggleAddWidgetMode"/>
+                                        <Button x:Name="AddButtonModeBtn" Content="Button" Tag="Button" Click="ToggleAddWidgetMode"/>
+                                        <Button Content="Text" Tag="Text" Click="ToggleAddWidgetMode"/>
+                                        <Button Content="Rectangle" Tag="Rectangle" Click="ToggleAddWidgetMode"/>
+                                        <Button Content="Line" Tag="Line" Click="ToggleAddWidgetMode"/>
+                                        <Button Content="Circle" Tag="Circle" Click="ToggleAddWidgetMode"/>
+                                        <Button Content="Image" Tag="Image" Click="ToggleAddWidgetMode"/>
+                                        <Button Content="Numeric" Tag="Numeric" Click="ToggleAddWidgetMode"/>
+                                        <Button Content="Switch" Tag="Switch" Click="ToggleAddWidgetMode"/>
+                                        <Button Content="IOField" Tag="IOField" Click="ToggleAddWidgetMode"/>
+                                        <Button Content="CheckBox" Tag="CheckBox" Click="ToggleAddWidgetMode"/>
+                                        <Button Content="TextBox" Tag="TextBox" Click="ToggleAddWidgetMode"/>
+                                        <Button Content="Frame" Tag="Frame" Click="ToggleAddWidgetMode"/>
+                                        <Button Content="ProgressBar" Tag="ProgressBar" Click="ToggleAddWidgetMode"/>
                                     </StackPanel></TabItem>
                                     <TabItem Header="窗口控件"><StackPanel Orientation="Vertical">
                                         <Button Content="User View"/><Button Content="Alarm View"/><Button Content="Robot List"/>
@@ -358,6 +577,17 @@
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="ButtonWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropButton}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="TextWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropText}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="RectangleWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropRect}"/></DataTrigger>
+                                                    <DataTrigger Binding="{Binding SelectedObjectType}" Value="LabelWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropLabel}"/></DataTrigger>
+                                                    <DataTrigger Binding="{Binding SelectedObjectType}" Value="ImageWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropImage}"/></DataTrigger>
+                                                    <DataTrigger Binding="{Binding SelectedObjectType}" Value="NumericDisplayWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropNumericDisplay}"/></DataTrigger>
+                                                    <DataTrigger Binding="{Binding SelectedObjectType}" Value="SwitchWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropSwitch}"/></DataTrigger>
+                                                    <DataTrigger Binding="{Binding SelectedObjectType}" Value="LineWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropLine}"/></DataTrigger>
+                                                    <DataTrigger Binding="{Binding SelectedObjectType}" Value="CircleWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropCircle}"/></DataTrigger>
+                                                    <DataTrigger Binding="{Binding SelectedObjectType}" Value="IOFieldWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropIOField}"/></DataTrigger>
+                                                    <DataTrigger Binding="{Binding SelectedObjectType}" Value="CheckBoxWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropCheckBox}"/></DataTrigger>
+                                                    <DataTrigger Binding="{Binding SelectedObjectType}" Value="TextBoxWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropTextBoxWidget}"/></DataTrigger>
+                                                    <DataTrigger Binding="{Binding SelectedObjectType}" Value="FrameWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropFrame}"/></DataTrigger>
+                                                    <DataTrigger Binding="{Binding SelectedObjectType}" Value="ProgressBarWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropProgressBar}"/></DataTrigger>
                                                 </Style.Triggers>
                                             </Style></ContentControl.Style></ContentControl>
                                         </StackPanel>

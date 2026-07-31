@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using NavigatorHMI.Common;
 using NavigatorHMI.ViewModels;
@@ -12,6 +13,8 @@ namespace NavigatorHMI.Views.Behaviors
 {
     /// <summary>
     /// Widget 拖拽行为处理器。支持单选和多选拖拽——框选多个控件后拖拽任意一个即可整体移动。
+    /// 交互控件（CheckBox/TextBox/ProgressBar）默认跳过拖拽以保留原生交互；
+    /// 按住 Ctrl 键可强制拖拽交互控件。
     /// </summary>
     public class WidgetDragBehavior
     {
@@ -41,25 +44,43 @@ namespace NavigatorHMI.Views.Behaviors
             _pushUndoCallback = pushUndoCallback;
         }
 
+        /// <summary>
+        /// 判断 FrameworkElement 是否为交互控件（具有原生交互行为，默认不拖拽）。
+        /// TextBoxBase（TextBox/PasswordBox）、ToggleButton（CheckBox/RadioButton）、
+        /// RangeBase（ProgressBar/Slider/ScrollBar）属于交互控件。
+        /// </summary>
+        private static bool IsInteractiveControl(FrameworkElement fe)
+        {
+            return fe is TextBoxBase || fe is ToggleButton || fe is RangeBase;
+        }
+
         internal void OnButtonClick(object sender, RoutedEventArgs e)
         {
-            if (sender is not Button btn || btn.DataContext is not Widget widget) return;
+            if (sender is not FrameworkElement fe || fe.DataContext is not Widget widget) return;
             _selectionManager.HandleWidgetClick(widget, Mouse.GetPosition(_canvas));
         }
 
         internal void OnPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (sender is Button btn) _dragStartPoint = e.GetPosition(_canvas);
+            if (sender is FrameworkElement) _dragStartPoint = e.GetPosition(_canvas);
         }
 
         internal void OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (sender is not Button btn || btn.DataContext is not Widget widget) return;
+            if (sender is not FrameworkElement fe || fe.DataContext is not Widget widget) return;
+
+            // 交互控件默认不拖拽，必须按住 Ctrl 才能拖拽（保留原生交互行为）
+            if (IsInteractiveControl(fe) && !Keyboard.IsKeyDown(Key.LeftCtrl) && !Keyboard.IsKeyDown(Key.RightCtrl))
+            {
+                // 仍可选中，但不开始拖拽
+                if (!widget.IsSelected) _selectionManager.SelectWidgetSilent(widget);
+                e.Handled = false;  // 让原生交互继续
+                return;
+            }
 
             if (!widget.IsSelected) _selectionManager.SelectWidgetSilent(widget);
             _pushUndoCallback?.Invoke();
 
-            // 记录所有选中控件的起始位置（用于多选拖拽）
             var vm = _viewModelProvider();
             _draggingWidgets.Clear();
             if (vm?.CurrentScreen != null)
@@ -68,7 +89,7 @@ namespace NavigatorHMI.Views.Behaviors
 
             _isDragging = true;
             _setCursorCallback(Cursors.SizeAll);
-            btn.CaptureMouse();
+            fe.CaptureMouse();
         }
 
         internal void OnMouseMove(object sender, MouseEventArgs e)
@@ -95,7 +116,7 @@ namespace NavigatorHMI.Views.Behaviors
         internal void OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
             if (!_isDragging) return;
-            (sender as Button)?.ReleaseMouseCapture();
+            (sender as FrameworkElement)?.ReleaseMouseCapture();
             _setCursorCallback(Cursors.Arrow);
             _isDragging = false;
             _draggingWidgets.Clear();
@@ -103,10 +124,10 @@ namespace NavigatorHMI.Views.Behaviors
 
         internal void OnPreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (sender is not Button btn || btn.DataContext is not Widget widget) return;
+            if (sender is not FrameworkElement fe || fe.DataContext is not Widget widget) return;
             _isDragging = false;
             _draggingWidgets.Clear();
-            btn.ReleaseMouseCapture();
+            fe.ReleaseMouseCapture();
             _setCursorCallback(Cursors.Arrow);
             _selectionManager.SelectWidgetSilent(widget);
             e.Handled = true;
@@ -114,7 +135,7 @@ namespace NavigatorHMI.Views.Behaviors
 
         internal void OnMouseRightButtonUp(object sender, MouseButtonEventArgs e)
         {
-            if (sender is not Button btn || btn.DataContext is not Widget widget) return;
+            if (sender is not FrameworkElement fe || fe.DataContext is not Widget widget) return;
             _onRightClickCallback?.Invoke(widget, e.GetPosition(null));
             e.Handled = true;
         }

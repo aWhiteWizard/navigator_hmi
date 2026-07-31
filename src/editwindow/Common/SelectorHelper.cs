@@ -7,7 +7,7 @@ namespace NavigatorHMI.Common
 {
     public static class SelectorHelper
     {
-        private static Dictionary<Button, Adorner> _adornerMap = new Dictionary<Button, Adorner>();
+        private static Dictionary<FrameworkElement, Adorner> _adornerMap = new Dictionary<FrameworkElement, Adorner>();
 
         public static readonly DependencyProperty IsSelectedProperty =
             DependencyProperty.RegisterAttached(
@@ -28,55 +28,49 @@ namespace NavigatorHMI.Common
 
         private static void OnIsSelectedChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
-            var button = d as Button;
-            if (button == null) return;
+            var element = d as FrameworkElement;
+            if (element == null) return;
 
-            var widget = button.DataContext as ButtonWidget;
+            var widget = element.DataContext as Widget;
             if (widget == null) return;
 
             if ((bool)e.NewValue)
             {
-                var adornerLayer = AdornerLayer.GetAdornerLayer(button);
+                var adornerLayer = AdornerLayer.GetAdornerLayer(element);
                 if (adornerLayer != null)
                 {
-                    // 先创建一个简单的 Adorner 测试
-                    var adorner = new ResizeAdorner(button, widget);
+                    var adorner = new ResizeAdorner(element, widget);
                     adornerLayer.Add(adorner);
+                    _adornerMap[element] = adorner;
                 }
             }
             else
             {
-                // 取消选中：移除 Adorner
-                RemoveAdorner(button);
-                System.Diagnostics.Debug.WriteLine($"✅ 移除 Adorner 从按钮: {widget.Text}");
+                RemoveAdorner(element);
+                System.Diagnostics.Debug.WriteLine($"✅ 移除 Adorner: {widget.ObjectName}");
             }
         }
 
-        /// <summary>
-        /// 移除按钮上的 Adorner
-        /// </summary>
-        private static void RemoveAdorner(Button button)
+        private static void RemoveAdorner(FrameworkElement element)
         {
-            if (button == null) return;
+            if (element == null) return;
 
-            // 从 Dictionary 中移除
-            if (_adornerMap.TryGetValue(button, out var adorner))
+            if (_adornerMap.TryGetValue(element, out var adorner))
             {
-                var adornerLayer = AdornerLayer.GetAdornerLayer(button);
+                var adornerLayer = AdornerLayer.GetAdornerLayer(element);
                 if (adornerLayer != null)
                 {
                     adornerLayer.Remove(adorner);
-                    _adornerMap.Remove(button);
+                    _adornerMap.Remove(element);
                     System.Diagnostics.Debug.WriteLine("✅ 从 Dictionary 移除 Adorner");
                 }
             }
             else
             {
-                // 备用方法：遍历 AdornerLayer
-                var adornerLayer = AdornerLayer.GetAdornerLayer(button);
+                var adornerLayer = AdornerLayer.GetAdornerLayer(element);
                 if (adornerLayer != null)
                 {
-                    var adorners = adornerLayer.GetAdorners(button);
+                    var adorners = adornerLayer.GetAdorners(element);
                     if (adorners != null)
                     {
                         foreach (var a in adorners)
@@ -92,16 +86,13 @@ namespace NavigatorHMI.Common
             }
         }
 
-        /// <summary>
-        /// 清除所有按钮的 Adorner（用于切换画面时）
-        /// </summary>
         public static void ClearAllAdorners()
         {
             foreach (var kvp in _adornerMap.ToList())
             {
-                var button = kvp.Key;
+                var element = kvp.Key;
                 var adorner = kvp.Value;
-                var adornerLayer = AdornerLayer.GetAdornerLayer(button);
+                var adornerLayer = AdornerLayer.GetAdornerLayer(element);
                 if (adornerLayer != null)
                 {
                     adornerLayer.Remove(adorner);
