@@ -1,20 +1,24 @@
 using CommunityToolkit.Mvvm.Messaging;
 using NavigatorHMI.Common;
+using NavigatorHMI.CommandLayer;
 using NavigatorHMI.ViewModels;
 using NavigatorHMI.Views.Behaviors;
 using NavigatorHMI.Views.Helpers;
 using NavigatorHMI.Views.Helpers.Creators;
 using ProtoBuf;
-using Sunny.UI.Win32;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
+using Microsoft.Win32;
+using AvalonDock.Layout;
 
 namespace NavigatorHMI.Views
 {
@@ -46,6 +50,10 @@ namespace NavigatorHMI.Views
         private bool isProjectDirty;
         private bool skipClosingCheck = false;
 
+        // CLI 命令历史
+        private readonly List<string> _cliHistory = new();
+        private int _historyIndex;
+
         // widget的专职类
         private readonly WidgetSelectionManager _selectionManager;
         private readonly WidgetDragBehavior _dragBehavior;
@@ -53,11 +61,10 @@ namespace NavigatorHMI.Views
         // 树形视图和 Widget 的右键菜单处理器
         private readonly TreeViewContextMenuHandler _treeContextMenuHandler;
         private readonly WidgetContextMenuHandler _widgetContextMenuHandler;
-        // 属性窗口
+        // 属性面板
         private readonly PropertyViewModel _propertyViewModel;
-        private PerprotyWindow? _propertyWindow;
-
-
+        /// <summary>属性面板 ViewModel（供 XAML 绑定）。</summary>
+        public PropertyViewModel PropertyVM => _propertyViewModel;
         #endregion
 
         #region 构造函数 & 初始化
@@ -405,109 +412,30 @@ namespace NavigatorHMI.Views
              _propertyViewModel.CurrentScreen = _viewModel.CurrentScreen;
             _propertyViewModel.SelectedWidget = widget;
 
+            // 双击控件时自动显示属性窗口
+            if (widget != null) ShowAnchorable("property");
+
             if (widget != null)
             {
-                ShowPropertyWindow();
+                // 属性面板已停靠，无需额外操作
             }
             else
             {
-                if (_propertyWindow?.IsVisible == true)
-                    _propertyWindow.Hide();
+                HidePropertyWindow();
             }
         }
 
-        /// <summary>
-        /// 显示/定位属性窗口（共用方法）。
-        /// </summary>
-        private void ShowPropertyWindow()
-        {
-            if (_propertyWindow == null || !_propertyWindow.IsVisible)
-            {
-                if (_propertyWindow != null)
-                {
-                    try { _propertyWindow.Close(); } catch { }
-                }
-                _propertyWindow = new PerprotyWindow();
-                _propertyWindow.Owner = this;
-                _propertyWindow.OnEscapePressed = () => _selectionManager.ClearAllSelection();
-            }
-
-            // 先设置 DataContext 再 Show
-            _propertyWindow.DataContext = _propertyViewModel;
-
-            var winWidth = _propertyWindow.ActualWidth;
-            var winHeight = _propertyWindow.ActualHeight;
-
-            // 直接基于 Owner 窗口的 DIP 坐标计算子窗口位置
-            // mousePos 和 Left/Top 都是 DIP，天然同坐标系
-            var mousePos = Mouse.GetPosition(this);
-
-            // 先计算鼠标相对于 Owner 窗口左上角的 DIP 偏移
-            var targetLeft = mousePos.X + 15;
-            var targetTop = mousePos.Y + 25;
-
-            // 检查屏幕边界需要屏幕坐标
-            var screenPos = this.PointToScreen(mousePos);
-            var screen = System.Windows.Forms.Screen.FromPoint(
-                new System.Drawing.Point((int)screenPos.X, (int)screenPos.Y));
-            var workingArea = screen.WorkingArea;
-
-            // 将 workingArea 转为 DIP（粗略计算窗口最大尺寸）
-            // 子窗口的 Left/Top 在 Owner 坐标系中，需要知道 Owner 的屏幕位置
-            var ownerScreenOrigin = this.PointToScreen(new Point(0, 0));
-
-            // workingArea 是屏幕物理像素，Owner 左上角屏幕物理像素 = ownerScreenOrigin
-            // 所以子窗口的 Left/Top（DIP）的最大值是：
-            // (workingArea.Right - ownerScreenOrigin.X) - winWidth
-            // 但这是物理像素差值，DPI 缩放会引入误差，直接用 PointToScreen 反推更精确
-
-            // 更精确的边界检测：将目标 DIP 位置转为屏幕像素检查
-            var targetScreenX = ownerScreenOrigin.X + (int)(targetLeft * DpiScaleX);
-            var targetScreenY = ownerScreenOrigin.Y + (int)(targetTop * DpiScaleY);
-
-            var screenRightDIP = (workingArea.Right - ownerScreenOrigin.X) / DpiScaleX - winWidth;
-            var screenBottomDIP = (workingArea.Bottom - ownerScreenOrigin.Y) / DpiScaleY - winHeight;
-
-            if (targetLeft > screenRightDIP)
-                targetLeft = screenRightDIP;
-            if (targetTop > screenBottomDIP)
-                targetTop = screenBottomDIP;
-            if (targetLeft < 0)
-                targetLeft = 0;
-            if (targetTop < 0)
-                targetTop = 0;
-
-            _propertyWindow.Left = targetLeft;
-            _propertyWindow.Top = targetTop;
-
-            if (!_propertyWindow.IsVisible)
-                _propertyWindow.Show();
-            else if (_propertyWindow.WindowState == WindowState.Minimized)
-                _propertyWindow.WindowState = WindowState.Normal;
-
-            _propertyWindow.Activate();
-        }
-
-
-        /// <summary>
-        /// 显示画面属性：将 Screen 设置到 PropertyViewModel 并弹出属性窗口。
-        /// </summary>
+        /// <summary>选中画面时更新属性面板。</summary>
         private void ShowScreenProperty(Screen screen)
         {
             _propertyViewModel.SelectedScreen = screen;
-            ShowPropertyWindow();
+            ShowAnchorable("property");
         }
 
-        /// <summary>
-        /// 隐藏属性窗口（如果可见）。
-        /// </summary>
+        /// <summary>清空属性面板选中。</summary>
         private void HidePropertyWindow()
         {
-            if (_propertyWindow?.IsVisible == true)
-            {
-                _propertyViewModel.SelectedScreen = null;
-                _propertyWindow.Hide();
-            }
+            _propertyViewModel.SelectedScreen = null;
         }
 
         private DateTime _lastClickTime;
@@ -686,30 +614,356 @@ namespace NavigatorHMI.Views
         /// </summary>
         private void BuildProject_Click(object sender, RoutedEventArgs e)
         {
-            var result = ProjectGenerator.Generate(currentProject);
+            var result = _viewModel.CommandService.Execute("compile", new());
 
-            if (result.HasErrors)
+            if (!result.Success)
             {
-                MessageBox.Show(
-                    string.Join(Environment.NewLine, result.Errors),
-                    "生成错误",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error);
+                MessageBox.Show($"[{result.ErrorCode}] {result.ErrorMessage}", "编译失败", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
             }
-            else
-            {
-                string outputPath = Path.Combine(
-                    Path.GetDirectoryName(currentProject.ProjectFilePath),
-                    "output",
-                    Path.GetFileNameWithoutExtension(currentProject.ProjectFilePath) + ".xml");
+            MessageBox.Show($"编译成功！\n输出: {result.Data}", "完成", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        #endregion
 
-                MessageBox.Show(
-                    $"生成成功！\n输出文件：{outputPath}",
-                    "生成完成",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
+        #region 工具栏拖拽
+        private ToolBar? _dragSource;
+        private Point _dragStart;
+        private bool _isDragging;
+
+        private void Toolbar_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is ToolBar tb && e.LeftButton == MouseButtonState.Pressed)
+            {
+                _dragSource = tb;
+                _dragStart = e.GetPosition(null);
+                _isDragging = false;
+                tb.CaptureMouse();
             }
         }
+
+        private void ToolbarHost_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (_dragSource == null || e.LeftButton != MouseButtonState.Pressed) return;
+            var pos = e.GetPosition(null);
+            if (!_isDragging && (Math.Abs(pos.X - _dragStart.X) < 5 && Math.Abs(pos.Y - _dragStart.Y) < 5)) return;
+
+            _isDragging = true;
+            _dragSource.Opacity = 0.5;
+
+            // 根据鼠标 X 坐标找到最近的目标 ToolBar
+            var mouseX = e.GetPosition(ToolbarPanel).X;
+            var srcIdx = ToolbarPanel.Children.IndexOf(_dragSource);
+            int targetIdx = -1;
+            double bestDist = double.MaxValue;
+            for (int i = 0; i < ToolbarPanel.Children.Count; i++)
+            {
+                if (ToolbarPanel.Children[i] is not ToolBar t || !(t.Name?.StartsWith("Tb") ?? false)) continue;
+                var elemX = t.TranslatePoint(new Point(0, 0), ToolbarPanel).X + t.ActualWidth / 2;
+                var dist = Math.Abs(mouseX - elemX);
+                if (dist < bestDist) { bestDist = dist; targetIdx = i; }
+            }
+            if (targetIdx >= 0 && targetIdx != srcIdx && srcIdx >= 0)
+            {
+                ToolbarPanel.Children.RemoveAt(srcIdx);
+                ToolbarPanel.Children.Insert(targetIdx > srcIdx ? targetIdx - 1 : targetIdx, _dragSource);
+            }
+        }
+
+        private void ToolbarHost_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            if (_dragSource != null)
+            {
+                _dragSource.Opacity = 1.0;
+                _dragSource.ReleaseMouseCapture();
+                _dragSource = null;
+            }
+            _isDragging = false;
+        }
+
+        private void ToolbarHost_MouseLeave(object sender, MouseEventArgs e)
+        {
+            if (_dragSource != null)
+            {
+                _dragSource.Opacity = 1.0;
+                _dragSource.ReleaseMouseCapture();
+                _dragSource = null;
+            }
+            _isDragging = false;
+        }
+        #endregion
+
+        #region 工具栏按钮操作
+        private void ToggleAnchorable_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not MenuItem mi || mi.Tag is not string contentId) return;
+            var anchorable = DockManager.Layout.Descendents()
+                .OfType<AvalonDock.Layout.LayoutAnchorable>()
+                .FirstOrDefault(a => a.ContentId == contentId);
+            if (anchorable == null) return;
+            if (mi.IsChecked)
+                anchorable.Show();
+            else
+                anchorable.Hide();
+            // 一次性注册同步（幂等，重复注册无害）
+            anchorable.IsVisibleChanged -= SyncMenuCheck;
+            anchorable.IsVisibleChanged += SyncMenuCheck;
+            void SyncMenuCheck(object? s, EventArgs _) => mi.IsChecked = ((AvalonDock.Layout.LayoutAnchorable)s!).IsVisible;
+        }
+        private void ShowAnchorable(string contentId)
+        {
+            var anchorable = DockManager.Layout.Descendents()
+                .OfType<LayoutAnchorable>()
+                .FirstOrDefault(a => a.ContentId == contentId);
+            if (anchorable != null && !anchorable.IsVisible)
+                anchorable.Show();
+        }
+        private void ToggleToolbarBlock_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem mi && mi.Tag is string name)
+            {
+                var block = FindName(name) as FrameworkElement;
+                if (block != null) block.Visibility = mi.IsChecked ? Visibility.Visible : Visibility.Collapsed;
+            }
+        }
+        private void NewProject_Click(object sender, RoutedEventArgs e)
+        {
+            skipClosingCheck = true;
+            isProjectDirty = false;
+            Close();
+            // 关闭后由 App.xaml.cs 的 ShutdownMode/启动逻辑回到 WelcomeWindow
+        }
+        private void SaveAsProject_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new Microsoft.Win32.SaveFileDialog { Filter = "工程文件|*.hmiproj", DefaultExt = ".hmiproj" };
+            if (dlg.ShowDialog() == true)
+            {
+                ProjectFileService.Save(currentProject, dlg.FileName);
+                currentProject.ProjectFilePath = dlg.FileName;
+                _viewModel.CommandService.ReplaceProject(currentProject);
+                isProjectDirty = false;
+                Title = $"NavigatorHMI - {dlg.FileName}";
+            }
+        }
+        private void DeleteSelectedWidget_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel.CurrentScreen == null) return;
+            var selected = _viewModel.CurrentScreen.Widgets.Where(w => w.IsSelected).ToList();
+            foreach (var w in selected) _viewModel.CurrentScreen.Widgets.Remove(w);
+            _viewModel.NotifyCanvasRefreshNeeded();
+        }
+        private void BringToFront_Click(object sender, RoutedEventArgs e)
+            => _viewModel.CommandService.Execute("bring_to_front", new() { ["screen_name"] = _viewModel.CurrentScreen?.Name ?? "", ["widget_name"] = GetFirstSelectedWidgetName() });
+        private void BringForward_Click(object sender, RoutedEventArgs e)
+            => _viewModel.CommandService.Execute("bring_forward", new() { ["screen_name"] = _viewModel.CurrentScreen?.Name ?? "", ["widget_name"] = GetFirstSelectedWidgetName() });
+        private void SendBackward_Click(object sender, RoutedEventArgs e)
+            => _viewModel.CommandService.Execute("send_backward", new() { ["screen_name"] = _viewModel.CurrentScreen?.Name ?? "", ["widget_name"] = GetFirstSelectedWidgetName() });
+        private void SendToBack_Click(object sender, RoutedEventArgs e)
+            => _viewModel.CommandService.Execute("send_to_back", new() { ["screen_name"] = _viewModel.CurrentScreen?.Name ?? "", ["widget_name"] = GetFirstSelectedWidgetName() });
+        private string GetFirstSelectedWidgetName()
+            => _viewModel.CurrentScreen?.Widgets.FirstOrDefault(w => w.IsSelected)?.ObjectName ?? "";
+        #endregion
+
+        #region CLI 控制台
+        /// <summary>
+        /// CLI 输入框回车事件：执行命令并显示结果。
+        /// </summary>
+        private void CliInput_KeyDown(object sender, KeyEventArgs e)
+        {
+            // 命令历史：↑/↓ 切换
+            if (e.Key == Key.Up)
+            {
+                e.Handled = true;
+                if (_historyIndex > 0)
+                {
+                    _historyIndex--;
+                    CliInput.Text = _cliHistory[_historyIndex];
+                    CliInput.CaretIndex = CliInput.Text.Length;
+                }
+                return;
+            }
+            if (e.Key == Key.Down)
+            {
+                e.Handled = true;
+                if (_historyIndex < _cliHistory.Count - 1)
+                {
+                    _historyIndex++;
+                    CliInput.Text = _cliHistory[_historyIndex];
+                }
+                else
+                {
+                    _historyIndex = _cliHistory.Count;
+                    CliInput.Text = "";
+                }
+                CliInput.CaretIndex = CliInput.Text.Length;
+                return;
+            }
+
+            if (e.Key != Key.Enter) return;
+            e.Handled = true;
+
+            var input = CliInput.Text.Trim();
+            if (string.IsNullOrEmpty(input)) return;
+
+            // 记入历史
+            _cliHistory.Add(input);
+            _historyIndex = _cliHistory.Count;
+
+            // 回显命令
+            AppendCliOutput($"> {input}", "LimeGreen");
+            CliInput.Clear();
+
+            // 特殊命令
+            if (input is "cls" or "clear") { CliOutput.Clear(); return; }
+            if (input is "help" or "?") { AppendCliOutput(CliHelpText, "Gray"); return; }
+
+            try
+            {
+                // 解析命令：navihmi 格式 → key=value 参数
+                var parts = ParseCliLine(input);
+                if (parts.Length == 0) return;
+
+                var command = parts[0];
+                var opts = new Dictionary<string, string>();
+                for (int i = 1; i < parts.Length; i++)
+                {
+                    if (parts[i].StartsWith("--") && i + 1 < parts.Length && !parts[i + 1].StartsWith("--"))
+                        opts[parts[i][2..]] = parts[++i];
+                    else if (parts[i].StartsWith("--"))
+                        opts[parts[i][2..]] = "true";
+                }
+
+                // 净化所有参数（防止路径遍历注入）
+                SanitizeCliParams(opts);
+
+                // 路由到对应 Handler
+                var result = ExecuteGuiCommand(command, opts);
+                if (result.Success)
+                {
+                    if (result.Data is List<string> lines)
+                        foreach (var l in lines) AppendCliOutput(l, "Gray");
+                    else
+                        AppendCliOutput($"✓ {command}" + (result.Data != null ? $" — {result.Data}" : ""), "White");
+                }
+                else
+                    AppendCliOutput($"✗ [{result.ErrorCode}] {result.ErrorMessage}", "Red");
+            }
+            catch (Exception ex)
+            {
+                AppendCliOutput($"✗ 错误: {ex.Message}", "Red");
+            }
+        }
+
+        private CommandResult ExecuteGuiCommand(string command, Dictionary<string, string> opts)
+        {
+
+            return command switch
+            {
+                "create-screen" or "cs" => _viewModel.CommandService.Execute("create_screen",
+                    new() { ["name"] = opts.GetValueOrDefault("name", ""), ["type"] = opts.GetValueOrDefault("type", "custom"), ["width"] = opts.GetValueOrDefault("width", "800"), ["height"] = opts.GetValueOrDefault("height", "480") }),
+                "delete-screen" or "ds" => _viewModel.CommandService.Execute("delete_screen", new() { ["name"] = opts.GetValueOrDefault("name", "") }),
+                "add-widget" or "aw" => _viewModel.CommandService.Execute("add_widget",
+                    new() { ["screen_name"] = opts.GetValueOrDefault("screen", ""), ["widget_type"] = opts.GetValueOrDefault("type", "button"), ["x"] = opts.GetValueOrDefault("x", "0"), ["y"] = opts.GetValueOrDefault("y", "0"), ["width"] = opts.GetValueOrDefault("width", "100"), ["height"] = opts.GetValueOrDefault("height", "40") }),
+                "compile" or "b" => _viewModel.CommandService.Execute("compile", new()),
+                "save" => _viewModel.CommandService.Execute("save_project", new()),
+                "create-tag" or "ct" => _viewModel.CommandService.Execute("create_tag",
+                    new() { ["name"] = opts.GetValueOrDefault("name", ""), ["data_type"] = opts.GetValueOrDefault("type", "FLOAT"), ["source"] = opts.GetValueOrDefault("source", ""), ["unit"] = opts.GetValueOrDefault("unit", ""), ["scan_interval"] = opts.GetValueOrDefault("scan-interval", "100"), ["deadband"] = opts.GetValueOrDefault("deadband", "0"), ["description"] = opts.GetValueOrDefault("description", "") }),
+                "list-screens" or "ls" => ListScreens(),
+                _ => ExecuteDefaultCommand(command, opts)
+            };
+        }
+
+        private static string MapCliKey(string key) => key switch
+        {
+            "screen" => "screen_name", "widget" => "widget_name", "type" => "widget_type",
+            "tag" => "tag_name", "ip" => "device_ip", "file" => "file_path",
+            _ => key
+        };
+
+        private CommandResult ExecuteDefaultCommand(string command, Dictionary<string, string> opts)
+        {
+            var mapped = new Dictionary<string, object?>();
+            foreach (var kv in opts) mapped[MapCliKey(kv.Key)] = kv.Value;
+            return _viewModel.CommandService.Execute(command.Replace("-", "_"), mapped);
+        }
+
+        private CommandResult ListScreens()
+        {
+            var names = _viewModel.CurrentProject.Screens.Select(s => $"  {(s.Type == ScreenType.Custom ? "📄" : s.Type == ScreenType.Template ? "📌" : "🌍")} {s.Name}").ToList();
+            return CommandResult.Ok(names);
+        }
+
+        /// <summary>参数安全净化（等效于 CLI 端 SanitizeParam 三级分类）。</summary>
+        private static void SanitizeCliParams(Dictionary<string, string> opts)
+        {
+            foreach (var kv in opts.ToList())
+            {
+                var (key, value) = (kv.Key, kv.Value);
+                bool hasUpDir = value.Contains("..");
+                bool hasSep = value.Contains('/') || value.Contains('\\');
+                bool isPathParam = key is "path" or "project" or "file" or "output" or "connection" or "source";
+                bool isNameParam = key is "name" or "screen" or "widget" or "tag" or "key" or "value" or "event" or "action" or "nic" or "protocol" or "severity";
+                bool isFreeText = key is "description" or "message" or "params" or "model";
+
+                if (isPathParam)
+                {
+                    if (hasUpDir) throw new ArgumentException($"参数 --{key} 包含 '..' : {value}");
+                    if (Path.IsPathRooted(value) && key is not "connection") throw new ArgumentException($"参数 --{key} 不允许绝对路径: {value}");
+                }
+                else if (isNameParam && (hasUpDir || hasSep))
+                {
+                    throw new ArgumentException($"参数 --{key} 包含非法字符: {value}");
+                }
+                else if (isFreeText && hasUpDir)
+                {
+                    throw new ArgumentException($"参数 --{key} 包含 '..' : {value}");
+                }
+            }
+        }
+
+        private void AppendCliOutput(string text, string color)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                CliOutput.AppendText(text + "\n");
+                CliOutput.ScrollToEnd();
+            });
+        }
+
+        private static string[] ParseCliLine(string line)
+        {
+            var result = new List<string>();
+            int i = 0;
+            while (i < line.Length)
+            {
+                if (char.IsWhiteSpace(line[i])) { i++; continue; }
+                if (line[i] == '"')
+                {
+                    int end = line.IndexOf('"', i + 1);
+                    if (end < 0) { result.Add(line[(i + 1)..]); break; }
+                    result.Add(line[(i + 1)..end]);
+                    i = end + 1;
+                }
+                else
+                {
+                    int end = i;
+                    while (end < line.Length && !char.IsWhiteSpace(line[end])) end++;
+                    result.Add(line[i..end]);
+                    i = end;
+                }
+            }
+            return result.ToArray();
+        }
+
+        private const string CliHelpText = @"GUI CLI 帮助:
+  create-screen --name <name> [--type custom]  创建画面
+  delete-screen --name <name>                    删除画面
+  add-widget --screen <name> --type button --x 0 --y 0  添加控件
+  create-tag --name <name> --type FLOAT --source <uri>  创建变量
+  compile                                       编译工程
+  save                                          保存工程
+  list-screens / ls                             列出所有画面
+  cls / clear                                   清屏
+  help / ?                                      显示帮助";
         #endregion
     }
 }

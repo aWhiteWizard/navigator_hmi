@@ -5,217 +5,366 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:NavigatorHMI"
         xmlns:vm="clr-namespace:NavigatorHMI.ViewModels"
-        xmlns:common="clr-namespace:NavigatorHMI.Common"
+        xmlns:avalon="https://github.com/Dirkster99/AvalonDock"
         mc:Ignorable="d"
         WindowState="Maximized"
         Closing="EditWindow_Closing"
         PreviewKeyDown="EditWindow_PreviewKeyDown"
         Title="NavigatorHMI" Height="450" Width="800">
     <Window.Resources>
-        <!-- 5x5 点阵画刷 -->
-        <DrawingBrush x:Key="DotGridBrush" 
-                      TileMode="Tile" 
-                      Viewport="0,0,5,5" 
-                      ViewportUnits="Absolute">
-            <DrawingBrush.Drawing>
-                <DrawingGroup>
-                    <!-- 白色背景（可选，如果画布本身是白色可以省略） -->
-                    <GeometryDrawing Geometry="M0,0 L5,0 L5,5 L0,5 Z" Brush="Gainsboro"/>
-                    <!-- 浅灰色点 -->
-                    <GeometryDrawing Geometry="M2.5,2.5 A0.5,0.5 0 1,1 2.5,2.4" Brush="Black"/>
-                </DrawingGroup>
-            </DrawingBrush.Drawing>
+        <DrawingBrush x:Key="DotGridBrush" TileMode="Tile" Viewport="0,0,5,5" ViewportUnits="Absolute">
+            <DrawingBrush.Drawing><DrawingGroup>
+                <GeometryDrawing Geometry="M0,0 L5,0 L5,5 L0,5 Z" Brush="Gainsboro"/>
+                <GeometryDrawing Geometry="M2.5,2.5 A0.5,0.5 0 1,1 2.5,2.4" Brush="Black"/>
+            </DrawingGroup></DrawingBrush.Drawing>
         </DrawingBrush>
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+
+        <!-- 属性面板样式 -->
+        <Style x:Key="PropGroupHeader" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="Bold"/><Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#2B579A"/><Setter Property="Margin" Value="4,8,4,2"/>
+        </Style>
+        <Style x:Key="PropLabel" TargetType="Label">
+            <Setter Property="Padding" Value="2"/><Setter Property="HorizontalAlignment" Value="Right"/>
+            <Setter Property="VerticalAlignment" Value="Center"/><Setter Property="FontSize" Value="11"/>
+        </Style>
+        <Style x:Key="PropNumberBox" TargetType="TextBox">
+            <Setter Property="Height" Value="22"/><Setter Property="Margin" Value="2"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="FontSize" Value="11"/>
+            <Setter Property="TextAlignment" Value="Right"/>
+            <Style.Triggers><Trigger Property="IsReadOnly" Value="True">
+                <Setter Property="Background" Value="#F0F0F0"/><Setter Property="Foreground" Value="#999999"/><Setter Property="BorderBrush" Value="#D0D0D0"/>
+            </Trigger></Style.Triggers>
+        </Style>
+        <Style x:Key="PropTextBox" TargetType="TextBox">
+            <Setter Property="Height" Value="22"/><Setter Property="Margin" Value="2"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="FontSize" Value="11"/>
+            <Style.Triggers><Trigger Property="IsReadOnly" Value="True">
+                <Setter Property="Background" Value="#F0F0F0"/><Setter Property="Foreground" Value="#999999"/><Setter Property="BorderBrush" Value="#D0D0D0"/>
+            </Trigger></Style.Triggers>
+        </Style>
+        <Style x:Key="PropObjNameBox" TargetType="TextBox" BasedOn="{StaticResource PropTextBox}">
+            <Style.Triggers><DataTrigger Binding="{Binding HasDuplicateObjectName}" Value="True">
+                <Setter Property="Background" Value="#FFE0E0"/><Setter Property="BorderBrush" Value="Red"/>
+            </DataTrigger></Style.Triggers>
+        </Style>
+        <DataTemplate x:Key="PropPosition"><StackPanel>
+            <TextBlock Text="位置" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="25"/><ColumnDefinition Width="*"/><ColumnDefinition Width="5"/><ColumnDefinition Width="25"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="X:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding X, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+                <Label Grid.Column="3" Content="Y:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="4" Text="{Binding Y, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+        </Grid></StackPanel></DataTemplate>
+        <DataTemplate x:Key="PropSize"><StackPanel>
+            <TextBlock Text="尺寸" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="25"/><ColumnDefinition Width="*"/><ColumnDefinition Width="5"/><ColumnDefinition Width="25"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="W:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding Width, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+                <Label Grid.Column="3" Content="H:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="4" Text="{Binding Height, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+        </Grid></StackPanel></DataTemplate>
+        <DataTemplate x:Key="PropName"><StackPanel>
+            <TextBlock Text="名称" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="ObjectName:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding ObjectName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropObjNameBox}"/>
+        </Grid></StackPanel></DataTemplate>
+        <DataTemplate x:Key="PropScreen"><StackPanel>
+            <TextBlock Text="画面名称" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="名称:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding ScreenName, UpdateSourceTrigger=LostFocus}" IsReadOnly="{Binding IsScreenNameReadOnly}" Style="{StaticResource PropTextBox}"/>
+            </Grid>
+            <TextBlock Text="尺寸" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="25"/><ColumnDefinition Width="*"/><ColumnDefinition Width="5"/><ColumnDefinition Width="25"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="W:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding ScreenWidth, Mode=OneWay}" IsReadOnly="True" Style="{StaticResource PropNumberBox}"/>
+                <Label Grid.Column="3" Content="H:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="4" Text="{Binding ScreenHeight, Mode=OneWay}" IsReadOnly="True" Style="{StaticResource PropNumberBox}"/>
+            </Grid>
+            <TextBlock Text="类型" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="类型:" Style="{StaticResource PropLabel}"/>
+                <TextBlock Grid.Column="1" Text="{Binding ScreenTypeText}" VerticalAlignment="Center" Margin="4,0" FontSize="11"/>
+        </Grid></StackPanel></DataTemplate>
+        <DataTemplate x:Key="PropButton"><StackPanel>
+            <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
+            <Separator Margin="4,2"/>
+            <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="50"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Text:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding ButtonText, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+        </Grid></StackPanel></DataTemplate>
+        <DataTemplate x:Key="PropText"><StackPanel>
+            <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
+            <Separator Margin="4,2"/>
+            <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Content:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding TextContent, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+        </Grid></StackPanel></DataTemplate>
+        <DataTemplate x:Key="PropRect"><StackPanel>
+            <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
+            <Separator Margin="4,2"/>
+            <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="FillColor:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding FillColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+        </Grid></StackPanel></DataTemplate>
     </Window.Resources>
-    <Window.CommandBindings>
-        <CommandBinding Command="Save" Executed="SaveCurrentProject_Click" />
-    </Window.CommandBindings>
+
+    <Window.CommandBindings><CommandBinding Command="Save" Executed="SaveCurrentProject_Click"/></Window.CommandBindings>
     <Window.InputBindings>
-        <KeyBinding Key="S" Modifiers="Control" Command="Save" />
-        <KeyBinding Key="Z" Modifiers="Control" Command="{Binding UndoCommand}" />
+        <KeyBinding Key="S" Modifiers="Control" Command="Save"/>
+        <KeyBinding Key="Z" Modifiers="Control" Command="{Binding UndoCommand}"/>
     </Window.InputBindings>
-    <Grid ShowGridLines="True">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="20"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="20"/>
-        </Grid.RowDefinitions>
-        <!--  第一行：菜单栏  -->
-        <Grid Grid.Row="0" ShowGridLines="True">
-            <Menu HorizontalAlignment="Left">
-                <MenuItem Header="文件">
-                    <MenuItem Header="新建"/>
-                    <MenuItem Header="打开"/>
-                    <MenuItem Header="保存" Command="Save"/>
-                    <MenuItem Header="另存为"/>
-                    <MenuItem Header="关闭工程" Click="CloseCurrentProject_Click"/>
-                </MenuItem>
-                <MenuItem Header="编辑">
-                    <MenuItem Header="撤销" 
-                              Command="{Binding UndoCommand}"
-                              InputGestureText="Ctrl+Z"/>
-                </MenuItem>
-                <MenuItem Header="视图">
-                    <MenuItem Header="恢复默认布局"/>
-                </MenuItem>
-                <MenuItem Header="调试">
-                    <MenuItem Header="生成" Click="BuildProject_Click" InputGestureText="F5"/>
-                </MenuItem>
-            </Menu>
-        </Grid>
-        
-        <!--  第二行：工作空间  -->
-        <Grid Grid.Row="1" ShowGridLines="True">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="150"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="150"/>
-            </Grid.ColumnDefinitions>
-            
-            <!--  第一列：项目属性  -->
-            <Grid Grid.Column="0">
-                <!-- 左侧工程树 -->
-                <TreeView Grid.Column="0" 
-                  x:Name="ProjectTreeView"
-                  ItemsSource="{Binding TreeRoots}"
-                  BorderBrush="LightGray">
-                    <TreeView.Resources>
-                        <!-- 普通画面节点 -->
-                        <HierarchicalDataTemplate DataType="{x:Type vm:ScreenItemNode}" 
-                          ItemsSource="{Binding Children}">
+
+    <Grid>
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+
+        <Menu Grid.Row="0" HorizontalAlignment="Left">
+            <MenuItem Header="文件">
+                <MenuItem Header="新建"/><MenuItem Header="打开"/>
+                <MenuItem Header="保存" Command="Save"/><MenuItem Header="另存为"/>
+                <MenuItem Header="关闭工程" Click="CloseCurrentProject_Click"/>
+            </MenuItem>
+            <MenuItem Header="编辑">
+                <MenuItem Header="撤销" Command="{Binding UndoCommand}" InputGestureText="Ctrl+Z"/>
+            </MenuItem>
+            <MenuItem Header="视图">
+                <MenuItem Header="文件工具" IsCheckable="True" IsChecked="True"
+                          Click="ToggleToolbarBlock_Click" Tag="TbSave"/>
+                <MenuItem Header="编辑工具" IsCheckable="True" IsChecked="True"
+                          Click="ToggleToolbarBlock_Click" Tag="TbEdit"/>
+                <MenuItem Header="构建工具" IsCheckable="True" IsChecked="True"
+                          Click="ToggleToolbarBlock_Click" Tag="TbBuild"/>
+                <MenuItem Header="视图工具" IsCheckable="True" IsChecked="True"
+                          Click="ToggleToolbarBlock_Click" Tag="TbView"/>
+                <MenuItem Header="层级工具" IsCheckable="True" IsChecked="True"
+                          Click="ToggleToolbarBlock_Click" Tag="TbLayer"/>
+                <MenuItem Header="对齐工具" IsCheckable="True" IsChecked="True"
+                          Click="ToggleToolbarBlock_Click" Tag="TbAlign"/>
+                <Separator/>
+                <MenuItem Header="项目窗口" IsCheckable="True" IsChecked="True"
+                          Click="ToggleAnchorable_Click" Tag="project"/>
+                <MenuItem Header="控件面板" IsCheckable="True" IsChecked="True"
+                          Click="ToggleAnchorable_Click" Tag="toolbox"/>
+                <MenuItem Header="属性窗口" IsCheckable="True" IsChecked="True"
+                          Click="ToggleAnchorable_Click" Tag="property"/>
+                <MenuItem Header="CLI 控制台" IsCheckable="True" IsChecked="True"
+                          Click="ToggleAnchorable_Click" Tag="cli"/>
+                <Separator/>
+                <MenuItem Header="恢复默认布局"/>
+            </MenuItem>
+            <MenuItem Header="调试">
+                <MenuItem Header="生成" Click="BuildProject_Click" InputGestureText="F5"/>
+            </MenuItem>
+        </Menu>
+
+        <!-- 工具栏：WrapPanel + 独立 ToolBar（带 grip 手柄 + 扁平按钮） -->
+        <Border Grid.Row="1" x:Name="ToolbarHost" Background="#F0F0F0" Padding="12,2,0,2"
+                MouseMove="ToolbarHost_MouseMove" MouseUp="ToolbarHost_MouseUp" MouseLeave="ToolbarHost_MouseLeave">
+            <WrapPanel x:Name="ToolbarPanel">
+
+            <ToolBar x:Name="TbSave" Width="110" Height="32" Margin="0,0,2,0"
+                     PreviewMouseLeftButtonDown="Toolbar_MouseDown" Cursor="Hand">
+                <Button ToolTip="新建" Click="NewProject_Click" Width="28" Height="28">📁</Button>
+                <Button ToolTip="保存" Click="SaveCurrentProject_Click" Width="28" Height="28">💾</Button>
+                <Button ToolTip="另存为" Click="SaveAsProject_Click" Width="28" Height="28">📑</Button>
+            </ToolBar>
+
+            <ToolBar x:Name="TbEdit" Width="210" Height="32" Margin="0,0,2,0"
+                     PreviewMouseLeftButtonDown="Toolbar_MouseDown" Cursor="Hand">
+                <Button ToolTip="撤销" Command="{Binding UndoCommand}" Width="28" Height="28">↩</Button>
+                <Button ToolTip="恢复" IsEnabled="False" Width="28" Height="28">↪</Button>
+                <Separator/>
+                <Button ToolTip="剪切" IsEnabled="False" Width="28" Height="28">✂</Button>
+                <Button ToolTip="复制" IsEnabled="False" Width="28" Height="28">📋</Button>
+                <Button ToolTip="粘贴" IsEnabled="False" Width="28" Height="28">📄</Button>
+                <Button ToolTip="删除" Click="DeleteSelectedWidget_Click" Width="28" Height="28">🗑</Button>
+            </ToolBar>
+
+            <ToolBar x:Name="TbBuild" Width="84" Height="32" Margin="0,0,2,0"
+                     PreviewMouseLeftButtonDown="Toolbar_MouseDown" Cursor="Hand">
+                <Button ToolTip="编译" Click="BuildProject_Click" Width="28" Height="28">🔨</Button>
+                <Button ToolTip="下载" IsEnabled="False" Width="28" Height="28">📥</Button>
+            </ToolBar>
+
+            <ToolBar x:Name="TbView" Width="116" Height="32" Margin="0,0,2,0"
+                     PreviewMouseLeftButtonDown="Toolbar_MouseDown" Cursor="Hand">
+                <Button ToolTip="放大" IsEnabled="False" Width="28" Height="28">🔍</Button>
+                <Button ToolTip="缩小" IsEnabled="False" Width="28" Height="28">🔎</Button>
+                <Button ToolTip="100%" IsEnabled="False" Width="28" Height="28">📐</Button>
+            </ToolBar>
+
+            <ToolBar x:Name="TbLayer" Width="148" Height="32" Margin="0,0,2,0"
+                     PreviewMouseLeftButtonDown="Toolbar_MouseDown" Cursor="Hand">
+                <Button ToolTip="置顶" Click="BringToFront_Click" Width="28" Height="28">⬆⬆</Button>
+                <Button ToolTip="上移" Click="BringForward_Click" Width="28" Height="28">⬆</Button>
+                <Button ToolTip="下移" Click="SendBackward_Click" Width="28" Height="28">⬇</Button>
+                <Button ToolTip="置底" Click="SendToBack_Click" Width="28" Height="28">⬇⬇</Button>
+            </ToolBar>
+
+            <ToolBar x:Name="TbAlign" Width="212" Height="32" Margin="0,0,2,0"
+                     PreviewMouseLeftButtonDown="Toolbar_MouseDown" Cursor="Hand">
+                <Button ToolTip="左对齐" IsEnabled="False" Width="28" Height="28">◀▶</Button>
+                <Button ToolTip="居中" IsEnabled="False" Width="28" Height="28">◀▶</Button>
+                <Button ToolTip="右对齐" IsEnabled="False" Width="28" Height="28">◀▶</Button>
+                <Button ToolTip="顶对齐" IsEnabled="False" Width="28" Height="28">▲▼</Button>
+                <Button ToolTip="垂直居中" IsEnabled="False" Width="28" Height="28">▲▼</Button>
+                <Button ToolTip="底对齐" IsEnabled="False" Width="28" Height="28">▲▼</Button>
+            </ToolBar>
+
+            </WrapPanel>
+        </Border>
+
+        <!-- 工具栏与主窗口分隔线 -->
+        <Separator Grid.Row="2" Height="2" Background="#CCC" Margin="0,0,0,0"/>
+
+        <avalon:DockingManager Grid.Row="3" x:Name="DockManager" AllowMixedOrientation="True">
+            <avalon:LayoutRoot>
+                <avalon:LayoutPanel Orientation="Vertical">
+                    <avalon:LayoutPanel Orientation="Horizontal">
+
+                        <!-- 左侧: 项目树 + 控件面板 -->
+                        <avalon:LayoutAnchorablePane DockWidth="200">
+                            <avalon:LayoutAnchorable Title="项目窗口" ContentId="project">
+                                <TreeView x:Name="ProjectTreeView" ItemsSource="{Binding TreeRoots}">
+                                    <TreeView.Resources>
+                                        <HierarchicalDataTemplate DataType="{x:Type vm:ScreenItemNode}" ItemsSource="{Binding Children}">
+                                            <Grid>
+                                                <StackPanel x:Name="DisplayPanel" Orientation="Horizontal">
+                                                    <TextBlock Text="✅" Visibility="{Binding IsCurrent, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,4,0" FontSize="12"/>
+                                                    <TextBlock Text="{Binding Name}"/>
+                                                </StackPanel>
+                                                <TextBox x:Name="EditTextBox" Text="{Binding EditName, UpdateSourceTrigger=PropertyChanged}" KeyDown="EditNameTextBox_KeyDown" Loaded="EditNameTextBox_Loaded" MinWidth="60" Visibility="Collapsed"/>
+                                            </Grid>
+                                            <HierarchicalDataTemplate.Triggers>
+                                                <DataTrigger Binding="{Binding IsEditing}" Value="True">
+                                                    <Setter TargetName="DisplayPanel" Property="Visibility" Value="Collapsed"/>
+                                                    <Setter TargetName="EditTextBox" Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </HierarchicalDataTemplate.Triggers>
+                                        </HierarchicalDataTemplate>
+                                        <HierarchicalDataTemplate DataType="{x:Type vm:CustomScreensRootNode}" ItemsSource="{Binding Children}">
+                                            <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
+                                        </HierarchicalDataTemplate>
+                                        <DataTemplate DataType="{x:Type vm:AddScreenNode}">
+                                            <TextBlock Text="{Binding Name}" Foreground="Green" Cursor="Hand"/>
+                                        </DataTemplate>
+                                    </TreeView.Resources>
+                                    <TreeView.ItemContainerStyle><Style TargetType="TreeViewItem">
+                                        <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+                                        <EventSetter Event="MouseDoubleClick" Handler="TreeViewItem_DoubleClick"/>
+                                        <EventSetter Event="MouseRightButtonDown" Handler="TreeViewItem_RightClick"/>
+                                    </Style></TreeView.ItemContainerStyle>
+                                </TreeView>
+                            </avalon:LayoutAnchorable>
+                            <avalon:LayoutAnchorable Title="控件面板" ContentId="toolbox">
+                                <TabControl TabStripPlacement="Top">
+                                    <TabItem Header="一般控件"><StackPanel Orientation="Vertical">
+                                        <Button Content="Point"/><Button Content="Line"/><Button Content="Label"/>
+                                        <Button x:Name="AddButtonModeBtn" Content="Button" Click="ToggleAddButtonMode"/>
+                                        <Button Content="Rectange"/><Button Content="Circle"/><Button Content="IOField"/>
+                                        <Button Content="Frame"/><Button Content="CheckBox"/><Button Content="TextBox"/>
+                                    </StackPanel></TabItem>
+                                    <TabItem Header="窗口控件"><StackPanel Orientation="Vertical">
+                                        <Button Content="User View"/><Button Content="Alarm View"/><Button Content="Robot List"/>
+                                    </StackPanel></TabItem>
+                                </TabControl>
+                            </avalon:LayoutAnchorable>
+                        </avalon:LayoutAnchorablePane>
+
+                        <!-- 中央: 画布 -->
+                        <avalon:LayoutDocumentPane>
+                            <avalon:LayoutDocument Title="画布" ContentId="canvas" CanClose="False"><Grid>
+                                <Popup x:Name="WidgetContextMenu" Placement="Absolute" StaysOpen="False" AllowsTransparency="True">
+                                    <Border Background="White" BorderBrush="LightGray" BorderThickness="1" CornerRadius="4" Padding="2">
+                                        <StackPanel><Button Content="🗑 删除" Click="DeleteWidget_Click" Width="80" Height="28" Margin="2"/></StackPanel>
+                                    </Border>
+                                </Popup>
+                                <Popup x:Name="TreeContextMenu" Placement="Absolute" StaysOpen="True" AllowsTransparency="True">
+                                    <Border Background="White" BorderBrush="LightGray" BorderThickness="1" CornerRadius="4" Padding="2">
+                                        <StackPanel>
+                                            <Button Content="✏ 重命名" Click="RenameScreen_Click" Width="80" Height="28" Margin="2"/>
+                                            <Button Content="🗑 删除画面" Click="DeleteScreen_Click" Width="80" Height="28" Margin="2"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Popup>
+                                <Border BorderBrush="Black" Background="Gray" BorderThickness="2" Margin="3" x:Name="canvasContainer">
+                                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                                        <Canvas x:Name="DrawingCanvas" HorizontalAlignment="Left" VerticalAlignment="Top"
+                                                Background="{StaticResource DotGridBrush}" Width="{Binding DeviceWidth}" Height="{Binding DeviceHeight}"
+                                                MouseLeftButtonDown="Canvas_MouseLeftButtonDown" MouseDown="Canvas_MouseDown">
+                                            <TextBlock Text="{Binding CurrentScreen.Widgets.Count, StringFormat='Widgets: {0}'}"
+                                                       Canvas.Left="10" Canvas.Top="10" Foreground="Black" Background="White" FontSize="14" FontWeight="Bold"/>
+                                        </Canvas>
+                                    </ScrollViewer>
+                                </Border>
+                            </Grid></avalon:LayoutDocument>
+                        </avalon:LayoutDocumentPane>
+
+                        <!-- 右侧: 属性窗口 -->
+                        <avalon:LayoutAnchorablePane DockWidth="260">
+                            <avalon:LayoutAnchorable Title="属性" ContentId="property">
+                                <Grid Margin="4" DataContext="{Binding PropertyVM, RelativeSource={RelativeSource AncestorType=Window}}">
+                                    <TextBlock Text="请选择一个控件" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="Gray" FontSize="14">
+                                        <TextBlock.Style><Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers><DataTrigger Binding="{Binding IsPropertyVisible}" Value="False">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger></Style.Triggers>
+                                        </Style></TextBlock.Style>
+                                    </TextBlock>
+                                    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
+                                                  Visibility="{Binding IsPropertyVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding WidgetTypeName, StringFormat='属性 - {0}'}" FontWeight="Bold" FontSize="13" Margin="4,2"/>
+                                            <Separator Margin="4,2"/>
+                                            <ContentControl Content="{Binding}"><ContentControl.Style><Style TargetType="ContentControl">
+                                                <Setter Property="ContentTemplate" Value="{x:Null}"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding SelectedObjectType}" Value="Screen"><Setter Property="ContentTemplate" Value="{StaticResource PropScreen}"/></DataTrigger>
+                                                    <DataTrigger Binding="{Binding SelectedObjectType}" Value="ButtonWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropButton}"/></DataTrigger>
+                                                    <DataTrigger Binding="{Binding SelectedObjectType}" Value="TextWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropText}"/></DataTrigger>
+                                                    <DataTrigger Binding="{Binding SelectedObjectType}" Value="RectangleWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropRect}"/></DataTrigger>
+                                                </Style.Triggers>
+                                            </Style></ContentControl.Style></ContentControl>
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </Grid>
+                            </avalon:LayoutAnchorable>
+                        </avalon:LayoutAnchorablePane>
+                    </avalon:LayoutPanel>
+
+                    <!-- 底部: CLI -->
+                    <avalon:LayoutAnchorablePane DockHeight="180">
+                        <avalon:LayoutAnchorable Title="CLI 控制台" ContentId="cli">
                             <Grid>
-                                <!-- 显示态（默认） -->
-                                <StackPanel x:Name="DisplayPanel" Orientation="Horizontal">
-                                    <TextBlock Text="✅" 
-                                        Visibility="{Binding IsCurrent, Converter={StaticResource BoolToVisibilityConverter}}"
-                                        Margin="0,0,4,0" FontSize="12"/>
-                                    <TextBlock Text="{Binding Name}" />
-                                </StackPanel>
-                                <!-- 编辑态 -->
-                                <TextBox x:Name="EditTextBox"
-                                     Text="{Binding EditName, UpdateSourceTrigger=PropertyChanged}"
-                                     KeyDown="EditNameTextBox_KeyDown"
-                                     Loaded="EditNameTextBox_Loaded"
-                                     MinWidth="60"
-                                     Visibility="Collapsed"/>
+                                <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="5"/><RowDefinition Height="28"/></Grid.RowDefinitions>
+                                <ScrollViewer Grid.Row="0" x:Name="CliOutputScroller" VerticalScrollBarVisibility="Auto">
+                                    <TextBox x:Name="CliOutput" IsReadOnly="True" FontFamily="Consolas" FontSize="12"
+                                             Background="#1E1E1E" Foreground="#D4D4D4" BorderThickness="0" TextWrapping="Wrap"/>
+                                </ScrollViewer>
+                                <GridSplitter Grid.Row="1" Height="5" HorizontalAlignment="Stretch" Background="LightGray"/>
+                                <Grid Grid.Row="2"><Grid.ColumnDefinitions><ColumnDefinition Width="20"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text=">" FontFamily="Consolas" FontSize="13" Foreground="LimeGreen" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                    <TextBox Grid.Column="1" x:Name="CliInput" FontFamily="Consolas" FontSize="13"
+                                             Background="#1E1E1E" Foreground="White" BorderThickness="0" PreviewKeyDown="CliInput_KeyDown"/>
+                                </Grid>
                             </Grid>
-                            <DataTemplate.Triggers>
-                                <DataTrigger Binding="{Binding IsEditing}" Value="True">
-                                    <Setter TargetName="DisplayPanel" Property="Visibility" Value="Collapsed"/>
-                                    <Setter TargetName="EditTextBox" Property="Visibility" Value="Visible"/>
-                                </DataTrigger>
-                            </DataTemplate.Triggers>
-                        </HierarchicalDataTemplate>
-
-
-                        <!-- 自定义画面列表根节点 -->
-                        <HierarchicalDataTemplate DataType="{x:Type vm:CustomScreensRootNode}" 
-                                                  ItemsSource="{Binding Children}">
-                            <TextBlock Text="{Binding Name}" FontWeight="Bold" />
-                        </HierarchicalDataTemplate>
-
-                        <!-- 添加画面按钮节点 -->
-                        <DataTemplate DataType="{x:Type vm:AddScreenNode}">
-                            <TextBlock Text="{Binding Name}" Foreground="Green" Cursor="Hand" />
-                        </DataTemplate>
-                    </TreeView.Resources>
-
-                    <!-- 为每个树节点附加双击事件 -->
-                    <TreeView.ItemContainerStyle>
-                        <Style TargetType="TreeViewItem">
-                            <EventSetter Event="MouseDoubleClick" Handler="TreeViewItem_DoubleClick"/>
-                            <EventSetter Event="MouseRightButtonDown" Handler="TreeViewItem_RightClick"/>
-                        </Style>
-                    </TreeView.ItemContainerStyle>
-                </TreeView>
-            </Grid>
-
-            <!-- 第二列：画布区域 -->
-            <Grid Grid.Column="1">
-                <Popup x:Name="WidgetContextMenu" 
-                    Placement="Absolute" 
-                    StaysOpen="False"
-                    AllowsTransparency="True">
-                    <Border Background="White" 
-                        BorderBrush="LightGray" 
-                        BorderThickness="1" 
-                        CornerRadius="4"
-                        Padding="2">
-                        <StackPanel>
-                            <!-- Button Content="❌ 剪切" Click="CutWidget_Click"  Width="80" Height="28" Margin="2"/ -->
-                            <!-- Button Content="❌ 复制" Click="CopyWidget_Click"  Width="80" Height="28" Margin="2"/ -->
-                            <!-- Button Content="❌ 粘贴" Click="PauseWidget_Click"  Width="80" Height="28" Margin="2"/ -->
-                            <Button Content="🗑 删除"  Click="DeleteWidget_Click" Width="80" Height="28" Margin="2"/>
-                        </StackPanel>
-                    </Border>
-                </Popup>
-                <Popup x:Name="TreeContextMenu" 
-                    Placement="Absolute" 
-                    StaysOpen="True"
-                    AllowsTransparency="True">
-                    <Border Background="White" 
-                        BorderBrush="LightGray" 
-                        BorderThickness="1" 
-                        CornerRadius="4"
-                        Padding="2">
-                        <StackPanel>
-                            <Button Content="✏ 重命名" Click="RenameScreen_Click" Width="80" Height="28" Margin="2"/>
-                            <Button Content="🗑 删除画面" Click="DeleteScreen_Click" Width="80" Height="28" Margin="2"/>
-                        </StackPanel>
-                    </Border>
-                </Popup>
-                <Border BorderBrush="Black" Background="Gray" BorderThickness="2" Margin="3" x:Name="canvasContainer">
-                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-                        <Canvas x:Name="DrawingCanvas"
-                                HorizontalAlignment="Left"
-                                VerticalAlignment="Top"
-                                Background="{StaticResource DotGridBrush}"
-                                Width="{Binding DeviceWidth}" 
-                                Height="{Binding DeviceHeight}"
-                                MouseLeftButtonDown="Canvas_MouseLeftButtonDown"
-                                MouseDown="Canvas_MouseDown">
-
-                            <!-- 调试信息 -->
-                            <TextBlock Text="{Binding CurrentScreen.Widgets.Count, StringFormat='Widgets: {0}'}" 
-                                       Canvas.Left="10" Canvas.Top="10" 
-                                       Foreground="Black" Background="White"
-                                       FontSize="14" FontWeight="Bold" />
-                            
-                        </Canvas>
-                    </ScrollViewer>
-                </Border>
-            </Grid>
-            <!-- 第二列结尾：画布区域 -->
-            
-            <!-- 第三列：控件面板 -->
-            <Grid Grid.Column="2">
-                <TabControl Grid.Row="1" Grid.Column="2"  TabStripPlacement="Top">
-                    <TabItem Header="一般控件">
-                        <StackPanel Orientation="Vertical">
-                            <Button Content="Point"/>
-                            <Button Content="Line" />
-                            <Button Content="Label"/>
-                            <Button x:Name="AddButtonModeBtn" 
-                                    Content="Button"
-                                    Click="ToggleAddButtonMode"/>
-                             <Button Content="Rectange"/>
-                            <Button Content="Circle"/>
-                            <Button Content="IOField"/>
-                            <Button Content="Frame"/>
-                            <Button Content="CheckBox"/>
-                            <Button Content="TextBox"/>
-                        </StackPanel>
-                    </TabItem>
-                    <TabItem Header="窗口控件">
-                        <StackPanel Orientation="Vertical">
-                            <Button Content="User View"/>
-                            <Button Content="Alarm View"/>
-                            <Button Content="Robot List"/>
-                        </StackPanel>
-                    </TabItem>
-                </TabControl>
-            </Grid><!-- 第三列结尾：控件面板 -->
-        </Grid><!-- 第二行结尾-->
+                        </avalon:LayoutAnchorable>
+                    </avalon:LayoutAnchorablePane>
+                </avalon:LayoutPanel>
+            </avalon:LayoutRoot>
+        </avalon:DockingManager>
     </Grid>
 </Window>

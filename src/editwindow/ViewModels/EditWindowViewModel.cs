@@ -10,6 +10,7 @@ using System.Windows.Input;
 using CommunityToolkit.Mvvm.Input;
 using NavigatorHMI.Views.Helpers;
 using NavigatorHMI.Common;
+using NavigatorHMI.CommandLayer;
 
 namespace NavigatorHMI.ViewModels
 {
@@ -21,6 +22,9 @@ namespace NavigatorHMI.ViewModels
             get => _currentProject;
             set { _currentProject = value; OnPropertyChanged(); }
         }
+
+        /// <summary>CommandService 实例，GUI/CLI/AI 统一入口。</summary>
+        public CommandService CommandService { get; }
 
         public int DeviceHeight => _currentProject.DeviceHeight;
         public int DeviceWidth => _currentProject.DeviceWidth;
@@ -73,6 +77,50 @@ namespace NavigatorHMI.ViewModels
         public event Action<Screen> CanvasReloadRequested;
         // 新增：同一画面内数据变化时（如添加/删除控件）触发刷新
         public event Action RefreshCanvasRequested;
+
+        /// <summary>CommandService 执行命令成功后，智能刷新 UI。</summary>
+        private void OnCommandExecuted(string cmdName, Dictionary<string, object?> parameters, CommandResult result)
+        {
+            // 重建项目树
+            RebuildProjectTree();
+            // 确保自定义画面列表展开
+            if (TreeRoots.Count >= 3 && TreeRoots[2] is CustomScreensRootNode customRoot)
+                customRoot.IsExpanded = true;
+            // 刷新画布
+            RefreshCanvasRequested?.Invoke();
+            OnPropertyChanged(nameof(CurrentScreen));
+            OnPropertyChanged(nameof(CurrentScreen.Widgets));
+            // 标记工程已修改
+            ProjectDirtyRequested?.Invoke();
+
+            // 智能跳转：create_screen → 自动切换到新画面
+            if (cmdName == "create_screen" && parameters.TryGetValue("name", out var nameObj))
+            {
+                var screen = CurrentProject.Screens.FirstOrDefault(s => s.Name == nameObj?.ToString());
+                if (screen != null) CurrentScreen = screen;
+            }
+        }
+
+        /// <summary>重建项目树节点（新建/删除画面后调用）。</summary>
+        private void RebuildProjectTree()
+        {
+            TreeRoots.Clear();
+            var globalNode = new ScreenItemNode(CurrentProject.Screens.First(s => s.Type == ScreenType.Template));
+            globalNode.OnSelected += s => CurrentScreen = s;
+            var mapNode = new ScreenItemNode(CurrentProject.Screens.First(s => s.Type == ScreenType.WorldMap));
+            mapNode.OnSelected += s => CurrentScreen = s;
+            var customRoot = new CustomScreensRootNode(CurrentProject);
+            customRoot.OnScreenSelected += s => CurrentScreen = s;
+            customRoot.OnScreenDeleted += (deletedScreen) =>
+            {
+                if (CurrentScreen == deletedScreen)
+                    CurrentScreen = CurrentProject.Screens.FirstOrDefault(s => s.Type != ScreenType.Custom);
+                CanvasReloadRequested?.Invoke(CurrentScreen);
+            };
+            TreeRoots.Add(globalNode);
+            TreeRoots.Add(mapNode);
+            TreeRoots.Add(customRoot);
+        }
         // 撤销操作执行后触发，用于通知 View 层标记工程已修改
         public event Action? ProjectDirtyRequested;
         // 当控件列表发生变化时调用这个方法
@@ -100,6 +148,8 @@ namespace NavigatorHMI.ViewModels
         public EditWindowViewModel(HMIProject project)
         {
             CurrentProject = project;
+            CommandService = new CommandService(project);
+            CommandService.CommandExecuted += OnCommandExecuted;
             // 构建树根：全局画面、地图画面、自定义画面列表根
             var globalNode = new ScreenItemNode(project.Screens.First(s => s.Type == ScreenType.Template));
             globalNode.OnSelected += s => CurrentScreen = s;

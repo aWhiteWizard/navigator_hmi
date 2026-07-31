@@ -5,6 +5,10 @@ VisualStudioVersion = 17.14.36414.22
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NavigatorHMI", "src\editwindow\NavigatorHMI.csproj", "{7719A357-89DE-9B5B-693A-AFCBD17ECC5F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NavigatorHMI.Core", "src\NavigatorHMI.Core\NavigatorHMI.Core.csproj", "{D8771F1B-85E6-4B8C-B9B1-E4BDA093307E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NaviHmiCLI", "src\NaviHmiCLI\NaviHmiCLI.csproj", "{366A292D-DD01-457B-9738-F2842853170C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +25,22 @@ Global
 		{7719A357-89DE-9B5B-693A-AFCBD17ECC5F}.Release|Any CPU.Build.0 = Release|Any CPU
 		{7719A357-89DE-9B5B-693A-AFCBD17ECC5F}.Release|x64.ActiveCfg = Release|x64
 		{7719A357-89DE-9B5B-693A-AFCBD17ECC5F}.Release|x64.Build.0 = Release|x64
+		{D8771F1B-85E6-4B8C-B9B1-E4BDA093307E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D8771F1B-85E6-4B8C-B9B1-E4BDA093307E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D8771F1B-85E6-4B8C-B9B1-E4BDA093307E}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{D8771F1B-85E6-4B8C-B9B1-E4BDA093307E}.Debug|x64.Build.0 = Debug|Any CPU
+		{D8771F1B-85E6-4B8C-B9B1-E4BDA093307E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D8771F1B-85E6-4B8C-B9B1-E4BDA093307E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D8771F1B-85E6-4B8C-B9B1-E4BDA093307E}.Release|x64.ActiveCfg = Release|Any CPU
+		{D8771F1B-85E6-4B8C-B9B1-E4BDA093307E}.Release|x64.Build.0 = Release|Any CPU
+		{366A292D-DD01-457B-9738-F2842853170C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{366A292D-DD01-457B-9738-F2842853170C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{366A292D-DD01-457B-9738-F2842853170C}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{366A292D-DD01-457B-9738-F2842853170C}.Debug|x64.Build.0 = Debug|Any CPU
+		{366A292D-DD01-457B-9738-F2842853170C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{366A292D-DD01-457B-9738-F2842853170C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{366A292D-DD01-457B-9738-F2842853170C}.Release|x64.ActiveCfg = Release|Any CPU
+		{366A292D-DD01-457B-9738-F2842853170C}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

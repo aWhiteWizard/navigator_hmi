@@ -66,6 +66,13 @@ namespace NavigatorHMI.ViewModels
             }
         }
 
+        private bool _isExpanded = true;
+        public bool IsExpanded
+        {
+            get => _isExpanded;
+            set { if (_isExpanded != value) { _isExpanded = value; OnPropertyChanged(nameof(IsExpanded)); } }
+        }
+
         /// <summary>重命名命令：进入编辑模式</summary>
         public ICommand StartRenameCommand { get; set; }
 

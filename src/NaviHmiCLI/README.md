@@ -1,0 +1,233 @@
+# navihmi — NavigatorHMI CLI
+
+组态软件命令行接口。所有操作通过 `CommandService` 执行，与 GUI 走同一路径。
+
+## 构建
+
+```bash
+dotnet build src/NaviHmiCLI/NaviHmiCLI.csproj -c Release
+```
+
+产物：`src/NaviHmiCLI/bin/Release/net8.0/navihmi.exe`
+
+## 快速开始
+
+```bash
+# 创建工程
+navihmi create-project --name "产线监控" --path "./"
+
+# 打开工程，创建画面，放置控件
+navihmi --project ./产线监控.hmiproj create-screen --name "温度页"
+navihmi -p ./产线监控.hmiproj add-widget --screen "温度页" --type button --x 100 --y 50
+
+# 编译输出
+navihmi -p ./产线监控.hmiproj compile
+```
+
+## 全局选项
+
+| 选项 | 说明 |
+|------|------|
+| `--project`, `-p <path>` | 工程文件路径（`.hmiproj`）。不指定时从当前目录自动查找。 |
+| `--json` | 以 JSON 格式输出结果（供脚本解析） |
+| `--help`, `-h` | 显示帮助 |
+
+## 命令参考
+
+### 工程管理
+
+| 命令 | 必填参数 | 可选参数 |
+|------|---------|---------|
+| `create-project` | `--name` | `--path`(.), `--width`(800), `--height`(480) |
+| `open-project` | `--path` | — |
+| `save-project` | — | `--path`(覆盖原文件) |
+| `compile` | — | `--output` |
+
+```bash
+navihmi create-project --name "demo" --path "./projects"
+navihmi open-project --path "./projects/demo.hmiproj"
+navihmi -p ./demo.hmiproj compile
+```
+
+### 画面
+
+| 命令 | 必填参数 | 可选参数 |
+|------|---------|---------|
+| `create-screen` | `--name` | `--type`(custom), `--width`(800), `--height`(480) |
+| `delete-screen` | `--name` | — |
+
+```bash
+navihmi -p ./demo.hmiproj create-screen --name "主控页" --type custom
+navihmi -p ./demo.hmiproj delete-screen --name "主控页"
+```
+
+> Template（全局画面）和 WorldMap（世界地图）不可删除。
+
+### 控件
+
+| 命令 | 必填参数 | 可选参数 |
+|------|---------|---------|
+| `add-widget` | `--screen`, `--type`, `--x`, `--y` | `--width`(100), `--height`(40) |
+| `move-widget` | `--screen`, `--widget`, `--x`, `--y` | — |
+| `resize-widget` | `--screen`, `--widget`, `--width`, `--height` | — |
+| `delete-widget` | `--screen`, `--widget` | — |
+| `set-property` | `--screen`, `--widget`, `--key`, `--value` | — |
+
+```bash
+# 放置一个按钮
+navihmi -p ./demo.hmiproj add-widget --screen "温度页" --type button --x 100 --y 50
+
+# 放置一个文本标签
+navihmi -p ./demo.hmiproj add-widget --screen "温度页" --type text --x 300 --y 100
+
+# 移动控件
+navihmi -p ./demo.hmiproj move-widget --screen "温度页" --widget button_1 --x 200 --y 80
+
+# 改按钮文字
+navihmi -p ./demo.hmiproj set-property --screen "温度页" --widget button_1 --key "text" --value "启动电机"
+```
+
+> `--type` 可选值: `button`, `text`, `rectangle`
+> `--widget` 的值是控件的 `ObjectName`（如 `button_1`、`text_2`）
+
+### 层级（Z-Order）
+
+| 命令 | 说明 |
+|------|------|
+| `bring-to-front` | 置于顶层 |
+| `bring-forward` | 上移一层 |
+| `send-backward` | 下移一层 |
+| `send-to-back` | 置于底层 |
+
+```bash
+navihmi -p ./demo.hmiproj bring-to-front --screen "温度页" --widget button_1
+```
+
+### 事件绑定
+
+```bash
+navihmi -p ./demo.hmiproj bind-event \
+  --screen "温度页" --widget button_1 \
+  --event onClick --action screen_switch \
+  --params "screen_name=主控页"
+```
+
+`--event`: `onClick`, `onPress`, `onRelease`, `onValueChange`, `onScreenLoad`, `onScreenUnload`, `onTimer`
+`--action`: `tag_write`, `screen_switch`, `set_property`, `run_command`, `show_popup`, `send_notification`
+`--params`: `key1=val1,key2=val2` 格式
+
+### 变量
+
+| 命令 | 必填参数 | 可选参数 |
+|------|---------|---------|
+| `create-tag` | `--name`, `--type`, `--source` | `--unit`, `--scan-interval`(100), `--deadband`(0), `--description` |
+| `bind-tag` | `--screen`, `--widget`, `--tag` | — |
+
+```bash
+# 定义一个 Modbus 变量
+navihmi -p ./demo.hmiproj create-tag \
+  --name "Tank1_Temp" --type FLOAT \
+  --source "modbus://1/40001" --unit "°C"
+
+# 把控件绑定到变量
+navihmi -p ./demo.hmiproj bind-tag --screen "温度页" --widget text_2 --tag "Tank1_Temp"
+```
+
+`--type`: `BOOL`, `INT16`, `UINT16`, `INT32`, `FLOAT`, `STRING`
+`--source`: `modbus://{从站}/{寄存器}` 或 `mqtt://{主题}`
+
+### 报警
+
+```bash
+navihmi -p ./demo.hmiproj create-alarm \
+  --name "温度过高" --tag "Tank1_Temp" \
+  --type High --threshold 80.0 \
+  --severity Important --message "温度超过安全范围"
+```
+
+`--type`: `High`, `Low`, `RateChange`, `Deviation`
+`--severity`: `Emergency`, `Important`, `Warning`, `Info`
+
+### 设备
+
+| 命令 | 说明 |
+|------|------|
+| `configure-device` | 配置 Modbus/MQTT 通信参数 |
+| `connect` | 连接 HMI 设备（HTTP GET `/api/device/info`） |
+| `scan` | 扫描局域网内可用设备 |
+| `deploy-project` | 下载 `.navihmi` 到设备 |
+| `deploy-firmware` | 下载 `.fw` 固件并触发 OTA |
+
+```bash
+navihmi -p ./demo.hmiproj configure-device \
+  --name "主PLC" --protocol ModbusTCP \
+  --connection '{"ip":"192.168.1.50","port":502,"slaveId":1}'
+
+navihmi -p ./demo.hmiproj connect --ip 192.168.1.100
+navihmi -p ./demo.hmiproj deploy-project --ip 192.168.1.100
+```
+
+> `deploy-project` 和 `deploy-firmware` 需要先 `connect` 成功。
+
+## 输出格式
+
+### 人类可读（默认）
+
+```
+✓ create-screen — {"screen_name":"温度页"}
+✓ add_widget — {"widget_name":"button_1"}
+✗ [NOT_FOUND] 画面 "xxx" 不存在
+```
+
+### JSON（`--json`）
+
+```json
+{"success":true,"data":{"widget_name":"button_1"}}
+{"success":false,"error":{"code":"NOT_FOUND","message":"画面 \"xxx\" 不存在"}}
+```
+
+## 自动保存
+
+所有**修改命令**（`create-screen`、`add-widget`、`set-property` 等）执行成功后自动保存工程文件。保存失败时输出警告但不阻断。
+
+只读命令（`open-project`、`compile`）不触发保存。
+
+如需显式保存：`navihmi -p ./demo.hmiproj save-project`
+
+## 典型工作流
+
+```bash
+# 1. 创建工程
+navihmi create-project --name "Demo" --path "./" --width 1024 --height 600
+
+# 2. 批量创建画面
+navihmi -p ./Demo.hmiproj create-screen --name "主控页"
+navihmi -p ./Demo.hmiproj create-screen --name "温度曲线"
+navihmi -p ./Demo.hmiproj create-screen --name "报警总览"
+
+# 3. 定义变量
+navihmi -p ./Demo.hmiproj create-tag --name "Temp" --type FLOAT --source "modbus://1/40001" --unit "°C"
+navihmi -p ./Demo.hmiproj create-tag --name "Speed" --type INT16 --source "modbus://1/40003" --unit "rpm"
+
+# 4. 放置控件
+navihmi -p ./Demo.hmiproj add-widget --screen "主控页" --type text --x 50 --y 50 --width 200
+navihmi -p ./Demo.hmiproj bind-tag --screen "主控页" --widget text_1 --tag "Temp"
+navihmi -p ./Demo.hmiproj add-widget --screen "主控页" --type button --x 300 --y 200 --width 120 --height 40
+navihmi -p ./Demo.hmiproj set-property --screen "主控页" --widget button_1 --key "text" --value "启动"
+
+# 5. 编译输出
+navihmi -p ./Demo.hmiproj compile
+# → output/Demo.navihmi
+```
+
+## Tab 补全
+
+当前版本**不支持** Tab 补全。计划后续通过 PowerShell 脚本或 `dotnet-suggest` 集成。
+
+## 注意事项
+
+- 参数名使用 `--kebab-case`，内部映射到 Handler 的 `snake_case`
+- 控件类型当前只支持 `button` / `text` / `rectangle`
+- 设备连接功能（`connect`/`scan`/`deploy-*`）尚未实现，调用返回 `NOT_IMPLEMENTED`
+- 工程文件名和画面名**禁止**包含 `..`、`/`、`\`（路径遍历防护）
+- 所有命令执行后自动保存，无需手动 `save-project`（除非显式需要另存为）
