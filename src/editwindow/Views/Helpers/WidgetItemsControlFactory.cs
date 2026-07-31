@@ -2,6 +2,7 @@
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
+using System.Windows.Media;
 using NavigatorHMI.Common;
 
 namespace NavigatorHMI.Views.Helpers
@@ -48,6 +49,7 @@ namespace NavigatorHMI.Views.Helpers
             // 设置 ItemsPanel — 使用 Canvas 作为子元素的布局面板
             var panelTemplate = new ItemsPanelTemplate();
             var panelFactory = new FrameworkElementFactory(typeof(Canvas));
+            panelFactory.SetValue(Canvas.BackgroundProperty, Brushes.Transparent);
             panelTemplate.VisualTree = panelFactory;
             itemsControl.ItemsPanel = panelTemplate;
 

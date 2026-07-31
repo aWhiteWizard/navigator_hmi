@@ -134,6 +134,9 @@ namespace NavigatorHMI.ViewModels
         private readonly UndoManager _undoManager = new();
         public ICommand UndoCommand { get; private set; }
 
+        /// <summary>重做命令。</summary>
+        public ICommand RedoCommand { get; private set; }
+
         /// <summary>
         /// 在执行修改操作之前保存当前画面的 Undo 快照。
         /// </summary>
@@ -182,6 +185,21 @@ namespace NavigatorHMI.ViewModels
                 {
                     if (CurrentScreen == null) return;
                     var restored = _undoManager.Undo(CurrentScreen);
+                    if (restored != null)
+                    {
+                        CurrentScreen.Widgets.Clear();
+                        foreach (var w in restored)
+                            CurrentScreen.Widgets.Add(w);
+                        RefreshCanvasRequested?.Invoke();
+                        ProjectDirtyRequested?.Invoke();
+                    }
+                });
+
+            RedoCommand = new RelayCommand(
+                () =>
+                {
+                    if (CurrentScreen == null) return;
+                    var restored = _undoManager.Redo(CurrentScreen);
                     if (restored != null)
                     {
                         CurrentScreen.Widgets.Clear();

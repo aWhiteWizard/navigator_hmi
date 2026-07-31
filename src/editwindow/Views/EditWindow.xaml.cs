@@ -50,9 +50,25 @@ namespace NavigatorHMI.Views
         private bool isProjectDirty;
         private bool skipClosingCheck = false;
 
+        // 画布缩放
+        private double _zoomLevel = 1.0;
+        private ScaleTransform _canvasScale = new(1, 1);
+
+
+        // 框选
+        private Point _marqueeStart;
+        private bool _isMarquee;
+
         // CLI 命令历史
         private readonly List<string> _cliHistory = new();
         private int _historyIndex;
+
+        private void Canvas_PreviewRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            _contextMenuPos = e.GetPosition(DrawingCanvas);
+            _contextMenuPos.X /= _zoomLevel;
+            _contextMenuPos.Y /= _zoomLevel;
+        }
 
         // widget的专职类
         private readonly WidgetSelectionManager _selectionManager;
@@ -80,6 +96,9 @@ namespace NavigatorHMI.Views
             // 2. 保存项目引用
             currentProject = project;
             this.Title = project.ProjectFilePath;
+
+            // 画布缩放
+            DrawingCanvas.LayoutTransform = _canvasScale;
 
             // 3. 先初始化 _selectionManager（_widgetContextMenuHandler 依赖它）
             _selectionManager = new WidgetSelectionManager(
@@ -121,7 +140,7 @@ namespace NavigatorHMI.Views
             _viewModel.RefreshCanvasRequested += () => LoadCanvas(_viewModel.CurrentScreen);
             _viewModel.ProjectDirtyRequested += MarkProjectDirty;
 
-            // 9. 初始加载
+
             LoadCanvas(_viewModel.CurrentScreen);
 
             isProjectDirty = false;
@@ -281,7 +300,14 @@ namespace NavigatorHMI.Views
             DrawingCanvas.Children.Add(itemsControl);
             Canvas.SetLeft(itemsControl, 0);
             Canvas.SetTop(itemsControl, 0);
-            Panel.SetZIndex(itemsControl, 999);
+            Panel.SetZIndex(itemsControl, -1);
+
+            var rootGrid = (System.Windows.Controls.Grid)this.Content;
+
+            DrawingCanvas.Children.Remove(MarqueeRect);
+            if (!DrawingCanvas.Children.Contains(MarqueeRect))
+                DrawingCanvas.Children.Add(MarqueeRect);
+            Panel.SetZIndex(MarqueeRect, 1001);
 
             var vm = this.DataContext as EditWindowViewModel;
             itemsControl.Width = screen.Width > 0 ? screen.Width : (vm?.DeviceWidth ?? 800);
@@ -302,42 +328,81 @@ namespace NavigatorHMI.Views
         /// <summary>
         /// 画布点击事件：在点击位置创建 Widget（添加模式下），或清除选中状态。
         /// </summary>
+        private void Canvas_MouseMove(object sender, MouseEventArgs e)
+        {            
+
+            if (!_isMarquee) return;
+            var pos = e.GetPosition(DrawingCanvas);
+            var x = Math.Min(_marqueeStart.X, pos.X);
+            var y = Math.Min(_marqueeStart.Y, pos.Y);
+            var w = Math.Abs(pos.X - _marqueeStart.X);
+            var h = Math.Abs(pos.Y - _marqueeStart.Y);
+            Canvas.SetLeft(MarqueeRect, x);
+            Canvas.SetTop(MarqueeRect, y);
+            MarqueeRect.Width = w;
+            MarqueeRect.Height = h;
+            // 边框灰色细线(实线=左→右, 虚线=右→左)，填充蓝/绿
+            bool leftToRight = pos.X >= _marqueeStart.X;
+            MarqueeRect.Stroke = Brushes.Gray;
+            MarqueeRect.StrokeThickness = 1;
+            MarqueeRect.StrokeDashArray = leftToRight ? null : new DoubleCollection { 4, 4 };
+            MarqueeRect.Fill = leftToRight
+                ? new SolidColorBrush(Color.FromArgb(0x20, 0x33, 0x99, 0xFF))
+                : new SolidColorBrush(Color.FromArgb(0x20, 0x33, 0xCC, 0x33));
+        }
+
+        private void Canvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (!_isMarquee) return;
+            _isMarquee = false;
+            MarqueeRect.Visibility = Visibility.Collapsed;
+
+            var screen = _viewModel.CurrentScreen;
+            if (screen == null) return;
+
+            var rect = new Rect(Canvas.GetLeft(MarqueeRect), Canvas.GetTop(MarqueeRect), MarqueeRect.Width, MarqueeRect.Height);
+            bool leftToRight = e.GetPosition(DrawingCanvas).X >= _marqueeStart.X;
+
+            foreach (var widget in screen.Widgets)
+            {
+                var wRect = new Rect(widget.X, widget.Y, widget.Width, widget.Height);
+                if (leftToRight)
+                    widget.IsSelected = rect.Contains(wRect);      // 完全包含
+                else
+                    widget.IsSelected = rect.IntersectsWith(wRect); // 相交即可
+            }
+        }
+
         private void Canvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (TreeContextMenu.IsOpen)
-            {
-                TreeContextMenu.IsOpen = false;
-            }
+            if (TreeContextMenu.IsOpen) { TreeContextMenu.IsOpen = false; }
 
-            var source = e.OriginalSource as DependencyObject;
-            var clickedButton = FindVisualParent<Button>(source);
-
-            if (clickedButton != null)
-            {
-                return;
-            }
+            // 点击了 Widget 按钮 → 交给已有逻辑
+            if (FindVisualParent<Button>(e.OriginalSource as DependencyObject) != null) return;
 
             _selectionManager.ClearAllSelection();
+            HidePropertyWindow();
 
-            // 非添加模式下，双击画布空白处显示画面属性
-            // 非添加模式下，单击画布空白处关闭属性窗口
+            // 非添加模式 → 开始框选
             if (_currentWidgetCreator == null)
             {
-                HidePropertyWindow();
+                _marqueeStart = e.GetPosition(DrawingCanvas);
+                _isMarquee = true;
+                Canvas.SetLeft(MarqueeRect, _marqueeStart.X);
+                Canvas.SetTop(MarqueeRect, _marqueeStart.Y);
+                MarqueeRect.Width = MarqueeRect.Height = 0;
+                MarqueeRect.Visibility = Visibility.Visible;
+                e.Handled = true;
                 return;
             }
 
+            // 添加 Widget 模式
             if (_viewModel?.CurrentScreen == null) return;
-
-            // 在添加 Widget 前保存 Undo 快照
             _viewModel.PushUndoSnapshot();
-
             Point pos = e.GetPosition(DrawingCanvas);
             var widget = _currentWidgetCreator.Create(pos, _viewModel.CurrentScreen);
-
             _viewModel.CurrentScreen.Widgets.Add(widget);
             MarkProjectDirty();
-
             _currentWidgetCreator = null;
             DrawingCanvas.Cursor = Cursors.Arrow;
             AddButtonModeBtn.Content = "Button";
@@ -414,6 +479,7 @@ namespace NavigatorHMI.Views
 
             // 双击控件时自动显示属性窗口
             if (widget != null) ShowAnchorable("property");
+            WidgetContextMenu.IsOpen = false;
 
             if (widget != null)
             {
@@ -430,6 +496,7 @@ namespace NavigatorHMI.Views
         {
             _propertyViewModel.SelectedScreen = screen;
             ShowAnchorable("property");
+            WidgetContextMenu.IsOpen = false;
         }
 
         /// <summary>清空属性面板选中。</summary>
@@ -446,6 +513,24 @@ namespace NavigatorHMI.Views
         /// </summary>
         private void Canvas_MouseDown(object sender, MouseButtonEventArgs e)
         {
+            if (e.ChangedButton == MouseButton.Right)
+            {
+                // 点击了 Widget 则交给 Widget 自己的右键菜单
+                if (FindVisualParent<Button>(e.OriginalSource as DependencyObject) != null) return;
+
+                var mousePos = Mouse.GetPosition(this);
+                TreeContextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Absolute;
+                TreeContextMenu.HorizontalOffset = mousePos.X;
+                TreeContextMenu.VerticalOffset = mousePos.Y;
+                _contextMenuPos = e.GetPosition(DrawingCanvas);
+                _contextMenuPos.X /= _zoomLevel;
+                _contextMenuPos.Y /= _zoomLevel;
+                UpdateCanvasMenuButtons();
+                TreeContextMenu.IsOpen = true;
+                e.Handled = true;
+                return;
+            }
+
             if (e.ChangedButton != MouseButton.Left) return;
 
             var now = DateTime.Now;
@@ -632,12 +717,15 @@ namespace NavigatorHMI.Views
 
         private void Toolbar_MouseDown(object sender, MouseButtonEventArgs e)
         {
+            // 点击按钮时不启动拖拽
+            if (FindVisualParent<Button>(e.OriginalSource as DependencyObject) != null) return;
             if (sender is ToolBar tb && e.LeftButton == MouseButtonState.Pressed)
             {
                 _dragSource = tb;
                 _dragStart = e.GetPosition(null);
                 _isDragging = false;
                 tb.CaptureMouse();
+                e.Handled = true;
             }
         }
 
@@ -693,6 +781,202 @@ namespace NavigatorHMI.Views
         #endregion
 
         #region 工具栏按钮操作
+        // 缩放
+        private void ZoomIn_Click(object sender, RoutedEventArgs e) => ApplyZoom(_zoomLevel * 1.25);
+        private void ZoomOut_Click(object sender, RoutedEventArgs e) => ApplyZoom(_zoomLevel / 1.25);
+        private void ZoomReset_Click(object sender, RoutedEventArgs e) => ApplyZoom(1.0);
+
+        private void ApplyZoom(double level)
+        {
+            _zoomLevel = Math.Max(0.1, Math.Min(level, 5.0));
+            _canvasScale.ScaleX = _zoomLevel;
+            _canvasScale.ScaleY = _zoomLevel;
+            ZoomLabel.Text = $"{_zoomLevel * 100:F0}%";
+        }
+
+        // 剪贴板
+        private List<byte[]> _clipboard = new();
+        private Point _contextMenuPos;
+        private void CutWidget_Click(object sender, RoutedEventArgs e) { CopyWidgets(); DeleteSelectedWidgets(); WidgetContextMenu.IsOpen = false; }
+        private void CopyWidget_Click(object sender, RoutedEventArgs e) { CopyWidgets(); WidgetContextMenu.IsOpen = false; }
+
+        private void ShowCanvasProperty_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel.CurrentScreen != null) _propertyViewModel.SelectedScreen = _viewModel.CurrentScreen;
+            ShowAnchorable("property");
+            TreeContextMenu.IsOpen = false;
+        }
+
+        private void PasteAtPosition(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel.CurrentScreen == null || _clipboard.Count == 0) return;
+            _viewModel.PushUndoSnapshot();
+            foreach (var data in _clipboard)
+            {
+                using var ms = new MemoryStream(data);
+                var w = Serializer.Deserialize<Widget>(ms);
+                w.X = _contextMenuPos.X; w.Y = _contextMenuPos.Y;
+                w.ObjectName = UniqueName(w.ObjectName);
+                _viewModel.CurrentScreen.Widgets.Add(w);
+            }
+            _viewModel.NotifyCanvasRefreshNeeded();
+            TreeContextMenu.IsOpen = false;
+        }
+
+        private void PasteWidget_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel.CurrentScreen == null || _clipboard.Count == 0) return;
+            _viewModel.PushUndoSnapshot();
+            foreach (var data in _clipboard)
+            {
+                using var ms = new MemoryStream(data);
+                var w = Serializer.Deserialize<Widget>(ms);
+                w.X += 20 / _zoomLevel; w.Y += 20 / _zoomLevel;
+                w.ObjectName = UniqueName(w.ObjectName);
+                _viewModel.CurrentScreen.Widgets.Add(w);
+            }
+            _viewModel.NotifyCanvasRefreshNeeded();
+            WidgetContextMenu.IsOpen = false;
+        }
+        private void UpdateCanvasMenuButtons()
+        {
+            var hasContent = _clipboard.Count > 0;
+            CanvasPasteBtn.IsEnabled = hasContent;
+        }
+
+        private void CopyWidgets()
+        {
+            _clipboard.Clear();
+            var selected = _viewModel.CurrentScreen?.Widgets.Where(w => w.IsSelected).ToList();
+            if (selected == null) return;
+            foreach (var w in selected) { using var ms = new MemoryStream(); Serializer.Serialize(ms, w); _clipboard.Add(ms.ToArray()); }
+            WidgetPasteBtn.IsEnabled = _clipboard.Count > 0;
+            UpdateCanvasMenuButtons();
+        }
+        private void DeleteSelectedWidgets()
+        {
+            if (_viewModel.CurrentScreen == null) return;
+            var selected = _viewModel.CurrentScreen.Widgets.Where(w => w.IsSelected).ToList();
+            foreach (var w in selected) _viewModel.CurrentScreen.Widgets.Remove(w);
+            _viewModel.NotifyCanvasRefreshNeeded();
+            MarkProjectDirty();
+            WidgetContextMenu.IsOpen = false;
+        }
+
+        // 对齐
+        private void RectArray_Click(object sender, RoutedEventArgs e) => DoArrayLayout(false);
+        private void CircleArray_Click(object sender, RoutedEventArgs e) => DoArrayLayout(true);
+
+        private void DoArrayLayout(bool isCircle)
+        {
+            var selected = _viewModel.CurrentScreen?.Widgets.Where(w => w.IsSelected).ToList();
+            if (selected == null || selected.Count < 2) return;
+
+            var sorted = selected.OrderBy(w => ExtractIdNumber(w.ObjectName)).ToList();
+            var saved = sorted.Select(w => (w, w.X, w.Y)).ToList();
+            double cx = Math.Min(Math.Max(sorted.Average(w => w.X + w.Width / 2), 50), (_viewModel.DeviceWidth - 50));
+            double cy = Math.Min(Math.Max(sorted.Average(w => w.Y + w.Height / 2), 50), (_viewModel.DeviceHeight - 50));
+
+            
+
+            GridArrayDialog? dialog = null;
+            dialog = new GridArrayDialog(isCircle, sorted.Count, cx, cy, () =>
+            {
+                // 移动控件到计算位置
+                var positions = CalcPositions(isCircle, sorted.Count, dialog!.Cols, dialog.Rows,
+                    dialog.StartX, dialog.StartY, dialog.SpacingX, dialog.SpacingY,
+                    dialog.CenterX, dialog.CenterY, dialog.Radius, dialog.StartAngle, dialog.EndAngle,
+                    _viewModel.CurrentScreen?.Width ?? _viewModel.DeviceWidth,
+                    _viewModel.CurrentScreen?.Height ?? _viewModel.DeviceHeight);
+                for (int i = 0; i < Math.Min(positions.Count, sorted.Count); i++)
+                {
+                    sorted[i].X = Math.Max(0, Math.Min(positions[i].X, (_viewModel.CurrentScreen?.Width ?? 800) - sorted[i].Width));
+                    sorted[i].Y = Math.Max(0, Math.Min(positions[i].Y, (_viewModel.CurrentScreen?.Height ?? 480) - sorted[i].Height));
+                }
+                _viewModel.NotifyCanvasRefreshNeeded();
+                DrawingCanvas.InvalidateVisual();
+            }) { Owner = this };
+
+            // 初始默认值预览
+            dialog.InvokePreview();
+
+            _viewModel.PushUndoSnapshot();
+
+            if (dialog.ShowDialog() != true)
+            {
+                foreach (var (w, x, y) in saved) { w.X = x; w.Y = y; }
+                _viewModel.NotifyCanvasRefreshNeeded();
+            }
+        }
+
+        private static System.Windows.Media.Geometry CreateArcGeometry(double cx, double cy, double r, double startAngle, double endAngle)
+        {
+            if (r <= 0) return System.Windows.Media.Geometry.Empty;
+            double total = endAngle > startAngle ? endAngle - startAngle : 2 * Math.PI + endAngle - startAngle;
+            bool largeArc = total > Math.PI;
+            var startPoint = new Point(cx + r * Math.Cos(startAngle), cy + r * Math.Sin(startAngle));
+            var endPoint = new Point(cx + r * Math.Cos(endAngle), cy + r * Math.Sin(endAngle));
+            var fig = new System.Windows.Media.PathFigure { StartPoint = startPoint };
+            fig.Segments.Add(new System.Windows.Media.ArcSegment(endPoint, new Size(r, r), 0, largeArc, System.Windows.Media.SweepDirection.Clockwise, true));
+            return new System.Windows.Media.PathGeometry(new[] { fig });
+        }
+
+        private static List<Point> CalcPositions(bool isCircle, int count,
+            int cols, int rows, double startX, double startY, double sx, double sy,
+            double centerX, double centerY, double radius, double startAngle, double endAngle,
+            double maxW, double maxH)
+        {
+            var result = new List<Point>();
+            if (isCircle)
+            {
+                double start = startAngle * Math.PI / 180, end = endAngle * Math.PI / 180;
+                double total = (end > start ? end - start : 2 * Math.PI + end - start);
+                for (int i = 0; i < count; i++)
+                {
+                    double a = start + total * i / Math.Max(count - 1, 1);
+                    result.Add(new Point(
+                        centerX + radius * Math.Cos(a),
+                        centerY + radius * Math.Sin(a)));
+                }
+            }
+            else
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    int r = i / cols, c = i % cols;
+                    result.Add(new Point(
+                        startX + c * sx,
+                        startY + r * sy));
+                }
+            }
+            return result;
+        }
+
+        private static int ExtractIdNumber(string name)
+        {
+            var num = new string(name.Where(char.IsDigit).ToArray());
+            return int.TryParse(num, out var n) ? n : 0;
+        }
+
+        private void AlignLeft_Click(object sender, RoutedEventArgs e) => AlignWidgets((refs, w) => w.X = refs.MinX);
+        private void AlignCenterH_Click(object sender, RoutedEventArgs e) => AlignWidgets((refs, w) => w.X = refs.MinX + (refs.MaxX - refs.MinX) / 2 - w.Width / 2);
+        private void AlignRight_Click(object sender, RoutedEventArgs e) => AlignWidgets((refs, w) => w.X = refs.MaxX - w.Width);
+        private void AlignTop_Click(object sender, RoutedEventArgs e) => AlignWidgets((refs, w) => w.Y = refs.MinY);
+        private void AlignCenterV_Click(object sender, RoutedEventArgs e) => AlignWidgets((refs, w) => w.Y = refs.MinY + (refs.MaxY - refs.MinY) / 2 - w.Height / 2);
+        private void AlignBottom_Click(object sender, RoutedEventArgs e) => AlignWidgets((refs, w) => w.Y = refs.MaxY - w.Height);
+
+        private void AlignWidgets(Action<(double MinX, double MinY, double MaxX, double MaxY), Widget> align)
+        {
+            var selected = _viewModel.CurrentScreen?.Widgets.Where(w => w.IsSelected).ToList();
+            if (selected == null || selected.Count == 0) return;
+            var bounds = (MinX: selected.Min(w => w.X), MinY: selected.Min(w => w.Y),
+                          MaxX: selected.Max(w => w.X + w.Width), MaxY: selected.Max(w => w.Y + w.Height));
+            _viewModel.PushUndoSnapshot();
+            foreach (var w in selected) align(bounds, w);
+            _viewModel.NotifyCanvasRefreshNeeded();
+            WidgetContextMenu.IsOpen = false;
+        }
+
         private void ToggleAnchorable_Click(object sender, RoutedEventArgs e)
         {
             if (sender is not MenuItem mi || mi.Tag is not string contentId) return;
@@ -725,6 +1009,14 @@ namespace NavigatorHMI.Views
                 if (block != null) block.Visibility = mi.IsChecked ? Visibility.Visible : Visibility.Collapsed;
             }
         }
+        private void ShowWidgetProperty_Click(object sender, RoutedEventArgs e)
+        {
+            var selected = _viewModel.CurrentScreen?.Widgets.FirstOrDefault(w => w.IsSelected);
+            if (selected != null) _propertyViewModel.SelectedWidget = selected;
+            ShowAnchorable("property");
+            WidgetContextMenu.IsOpen = false;
+        }
+
         private void NewProject_Click(object sender, RoutedEventArgs e)
         {
             skipClosingCheck = true;
@@ -750,6 +1042,7 @@ namespace NavigatorHMI.Views
             var selected = _viewModel.CurrentScreen.Widgets.Where(w => w.IsSelected).ToList();
             foreach (var w in selected) _viewModel.CurrentScreen.Widgets.Remove(w);
             _viewModel.NotifyCanvasRefreshNeeded();
+            WidgetContextMenu.IsOpen = false;
         }
         private void BringToFront_Click(object sender, RoutedEventArgs e)
             => _viewModel.CommandService.Execute("bring_to_front", new() { ["screen_name"] = _viewModel.CurrentScreen?.Name ?? "", ["widget_name"] = GetFirstSelectedWidgetName() });
@@ -761,6 +1054,13 @@ namespace NavigatorHMI.Views
             => _viewModel.CommandService.Execute("send_to_back", new() { ["screen_name"] = _viewModel.CurrentScreen?.Name ?? "", ["widget_name"] = GetFirstSelectedWidgetName() });
         private string GetFirstSelectedWidgetName()
             => _viewModel.CurrentScreen?.Widgets.FirstOrDefault(w => w.IsSelected)?.ObjectName ?? "";
+
+        private string UniqueName(string baseName)
+        {
+            var names = new HashSet<string>(_viewModel.CurrentScreen?.Widgets.Select(w => w.ObjectName) ?? Enumerable.Empty<string>());
+            if (!names.Contains(baseName + "_copy")) return baseName + "_copy";
+            for (int i = 2; ; i++) { var n = $"{baseName}_copy{i}"; if (!names.Contains(n)) return n; }
+        }
         #endregion
 
         #region CLI 控制台

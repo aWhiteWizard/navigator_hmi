@@ -184,11 +184,11 @@
             <ToolBar x:Name="TbEdit" Width="210" Height="32" Margin="0,0,2,0"
                      PreviewMouseLeftButtonDown="Toolbar_MouseDown" Cursor="Hand">
                 <Button ToolTip="撤销" Command="{Binding UndoCommand}" Width="28" Height="28">↩</Button>
-                <Button ToolTip="恢复" IsEnabled="False" Width="28" Height="28">↪</Button>
+                <Button ToolTip="恢复" Command="{Binding RedoCommand}" Width="28" Height="28">↪</Button>
                 <Separator/>
-                <Button ToolTip="剪切" IsEnabled="False" Width="28" Height="28">✂</Button>
-                <Button ToolTip="复制" IsEnabled="False" Width="28" Height="28">📋</Button>
-                <Button ToolTip="粘贴" IsEnabled="False" Width="28" Height="28">📄</Button>
+                <Button ToolTip="剪切" Click="CutWidget_Click" Width="28" Height="28">✂</Button>
+                <Button ToolTip="复制" Click="CopyWidget_Click" Width="28" Height="28">📋</Button>
+                <Button ToolTip="粘贴" Click="PasteWidget_Click" Width="28" Height="28">📄</Button>
                 <Button ToolTip="删除" Click="DeleteSelectedWidget_Click" Width="28" Height="28">🗑</Button>
             </ToolBar>
 
@@ -200,9 +200,9 @@
 
             <ToolBar x:Name="TbView" Width="116" Height="32" Margin="0,0,2,0"
                      PreviewMouseLeftButtonDown="Toolbar_MouseDown" Cursor="Hand">
-                <Button ToolTip="放大" IsEnabled="False" Width="28" Height="28">🔍</Button>
-                <Button ToolTip="缩小" IsEnabled="False" Width="28" Height="28">🔎</Button>
-                <Button ToolTip="100%" IsEnabled="False" Width="28" Height="28">📐</Button>
+                <Button ToolTip="放大" Click="ZoomIn_Click" Width="28" Height="28">🔍</Button>
+                <Button ToolTip="缩小" Click="ZoomOut_Click" Width="28" Height="28">🔎</Button>
+                <Button ToolTip="100%" Click="ZoomReset_Click" Width="28" Height="28">📐</Button>
             </ToolBar>
 
             <ToolBar x:Name="TbLayer" Width="148" Height="32" Margin="0,0,2,0"
@@ -213,14 +213,17 @@
                 <Button ToolTip="置底" Click="SendToBack_Click" Width="28" Height="28">⬇⬇</Button>
             </ToolBar>
 
-            <ToolBar x:Name="TbAlign" Width="212" Height="32" Margin="0,0,2,0"
+            <ToolBar x:Name="TbAlign" Width="260" Height="32" Margin="0,0,2,0"
                      PreviewMouseLeftButtonDown="Toolbar_MouseDown" Cursor="Hand">
-                <Button ToolTip="左对齐" IsEnabled="False" Width="28" Height="28">◀▶</Button>
-                <Button ToolTip="居中" IsEnabled="False" Width="28" Height="28">◀▶</Button>
-                <Button ToolTip="右对齐" IsEnabled="False" Width="28" Height="28">◀▶</Button>
-                <Button ToolTip="顶对齐" IsEnabled="False" Width="28" Height="28">▲▼</Button>
-                <Button ToolTip="垂直居中" IsEnabled="False" Width="28" Height="28">▲▼</Button>
-                <Button ToolTip="底对齐" IsEnabled="False" Width="28" Height="28">▲▼</Button>
+                <Button ToolTip="矩形阵列" Click="RectArray_Click" Width="28" Height="28">⊞</Button>
+                <Button ToolTip="圆形阵列" Click="CircleArray_Click" Width="28" Height="28">◯</Button>
+                <Separator/>
+                <Button ToolTip="左对齐" Click="AlignLeft_Click" Width="28" Height="28">◀▶</Button>
+                <Button ToolTip="水平居中" Click="AlignCenterH_Click" Width="28" Height="28">◀▶</Button>
+                <Button ToolTip="右对齐" Click="AlignRight_Click" Width="28" Height="28">◀▶</Button>
+                <Button ToolTip="顶对齐" Click="AlignTop_Click" Width="28" Height="28">▲▼</Button>
+                <Button ToolTip="垂直居中" Click="AlignCenterV_Click" Width="28" Height="28">▲▼</Button>
+                <Button ToolTip="底对齐" Click="AlignBottom_Click" Width="28" Height="28">▲▼</Button>
             </ToolBar>
 
             </WrapPanel>
@@ -288,26 +291,45 @@
                             <avalon:LayoutDocument Title="画布" ContentId="canvas" CanClose="False"><Grid>
                                 <Popup x:Name="WidgetContextMenu" Placement="Absolute" StaysOpen="False" AllowsTransparency="True">
                                     <Border Background="White" BorderBrush="LightGray" BorderThickness="1" CornerRadius="4" Padding="2">
-                                        <StackPanel><Button Content="🗑 删除" Click="DeleteWidget_Click" Width="80" Height="28" Margin="2"/></StackPanel>
+                                        <StackPanel>
+                                                <Button Content="✂ 剪切" Click="CutWidget_Click" Width="80" Height="28" Margin="2"/>
+                                                <Button Content="📋 复制" Click="CopyWidget_Click" Width="80" Height="28" Margin="2"/>
+                                                <Button x:Name="WidgetPasteBtn" Content="📄 粘贴" Click="PasteWidget_Click" Width="80" Height="28" Margin="2"/>
+                                                <Separator/>
+                                                <Button Content="🗑 删除" Click="DeleteWidget_Click" Width="80" Height="28" Margin="2"/>
+                                                <Separator/>
+                                                <Button Content="📋 属性" Click="ShowWidgetProperty_Click" Width="80" Height="28" Margin="2"/>
+                                            </StackPanel>
                                     </Border>
                                 </Popup>
                                 <Popup x:Name="TreeContextMenu" Placement="Absolute" StaysOpen="True" AllowsTransparency="True">
                                     <Border Background="White" BorderBrush="LightGray" BorderThickness="1" CornerRadius="4" Padding="2">
                                         <StackPanel>
-                                            <Button Content="✏ 重命名" Click="RenameScreen_Click" Width="80" Height="28" Margin="2"/>
-                                            <Button Content="🗑 删除画面" Click="DeleteScreen_Click" Width="80" Height="28" Margin="2"/>
+                                            <Button x:Name="CanvasPasteBtn" Content="📄 粘贴" Click="PasteAtPosition" Width="100" Height="28" Margin="2"/>
+                                            <Button Content="📋 属性" Click="ShowCanvasProperty_Click" Width="100" Height="28" Margin="2"/>
                                         </StackPanel>
                                     </Border>
                                 </Popup>
-                                <Border BorderBrush="Black" Background="Gray" BorderThickness="2" Margin="3" x:Name="canvasContainer">
+                                <Border BorderBrush="Black" Background="Gray" BorderThickness="2" Margin="3" x:Name="canvasContainer"
+                                        PreviewMouseRightButtonDown="Canvas_PreviewRightButtonDown"
+                                        PreviewMouseLeftButtonDown="Canvas_MouseLeftButtonDown"
+                                        PreviewMouseMove="Canvas_MouseMove" PreviewMouseLeftButtonUp="Canvas_MouseLeftButtonUp">
+                                    <Grid>
                                     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                                         <Canvas x:Name="DrawingCanvas" HorizontalAlignment="Left" VerticalAlignment="Top"
                                                 Background="{StaticResource DotGridBrush}" Width="{Binding DeviceWidth}" Height="{Binding DeviceHeight}"
-                                                MouseLeftButtonDown="Canvas_MouseLeftButtonDown" MouseDown="Canvas_MouseDown">
+                                                MouseDown="Canvas_MouseDown">
+                                            <!-- 框选矩形 -->
+                                            <Rectangle x:Name="MarqueeRect" Stroke="Blue" StrokeThickness="2" Fill="#300000FF"
+                                                       Visibility="Collapsed" IsHitTestVisible="False" Panel.ZIndex="1001"/>
                                             <TextBlock Text="{Binding CurrentScreen.Widgets.Count, StringFormat='Widgets: {0}'}"
                                                        Canvas.Left="10" Canvas.Top="10" Foreground="Black" Background="White" FontSize="14" FontWeight="Bold"/>
                                         </Canvas>
                                     </ScrollViewer>
+                                    <!-- 缩放比例 -->
+                                    <TextBlock x:Name="ZoomLabel" Text="100%" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                               Foreground="Gray" FontSize="12" Margin="0,0,8,4"/>
+                                    </Grid>
                                 </Border>
                             </Grid></avalon:LayoutDocument>
                         </avalon:LayoutDocumentPane>
@@ -366,5 +388,6 @@
                 </avalon:LayoutPanel>
             </avalon:LayoutRoot>
         </avalon:DockingManager>
+
     </Grid>
 </Window>
