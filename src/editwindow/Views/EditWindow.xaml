@@ -121,7 +121,7 @@
         </Grid></StackPanel></DataTemplate>
 
         <!-- LabelWidget 属性 -->
-        <DataTemplate x:Key="PropLabel"><StackPanel>
+        <DataTemplate x:Key="PropLabelWidget"><StackPanel>
             <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
@@ -577,7 +577,7 @@
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="ButtonWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropButton}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="TextWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropText}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="RectangleWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropRect}"/></DataTrigger>
-                                                    <DataTrigger Binding="{Binding SelectedObjectType}" Value="LabelWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropLabel}"/></DataTrigger>
+                                                    <DataTrigger Binding="{Binding SelectedObjectType}" Value="LabelWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropLabelWidget}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="ImageWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropImage}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="NumericDisplayWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropNumericDisplay}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="SwitchWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropSwitch}"/></DataTrigger>
