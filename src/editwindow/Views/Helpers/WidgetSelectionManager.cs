@@ -120,8 +120,9 @@ namespace NavigatorHMI.Views.Helpers
 
             if (isDoubleClick)
                 SelectWidget(widget);       // 完整选中→弹出属性窗口
-            else
-                SelectWidgetSilent(widget); // 静默选中→不弹窗
+            else if (!widget.IsSelected)
+                SelectWidgetSilent(widget); // 未选中→静默选中；已选中→保持（不破坏多选）
+            // 已选中时不动选中状态：支持框选 A+B 后按住 A 整体拖拽
         }
 
         /// <summary>

@@ -31,4 +31,17 @@ namespace NavigatorHMI.Views.Helpers.Creators
         /// <returns>创建好的 Widget 实例，已设置默认的 X/Y/Width/Height 及类型特有属性</returns>
         Widget Create(Point position, Screen screen);
     }
+
+    /// <summary>
+    /// 两点式创建器接口。用于需要用户点击两个点才能确定形状的控件
+    /// （直线：起点→终点；圆形：圆心→半径点；矩形：对角点）。
+    /// </summary>
+    public interface ITwoPointCreator : IWidgetCreator
+    {
+        /// <summary>两点式创建。</summary>
+        /// <param name="start">第一点击点（起点/圆心/一个角）</param>
+        /// <param name="end">第二点击点（终点/半径点/对角）</param>
+        /// <param name="screen">当前画面</param>
+        Widget Create(Point start, Point end, Screen screen);
+    }
 }

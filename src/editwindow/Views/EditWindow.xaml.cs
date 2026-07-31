@@ -59,6 +59,11 @@ namespace NavigatorHMI.Views
         private Point _marqueeStart;
         private bool _isMarquee;
 
+        // 两点式绘制（Line/Circle/Rectangle）
+        private Point _drawStartPoint;
+        private bool _isDrawingPreview;
+        private System.Windows.Shapes.Path? _drawPreviewPath;
+
         // CLI 命令历史
         private readonly List<string> _cliHistory = new();
         private int _historyIndex;
@@ -127,7 +132,8 @@ namespace NavigatorHMI.Views
                 cursor => this.Cursor = cursor,
                 _selectionManager,
                 _widgetContextMenuHandler.Show,
-                () => _viewModel.PushUndoSnapshot());
+                () => _viewModel.PushUndoSnapshot(),
+                () => _currentWidgetCreator != null);  // 添加/绘制模式标志
 
             // 6. 订阅事件
             WeakReferenceMessenger.Default.Register<ScreenAddedMessage>(this, OnScreenAdded);
@@ -289,7 +295,7 @@ namespace NavigatorHMI.Views
 
             var itemsControl = WidgetItemsControlFactory.Create(
                 screen,
-                _dragBehavior.OnButtonClick,
+                null!,  // clickHandler 已不再绑定（双击检测移至 MouseLeftButtonDown），保留签名兼容
                 _dragBehavior.OnPreviewMouseLeftButtonDown,
                 _dragBehavior.OnMouseLeftButtonDown,
                 _dragBehavior.OnMouseMove,
@@ -309,6 +315,14 @@ namespace NavigatorHMI.Views
                 DrawingCanvas.Children.Add(MarqueeRect);
             Panel.SetZIndex(MarqueeRect, 1001);
 
+            // 重挂载两点式绘制预览（DrawPreviewShape 也被 Children.Clear 清掉了）
+            DrawingCanvas.Children.Remove(DrawPreviewShape);
+            if (!DrawingCanvas.Children.Contains(DrawPreviewShape))
+                DrawingCanvas.Children.Add(DrawPreviewShape);
+            Panel.SetZIndex(DrawPreviewShape, 1002);
+            DrawPreviewShape.Visibility = Visibility.Collapsed;
+            DrawPreviewShape.Data = null;
+
             var vm = this.DataContext as EditWindowViewModel;
             itemsControl.Width = screen.Width > 0 ? screen.Width : (vm?.DeviceWidth ?? 800);
             itemsControl.Height = screen.Height > 0 ? screen.Height : (vm?.DeviceHeight ?? 600);
@@ -320,6 +334,9 @@ namespace NavigatorHMI.Views
             _selectionManager.ClearAllSelection();
             SelectorHelper.ClearAllAdorners();
 
+            // 重置两点式绘制状态（切换画面时防止跨画面残留）
+            HideDrawPreview();
+
             System.Diagnostics.Debug.WriteLine($"✅ ItemsControl 已创建并添加到 Canvas");
             System.Diagnostics.Debug.WriteLine($"   尺寸: {itemsControl.Width}x{itemsControl.Height}");
             System.Diagnostics.Debug.WriteLine($"   Widgets 数量: {screen.Widgets.Count}");
@@ -330,6 +347,12 @@ namespace NavigatorHMI.Views
         /// </summary>
         private void Canvas_MouseMove(object sender, MouseEventArgs e)
         {            
+            // 两点式绘制预览更新
+            if (_isDrawingPreview)
+            {
+                UpdateDrawPreview(e.GetPosition(DrawingCanvas));
+                return;
+            }
 
             if (!_isMarquee) return;
             var pos = e.GetPosition(DrawingCanvas);
@@ -353,6 +376,11 @@ namespace NavigatorHMI.Views
 
         private void Canvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
+            // 容器层无条件清理泄漏候选状态（pending + 粘性标志）
+            // 注意：不清 _isDragging——widget 冒泡 up 负责拖拽收尾（光标恢复 + 捕获释放），
+            // capture 保证 up 必路由到捕获元素，此处兜底不失效。
+            _dragBehavior.ClearLeakState();
+
             if (!_isMarquee) return;
             _isMarquee = false;
             MarqueeRect.Visibility = Visibility.Collapsed;
@@ -373,9 +401,91 @@ namespace NavigatorHMI.Views
             }
         }
 
+        /// <summary>显示两点式绘制预览（根据创建器类型生成对应形状的 Path）。</summary>
+        private void ShowDrawPreview()
+        {
+            _drawPreviewPath = DrawPreviewShape;
+            _drawPreviewPath.Visibility = Visibility.Visible;
+            UpdateDrawPreview(_drawStartPoint);
+        }
+
+        /// <summary>更新预览形状：根据当前创建器类型绘制 Line/Rectangle/Ellipse。</summary>
+        private void UpdateDrawPreview(Point end)
+        {
+            if (_drawPreviewPath == null || _currentWidgetCreator == null) return;
+
+            double x = Math.Min(_drawStartPoint.X, end.X);
+            double y = Math.Min(_drawStartPoint.Y, end.Y);
+            double w = Math.Abs(end.X - _drawStartPoint.X);
+            double h = Math.Abs(end.Y - _drawStartPoint.Y);
+
+            switch (_currentWidgetCreator)
+            {
+                case LineWidgetCreator:
+                    _drawPreviewPath.Data = new LineGeometry(_drawStartPoint, end);
+                    Canvas.SetLeft(_drawPreviewPath, 0);
+                    Canvas.SetTop(_drawPreviewPath, 0);
+                    break;
+                case CircleWidgetCreator:
+                {
+                    double dx = end.X - _drawStartPoint.X;
+                    double dy = end.Y - _drawStartPoint.Y;
+                    double radius = Math.Max(10, Math.Sqrt(dx * dx + dy * dy));  // 与 Creator 一致：最小 10px
+                    _drawPreviewPath.Data = new EllipseGeometry(new Point(_drawStartPoint.X, _drawStartPoint.Y), radius, radius);
+                    Canvas.SetLeft(_drawPreviewPath, 0);
+                    Canvas.SetTop(_drawPreviewPath, 0);
+                    break;
+                }
+                default: // RectangleWidgetCreator
+                    _drawPreviewPath.Data = new RectangleGeometry(new Rect(x, y, Math.Max(10, w), Math.Max(10, h)));  // 与 Creator 一致：最小 10px
+                    Canvas.SetLeft(_drawPreviewPath, 0);
+                    Canvas.SetTop(_drawPreviewPath, 0);
+                    break;
+            }
+        }
+
+        /// <summary>隐藏两点式绘制预览并复位状态。</summary>
+        private void HideDrawPreview()
+        {
+            _isDrawingPreview = false;
+            if (DrawPreviewShape != null)
+            {
+                DrawPreviewShape.Visibility = Visibility.Collapsed;
+                DrawPreviewShape.Data = null;
+            }
+            _drawPreviewPath = null;
+        }
+
         private void Canvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (TreeContextMenu.IsOpen) { TreeContextMenu.IsOpen = false; }
+
+            // 两点式绘制：第二点击生成控件（优先响应，不受已有点击拦截影响）
+            if (_currentWidgetCreator is ITwoPointCreator twoPoint && _isDrawingPreview)
+            {
+                if (_viewModel?.CurrentScreen == null) return;
+                _viewModel.PushUndoSnapshot();
+                Point end = e.GetPosition(DrawingCanvas);
+                var widget = twoPoint.Create(_drawStartPoint, end, _viewModel.CurrentScreen);
+                _viewModel.CurrentScreen.Widgets.Add(widget);
+                MarkProjectDirty();
+                HideDrawPreview();
+                ExitAddMode();
+                _dragBehavior.SuppressDragUntilMouseUp();  // 粘性抑制本次 down→up 周期的拖拽（冒泡阶段仍生效）
+                e.Handled = true;  // 阻止事件继续冒泡到被点中的 Widget
+                return;
+            }
+
+            // 两点式绘制：第一点击记录起点并显示预览（优先于 FindWidgetElement，允许从控件上开始画线）
+            if (_currentWidgetCreator is ITwoPointCreator tpc && !_isDrawingPreview)
+            {
+                if (_viewModel?.CurrentScreen == null) return;
+                _drawStartPoint = e.GetPosition(DrawingCanvas);
+                _isDrawingPreview = true;
+                ShowDrawPreview();
+                e.Handled = true;
+                return;
+            }
 
             // 点击了 Widget → 交给已有逻辑
             if (FindWidgetElement(e.OriginalSource as DependencyObject) != null) return;
@@ -396,14 +506,17 @@ namespace NavigatorHMI.Views
                 return;
             }
 
-            // 添加 Widget 模式
+            // 添加 Widget 模式（单点式控件）
             if (_viewModel?.CurrentScreen == null) return;
-            _viewModel.PushUndoSnapshot();
             Point pos = e.GetPosition(DrawingCanvas);
-            var widget = _currentWidgetCreator.Create(pos, _viewModel.CurrentScreen);
-            _viewModel.CurrentScreen.Widgets.Add(widget);
+
+            // 单点式：直接创建
+            _viewModel.PushUndoSnapshot();
+            var newWidget = _currentWidgetCreator.Create(pos, _viewModel.CurrentScreen);
+            _viewModel.CurrentScreen.Widgets.Add(newWidget);
             MarkProjectDirty();
             ExitAddMode();
+            e.Handled = true;
         }
 
         #endregion
@@ -439,6 +552,15 @@ namespace NavigatorHMI.Views
                 _widgetContextMenuHandler.DeleteSelectedWidget();
                 e.Handled = true;
             }
+            else if (e.Key == Key.Escape)
+            {
+                // ESC 退出添加模式（含两点式绘制中途取消）
+                if (_currentWidgetCreator != null)
+                {
+                    ExitAddMode();
+                    e.Handled = true;
+                }
+            }
         }
 
 
@@ -461,9 +583,10 @@ namespace NavigatorHMI.Views
                 return;
             }
 
-            // 先退出之前的模式，恢复原按钮内容
+            // 先退出之前的模式，恢复原按钮内容 + 清理绘制状态
             if (_activeToolboxBtn != null && _activeToolboxOriginalContent != null)
                 _activeToolboxBtn.Content = _activeToolboxOriginalContent;
+            HideDrawPreview();   // 清理两点式绘制残留状态
 
             // 进入新的添加模式
             _currentWidgetCreator = tag switch
@@ -499,6 +622,7 @@ namespace NavigatorHMI.Views
         {
             _currentWidgetCreator = null;
             DrawingCanvas.Cursor = Cursors.Arrow;
+            HideDrawPreview();
             if (_activeToolboxBtn != null && _activeToolboxOriginalContent != null)
                 _activeToolboxBtn.Content = _activeToolboxOriginalContent;
             _activeToolboxBtn = null;

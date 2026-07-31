@@ -541,6 +541,9 @@
                                             <!-- 框选矩形 -->
                                             <Rectangle x:Name="MarqueeRect" Stroke="Blue" StrokeThickness="2" Fill="#300000FF"
                                                        Visibility="Collapsed" IsHitTestVisible="False" Panel.ZIndex="1001"/>
+                                            <!-- 两点式绘制预览（Line/Circle/Rectangle） -->
+                                            <Path x:Name="DrawPreviewShape" Stroke="#1E90FF" StrokeThickness="1.5" Fill="#301E90FF"
+                                                  Visibility="Collapsed" IsHitTestVisible="False" Panel.ZIndex="1002"/>
                                             <TextBlock Text="{Binding CurrentScreen.Widgets.Count, StringFormat='Widgets: {0}'}"
                                                        Canvas.Left="10" Canvas.Top="10" Foreground="Black" Background="White" FontSize="14" FontWeight="Bold"/>
                                         </Canvas>
