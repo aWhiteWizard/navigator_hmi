@@ -36,12 +36,23 @@ namespace NavigatorHMI.Common
 
             if ((bool)e.NewValue)
             {
+                // 防重复：同一元素已存在 Adorner 时先移除（防止选中状态快速切换导致多个 Adorner 叠加）
+                if (_adornerMap.ContainsKey(element))
+                {
+                    RemoveAdorner(element);
+                }
+
                 var adornerLayer = AdornerLayer.GetAdornerLayer(element);
                 if (adornerLayer != null)
                 {
                     var adorner = new ResizeAdorner(element, widget);
                     adornerLayer.Add(adorner);
                     _adornerMap[element] = adorner;
+                    System.Diagnostics.Debug.WriteLine($"✅ 创建 Adorner: {widget.ObjectName}, 元素={element.GetType().Name}, 尺寸={element.RenderSize.Width}x{element.RenderSize.Height}");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"⚠️ AdornerLayer 为 null，无法创建 Adorner: {widget.ObjectName}（视觉树中无 AdornerDecorator？）");
                 }
             }
             else
