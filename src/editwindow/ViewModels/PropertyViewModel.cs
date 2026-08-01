@@ -138,7 +138,7 @@ namespace NavigatorHMI.ViewModels
                             case CheckBoxWidget cb: CheckBoxText = cb.Text; CheckBoxIsChecked = cb.IsChecked; CheckBoxFontFamily = cb.FontFamily; CheckBoxFontSize = cb.FontSize; CheckBoxFontWeight = cb.FontWeight; CheckBoxFontStyle = cb.FontStyle; CheckBoxTextDecoration = cb.TextDecoration; break;
                             case TextBoxWidget tbx: TextBoxContent = tbx.Content; TextBoxFontFamily = tbx.FontFamily; TextBoxFontSize = tbx.FontSize; TextBoxFontWeight = tbx.FontWeight; TextBoxFontStyle = tbx.FontStyle; TextBoxTextDecoration = tbx.TextDecoration; break;
                             case FrameWidget f: FrameTitle = f.Title; FrameFillColor = f.FillColor; FrameImagePath = f.ImagePath; FrameFontFamily = f.FontFamily; FrameFontSize = f.FontSize; FrameFontWeight = f.FontWeight; FrameFontStyle = f.FontStyle; FrameTextDecoration = f.TextDecoration; break;
-                            case ProgressBarWidget pb: ProgressValue = pb.Value; ProgressMin = pb.Min; ProgressMax = pb.Max; ProgressFillColor = pb.FillColor; break;
+                            case ProgressBarWidget pb: ProgressValue = pb.Value; ProgressMin = pb.Min; ProgressMax = pb.Max; ProgressFillColor = pb.FillColor; ProgressFillStyle = pb.FillStyle; break;
                         }
                     }
                 }
@@ -705,6 +705,10 @@ namespace NavigatorHMI.ViewModels
         public double ProgressMax { get => _progressMax; set { if (Math.Abs(_progressMax - value) > 0.001) { _progressMax = value; OnPropertyChanged(); if (_selectedWidget is ProgressBarWidget pb) pb.Max = value; } } }
         private string _progressFillColor = "#3399FF";
         public string ProgressFillColor { get => _progressFillColor; set { if (_progressFillColor != value) { _progressFillColor = value; OnPropertyChanged(); if (_selectedWidget is ProgressBarWidget pb) pb.FillColor = value; } } }
+
+        private string _progressFillStyle = "Solid";
+        /// <summary>ProgressBar 填充样式（Solid/Diagonal/Grid）。</summary>
+        public string ProgressFillStyle { get => _progressFillStyle; set { if (_progressFillStyle != value) { _progressFillStyle = value; OnPropertyChanged(); if (_selectedWidget is ProgressBarWidget pb) pb.FillStyle = value; } } }
 
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string? name = null)

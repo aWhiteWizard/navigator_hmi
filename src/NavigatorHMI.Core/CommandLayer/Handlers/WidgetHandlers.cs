@@ -182,6 +182,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 case ProgressBarWidget pb when key == "value": pb.Value = double.Parse(value); break;
                 case ProgressBarWidget pb when key == "min": pb.Min = double.Parse(value); break;
                 case ProgressBarWidget pb when key == "max": pb.Max = double.Parse(value); break;
+                case ProgressBarWidget pb when key == "fillColor": pb.FillColor = value; break;
+                case ProgressBarWidget pb when key == "fillStyle": pb.FillStyle = value; break;
                 default: return CommandResult.Fail("UNKNOWN_PROPERTY", $"不支持属性: {key}");
             }
             return CommandResult.Ok();

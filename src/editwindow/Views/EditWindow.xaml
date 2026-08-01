@@ -558,6 +558,12 @@
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="FillColor:" Style="{StaticResource PropLabel}"/>
                 <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding ProgressFillColor, Mode=TwoWay}"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Style:" Style="{StaticResource PropLabel}"/>
+                <ComboBox Grid.Column="1" SelectedValue="{Binding ProgressFillStyle, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" Style="{StaticResource PropComboBox}">
+                    <ComboBoxItem Content="Solid"/><ComboBoxItem Content="Diagonal"/><ComboBoxItem Content="Grid"/>
+                </ComboBox>
             </Grid></StackPanel></DataTemplate>
     </Window.Resources>
 

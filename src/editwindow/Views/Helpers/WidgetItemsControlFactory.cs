@@ -412,6 +412,11 @@ namespace NavigatorHMI.Views.Helpers
             pb.SetBinding(ProgressBar.ValueProperty, new Binding("Value"));
             pb.SetBinding(ProgressBar.MinimumProperty, new Binding("Min"));
             pb.SetBinding(ProgressBar.MaximumProperty, new Binding("Max"));
+            // 填充 = Foreground（WPF ProgressBar Indicator 默认绑 Foreground）→ PatternFillConverter 生成花纹刷
+            var fill = new MultiBinding { Converter = new PatternFillConverter() };
+            fill.Bindings.Add(new Binding("FillStyle"));
+            fill.Bindings.Add(new Binding("FillColor"));
+            pb.SetBinding(ProgressBar.ForegroundProperty, fill);
             pb.SetBinding(ProgressBar.WidthProperty, new Binding("Width"));
             pb.SetBinding(ProgressBar.HeightProperty, new Binding("Height"));
             pb.SetBinding(SelectorHelper.IsSelectedProperty, new Binding("IsSelected") { Mode = BindingMode.TwoWay });
@@ -519,6 +524,69 @@ namespace NavigatorHMI.Views.Helpers
             bool isOn = values.Length > 0 && values[0] is bool b && b;
             return isOn ? (values.Length > 1 ? values[1]?.ToString() ?? "ON" : "ON")
                         : (values.Length > 2 ? values[2]?.ToString() ?? "OFF" : "OFF");
+        }
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, System.Globalization.CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
+    /// <summary>
+    /// 进度条填充样式转换器（MultiBinding: FillStyle + FillColor）。
+    /// Solid=实心；Diagonal=斜线花纹；Grid=方格花纹（DrawingBrush 平铺，TileMode.Tile）。
+    /// </summary>
+    public class PatternFillConverter : IMultiValueConverter
+    {
+        private static readonly BrushConverter _brushConverter = new();
+
+        public object Convert(object[] values, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            string style = values.Length > 0 ? values[0]?.ToString() ?? "Solid" : "Solid";
+            string color = values.Length > 1 ? values[1]?.ToString() ?? "#3399FF" : "#3399FF";
+            Brush? colorBrush = null;
+            try { colorBrush = (Brush)_brushConverter.ConvertFrom(color)!; }
+            catch { colorBrush = new SolidColorBrush(Color.FromRgb(0x33, 0x99, 0xFF)); }
+
+            if (style == "Diagonal" || style == "Grid")
+            {
+                var group = new DrawingGroup();
+                // 底色：浅色底（颜色淡化版）
+                var baseColor = colorBrush is SolidColorBrush scb ? scb.Color
+                    : Color.FromRgb(0x33, 0x99, 0xFF);
+                var lightColor = Color.FromArgb(
+                    baseColor.A,
+                    (byte)(baseColor.R + (255 - baseColor.R) / 2),
+                    (byte)(baseColor.G + (255 - baseColor.G) / 2),
+                    (byte)(baseColor.B + (255 - baseColor.B) / 2));
+                group.Children.Add(new GeometryDrawing(
+                    new SolidColorBrush(lightColor),
+                    null,
+                    new RectangleGeometry(new Rect(0, 0, 14, 14))));
+
+                var geo = new GeometryGroup();
+                if (style == "Diagonal")
+                {
+                    geo.Children.Add(new LineGeometry(new Point(0, 14), new Point(14, 0)));
+                    geo.Children.Add(new LineGeometry(new Point(0, 0), new Point(14, 14)));   // 交叉斜线
+                }
+                else
+                {
+                    geo.Children.Add(new RectangleGeometry(new Rect(0, 0, 14, 14)));          // 方格边框
+                    geo.Children.Add(new RectangleGeometry(new Rect(7, 7, 14, 14)));          // 格线（7px 均匀方格网）
+                }
+                group.Children.Add(new GeometryDrawing(null, new Pen(colorBrush, 2.0), geo));
+
+                var pattern = new DrawingBrush(group)
+                {
+                    TileMode = TileMode.Tile,
+                    Viewport = new Rect(0, 0, 14, 14),
+                    ViewportUnits = BrushMappingMode.Absolute
+                };
+                pattern.Freeze();
+                return pattern;
+            }
+
+            // Solid：直接返回颜色画刷（冻结防共享风险）
+            colorBrush.Freeze();
+            return colorBrush;
         }
         public object[] ConvertBack(object value, Type[] targetTypes, object parameter, System.Globalization.CultureInfo culture)
             => throw new NotImplementedException();

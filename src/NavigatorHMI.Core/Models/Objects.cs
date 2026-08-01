@@ -749,6 +749,11 @@ public class ProgressBarWidget : Widget
     /// <summary>进度条填充色（CSS 格式）</summary>
     [ProtoMember(4)]
     public string FillColor { get => _fillColor; set { _fillColor = value; OnPropertyChanged(); } }
+
+    private string _fillStyle = "Solid";
+    /// <summary>填充样式：Solid（实心）/ Diagonal（斜线）/ Grid（方格）</summary>
+    [ProtoMember(5)]
+    public string FillStyle { get => _fillStyle; set { _fillStyle = value; OnPropertyChanged(); } }
 }
 
 } // namespace NavigatorHMI.Common
