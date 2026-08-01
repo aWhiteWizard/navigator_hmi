@@ -84,11 +84,6 @@ namespace NavigatorHMI.Common
         }
 
         /// <summary>
-        /// 标准缩放手柄 Adorner 必须重写 MeasureOverride 返回被装饰元素的实际尺寸。
-        /// 缺失时 DesiredSize 可能为 (0,0)，导致 ArrangeOverride 的 finalSize 不可靠。
-        /// RenderSize 为 (0,0)（元素未完成首次布局）时回退到模型尺寸，与 ArrangeOverride 同策略。
-        /// </summary>
-        /// <summary>
         /// 获取被装饰元素的实际尺寸（统一取值源）。
         /// RenderSize 为 (0,0)（元素未完成首次布局）时回退到模型尺寸。
         /// </summary>
@@ -219,8 +214,6 @@ private void Thumb_DragDelta(object sender, DragDeltaEventArgs e)
 
             // 数据更新后重新测量 Adorner（InvalidateMeasure 级联触发 arrange 失效），确保缩放手柄跟随新尺寸
             InvalidateMeasure();
-
-            System.Diagnostics.Debug.WriteLine($"🎯 Resize: dir={dir}, dX={e.HorizontalChange:F1}, dY={e.VerticalChange:F1}, → X={newX:F1}, Y={newY:F1}, W={newW:F1}, H={newH:F1}");
         }
 
         protected override void OnRender(DrawingContext drawingContext)

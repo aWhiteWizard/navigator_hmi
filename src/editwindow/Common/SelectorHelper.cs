@@ -48,7 +48,7 @@ namespace NavigatorHMI.Common
                     var adorner = new ResizeAdorner(element, widget);
                     adornerLayer.Add(adorner);
                     _adornerMap[element] = adorner;
-                    System.Diagnostics.Debug.WriteLine($"✅ 创建 Adorner: {widget.ObjectName}, 元素={element.GetType().Name}, 尺寸={element.RenderSize.Width}x{element.RenderSize.Height}");
+                    System.Diagnostics.Debug.WriteLine($"✅ 创建 Adorner: {widget.ObjectName}, 元素={element.GetType().Name}, 尺寸={element.RenderSize.Width}x{element.RenderSize.Height}, Layer={adornerLayer.GetType().Name}({adornerLayer.GetHashCode():X})");
                 }
                 else
                 {

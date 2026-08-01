@@ -456,9 +456,29 @@ namespace NavigatorHMI.Views
             _drawPreviewPath = null;
         }
 
+        /// <summary>
+        /// 判断命中元素是否属于 Adorner 树（缩放手柄 Thumb 及其模板内部元素）。
+        /// Adorner 树上的元素 DataContext 继承自窗口（EditWindowViewModel），
+        /// 不是 Widget，会被 FindWidgetElement 误判为"空白点击"而清除选中——
+        /// 必须在清除逻辑前拦截。
+        /// </summary>
+        private static bool IsAdornerHit(DependencyObject? node)
+        {
+            while (node != null)
+            {
+                if (node is System.Windows.Documents.Adorner) return true;
+                node = System.Windows.Media.VisualTreeHelper.GetParent(node);
+            }
+            return false;
+        }
+
         private void Canvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (TreeContextMenu.IsOpen) { TreeContextMenu.IsOpen = false; }
+
+            // [修复] 命中 Adorner 缩放手柄（Thumb 或其内部模板元素）时，视为点击选中装饰器：
+            // 保持选中状态不清除，让 Thumb 正常接收 MouseDown 进入拖拽缩放
+            if (IsAdornerHit(e.OriginalSource as DependencyObject)) return;
 
             // 两点式绘制：第二点击生成控件（优先响应，不受已有点击拦截影响）
             if (_currentWidgetCreator is ITwoPointCreator twoPoint && _isDrawingPreview)
