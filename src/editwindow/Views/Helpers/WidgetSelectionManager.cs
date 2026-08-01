@@ -98,6 +98,16 @@ namespace NavigatorHMI.Views.Helpers
         private Point _lastClickPosition;
 
         /// <summary>
+        /// 重置双击检测计时（拖拽结束后调用）。
+        /// 长按+拖拽的按下时间戳会污染下一次点击的双击判定，拖拽结束必须重置。
+        /// </summary>
+        public void ResetDoubleClickDetection()
+        {
+            _lastClickTime = default;
+            _lastClickPosition = default;
+        }
+
+        /// <summary>
         /// 统一处理 Widget 的点击事件，自动区分单击和双击。
         /// 单击 → 静默选中（不触发 <see cref="WidgetSelected"/> 事件，不弹出属性窗口）。
         /// 双击 → 完整选中（触发事件弹出属性窗口）。
