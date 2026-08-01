@@ -110,6 +110,10 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 case ButtonWidget btn when key == "text": btn.Text = value; break;
                 case TextWidget txt when key == "content": txt.Content = value; break;
                 case TextWidget txt when key == "fillColor": txt.FillColor = value; break;
+                case TextWidget txt when key == "fontSize": txt.FontSize = double.Parse(value); break;
+                case TextWidget txt when key == "fontWeight": txt.FontWeight = value; break;
+                case TextWidget txt when key == "textColor": txt.TextColor = value; break;
+                case TextWidget txt when key == "hAlign": txt.HAlign = value; break;
                 case RectangleWidget rect when key == "fillColor": rect.FillColor = value; break;
                 case LabelWidget lbl when key == "text": lbl.Text = value; break;
                 case LabelWidget lbl when key == "textColor": lbl.TextColor = value; break;
@@ -120,6 +124,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 case NumericDisplayWidget nd when key == "suffix": nd.Suffix = value; break;
                 case NumericDisplayWidget nd when key == "decimalPlaces": nd.DecimalPlaces = int.Parse(value); break;
                 case NumericDisplayWidget nd when key == "fillColor": nd.FillColor = value; break;
+                case NumericDisplayWidget nd when key == "value": nd.Value = double.Parse(value); break;
                 case SwitchWidget sw when key == "isOn": sw.IsOn = bool.Parse(value); break;
                 case LineWidget line when key == "strokeColor": line.StrokeColor = value; break;
                 case LineWidget line when key == "strokeThickness": line.StrokeThickness = double.Parse(value); break;

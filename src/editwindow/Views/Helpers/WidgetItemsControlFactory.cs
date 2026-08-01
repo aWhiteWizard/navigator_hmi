@@ -181,6 +181,7 @@ namespace NavigatorHMI.Views.Helpers
             var dt = new DataTemplate();
             var tb = new FrameworkElementFactory(typeof(TextBlock));
             tb.SetBinding(TextBlock.TextProperty, new Binding("Content"));
+            BindTextFormatting(tb);
             tb.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
             dt.VisualTree = WrapWithBorder(tb, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU, bindFillBackground: true);   // TextContentTemplate
             return dt;
@@ -192,9 +193,19 @@ namespace NavigatorHMI.Views.Helpers
             var dt = new DataTemplate();
             var tb = new FrameworkElementFactory(typeof(TextBlock));
             tb.SetBinding(TextBlock.TextProperty, new Binding("Text"));
+            BindTextFormatting(tb);
             tb.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
             dt.VisualTree = WrapWithBorder(tb, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU, bindFillBackground: true);   // LabelTemplate（仅 LabelWidget 使用）
             return dt;
+        }
+
+        /// <summary>绑定文本格式属性（FontSize/FontWeight/Foreground/TextAlignment），Text/Label 共享。</summary>
+        private static void BindTextFormatting(FrameworkElementFactory tb)
+        {
+            tb.SetBinding(TextBlock.FontSizeProperty, new Binding("FontSize"));
+            tb.SetBinding(TextBlock.FontWeightProperty, new Binding("FontWeight"));
+            tb.SetBinding(TextBlock.ForegroundProperty, new Binding("TextColor") { Converter = new ColorStringToBrushConverter() });
+            tb.SetBinding(TextBlock.TextAlignmentProperty, new Binding("HAlign") { Converter = new HAlignToTextAlignmentConverter() });
         }
 
         private static DataTemplate CreateImageTemplate(RoutedEventHandler click, MouseButtonEventHandler pmLBD, MouseButtonEventHandler mLBD,
@@ -221,7 +232,15 @@ namespace NavigatorHMI.Views.Helpers
         {
             var dt = new DataTemplate();
             var tb = new FrameworkElementFactory(typeof(TextBlock));
-            tb.SetBinding(TextBlock.TextProperty, new Binding("Prefix"));
+            // Prefix + Value + Suffix 组合显示（DecimalPlaces 控制小数位）；运行时由 BoundTag 变量覆盖
+            var multi = new MultiBinding { Converter = new NumericDisplayTextConverter() };
+            multi.Bindings.Add(new Binding("Prefix"));
+            multi.Bindings.Add(new Binding("Value"));
+            multi.Bindings.Add(new Binding("Suffix"));
+            multi.Bindings.Add(new Binding("DecimalPlaces"));
+            tb.SetBinding(TextBlock.TextProperty, multi);
+            tb.SetBinding(TextBlock.FontSizeProperty, new Binding("FontSize"));
+            tb.SetBinding(TextBlock.ForegroundProperty, new Binding("TextColor") { Converter = new ColorStringToBrushConverter() });
             tb.SetValue(TextBlock.TextAlignmentProperty, TextAlignment.Center);
             tb.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
             dt.VisualTree = WrapWithBorder(tb, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU, bindFillBackground: true);   // NumericDisplayTemplate
@@ -394,6 +413,35 @@ namespace NavigatorHMI.Views.Helpers
     {
         public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture) => 0.0;
         public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
+    /// <summary>HAlign 字符串（Left/Center/Right）→ TextAlignment 转换器（Text/Label 模板绑定）。</summary>
+    public class HAlignToTextAlignmentConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            => value?.ToString() switch
+            {
+                "Center" => TextAlignment.Center,
+                "Right" => TextAlignment.Right,
+                _ => TextAlignment.Left
+            };
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
+    /// <summary>NumericDisplay 文本组合：Prefix + Value(按 DecimalPlaces 格式化) + Suffix。</summary>
+    public class NumericDisplayTextConverter : IMultiValueConverter
+    {
+        public object Convert(object[] values, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            string prefix = values.Length > 0 ? values[0]?.ToString() ?? "" : "";
+            double value = values.Length > 1 && values[1] is double v ? v : 0;
+            string suffix = values.Length > 2 ? values[2]?.ToString() ?? "" : "";
+            int decimals = values.Length > 3 && values[3] is int d ? d : 1;
+            return $"{prefix}{value.ToString("F" + Math.Clamp(decimals, 0, 6))}{suffix}";
+        }
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, System.Globalization.CultureInfo culture)
             => throw new NotImplementedException();
     }
 }

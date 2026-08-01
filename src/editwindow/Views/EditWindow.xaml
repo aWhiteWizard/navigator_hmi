@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:ctrl="clr-namespace:NavigatorHMI.Views"
         xmlns:local="clr-namespace:NavigatorHMI"
         xmlns:vm="clr-namespace:NavigatorHMI.ViewModels"
         xmlns:avalon="https://github.com/Dirkster99/AvalonDock"
@@ -43,6 +44,9 @@
             <Style.Triggers><Trigger Property="IsReadOnly" Value="True">
                 <Setter Property="Background" Value="#F0F0F0"/><Setter Property="Foreground" Value="#999999"/><Setter Property="BorderBrush" Value="#D0D0D0"/>
             </Trigger></Style.Triggers>
+        </Style>
+        <Style x:Key="PropComboBox" TargetType="ComboBox">
+            <Setter Property="Height" Value="22"/><Setter Property="Margin" Value="2"/><Setter Property="FontSize" Value="11"/>
         </Style>
         <Style x:Key="PropObjNameBox" TargetType="TextBox" BasedOn="{StaticResource PropTextBox}">
             <Style.Triggers><DataTrigger Binding="{Binding HasDuplicateObjectName}" Value="True">
@@ -111,8 +115,25 @@
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Color:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding TextFillColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" ToolTip="留空或填 Transparent 不显示背景"/>
-        </Grid></StackPanel></DataTemplate>
+                <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding TextFillColor, Mode=TwoWay}"/>
+            </Grid>
+            <TextBlock Text="字体" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Size:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding TextFontSize, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+                <Label Grid.Column="2" Content="Weight:" Style="{StaticResource PropLabel}"/>
+                <ComboBox Grid.Column="3" SelectedValue="{Binding TextFontWeight, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" Style="{StaticResource PropComboBox}">
+                    <ComboBoxItem Content="Normal"/><ComboBoxItem Content="Bold"/>
+                </ComboBox>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Color:" Style="{StaticResource PropLabel}"/>
+                <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding TextTextColor, Mode=TwoWay}"/>
+                <Label Grid.Column="2" Content="Align:" Style="{StaticResource PropLabel}"/>
+                <ComboBox Grid.Column="3" SelectedValue="{Binding TextHAlign, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" Style="{StaticResource PropComboBox}">
+                    <ComboBoxItem Content="Left"/><ComboBoxItem Content="Center"/><ComboBoxItem Content="Right"/>
+                </ComboBox>
+            </Grid></StackPanel></DataTemplate>
         <DataTemplate x:Key="PropRect"><StackPanel>
             <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
@@ -121,7 +142,7 @@
             <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="FillColor:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding RectFillColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+                <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding RectFillColor, Mode=TwoWay}"/>
         </Grid></StackPanel></DataTemplate>
 
         <!-- LabelWidget 属性 -->
@@ -141,11 +162,11 @@
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Color:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding LabelTextColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+                <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding LabelTextColor, Mode=TwoWay}"/>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="BgColor:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding LabelFillColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" ToolTip="留空或填 Transparent 不显示背景"/>
+                <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding LabelFillColor, Mode=TwoWay}"/>
             </Grid></StackPanel></DataTemplate>
 
         <!-- ImageWidget 属性 -->
@@ -161,7 +182,7 @@
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Color:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding ImageFillColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+                <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding ImageFillColor, Mode=TwoWay}"/>
             </Grid></StackPanel></DataTemplate>
 
         <!-- NumericDisplayWidget 属性 -->
@@ -174,6 +195,10 @@
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Prefix:" Style="{StaticResource PropLabel}"/>
                 <TextBox Grid.Column="1" Text="{Binding NumericPrefix, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Value:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding NumericValue, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}" ToolTip="设计态预览值（运行时由变量实时值覆盖）"/>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Suffix:" Style="{StaticResource PropLabel}"/>
@@ -189,11 +214,11 @@
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Color:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding NumericTextColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+                <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding NumericTextColor, Mode=TwoWay}"/>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="BgColor:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding NumericFillColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" ToolTip="留空或填 Transparent 不显示背景"/>
+                <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding NumericFillColor, Mode=TwoWay}"/>
             </Grid></StackPanel></DataTemplate>
 
         <!-- SwitchWidget 属性 -->
@@ -232,7 +257,7 @@
             <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="110"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="StrokeColor:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding LineStrokeColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+                <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding LineStrokeColor, Mode=TwoWay}"/>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="110"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Thickness:" Style="{StaticResource PropLabel}"/>
@@ -248,11 +273,11 @@
             <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="FillColor:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding CircleFillColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+                <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding CircleFillColor, Mode=TwoWay}"/>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="StrokeColor:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding CircleStrokeColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+                <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding CircleStrokeColor, Mode=TwoWay}"/>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Thickness:" Style="{StaticResource PropLabel}"/>
@@ -276,7 +301,7 @@
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="BgColor:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding IOFieldFillColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" ToolTip="留空或填 Transparent 不显示背景"/>
+                <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding IOFieldFillColor, Mode=TwoWay}"/>
             </Grid></StackPanel></DataTemplate>
 
         <!-- CheckBoxWidget 属性 -->
@@ -324,7 +349,7 @@
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="FillColor:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding FrameFillColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+                <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding FrameFillColor, Mode=TwoWay}"/>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="图片路径:" Style="{StaticResource PropLabel}"/>
@@ -350,7 +375,7 @@
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="FillColor:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding ProgressFillColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+                <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding ProgressFillColor, Mode=TwoWay}"/>
             </Grid></StackPanel></DataTemplate>
     </Window.Resources>
 

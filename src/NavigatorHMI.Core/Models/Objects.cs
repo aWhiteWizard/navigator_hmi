@@ -237,6 +237,26 @@ public class TextWidget : Widget
     /// <summary>背景色（CSS 格式，默认浅灰；保证控件可见、可选中）</summary>
     [ProtoMember(2)]
     public string FillColor { get => _fillColor; set { _fillColor = value; OnPropertyChanged(); } }
+
+    private double _fontSize = 14;
+    /// <summary>字体大小（像素）</summary>
+    [ProtoMember(3)]
+    public double FontSize { get => _fontSize; set { _fontSize = value; OnPropertyChanged(); } }
+
+    private string _fontWeight = "Normal";
+    /// <summary>字重：Normal / Bold</summary>
+    [ProtoMember(4)]
+    public string FontWeight { get => _fontWeight; set { _fontWeight = value; OnPropertyChanged(); } }
+
+    private string _textColor = "#000000";
+    /// <summary>文本颜色（CSS 格式，如 "#FF0000"）</summary>
+    [ProtoMember(5)]
+    public string TextColor { get => _textColor; set { _textColor = value; OnPropertyChanged(); } }
+
+    private string _hAlign = "Left";
+    /// <summary>水平对齐：Left / Center / Right</summary>
+    [ProtoMember(6)]
+    public string HAlign { get => _hAlign; set { _hAlign = value; OnPropertyChanged(); } }
 }
 
 /// <summary>
@@ -352,6 +372,11 @@ public class NumericDisplayWidget : Widget
     /// <summary>背景色（CSS 格式，默认浅灰；保证控件可见、可选中）</summary>
     [ProtoMember(6)]
     public string FillColor { get => _fillColor; set { _fillColor = value; OnPropertyChanged(); } }
+
+    private double _value = 0;
+    /// <summary>设计态数值预览（运行时由 BoundTag 变量实时值覆盖）</summary>
+    [ProtoMember(7)]
+    public double Value { get => _value; set { _value = value; OnPropertyChanged(); } }
 }
 
 /// <summary>

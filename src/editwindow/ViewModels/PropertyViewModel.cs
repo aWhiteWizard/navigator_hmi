@@ -126,11 +126,11 @@ namespace NavigatorHMI.ViewModels
                         switch (value)
                         {
                             case ButtonWidget btn: ButtonText = btn.Text; break;
-                            case TextWidget txt: TextContent = txt.Content; TextFillColor = txt.FillColor; break;
+                            case TextWidget txt: TextContent = txt.Content; TextFillColor = txt.FillColor; TextFontSize = txt.FontSize; TextFontWeight = txt.FontWeight; TextTextColor = txt.TextColor; TextHAlign = txt.HAlign; break;
                             case RectangleWidget rect: RectFillColor = rect.FillColor; break;
                             case LabelWidget lbl: LabelText = lbl.Text; LabelFontSize = lbl.FontSize; LabelTextColor = lbl.TextColor; LabelFillColor = lbl.FillColor; break;
                             case ImageWidget img: ImagePath = img.ImagePath; ImageFillColor = img.FillColor; break;
-                            case NumericDisplayWidget nd: NumericPrefix = nd.Prefix; NumericSuffix = nd.Suffix; NumericDecimalPlaces = nd.DecimalPlaces; NumericFontSize = nd.FontSize; NumericTextColor = nd.TextColor; NumericFillColor = nd.FillColor; break;
+                            case NumericDisplayWidget nd: NumericPrefix = nd.Prefix; NumericSuffix = nd.Suffix; NumericDecimalPlaces = nd.DecimalPlaces; NumericFontSize = nd.FontSize; NumericTextColor = nd.TextColor; NumericFillColor = nd.FillColor; NumericValue = nd.Value; break;
                             case SwitchWidget sw: SwitchIsOn = sw.IsOn; SwitchOnText = sw.OnText; SwitchOffText = sw.OffText; break;
                             case LineWidget line: LineX2 = line.X2; LineY2 = line.Y2; LineStrokeColor = line.StrokeColor; LineStrokeThickness = line.StrokeThickness; break;
                             case CircleWidget c: CircleFillColor = c.FillColor; CircleStrokeColor = c.StrokeColor; CircleStrokeThickness = c.StrokeThickness; break;
@@ -458,6 +458,18 @@ namespace NavigatorHMI.ViewModels
         private string _textFillColor = "#EEEEEE";
         /// <summary>Text 背景色（CSS 格式）。</summary>
         public string TextFillColor { get => _textFillColor; set { if (_textFillColor != value) { _textFillColor = value; OnPropertyChanged(); if (_selectedWidget is TextWidget txt) txt.FillColor = value; } } }
+        private double _textFontSize = 14;
+        /// <summary>Text 字体大小。</summary>
+        public double TextFontSize { get => _textFontSize; set { if (Math.Abs(_textFontSize - value) > 0.001) { _textFontSize = value; OnPropertyChanged(); if (_selectedWidget is TextWidget txt) txt.FontSize = value; } } }
+        private string _textFontWeight = "Normal";
+        /// <summary>Text 字重。</summary>
+        public string TextFontWeight { get => _textFontWeight; set { if (_textFontWeight != value) { _textFontWeight = value; OnPropertyChanged(); if (_selectedWidget is TextWidget txt) txt.FontWeight = value; } } }
+        private string _textTextColor = "#000000";
+        /// <summary>Text 文本色。</summary>
+        public string TextTextColor { get => _textTextColor; set { if (_textTextColor != value) { _textTextColor = value; OnPropertyChanged(); if (_selectedWidget is TextWidget txt) txt.TextColor = value; } } }
+        private string _textHAlign = "Left";
+        /// <summary>Text 水平对齐。</summary>
+        public string TextHAlign { get => _textHAlign; set { if (_textHAlign != value) { _textHAlign = value; OnPropertyChanged(); if (_selectedWidget is TextWidget txt) txt.HAlign = value; } } }
 
         private string _rectFillColor = "#EEEEEE";
         public string RectFillColor
@@ -497,6 +509,9 @@ namespace NavigatorHMI.ViewModels
         private string _numericFillColor = "#EEEEEE";
         /// <summary>NumericDisplay 背景色（CSS 格式）。</summary>
         public string NumericFillColor { get => _numericFillColor; set { if (_numericFillColor != value) { _numericFillColor = value; OnPropertyChanged(); if (_selectedWidget is NumericDisplayWidget nd) nd.FillColor = value; } } }
+        private double _numericValue = 0;
+        /// <summary>NumericDisplay 设计态数值预览。</summary>
+        public double NumericValue { get => _numericValue; set { if (Math.Abs(_numericValue - value) > 0.001) { _numericValue = value; OnPropertyChanged(); if (_selectedWidget is NumericDisplayWidget nd) nd.Value = value; } } }
 
         private bool _switchIsOn = false;
         public bool SwitchIsOn { get => _switchIsOn; set { if (_switchIsOn != value) { _switchIsOn = value; OnPropertyChanged(); if (_selectedWidget is SwitchWidget sw) sw.IsOn = value; } } }
