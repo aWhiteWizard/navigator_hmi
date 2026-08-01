@@ -209,29 +209,18 @@ namespace NavigatorHMI.Views.Helpers
             return dt;
         }
 
-        /// <summary>
-        /// 绑定文本格式属性（TextBlock 类：FontFamily/FontSize/FontWeight/FontStyle/TextDecorations + Foreground/TextAlignment）。
-        /// Text/Label/NumericDisplay/IOField 共享。Foreground 用 MultiBinding（TextColor+FillColor）：
-        /// 文本色透明或与背景相同 → 回退黑色，保证文字可见。
-        /// </summary>
-        private static void BindTextFormatting(FrameworkElementFactory tb, bool centerAlign = false, bool useSafeColor = true)
+        /// <summary>绑定文本格式属性（TextBlock 类，Foreground 用 SafeTextColorConverter：文本色透明/同背景回退黑）。</summary>
+        private static void BindTextFormatting(FrameworkElementFactory tb, bool centerAlign = false)
         {
             tb.SetBinding(TextBlock.FontFamilyProperty, new Binding("FontFamily"));
             tb.SetBinding(TextBlock.FontSizeProperty, new Binding("FontSize"));
             tb.SetBinding(TextBlock.FontWeightProperty, new Binding("FontWeight"));
             tb.SetBinding(TextBlock.FontStyleProperty, new Binding("FontStyle"));
             tb.SetBinding(TextBlock.TextDecorationsProperty, new Binding("TextDecoration") { Converter = new TextDecorationConverter() });
-            if (useSafeColor)
-            {
-                var fg = new MultiBinding { Converter = new SafeTextColorConverter() };
-                fg.Bindings.Add(new Binding("TextColor"));
-                fg.Bindings.Add(new Binding("FillColor"));
-                tb.SetBinding(TextBlock.ForegroundProperty, fg);
-            }
-            else
-            {
-                tb.SetValue(TextBlock.ForegroundProperty, Brushes.Black);   // 无 TextColor 属性的控件（Button/Switch/CheckBox/Frame）
-            }
+            var fg = new MultiBinding { Converter = new SafeTextColorConverter() };
+            fg.Bindings.Add(new Binding("TextColor"));
+            fg.Bindings.Add(new Binding("FillColor"));
+            tb.SetBinding(TextBlock.ForegroundProperty, fg);
             if (centerAlign)
                 tb.SetValue(TextBlock.TextAlignmentProperty, TextAlignment.Center);
             else
