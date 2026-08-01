@@ -146,6 +146,8 @@ namespace NavigatorHMI.Views
             _viewModel.RefreshCanvasRequested += () => LoadCanvas(_viewModel.CurrentScreen);
             _viewModel.ProjectDirtyRequested += MarkProjectDirty;
 
+            // 10. 初始化属性窗口（必须在 LoadCanvas 之前——LoadCanvas 注入画布尺寸到 PropertyViewModel）
+            _propertyViewModel = new PropertyViewModel();
 
             LoadCanvas(_viewModel.CurrentScreen);
 
@@ -174,7 +176,6 @@ namespace NavigatorHMI.Views
                 }
             };
             // 10. 初始化属性窗口
-            _propertyViewModel = new PropertyViewModel();
             _selectionManager.WidgetSelected += OnWidgetSelected;
         }
 
@@ -306,6 +307,18 @@ namespace NavigatorHMI.Views
             MarkProjectDirty();
         }
 
+        /// <summary>
+        /// 属性面板数字输入框 Enter 键确认：移动焦点到下一元素（触发 LostFocus 应用绑定值）。
+        /// </summary>
+        private void PropNumberBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == System.Windows.Input.Key.Enter)
+            {
+                (sender as FrameworkElement)?.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next));
+                e.Handled = true;
+            }
+        }
+
         private void CheckBinding()
         {
             var vm = this.DataContext as EditWindowViewModel;
@@ -392,6 +405,10 @@ namespace NavigatorHMI.Views
 
             // 订阅模型脏标记（任意控件属性变化 → 标题加 * 并在关闭时提醒保存）
             SubscribeModelDirty(screen);
+
+            // 注入画布尺寸到属性面板（坐标/尺寸钳制用）
+            _propertyViewModel.CanvasWidth = screen.Width > 0 ? screen.Width : (_viewModel?.DeviceWidth ?? screen.Width);
+            _propertyViewModel.CanvasHeight = screen.Height > 0 ? screen.Height : (_viewModel?.DeviceHeight ?? screen.Height);
 
             System.Diagnostics.Debug.WriteLine($"✅ ItemsControl 已创建并添加到 Canvas");
             System.Diagnostics.Debug.WriteLine($"   尺寸: {itemsControl.Width}x{itemsControl.Height}");

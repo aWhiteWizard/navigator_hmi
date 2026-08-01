@@ -244,7 +244,12 @@ namespace NavigatorHMI.ViewModels
                 {
                     _screenWidth = rounded;
                     OnPropertyChanged();
-                    if (_selectedScreen != null) _selectedScreen.Width = rounded;
+                    if (_selectedScreen != null)
+                    {
+                        _selectedScreen.Width = rounded;
+                        // 同步刷新钳制上限（画面尺寸变更后立即生效）
+                        CanvasWidth = rounded;
+                    }
                 }
             }
         }
@@ -261,7 +266,11 @@ namespace NavigatorHMI.ViewModels
                 {
                     _screenHeight = rounded;
                     OnPropertyChanged();
-                    if (_selectedScreen != null) _selectedScreen.Height = rounded;
+                    if (_selectedScreen != null)
+                    {
+                        _selectedScreen.Height = rounded;
+                        CanvasHeight = rounded;
+                    }
                 }
             }
         }
@@ -286,12 +295,22 @@ namespace NavigatorHMI.ViewModels
 
         // ── 控件绑定的属性字段 ──
 
+        /// <summary>画布尺寸（由 EditWindow.LoadCanvas 注入，用于属性面板坐标/尺寸钳制）。</summary>
+        public double CanvasWidth { get; set; } = double.MaxValue;
+        /// <summary>画布尺寸（由 EditWindow.LoadCanvas 注入）。</summary>
+        public double CanvasHeight { get; set; } = double.MaxValue;
+
         private double _x;
         public double X
         {
             get => _x;
             set
             {
+                if (_selectedWidget != null)
+                {
+                    if (!double.IsFinite(value)) value = _x;   // 防 NaN/Infinity
+                    value = Math.Max(0, Math.Min(value, CanvasWidth - _selectedWidget.Width));   // 0 ≤ X ≤ 画布宽-控件宽
+                }
                 if (Math.Abs(_x - value) > 0.001)
                 {
                     _x = value;
@@ -308,6 +327,11 @@ namespace NavigatorHMI.ViewModels
             get => _y;
             set
             {
+                if (_selectedWidget != null)
+                {
+                    if (!double.IsFinite(value)) value = _y;
+                    value = Math.Max(0, Math.Min(value, CanvasHeight - _selectedWidget.Height));
+                }
                 if (Math.Abs(_y - value) > 0.001)
                 {
                     _y = value;
@@ -323,6 +347,13 @@ namespace NavigatorHMI.ViewModels
             get => _width;
             set
             {
+                if (_selectedWidget != null)
+                {
+                    if (!double.IsFinite(value)) value = _width;
+                    // 1 ≤ Width ≤ 画布宽 - X（X+W 不超画布）
+                    double maxW = Math.Max(1, CanvasWidth - _selectedWidget.X);
+                    value = Math.Max(1, Math.Min(value, maxW));
+                }
                 if (Math.Abs(_width - value) > 0.001)
                 {
                     _width = value;
@@ -338,6 +369,12 @@ namespace NavigatorHMI.ViewModels
             get => _height;
             set
             {
+                if (_selectedWidget != null)
+                {
+                    if (!double.IsFinite(value)) value = _height;
+                    double maxH = Math.Max(1, CanvasHeight - _selectedWidget.Y);
+                    value = Math.Max(1, Math.Min(value, maxH));
+                }
                 if (Math.Abs(_height - value) > 0.001)
                 {
                     _height = value;

@@ -60,17 +60,17 @@
             <TextBlock Text="位置" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="25"/><ColumnDefinition Width="*"/><ColumnDefinition Width="5"/><ColumnDefinition Width="25"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="X:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding X, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+                <TextBox Grid.Column="1" Text="{Binding X, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}" KeyDown="PropNumberBox_KeyDown" ToolTip="输入完成后失焦确认生效"/>
                 <Label Grid.Column="3" Content="Y:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="4" Text="{Binding Y, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+                <TextBox Grid.Column="4" Text="{Binding Y, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}" KeyDown="PropNumberBox_KeyDown" ToolTip="输入完成后失焦确认生效"/>
         </Grid></StackPanel></DataTemplate>
         <DataTemplate x:Key="PropSize"><StackPanel>
             <TextBlock Text="尺寸" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="25"/><ColumnDefinition Width="*"/><ColumnDefinition Width="5"/><ColumnDefinition Width="25"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="W:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding Width, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+                <TextBox Grid.Column="1" Text="{Binding Width, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}" KeyDown="PropNumberBox_KeyDown" ToolTip="输入完成后失焦确认生效"/>
                 <Label Grid.Column="3" Content="H:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="4" Text="{Binding Height, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+                <TextBox Grid.Column="4" Text="{Binding Height, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}" KeyDown="PropNumberBox_KeyDown" ToolTip="输入完成后失焦确认生效"/>
         </Grid></StackPanel></DataTemplate>
         <DataTemplate x:Key="PropName"><StackPanel>
             <TextBlock Text="名称" Style="{StaticResource PropGroupHeader}"/>
