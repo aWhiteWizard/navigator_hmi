@@ -11,7 +11,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
             Parameters = new()
             {
                 ["screen_name"] = new() { Type = "string", Required = true },
-                ["widget_type"] = new() { Type = "enum", Required = true, EnumValues = new[] { "button", "text", "rectangle", "label", "image", "numeric", "switch", "line", "circle", "iofield", "checkbox", "textbox", "frame", "progressbar" } },
+                ["widget_type"] = new() { Type = "enum", Required = true, EnumValues = new[] { "button", "text", "rectangle", "label", "image", "numeric", "switch", "line", "circle", "ellipse", "iofield", "checkbox", "textbox", "frame", "progressbar" } },
                 ["x"] = new() { Type = "int", Required = true },
                 ["y"] = new() { Type = "int", Required = true },
                 ["width"] = new() { Type = "int", DefaultValue = 100 },
@@ -40,6 +40,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 "switch" => new SwitchWidget(),
                 "line" => new LineWidget { X2 = 100, Y2 = 0 },
                 "circle" => new CircleWidget(),
+                "ellipse" => new EllipseWidget(),
                 "iofield" => new IOFieldWidget(),
                 "checkbox" => new CheckBoxWidget(),
                 "textbox" => new TextBoxWidget(),
@@ -154,6 +155,10 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 case LineWidget line when key == "strokeThickness": line.StrokeThickness = double.Parse(value); break;
                 case CircleWidget c when key == "fillColor": c.FillColor = value; break;
                 case CircleWidget c when key == "strokeColor": c.StrokeColor = value; break;
+                case CircleWidget c when key == "strokeThickness": c.StrokeThickness = double.Parse(value); break;
+                case EllipseWidget el when key == "fillColor": el.FillColor = value; break;
+                case EllipseWidget el when key == "strokeColor": el.StrokeColor = value; break;
+                case EllipseWidget el when key == "strokeThickness": el.StrokeThickness = double.Parse(value); break;
                 case IOFieldWidget io when key == "content": io.Content = value; break;
                 case IOFieldWidget io when key == "isReadOnly": io.IsReadOnly = bool.Parse(value); break;
                 case IOFieldWidget io when key == "textColor": io.TextColor = value; break;

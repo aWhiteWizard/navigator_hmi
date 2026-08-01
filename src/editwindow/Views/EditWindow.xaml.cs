@@ -559,6 +559,19 @@ namespace NavigatorHMI.Views
                     Canvas.SetTop(_drawPreviewPath, 0);
                     break;
                 }
+                case EllipseWidgetCreator:
+                {
+                    // 自由椭圆预览（左上角→右下角）
+                    double ex = Math.Min(_drawStartPoint.X, end.X);
+                    double ey = Math.Min(_drawStartPoint.Y, end.Y);
+                    double ew = Math.Max(Math.Abs(end.X - _drawStartPoint.X), 10);
+                    double eh = Math.Max(Math.Abs(end.Y - _drawStartPoint.Y), 10);
+                    // 椭圆预览（与落点形状一致，避免矩形预览跳变椭圆）
+                    _drawPreviewPath.Data = new EllipseGeometry(new Rect(ex, ey, ew, eh));
+                    Canvas.SetLeft(_drawPreviewPath, 0);
+                    Canvas.SetTop(_drawPreviewPath, 0);
+                    break;
+                }
                 default: // RectangleWidgetCreator
                     _drawPreviewPath.Data = new RectangleGeometry(new Rect(x, y, Math.Max(10, w), Math.Max(10, h)));  // 与 Creator 一致：最小 10px
                     Canvas.SetLeft(_drawPreviewPath, 0);
@@ -743,6 +756,7 @@ namespace NavigatorHMI.Views
                 "Switch" => new SwitchWidgetCreator(),
                 "Line" => new LineWidgetCreator(),
                 "Circle" => new CircleWidgetCreator(),
+                "Ellipse" => new EllipseWidgetCreator(),
                 "IOField" => new IOFieldWidgetCreator(),
                 "CheckBox" => new CheckBoxWidgetCreator(),
                 "TextBox" => new TextBoxWidgetCreator(),

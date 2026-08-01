@@ -6,7 +6,7 @@ namespace NavigatorHMI.Views.Helpers.Creators
 {
     /// <summary>
     /// CircleWidget 创建策略。两点式绘制：第一点击圆心，第二点击确定半径。
-    /// 生成正圆（Width == Height），边中点拖拽时允许变为椭圆（设计意图）。
+    /// 生成正圆（Width == Height），拖拽缩放始终正圆（自由椭圆用 EllipseWidget）。
     /// </summary>
     public class CircleWidgetCreator : ITwoPointCreator
     {

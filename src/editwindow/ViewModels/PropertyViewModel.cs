@@ -23,6 +23,7 @@ namespace NavigatorHMI.ViewModels
         SwitchWidget,
         LineWidget,
         CircleWidget,
+        EllipseWidget,
         IOFieldWidget,
         CheckBoxWidget,
         TextBoxWidget,
@@ -204,6 +205,7 @@ namespace NavigatorHMI.ViewModels
                          SwitchWidget => PropertyTargetType.SwitchWidget,
                          LineWidget => PropertyTargetType.LineWidget,
                          CircleWidget => PropertyTargetType.CircleWidget,
+                         EllipseWidget => PropertyTargetType.EllipseWidget,
                          IOFieldWidget => PropertyTargetType.IOFieldWidget,
                          CheckBoxWidget => PropertyTargetType.CheckBoxWidget,
                          TextBoxWidget => PropertyTargetType.TextBoxWidget,
@@ -237,6 +239,7 @@ namespace NavigatorHMI.ViewModels
                             case SwitchWidget sw: SwitchIsOn = sw.IsOn; SwitchOnText = sw.OnText; SwitchOffText = sw.OffText; SwitchFontFamily = sw.FontFamily; SwitchFontSize = sw.FontSize; SwitchFontWeight = sw.FontWeight; SwitchFontStyle = sw.FontStyle; SwitchTextDecoration = sw.TextDecoration; SwitchTextColor = sw.TextColor; SwitchFillColor = sw.FillColor; break;
                             case LineWidget line: LineX2 = line.X2; LineY2 = line.Y2; LineStrokeColor = line.StrokeColor; LineStrokeThickness = line.StrokeThickness; break;
                             case CircleWidget c: CircleFillColor = c.FillColor; CircleStrokeColor = c.StrokeColor; CircleStrokeThickness = c.StrokeThickness; break;
+                            case EllipseWidget el: EllipseFillColor = el.FillColor; EllipseStrokeColor = el.StrokeColor; EllipseStrokeThickness = el.StrokeThickness; break;
                             case IOFieldWidget io: IOFieldContent = io.Content; IOFieldIsReadOnly = io.IsReadOnly; IOFieldFillColor = io.FillColor; IOFieldTextColor = io.TextColor; IOFieldFontFamily = io.FontFamily; IOFieldFontSize = io.FontSize; IOFieldFontWeight = io.FontWeight; IOFieldFontStyle = io.FontStyle; IOFieldTextDecoration = io.TextDecoration; break;
                             case CheckBoxWidget cb: CheckBoxText = cb.Text; CheckBoxIsChecked = cb.IsChecked; CheckBoxFontFamily = cb.FontFamily; CheckBoxFontSize = cb.FontSize; CheckBoxFontWeight = cb.FontWeight; CheckBoxFontStyle = cb.FontStyle; CheckBoxTextDecoration = cb.TextDecoration; CheckBoxTextColor = cb.TextColor; CheckBoxFillColor = cb.FillColor; break;
                             case TextBoxWidget tbx: TextBoxContent = tbx.Content; TextBoxFontFamily = tbx.FontFamily; TextBoxFontSize = tbx.FontSize; TextBoxFontWeight = tbx.FontWeight; TextBoxFontStyle = tbx.FontStyle; TextBoxTextDecoration = tbx.TextDecoration; TextBoxTextColor = tbx.TextColor; TextBoxFillColor = tbx.FillColor; break;
@@ -336,6 +339,7 @@ namespace NavigatorHMI.ViewModels
         public bool IsSwitchWidget => _selectedWidget is SwitchWidget;
         public bool IsLineWidget => _selectedWidget is LineWidget;
         public bool IsCircleWidget => _selectedWidget is CircleWidget;
+        public bool IsEllipseWidget => _selectedWidget is EllipseWidget;
         public bool IsIOFieldWidget => _selectedWidget is IOFieldWidget;
         public bool IsCheckBoxWidget => _selectedWidget is CheckBoxWidget;
         public bool IsTextBoxWidget => _selectedWidget is TextBoxWidget;
@@ -890,6 +894,17 @@ namespace NavigatorHMI.ViewModels
         public string CircleStrokeColor { get => _circleStrokeColor; set { if (_circleStrokeColor != value) { _circleStrokeColor = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is CircleWidget c) c.StrokeColor = value; } } }
         private double _circleStrokeThickness = 1;
         public double CircleStrokeThickness { get => _circleStrokeThickness; set { if (Math.Abs(_circleStrokeThickness - value) > 0.001) { _circleStrokeThickness = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is CircleWidget c) c.StrokeThickness = value; } } }
+
+        private string _ellipseFillColor = "#EEEEEE";
+        /// <summary>Ellipse 填充色。</summary>
+        public string EllipseFillColor { get => _ellipseFillColor; set { if (_ellipseFillColor != value) { _ellipseFillColor = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is EllipseWidget w) w.FillColor = value; } } }
+        private string _ellipseStrokeColor = "#000000";
+        /// <summary>Ellipse 边框色。</summary>
+        public string EllipseStrokeColor { get => _ellipseStrokeColor; set { if (_ellipseStrokeColor != value) { _ellipseStrokeColor = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is EllipseWidget w) w.StrokeColor = value; } } }
+        private double _ellipseStrokeThickness = 1;
+        /// <summary>Ellipse 边框粗细。</summary>
+        public double EllipseStrokeThickness { get => _ellipseStrokeThickness; set { if (Math.Abs(_ellipseStrokeThickness - value) > 0.001) { _ellipseStrokeThickness = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is EllipseWidget w) w.StrokeThickness = value; } } }
+
 
         private string _ioFieldContent = "";
         public string IOFieldContent { get => _ioFieldContent; set { if (_ioFieldContent != value) { _ioFieldContent = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is IOFieldWidget io) io.Content = value; } } }

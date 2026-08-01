@@ -433,6 +433,24 @@
                 <Label Grid.Column="0" Content="Thickness:" Style="{StaticResource PropLabel}"/>
                 <TextBox Grid.Column="1" Text="{Binding CircleStrokeThickness, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
             </Grid></StackPanel></DataTemplate>
+<DataTemplate x:Key="PropEllipse"><StackPanel>
+            <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
+            <Separator Margin="4,2"/>
+            <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="FillColor:" Style="{StaticResource PropLabel}"/>
+                <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding EllipseFillColor, Mode=TwoWay}"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="StrokeColor:" Style="{StaticResource PropLabel}"/>
+                <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding EllipseStrokeColor, Mode=TwoWay}"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Thickness:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding EllipseStrokeThickness, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+            </Grid></StackPanel></DataTemplate>
 
         <!-- IOFieldWidget 属性 -->
         <DataTemplate x:Key="PropIOField"><StackPanel>
@@ -805,6 +823,7 @@
                                         <Button Content="Rectangle" Tag="Rectangle" Click="ToggleAddWidgetMode"/>
                                         <Button Content="Line" Tag="Line" Click="ToggleAddWidgetMode"/>
                                         <Button Content="Circle" Tag="Circle" Click="ToggleAddWidgetMode"/>
+                                        <Button Content="Ellipse" Tag="Ellipse" Click="ToggleAddWidgetMode"/>
                                         <Button Content="Image" Tag="Image" Click="ToggleAddWidgetMode"/>
                                         <Button Content="Numeric" Tag="Numeric" Click="ToggleAddWidgetMode"/>
                                         <Button Content="Switch" Tag="Switch" Click="ToggleAddWidgetMode"/>
@@ -857,7 +876,7 @@
                                             <!-- 框选矩形 -->
                                             <Rectangle x:Name="MarqueeRect" Stroke="Blue" StrokeThickness="2" Fill="#300000FF"
                                                        Visibility="Collapsed" IsHitTestVisible="False" Panel.ZIndex="1001"/>
-                                            <!-- 两点式绘制预览（Line/Circle/Rectangle） -->
+                                            <!-- 两点式绘制预览（Line/Circle/Ellipse/Rectangle） -->
                                             <Path x:Name="DrawPreviewShape" Stroke="#1E90FF" StrokeThickness="1.5" Fill="#301E90FF"
                                                   Visibility="Collapsed" IsHitTestVisible="False" Panel.ZIndex="1002"/>
                                             <TextBlock Text="{Binding CurrentScreen.Widgets.Count, StringFormat='Widgets: {0}'}"
@@ -903,6 +922,7 @@
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="SwitchWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropSwitch}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="LineWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropLine}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="CircleWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropCircle}"/></DataTrigger>
+                                                    <DataTrigger Binding="{Binding SelectedObjectType}" Value="EllipseWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropEllipse}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="IOFieldWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropIOField}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="CheckBoxWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropCheckBox}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="TextBoxWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropTextBoxWidget}"/></DataTrigger>

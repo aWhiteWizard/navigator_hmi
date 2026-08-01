@@ -119,6 +119,7 @@ namespace NavigatorHMI.Common
 [ProtoInclude(111, typeof(TextBoxWidget))]
 [ProtoInclude(112, typeof(FrameWidget))]
 [ProtoInclude(113, typeof(ProgressBarWidget))]
+[ProtoInclude(114, typeof(EllipseWidget))]
 public abstract class Widget : INotifyPropertyChanged
 {
     private double _x;
@@ -542,11 +543,32 @@ public class LineWidget : Widget
 }
 
 /// <summary>
-/// 圆形/椭圆控件。用于装饰或状态指示，支持填充色和边框。
-/// 当 Width == Height 时为正圆，否则为椭圆。
+/// 圆形控件。拖拽缩放时始终保持 1:1 正圆（自由椭圆请用 EllipseWidget）。
 /// </summary>
 [ProtoContract]
 public class CircleWidget : Widget
+{
+    private string _fillColor = "#EEEEEE";
+    /// <summary>填充颜色（CSS 格式，默认浅灰保证白色画布上可见）</summary>
+    [ProtoMember(1)]
+    public string FillColor { get => _fillColor; set { _fillColor = value; OnPropertyChanged(); } }
+
+    private string _strokeColor = "#000000";
+    /// <summary>边框颜色（CSS 格式）</summary>
+    [ProtoMember(2)]
+    public string StrokeColor { get => _strokeColor; set { _strokeColor = value; OnPropertyChanged(); } }
+
+    private double _strokeThickness = 1;
+    /// <summary>边框粗细（像素）</summary>
+    [ProtoMember(3)]
+    public double StrokeThickness { get => _strokeThickness; set { _strokeThickness = Math.Round(value, 3); OnPropertyChanged(); } }
+}
+
+/// <summary>
+/// 椭圆控件。允许自由宽高（正圆请用 CircleWidget——拖拽保持 1:1）。
+/// </summary>
+[ProtoContract]
+public class EllipseWidget : Widget
 {
     private string _fillColor = "#EEEEEE";
     /// <summary>填充颜色（CSS 格式，默认浅灰保证白色画布上可见）</summary>

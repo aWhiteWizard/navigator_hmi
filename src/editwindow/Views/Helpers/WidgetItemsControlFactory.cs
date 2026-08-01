@@ -24,6 +24,7 @@ namespace NavigatorHMI.Views.Helpers
         public DataTemplate SwitchTemplate { get; set; } = null!;
         public DataTemplate LineTemplate { get; set; } = null!;
         public DataTemplate CircleTemplate { get; set; } = null!;
+        public DataTemplate EllipseTemplate { get; set; } = null!;
         public DataTemplate IOFieldTemplate { get; set; } = null!;
         public DataTemplate CheckBoxTemplate { get; set; } = null!;
         public DataTemplate TextBoxTemplate { get; set; } = null!;
@@ -48,6 +49,7 @@ namespace NavigatorHMI.Views.Helpers
                 SwitchWidget => SwitchTemplate,
                 LineWidget => LineTemplate,
                 CircleWidget => CircleTemplate,
+                EllipseWidget => EllipseTemplate,
                 IOFieldWidget => IOFieldTemplate,
                 CheckBoxWidget => CheckBoxTemplate,
                 TextBoxWidget => TextBoxTemplate,
@@ -112,6 +114,7 @@ namespace NavigatorHMI.Views.Helpers
                 SwitchTemplate = CreateSwitchTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
                 LineTemplate = CreateLineTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
                 CircleTemplate = CreateCircleTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
+                EllipseTemplate = CreateEllipseTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
                 IOFieldTemplate = CreateIOFieldTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
                 CheckBoxTemplate = CreateCheckBoxTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
                 TextBoxTemplate = CreateTextBoxTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
@@ -330,6 +333,18 @@ namespace NavigatorHMI.Views.Helpers
             return dt;
         }
 
+
+        private static DataTemplate CreateEllipseTemplate(RoutedEventHandler click, MouseButtonEventHandler pmLBD, MouseButtonEventHandler mLBD,
+            MouseEventHandler mMove, MouseButtonEventHandler mLBU, MouseButtonEventHandler pmRBD, MouseButtonEventHandler mRBU)
+        {
+            var dt = new DataTemplate();
+            var ellipse = new FrameworkElementFactory(typeof(Ellipse));
+            ellipse.SetBinding(Ellipse.FillProperty, new Binding("FillColor") { Converter = new ColorStringToBrushConverter() });
+            ellipse.SetBinding(Ellipse.StrokeProperty, new Binding("StrokeColor") { Converter = new ColorStringToBrushConverter() });
+            ellipse.SetBinding(Ellipse.StrokeThicknessProperty, new Binding("StrokeThickness"));
+            dt.VisualTree = WrapWithBorder(ellipse, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU);
+            return dt;
+        }
         private static DataTemplate CreateIOFieldTemplate(RoutedEventHandler click, MouseButtonEventHandler pmLBD, MouseButtonEventHandler mLBD,
             MouseEventHandler mMove, MouseButtonEventHandler mLBU, MouseButtonEventHandler pmRBD, MouseButtonEventHandler mRBU)
         {
