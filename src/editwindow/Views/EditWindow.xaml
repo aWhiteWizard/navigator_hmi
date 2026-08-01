@@ -573,8 +573,9 @@
     <Window.CommandBindings><CommandBinding Command="Save" Executed="SaveCurrentProject_Click"/></Window.CommandBindings>
     <Window.InputBindings>
         <KeyBinding Key="S" Modifiers="Control" Command="Save"/>
-        <!-- Ctrl+Shift+Z 必须先于 Ctrl+Z（WPF 修饰键子集匹配 + 先注册先命中，否则 Ctrl+Shift+Z 会误触撤销） -->
-        <KeyBinding Key="Z" Modifiers="Control,Shift" Command="{Binding RedoCommand}"/>
+        <!-- Ctrl+Shift+Z 必须先于 Ctrl+Z（WPF 修饰键子集匹配 + 先注册先命中，否则 Ctrl+Shift+Z 会误触撤销）
+             注意：ModifierKeys 组合用 "+" 分隔（ModifierKeysConverter），不能用逗号 -->
+        <KeyBinding Key="Z" Modifiers="Control+Shift" Command="{Binding RedoCommand}"/>
         <KeyBinding Key="Z" Modifiers="Control" Command="{Binding UndoCommand}"/>
         <KeyBinding Key="Y" Modifiers="Control" Command="{Binding RedoCommand}"/>
     </Window.InputBindings>
