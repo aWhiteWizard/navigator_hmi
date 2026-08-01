@@ -215,6 +215,31 @@ public class ButtonWidget : Widget
         get => _text;
         set { _text = value; OnPropertyChanged(); }
     }
+
+    private string _fontFamily = "Microsoft YaHei UI";
+    /// <summary>字体族（如 "Microsoft YaHei UI" / "Arial"）</summary>
+    [ProtoMember(2)]
+    public string FontFamily { get => _fontFamily; set { _fontFamily = value; OnPropertyChanged(); } }
+
+    private double _fontSize = 14;
+    /// <summary>字体大小（像素）</summary>
+    [ProtoMember(3)]
+    public double FontSize { get => _fontSize; set { _fontSize = value; OnPropertyChanged(); } }
+
+    private string _fontWeight = "Normal";
+    /// <summary>字重：Normal / Bold</summary>
+    [ProtoMember(4)]
+    public string FontWeight { get => _fontWeight; set { _fontWeight = value; OnPropertyChanged(); } }
+
+    private string _fontStyle = "Normal";
+    /// <summary>字型：Normal / Italic</summary>
+    [ProtoMember(5)]
+    public string FontStyle { get => _fontStyle; set { _fontStyle = value; OnPropertyChanged(); } }
+
+    private string _textDecoration = "None";
+    /// <summary>下划线：None / Underline</summary>
+    [ProtoMember(6)]
+    public string TextDecoration { get => _textDecoration; set { _textDecoration = value; OnPropertyChanged(); } }
 }
 
 /// <summary>
@@ -257,6 +282,21 @@ public class TextWidget : Widget
     /// <summary>水平对齐：Left / Center / Right</summary>
     [ProtoMember(6)]
     public string HAlign { get => _hAlign; set { _hAlign = value; OnPropertyChanged(); } }
+
+    private string _fontFamily = "Microsoft YaHei UI";
+    /// <summary>字体族（如 "Microsoft YaHei UI" / "Arial"）</summary>
+    [ProtoMember(7)]
+    public string FontFamily { get => _fontFamily; set { _fontFamily = value; OnPropertyChanged(); } }
+
+    private string _fontStyle = "Normal";
+    /// <summary>字型：Normal / Italic</summary>
+    [ProtoMember(8)]
+    public string FontStyle { get => _fontStyle; set { _fontStyle = value; OnPropertyChanged(); } }
+
+    private string _textDecoration = "None";
+    /// <summary>下划线：None / Underline</summary>
+    [ProtoMember(9)]
+    public string TextDecoration { get => _textDecoration; set { _textDecoration = value; OnPropertyChanged(); } }
 }
 
 /// <summary>
@@ -312,6 +352,21 @@ public class LabelWidget : Widget
     /// <summary>背景色（CSS 格式，默认浅灰；保证控件可见、可选中）</summary>
     [ProtoMember(6)]
     public string FillColor { get => _fillColor; set { _fillColor = value; OnPropertyChanged(); } }
+
+    private string _fontFamily = "Microsoft YaHei UI";
+    /// <summary>字体族（如 "Microsoft YaHei UI" / "Arial"）</summary>
+    [ProtoMember(7)]
+    public string FontFamily { get => _fontFamily; set { _fontFamily = value; OnPropertyChanged(); } }
+
+    private string _fontStyle = "Normal";
+    /// <summary>字型：Normal / Italic</summary>
+    [ProtoMember(8)]
+    public string FontStyle { get => _fontStyle; set { _fontStyle = value; OnPropertyChanged(); } }
+
+    private string _textDecoration = "None";
+    /// <summary>下划线：None / Underline</summary>
+    [ProtoMember(9)]
+    public string TextDecoration { get => _textDecoration; set { _textDecoration = value; OnPropertyChanged(); } }
 }
 
 /// <summary>
@@ -366,6 +421,26 @@ public class NumericDisplayWidget : Widget
     /// <summary>背景色（CSS 格式，默认浅灰；保证控件可见、可选中）</summary>
     [ProtoMember(6)]
     public string FillColor { get => _fillColor; set { _fillColor = value; OnPropertyChanged(); } }
+
+    private string _fontFamily = "Microsoft YaHei UI";
+    /// <summary>字体族（如 "Microsoft YaHei UI" / "Arial"）</summary>
+    [ProtoMember(8)]
+    public string FontFamily { get => _fontFamily; set { _fontFamily = value; OnPropertyChanged(); } }
+
+    private string _fontWeight = "Normal";
+    /// <summary>字重：Normal / Bold</summary>
+    [ProtoMember(9)]
+    public string FontWeight { get => _fontWeight; set { _fontWeight = value; OnPropertyChanged(); } }
+
+    private string _fontStyle = "Normal";
+    /// <summary>字型：Normal / Italic</summary>
+    [ProtoMember(10)]
+    public string FontStyle { get => _fontStyle; set { _fontStyle = value; OnPropertyChanged(); } }
+
+    private string _textDecoration = "None";
+    /// <summary>下划线：None / Underline</summary>
+    [ProtoMember(11)]
+    public string TextDecoration { get => _textDecoration; set { _textDecoration = value; OnPropertyChanged(); } }
 }
 
 /// <summary>
@@ -388,6 +463,31 @@ public class SwitchWidget : Widget
     /// <summary>OFF 状态显示的文本</summary>
     [ProtoMember(3)]
     public string OffText { get => _offText; set { _offText = value; OnPropertyChanged(); } }
+
+    private string _fontFamily = "Microsoft YaHei UI";
+    /// <summary>字体族（如 "Microsoft YaHei UI" / "Arial"）</summary>
+    [ProtoMember(4)]
+    public string FontFamily { get => _fontFamily; set { _fontFamily = value; OnPropertyChanged(); } }
+
+    private double _fontSize = 14;
+    /// <summary>字体大小（像素）</summary>
+    [ProtoMember(5)]
+    public double FontSize { get => _fontSize; set { _fontSize = value; OnPropertyChanged(); } }
+
+    private string _fontWeight = "Normal";
+    /// <summary>字重：Normal / Bold</summary>
+    [ProtoMember(6)]
+    public string FontWeight { get => _fontWeight; set { _fontWeight = value; OnPropertyChanged(); } }
+
+    private string _fontStyle = "Normal";
+    /// <summary>字型：Normal / Italic</summary>
+    [ProtoMember(7)]
+    public string FontStyle { get => _fontStyle; set { _fontStyle = value; OnPropertyChanged(); } }
+
+    private string _textDecoration = "None";
+    /// <summary>下划线：None / Underline</summary>
+    [ProtoMember(8)]
+    public string TextDecoration { get => _textDecoration; set { _textDecoration = value; OnPropertyChanged(); } }
 }
 
 /// <summary>
@@ -465,6 +565,36 @@ public class IOFieldWidget : Widget
     /// <summary>背景色（CSS 格式，默认浅灰；保证控件可见、可选中）</summary>
     [ProtoMember(3)]
     public string FillColor { get => _fillColor; set { _fillColor = value; OnPropertyChanged(); } }
+
+    private string _fontFamily = "Microsoft YaHei UI";
+    /// <summary>字体族（如 "Microsoft YaHei UI" / "Arial"）</summary>
+    [ProtoMember(4)]
+    public string FontFamily { get => _fontFamily; set { _fontFamily = value; OnPropertyChanged(); } }
+
+    private double _fontSize = 14;
+    /// <summary>字体大小（像素）</summary>
+    [ProtoMember(5)]
+    public double FontSize { get => _fontSize; set { _fontSize = value; OnPropertyChanged(); } }
+
+    private string _fontWeight = "Normal";
+    /// <summary>字重：Normal / Bold</summary>
+    [ProtoMember(6)]
+    public string FontWeight { get => _fontWeight; set { _fontWeight = value; OnPropertyChanged(); } }
+
+    private string _fontStyle = "Normal";
+    /// <summary>字型：Normal / Italic</summary>
+    [ProtoMember(7)]
+    public string FontStyle { get => _fontStyle; set { _fontStyle = value; OnPropertyChanged(); } }
+
+    private string _textDecoration = "None";
+    /// <summary>下划线：None / Underline</summary>
+    [ProtoMember(8)]
+    public string TextDecoration { get => _textDecoration; set { _textDecoration = value; OnPropertyChanged(); } }
+
+    private string _textColor = "#000000";
+    /// <summary>文本颜色（CSS 格式）</summary>
+    [ProtoMember(9)]
+    public string TextColor { get => _textColor; set { _textColor = value; OnPropertyChanged(); } }
 }
 
 /// <summary>
@@ -482,10 +612,35 @@ public class CheckBoxWidget : Widget
     /// <summary>复选框旁显示的文本标签</summary>
     [ProtoMember(2)]
     public string Text { get => _text; set { _text = value; OnPropertyChanged(); } }
+
+    private string _fontFamily = "Microsoft YaHei UI";
+    /// <summary>字体族（如 "Microsoft YaHei UI" / "Arial"）</summary>
+    [ProtoMember(3)]
+    public string FontFamily { get => _fontFamily; set { _fontFamily = value; OnPropertyChanged(); } }
+
+    private double _fontSize = 14;
+    /// <summary>字体大小（像素）</summary>
+    [ProtoMember(4)]
+    public double FontSize { get => _fontSize; set { _fontSize = value; OnPropertyChanged(); } }
+
+    private string _fontWeight = "Normal";
+    /// <summary>字重：Normal / Bold</summary>
+    [ProtoMember(5)]
+    public string FontWeight { get => _fontWeight; set { _fontWeight = value; OnPropertyChanged(); } }
+
+    private string _fontStyle = "Normal";
+    /// <summary>字型：Normal / Italic</summary>
+    [ProtoMember(6)]
+    public string FontStyle { get => _fontStyle; set { _fontStyle = value; OnPropertyChanged(); } }
+
+    private string _textDecoration = "None";
+    /// <summary>下划线：None / Underline</summary>
+    [ProtoMember(7)]
+    public string TextDecoration { get => _textDecoration; set { _textDecoration = value; OnPropertyChanged(); } }
 }
 
 /// <summary>
-/// 文本框控件。用户输入文本，支持密码模式（内容以 * 显示）。
+/// 文本框控件。用户输入文本。
 /// </summary>
 [ProtoContract]
 public class TextBoxWidget : Widget
@@ -495,10 +650,31 @@ public class TextBoxWidget : Widget
     [ProtoMember(1)]
     public string Content { get => _content; set { _content = value; OnPropertyChanged(); } }
 
-    private bool _isPassword = false;
-    /// <summary>是否密码模式（true=显示掩码字符）</summary>
-    [ProtoMember(2)]
-    public bool IsPassword { get => _isPassword; set { _isPassword = value; OnPropertyChanged(); } }
+
+    private string _fontFamily = "Microsoft YaHei UI";
+    /// <summary>字体族（如 "Microsoft YaHei UI" / "Arial"）</summary>
+    [ProtoMember(3)]
+    public string FontFamily { get => _fontFamily; set { _fontFamily = value; OnPropertyChanged(); } }
+
+    private double _fontSize = 14;
+    /// <summary>字体大小（像素）</summary>
+    [ProtoMember(4)]
+    public double FontSize { get => _fontSize; set { _fontSize = value; OnPropertyChanged(); } }
+
+    private string _fontWeight = "Normal";
+    /// <summary>字重：Normal / Bold</summary>
+    [ProtoMember(5)]
+    public string FontWeight { get => _fontWeight; set { _fontWeight = value; OnPropertyChanged(); } }
+
+    private string _fontStyle = "Normal";
+    /// <summary>字型：Normal / Italic</summary>
+    [ProtoMember(6)]
+    public string FontStyle { get => _fontStyle; set { _fontStyle = value; OnPropertyChanged(); } }
+
+    private string _textDecoration = "None";
+    /// <summary>下划线：None / Underline</summary>
+    [ProtoMember(7)]
+    public string TextDecoration { get => _textDecoration; set { _textDecoration = value; OnPropertyChanged(); } }
 }
 
 /// <summary>
@@ -521,6 +697,31 @@ public class FrameWidget : Widget
     /// <summary>框架背景图片路径（相对工程目录或绝对路径，空则仅显示标题框）</summary>
     [ProtoMember(3)]
     public string ImagePath { get => _imagePath; set { _imagePath = value; OnPropertyChanged(); } }
+
+    private string _fontFamily = "Microsoft YaHei UI";
+    /// <summary>字体族（如 "Microsoft YaHei UI" / "Arial"）</summary>
+    [ProtoMember(4)]
+    public string FontFamily { get => _fontFamily; set { _fontFamily = value; OnPropertyChanged(); } }
+
+    private double _fontSize = 14;
+    /// <summary>字体大小（像素）</summary>
+    [ProtoMember(5)]
+    public double FontSize { get => _fontSize; set { _fontSize = value; OnPropertyChanged(); } }
+
+    private string _fontWeight = "Normal";
+    /// <summary>字重：Normal / Bold</summary>
+    [ProtoMember(6)]
+    public string FontWeight { get => _fontWeight; set { _fontWeight = value; OnPropertyChanged(); } }
+
+    private string _fontStyle = "Normal";
+    /// <summary>字型：Normal / Italic</summary>
+    [ProtoMember(7)]
+    public string FontStyle { get => _fontStyle; set { _fontStyle = value; OnPropertyChanged(); } }
+
+    private string _textDecoration = "None";
+    /// <summary>下划线：None / Underline</summary>
+    [ProtoMember(8)]
+    public string TextDecoration { get => _textDecoration; set { _textDecoration = value; OnPropertyChanged(); } }
 }
 
 /// <summary>

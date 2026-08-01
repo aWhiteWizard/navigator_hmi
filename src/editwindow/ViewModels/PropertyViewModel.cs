@@ -125,19 +125,19 @@ namespace NavigatorHMI.ViewModels
 
                         switch (value)
                         {
-                            case ButtonWidget btn: ButtonText = btn.Text; break;
-                            case TextWidget txt: TextContent = txt.Content; TextFillColor = txt.FillColor; TextFontSize = txt.FontSize; TextFontWeight = txt.FontWeight; TextTextColor = txt.TextColor; TextHAlign = txt.HAlign; break;
+                            case ButtonWidget btn: ButtonText = btn.Text; ButtonFontFamily = btn.FontFamily; ButtonFontSize = btn.FontSize; ButtonFontWeight = btn.FontWeight; ButtonFontStyle = btn.FontStyle; ButtonTextDecoration = btn.TextDecoration; break;
+                            case TextWidget txt: TextContent = txt.Content; TextFillColor = txt.FillColor; TextFontSize = txt.FontSize; TextFontWeight = txt.FontWeight; TextFontStyle = txt.FontStyle; TextTextColor = txt.TextColor; TextHAlign = txt.HAlign; TextFontFamily = txt.FontFamily; TextTextDecoration = txt.TextDecoration; break;
                             case RectangleWidget rect: RectFillColor = rect.FillColor; break;
-                            case LabelWidget lbl: LabelText = lbl.Text; LabelFontSize = lbl.FontSize; LabelTextColor = lbl.TextColor; LabelFillColor = lbl.FillColor; break;
+                            case LabelWidget lbl: LabelText = lbl.Text; LabelFontSize = lbl.FontSize; LabelFontWeight = lbl.FontWeight; LabelTextColor = lbl.TextColor; LabelFillColor = lbl.FillColor; LabelFontFamily = lbl.FontFamily; LabelFontStyle = lbl.FontStyle; LabelTextDecoration = lbl.TextDecoration; break;
                             case ImageWidget img: ImagePath = img.ImagePath; ImageFillColor = img.FillColor; break;
-                            case NumericDisplayWidget nd: NumericFontSize = nd.FontSize; NumericTextColor = nd.TextColor; NumericFillColor = nd.FillColor; NumericValue = nd.Value; break;
-                            case SwitchWidget sw: SwitchIsOn = sw.IsOn; SwitchOnText = sw.OnText; SwitchOffText = sw.OffText; break;
+                            case NumericDisplayWidget nd: NumericFontSize = nd.FontSize; NumericTextColor = nd.TextColor; NumericFillColor = nd.FillColor; NumericValue = nd.Value; NumericFontFamily = nd.FontFamily; NumericFontWeight = nd.FontWeight; NumericFontStyle = nd.FontStyle; NumericTextDecoration = nd.TextDecoration; break;
+                            case SwitchWidget sw: SwitchIsOn = sw.IsOn; SwitchOnText = sw.OnText; SwitchOffText = sw.OffText; SwitchFontFamily = sw.FontFamily; SwitchFontSize = sw.FontSize; SwitchFontWeight = sw.FontWeight; SwitchFontStyle = sw.FontStyle; SwitchTextDecoration = sw.TextDecoration; break;
                             case LineWidget line: LineX2 = line.X2; LineY2 = line.Y2; LineStrokeColor = line.StrokeColor; LineStrokeThickness = line.StrokeThickness; break;
                             case CircleWidget c: CircleFillColor = c.FillColor; CircleStrokeColor = c.StrokeColor; CircleStrokeThickness = c.StrokeThickness; break;
-                            case IOFieldWidget io: IOFieldContent = io.Content; IOFieldIsReadOnly = io.IsReadOnly; IOFieldFillColor = io.FillColor; break;
-                            case CheckBoxWidget cb: CheckBoxText = cb.Text; CheckBoxIsChecked = cb.IsChecked; break;
-                            case TextBoxWidget tbx: TextBoxContent = tbx.Content; TextBoxIsPassword = tbx.IsPassword; break;
-                            case FrameWidget f: FrameTitle = f.Title; FrameFillColor = f.FillColor; FrameImagePath = f.ImagePath; break;
+                            case IOFieldWidget io: IOFieldContent = io.Content; IOFieldIsReadOnly = io.IsReadOnly; IOFieldFillColor = io.FillColor; IOFieldTextColor = io.TextColor; IOFieldFontFamily = io.FontFamily; IOFieldFontSize = io.FontSize; IOFieldFontWeight = io.FontWeight; IOFieldFontStyle = io.FontStyle; IOFieldTextDecoration = io.TextDecoration; break;
+                            case CheckBoxWidget cb: CheckBoxText = cb.Text; CheckBoxIsChecked = cb.IsChecked; CheckBoxFontFamily = cb.FontFamily; CheckBoxFontSize = cb.FontSize; CheckBoxFontWeight = cb.FontWeight; CheckBoxFontStyle = cb.FontStyle; CheckBoxTextDecoration = cb.TextDecoration; break;
+                            case TextBoxWidget tbx: TextBoxContent = tbx.Content; TextBoxFontFamily = tbx.FontFamily; TextBoxFontSize = tbx.FontSize; TextBoxFontWeight = tbx.FontWeight; TextBoxFontStyle = tbx.FontStyle; TextBoxTextDecoration = tbx.TextDecoration; break;
+                            case FrameWidget f: FrameTitle = f.Title; FrameFillColor = f.FillColor; FrameImagePath = f.ImagePath; FrameFontFamily = f.FontFamily; FrameFontSize = f.FontSize; FrameFontWeight = f.FontWeight; FrameFontStyle = f.FontStyle; FrameTextDecoration = f.TextDecoration; break;
                             case ProgressBarWidget pb: ProgressValue = pb.Value; ProgressMin = pb.Min; ProgressMax = pb.Max; ProgressFillColor = pb.FillColor; break;
                         }
                     }
@@ -496,6 +496,147 @@ namespace NavigatorHMI.ViewModels
         /// <summary>图片背景色（CSS 格式，默认浅灰；图片透明区域/无图片时可见）。</summary>
         public string ImageFillColor { get => _imageFillColor; set { if (_imageFillColor != value) { _imageFillColor = value; OnPropertyChanged(); if (_selectedWidget is ImageWidget img) img.FillColor = value; } } }
 
+        private string _buttonFontFamily = "Microsoft YaHei UI";
+        /// <summary>ButtonWidget 字体族。</summary>
+        public string ButtonFontFamily { get => _buttonFontFamily; set { if (_buttonFontFamily != value) { _buttonFontFamily = value; OnPropertyChanged(); if (_selectedWidget is ButtonWidget w) w.FontFamily = value; } } }
+        private double _buttonFontSize = 14;
+        /// <summary>ButtonWidget 字体大小。</summary>
+        public double ButtonFontSize { get => _buttonFontSize; set { if (Math.Abs(_buttonFontSize - value) > 0.001) { _buttonFontSize = value; OnPropertyChanged(); if (_selectedWidget is ButtonWidget w) w.FontSize = value; } } }
+        private string _buttonFontWeight = "Normal";
+        /// <summary>ButtonWidget 字重。</summary>
+        public string ButtonFontWeight { get => _buttonFontWeight; set { if (_buttonFontWeight != value) { _buttonFontWeight = value; OnPropertyChanged(); if (_selectedWidget is ButtonWidget w) w.FontWeight = value; } } }
+        private string _buttonFontStyle = "Normal";
+        /// <summary>ButtonWidget 字型。</summary>
+        public string ButtonFontStyle { get => _buttonFontStyle; set { if (_buttonFontStyle != value) { _buttonFontStyle = value; OnPropertyChanged(); if (_selectedWidget is ButtonWidget w) w.FontStyle = value; } } }
+
+        private string _buttonTextDecoration = "None";
+        /// <summary>ButtonWidget 下划线。</summary>
+        public string ButtonTextDecoration { get => _buttonTextDecoration; set { if (_buttonTextDecoration != value) { _buttonTextDecoration = value; OnPropertyChanged(); if (_selectedWidget is ButtonWidget w) w.TextDecoration = value; } } }
+
+        private string _textFontFamily = "Microsoft YaHei UI";
+        /// <summary>TextWidget 字体族。</summary>
+        public string TextFontFamily { get => _textFontFamily; set { if (_textFontFamily != value) { _textFontFamily = value; OnPropertyChanged(); if (_selectedWidget is TextWidget w) w.FontFamily = value; } } }
+        private string _textFontStyle = "Normal";
+        /// <summary>TextWidget 字型。</summary>
+        public string TextFontStyle { get => _textFontStyle; set { if (_textFontStyle != value) { _textFontStyle = value; OnPropertyChanged(); if (_selectedWidget is TextWidget w) w.FontStyle = value; } } }
+
+        private string _textTextDecoration = "None";
+        /// <summary>TextWidget 下划线。</summary>
+        public string TextTextDecoration { get => _textTextDecoration; set { if (_textTextDecoration != value) { _textTextDecoration = value; OnPropertyChanged(); if (_selectedWidget is TextWidget w) w.TextDecoration = value; } } }
+
+        private string _labelFontFamily = "Microsoft YaHei UI";
+        /// <summary>LabelWidget 字体族。</summary>
+        public string LabelFontFamily { get => _labelFontFamily; set { if (_labelFontFamily != value) { _labelFontFamily = value; OnPropertyChanged(); if (_selectedWidget is LabelWidget w) w.FontFamily = value; } } }
+        private string _labelFontWeight = "Normal";
+        /// <summary>LabelWidget 字重。</summary>
+        public string LabelFontWeight { get => _labelFontWeight; set { if (_labelFontWeight != value) { _labelFontWeight = value; OnPropertyChanged(); if (_selectedWidget is LabelWidget w) w.FontWeight = value; } } }
+        private string _labelFontStyle = "Normal";
+        /// <summary>LabelWidget 字型。</summary>
+        public string LabelFontStyle { get => _labelFontStyle; set { if (_labelFontStyle != value) { _labelFontStyle = value; OnPropertyChanged(); if (_selectedWidget is LabelWidget w) w.FontStyle = value; } } }
+
+        private string _labelTextDecoration = "None";
+        /// <summary>LabelWidget 下划线。</summary>
+        public string LabelTextDecoration { get => _labelTextDecoration; set { if (_labelTextDecoration != value) { _labelTextDecoration = value; OnPropertyChanged(); if (_selectedWidget is LabelWidget w) w.TextDecoration = value; } } }
+
+        private string _switchFontFamily = "Microsoft YaHei UI";
+        /// <summary>SwitchWidget 字体族。</summary>
+        public string SwitchFontFamily { get => _switchFontFamily; set { if (_switchFontFamily != value) { _switchFontFamily = value; OnPropertyChanged(); if (_selectedWidget is SwitchWidget w) w.FontFamily = value; } } }
+        private double _switchFontSize = 14;
+        /// <summary>SwitchWidget 字体大小。</summary>
+        public double SwitchFontSize { get => _switchFontSize; set { if (Math.Abs(_switchFontSize - value) > 0.001) { _switchFontSize = value; OnPropertyChanged(); if (_selectedWidget is SwitchWidget w) w.FontSize = value; } } }
+        private string _switchFontWeight = "Normal";
+        /// <summary>SwitchWidget 字重。</summary>
+        public string SwitchFontWeight { get => _switchFontWeight; set { if (_switchFontWeight != value) { _switchFontWeight = value; OnPropertyChanged(); if (_selectedWidget is SwitchWidget w) w.FontWeight = value; } } }
+        private string _switchFontStyle = "Normal";
+        /// <summary>SwitchWidget 字型。</summary>
+        public string SwitchFontStyle { get => _switchFontStyle; set { if (_switchFontStyle != value) { _switchFontStyle = value; OnPropertyChanged(); if (_selectedWidget is SwitchWidget w) w.FontStyle = value; } } }
+
+        private string _switchTextDecoration = "None";
+        /// <summary>SwitchWidget 下划线。</summary>
+        public string SwitchTextDecoration { get => _switchTextDecoration; set { if (_switchTextDecoration != value) { _switchTextDecoration = value; OnPropertyChanged(); if (_selectedWidget is SwitchWidget w) w.TextDecoration = value; } } }
+
+        private string _checkBoxFontFamily = "Microsoft YaHei UI";
+        /// <summary>CheckBoxWidget 字体族。</summary>
+        public string CheckBoxFontFamily { get => _checkBoxFontFamily; set { if (_checkBoxFontFamily != value) { _checkBoxFontFamily = value; OnPropertyChanged(); if (_selectedWidget is CheckBoxWidget w) w.FontFamily = value; } } }
+        private double _checkBoxFontSize = 14;
+        /// <summary>CheckBoxWidget 字体大小。</summary>
+        public double CheckBoxFontSize { get => _checkBoxFontSize; set { if (Math.Abs(_checkBoxFontSize - value) > 0.001) { _checkBoxFontSize = value; OnPropertyChanged(); if (_selectedWidget is CheckBoxWidget w) w.FontSize = value; } } }
+        private string _checkBoxFontWeight = "Normal";
+        /// <summary>CheckBoxWidget 字重。</summary>
+        public string CheckBoxFontWeight { get => _checkBoxFontWeight; set { if (_checkBoxFontWeight != value) { _checkBoxFontWeight = value; OnPropertyChanged(); if (_selectedWidget is CheckBoxWidget w) w.FontWeight = value; } } }
+        private string _checkBoxFontStyle = "Normal";
+        /// <summary>CheckBoxWidget 字型。</summary>
+        public string CheckBoxFontStyle { get => _checkBoxFontStyle; set { if (_checkBoxFontStyle != value) { _checkBoxFontStyle = value; OnPropertyChanged(); if (_selectedWidget is CheckBoxWidget w) w.FontStyle = value; } } }
+
+        private string _checkBoxTextDecoration = "None";
+        /// <summary>CheckBoxWidget 下划线。</summary>
+        public string CheckBoxTextDecoration { get => _checkBoxTextDecoration; set { if (_checkBoxTextDecoration != value) { _checkBoxTextDecoration = value; OnPropertyChanged(); if (_selectedWidget is CheckBoxWidget w) w.TextDecoration = value; } } }
+
+        private string _ioFieldFontFamily = "Microsoft YaHei UI";
+        /// <summary>IOFieldWidget 字体族。</summary>
+        public string IOFieldFontFamily { get => _ioFieldFontFamily; set { if (_ioFieldFontFamily != value) { _ioFieldFontFamily = value; OnPropertyChanged(); if (_selectedWidget is IOFieldWidget w) w.FontFamily = value; } } }
+        private double _ioFieldFontSize = 14;
+        /// <summary>IOFieldWidget 字体大小。</summary>
+        public double IOFieldFontSize { get => _ioFieldFontSize; set { if (Math.Abs(_ioFieldFontSize - value) > 0.001) { _ioFieldFontSize = value; OnPropertyChanged(); if (_selectedWidget is IOFieldWidget w) w.FontSize = value; } } }
+        private string _ioFieldFontWeight = "Normal";
+        /// <summary>IOFieldWidget 字重。</summary>
+        public string IOFieldFontWeight { get => _ioFieldFontWeight; set { if (_ioFieldFontWeight != value) { _ioFieldFontWeight = value; OnPropertyChanged(); if (_selectedWidget is IOFieldWidget w) w.FontWeight = value; } } }
+        private string _ioFieldFontStyle = "Normal";
+        /// <summary>IOFieldWidget 字型。</summary>
+        public string IOFieldFontStyle { get => _ioFieldFontStyle; set { if (_ioFieldFontStyle != value) { _ioFieldFontStyle = value; OnPropertyChanged(); if (_selectedWidget is IOFieldWidget w) w.FontStyle = value; } } }
+
+        private string _ioFieldTextDecoration = "None";
+        /// <summary>IOFieldWidget 下划线。</summary>
+        public string IOFieldTextDecoration { get => _ioFieldTextDecoration; set { if (_ioFieldTextDecoration != value) { _ioFieldTextDecoration = value; OnPropertyChanged(); if (_selectedWidget is IOFieldWidget w) w.TextDecoration = value; } } }
+
+        private string _textBoxFontFamily = "Microsoft YaHei UI";
+        /// <summary>TextBoxWidget 字体族。</summary>
+        public string TextBoxFontFamily { get => _textBoxFontFamily; set { if (_textBoxFontFamily != value) { _textBoxFontFamily = value; OnPropertyChanged(); if (_selectedWidget is TextBoxWidget w) w.FontFamily = value; } } }
+        private double _textBoxFontSize = 14;
+        /// <summary>TextBoxWidget 字体大小。</summary>
+        public double TextBoxFontSize { get => _textBoxFontSize; set { if (Math.Abs(_textBoxFontSize - value) > 0.001) { _textBoxFontSize = value; OnPropertyChanged(); if (_selectedWidget is TextBoxWidget w) w.FontSize = value; } } }
+        private string _textBoxFontWeight = "Normal";
+        /// <summary>TextBoxWidget 字重。</summary>
+        public string TextBoxFontWeight { get => _textBoxFontWeight; set { if (_textBoxFontWeight != value) { _textBoxFontWeight = value; OnPropertyChanged(); if (_selectedWidget is TextBoxWidget w) w.FontWeight = value; } } }
+        private string _textBoxFontStyle = "Normal";
+        /// <summary>TextBoxWidget 字型。</summary>
+        public string TextBoxFontStyle { get => _textBoxFontStyle; set { if (_textBoxFontStyle != value) { _textBoxFontStyle = value; OnPropertyChanged(); if (_selectedWidget is TextBoxWidget w) w.FontStyle = value; } } }
+
+        private string _textBoxTextDecoration = "None";
+        /// <summary>TextBoxWidget 下划线。</summary>
+        public string TextBoxTextDecoration { get => _textBoxTextDecoration; set { if (_textBoxTextDecoration != value) { _textBoxTextDecoration = value; OnPropertyChanged(); if (_selectedWidget is TextBoxWidget w) w.TextDecoration = value; } } }
+
+        private string _numericFontFamily = "Microsoft YaHei UI";
+        /// <summary>NumericDisplayWidget 字体族。</summary>
+        public string NumericFontFamily { get => _numericFontFamily; set { if (_numericFontFamily != value) { _numericFontFamily = value; OnPropertyChanged(); if (_selectedWidget is NumericDisplayWidget w) w.FontFamily = value; } } }
+        private string _numericFontWeight = "Normal";
+        /// <summary>NumericDisplayWidget 字重。</summary>
+        public string NumericFontWeight { get => _numericFontWeight; set { if (_numericFontWeight != value) { _numericFontWeight = value; OnPropertyChanged(); if (_selectedWidget is NumericDisplayWidget w) w.FontWeight = value; } } }
+        private string _numericFontStyle = "Normal";
+        /// <summary>NumericDisplayWidget 字型。</summary>
+        public string NumericFontStyle { get => _numericFontStyle; set { if (_numericFontStyle != value) { _numericFontStyle = value; OnPropertyChanged(); if (_selectedWidget is NumericDisplayWidget w) w.FontStyle = value; } } }
+
+        private string _numericTextDecoration = "None";
+        /// <summary>NumericDisplayWidget 下划线。</summary>
+        public string NumericTextDecoration { get => _numericTextDecoration; set { if (_numericTextDecoration != value) { _numericTextDecoration = value; OnPropertyChanged(); if (_selectedWidget is NumericDisplayWidget w) w.TextDecoration = value; } } }
+
+        private string _frameFontFamily = "Microsoft YaHei UI";
+        /// <summary>FrameWidget 字体族。</summary>
+        public string FrameFontFamily { get => _frameFontFamily; set { if (_frameFontFamily != value) { _frameFontFamily = value; OnPropertyChanged(); if (_selectedWidget is FrameWidget w) w.FontFamily = value; } } }
+        private double _frameFontSize = 14;
+        /// <summary>FrameWidget 字体大小。</summary>
+        public double FrameFontSize { get => _frameFontSize; set { if (Math.Abs(_frameFontSize - value) > 0.001) { _frameFontSize = value; OnPropertyChanged(); if (_selectedWidget is FrameWidget w) w.FontSize = value; } } }
+        private string _frameFontWeight = "Normal";
+        /// <summary>FrameWidget 字重。</summary>
+        public string FrameFontWeight { get => _frameFontWeight; set { if (_frameFontWeight != value) { _frameFontWeight = value; OnPropertyChanged(); if (_selectedWidget is FrameWidget w) w.FontWeight = value; } } }
+        private string _frameFontStyle = "Normal";
+        /// <summary>FrameWidget 字型。</summary>
+        public string FrameFontStyle { get => _frameFontStyle; set { if (_frameFontStyle != value) { _frameFontStyle = value; OnPropertyChanged(); if (_selectedWidget is FrameWidget w) w.FontStyle = value; } } }
+
+        private string _frameTextDecoration = "None";
+        /// <summary>FrameWidget 下划线。</summary>
+        public string FrameTextDecoration { get => _frameTextDecoration; set { if (_frameTextDecoration != value) { _frameTextDecoration = value; OnPropertyChanged(); if (_selectedWidget is FrameWidget w) w.TextDecoration = value; } } }
+
         private double _numericFontSize = 16;
         public double NumericFontSize { get => _numericFontSize; set { if (Math.Abs(_numericFontSize - value) > 0.001) { _numericFontSize = value; OnPropertyChanged(); if (_selectedWidget is NumericDisplayWidget nd) nd.FontSize = value; } } }
         private string _numericTextColor = "#000000";
@@ -537,6 +678,9 @@ namespace NavigatorHMI.ViewModels
         private string _ioFieldFillColor = "#EEEEEE";
         /// <summary>IOField 背景色（CSS 格式）。</summary>
         public string IOFieldFillColor { get => _ioFieldFillColor; set { if (_ioFieldFillColor != value) { _ioFieldFillColor = value; OnPropertyChanged(); if (_selectedWidget is IOFieldWidget io) io.FillColor = value; } } }
+        private string _ioFieldTextColor = "#000000";
+        /// <summary>IOField 文本色。</summary>
+        public string IOFieldTextColor { get => _ioFieldTextColor; set { if (_ioFieldTextColor != value) { _ioFieldTextColor = value; OnPropertyChanged(); if (_selectedWidget is IOFieldWidget io) io.TextColor = value; } } }
 
         private string _checkBoxText = "CheckBox";
         public string CheckBoxText { get => _checkBoxText; set { if (_checkBoxText != value) { _checkBoxText = value; OnPropertyChanged(); if (_selectedWidget is CheckBoxWidget cb) cb.Text = value; } } }
@@ -545,8 +689,6 @@ namespace NavigatorHMI.ViewModels
 
         private string _textBoxContent = "";
         public string TextBoxContent { get => _textBoxContent; set { if (_textBoxContent != value) { _textBoxContent = value; OnPropertyChanged(); if (_selectedWidget is TextBoxWidget tbx) tbx.Content = value; } } }
-        private bool _textBoxIsPassword = false;
-        public bool TextBoxIsPassword { get => _textBoxIsPassword; set { if (_textBoxIsPassword != value) { _textBoxIsPassword = value; OnPropertyChanged(); if (_selectedWidget is TextBoxWidget tbx) tbx.IsPassword = value; } } }
 
         private string _frameTitle = "Group";
         public string FrameTitle { get => _frameTitle; set { if (_frameTitle != value) { _frameTitle = value; OnPropertyChanged(); if (_selectedWidget is FrameWidget f) f.Title = value; } } }

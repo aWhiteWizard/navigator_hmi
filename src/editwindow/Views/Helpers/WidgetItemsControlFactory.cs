@@ -165,7 +165,12 @@ namespace NavigatorHMI.Views.Helpers
         {
             var dt = new DataTemplate();
             var btn = new FrameworkElementFactory(typeof(Button));
-            btn.SetBinding(Button.ContentProperty, new Binding("Text"));
+            // Content 用 TextBlock 包装：支持字体/加粗/倾斜/下划线完整渲染
+            var content = new FrameworkElementFactory(typeof(TextBlock));
+            content.SetBinding(TextBlock.TextProperty, new Binding("Text"));
+            BindTextFormatting(content, useSafeColor: false);
+            content.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            btn.AppendChild(content);
             btn.SetBinding(Button.WidthProperty, new Binding("Width"));
             btn.SetBinding(Button.HeightProperty, new Binding("Height"));
             btn.SetBinding(SelectorHelper.IsSelectedProperty, new Binding("IsSelected") { Mode = BindingMode.TwoWay });
@@ -199,13 +204,42 @@ namespace NavigatorHMI.Views.Helpers
             return dt;
         }
 
-        /// <summary>绑定文本格式属性（FontSize/FontWeight/Foreground/TextAlignment），Text/Label 共享。</summary>
-        private static void BindTextFormatting(FrameworkElementFactory tb)
+        /// <summary>
+        /// 绑定文本格式属性（TextBlock 类：FontFamily/FontSize/FontWeight/FontStyle/TextDecorations + Foreground/TextAlignment）。
+        /// Text/Label/NumericDisplay/IOField 共享。Foreground 用 MultiBinding（TextColor+FillColor）：
+        /// 文本色透明或与背景相同 → 回退黑色，保证文字可见。
+        /// </summary>
+        private static void BindTextFormatting(FrameworkElementFactory tb, bool centerAlign = false, bool useSafeColor = true)
         {
+            tb.SetBinding(TextBlock.FontFamilyProperty, new Binding("FontFamily"));
             tb.SetBinding(TextBlock.FontSizeProperty, new Binding("FontSize"));
             tb.SetBinding(TextBlock.FontWeightProperty, new Binding("FontWeight"));
-            tb.SetBinding(TextBlock.ForegroundProperty, new Binding("TextColor") { Converter = new ColorStringToBrushConverter() });
-            tb.SetBinding(TextBlock.TextAlignmentProperty, new Binding("HAlign") { Converter = new HAlignToTextAlignmentConverter() });
+            tb.SetBinding(TextBlock.FontStyleProperty, new Binding("FontStyle"));
+            tb.SetBinding(TextBlock.TextDecorationsProperty, new Binding("TextDecoration") { Converter = new TextDecorationConverter() });
+            if (useSafeColor)
+            {
+                var fg = new MultiBinding { Converter = new SafeTextColorConverter() };
+                fg.Bindings.Add(new Binding("TextColor"));
+                fg.Bindings.Add(new Binding("FillColor"));
+                tb.SetBinding(TextBlock.ForegroundProperty, fg);
+            }
+            else
+            {
+                tb.SetValue(TextBlock.ForegroundProperty, Brushes.Black);   // 无 TextColor 属性的控件（Button/Switch/CheckBox/Frame）
+            }
+            if (centerAlign)
+                tb.SetValue(TextBlock.TextAlignmentProperty, TextAlignment.Center);
+            else
+                tb.SetBinding(TextBlock.TextAlignmentProperty, new Binding("HAlign") { Converter = new HAlignToTextAlignmentConverter() });
+        }
+
+        /// <summary>绑定原生控件（TextBox/GroupBox）的字体属性（Control 类无 TextDecorations，下划线由模板单独处理）。</summary>
+        private static void BindFontControl(FrameworkElementFactory fe)
+        {
+            fe.SetBinding(Control.FontFamilyProperty, new Binding("FontFamily"));
+            fe.SetBinding(Control.FontSizeProperty, new Binding("FontSize"));
+            fe.SetBinding(Control.FontWeightProperty, new Binding("FontWeight"));
+            fe.SetBinding(Control.FontStyleProperty, new Binding("FontStyle"));
         }
 
         private static DataTemplate CreateImageTemplate(RoutedEventHandler click, MouseButtonEventHandler pmLBD, MouseButtonEventHandler mLBD,
@@ -234,9 +268,7 @@ namespace NavigatorHMI.Views.Helpers
             var tb = new FrameworkElementFactory(typeof(TextBlock));
             // 设计态显示 Value 数值（运行时由 BoundTag 变量实时值覆盖）
             tb.SetBinding(TextBlock.TextProperty, new Binding("Value"));
-            tb.SetBinding(TextBlock.FontSizeProperty, new Binding("FontSize"));
-            tb.SetBinding(TextBlock.ForegroundProperty, new Binding("TextColor") { Converter = new ColorStringToBrushConverter() });
-            tb.SetValue(TextBlock.TextAlignmentProperty, TextAlignment.Center);
+            BindTextFormatting(tb, centerAlign: true);
             tb.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
             dt.VisualTree = WrapWithBorder(tb, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU, bindFillBackground: true);   // NumericDisplayTemplate
             return dt;
@@ -247,7 +279,16 @@ namespace NavigatorHMI.Views.Helpers
         {
             var dt = new DataTemplate();
             var btn = new FrameworkElementFactory(typeof(Button));
-            btn.SetBinding(Button.ContentProperty, new Binding("IsOn"));
+            // Content 用 TextBlock：显示 OnText/OffText（按 IsOn 切换）+ 字体完整渲染
+            var content = new FrameworkElementFactory(typeof(TextBlock));
+            var sw = new MultiBinding { Converter = new SwitchTextConverter() };
+            sw.Bindings.Add(new Binding("IsOn"));
+            sw.Bindings.Add(new Binding("OnText"));
+            sw.Bindings.Add(new Binding("OffText"));
+            content.SetBinding(TextBlock.TextProperty, sw);
+            BindTextFormatting(content, useSafeColor: false);
+            content.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            btn.AppendChild(content);
             btn.SetBinding(Button.WidthProperty, new Binding("Width"));
             btn.SetBinding(Button.HeightProperty, new Binding("Height"));
             btn.SetBinding(SelectorHelper.IsSelectedProperty, new Binding("IsSelected") { Mode = BindingMode.TwoWay });
@@ -294,6 +335,7 @@ namespace NavigatorHMI.Views.Helpers
             border.SetValue(Border.BorderThicknessProperty, new Thickness(1));
             var tb = new FrameworkElementFactory(typeof(TextBlock));
             tb.SetBinding(TextBlock.TextProperty, new Binding("Content"));
+            BindTextFormatting(tb);
             tb.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
             tb.SetValue(TextBlock.MarginProperty, new Thickness(2));
             border.AppendChild(tb);
@@ -306,7 +348,12 @@ namespace NavigatorHMI.Views.Helpers
         {
             var dt = new DataTemplate();
             var cb = new FrameworkElementFactory(typeof(CheckBox));
-            cb.SetBinding(CheckBox.ContentProperty, new Binding("Text"));
+            // Content 用 TextBlock 包装：支持字体/加粗/倾斜/下划线完整渲染
+            var content = new FrameworkElementFactory(typeof(TextBlock));
+            content.SetBinding(TextBlock.TextProperty, new Binding("Text"));
+            BindTextFormatting(content, useSafeColor: false);
+            content.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            cb.AppendChild(content);
             cb.SetBinding(CheckBox.IsCheckedProperty, new Binding("IsChecked"));
             cb.SetBinding(CheckBox.WidthProperty, new Binding("Width"));
             cb.SetBinding(CheckBox.HeightProperty, new Binding("Height"));
@@ -322,6 +369,8 @@ namespace NavigatorHMI.Views.Helpers
             var dt = new DataTemplate();
             var tb = new FrameworkElementFactory(typeof(TextBox));
             tb.SetBinding(TextBox.TextProperty, new Binding("Content"));
+            BindFontControl(tb);
+            tb.SetBinding(TextBox.TextDecorationsProperty, new Binding("TextDecoration") { Converter = new TextDecorationConverter() });
             tb.SetBinding(TextBox.WidthProperty, new Binding("Width"));
             tb.SetBinding(TextBox.HeightProperty, new Binding("Height"));
             // 设计态只读：值通过属性面板写入（Content），画布上不可编辑（保证按下即可拖拽）
@@ -337,7 +386,10 @@ namespace NavigatorHMI.Views.Helpers
         {
             var dt = new DataTemplate();
             var gb = new FrameworkElementFactory(typeof(GroupBox));
+            // 标题用 HeaderProperty 绑定（AppendChild 会设置 Content 而非 Header，GroupBox 仅允许单 Content）
             gb.SetBinding(GroupBox.HeaderProperty, new Binding("Title"));
+            // 标题字体继承 GroupBox 的 Control 字体属性（FontFamily/Size/Weight/Style；下划线不支持，面板已隐藏 Undr）
+            BindFontControl(gb);
             gb.SetBinding(GroupBox.WidthProperty, new Binding("Width"));
             gb.SetBinding(GroupBox.HeightProperty, new Binding("Height"));
             // 背景色 + 背景图片（ImagePath 为空时仅显示背景色与标题框）
@@ -379,7 +431,6 @@ namespace NavigatorHMI.Views.Helpers
         }
     }
 
-    /// <summary>颜色字符串到 Brush 的转换器（用于 DataTemplate 绑定）。</summary>
     /// <summary>
     /// 颜色字符串到 Brush 的转换器（用于 DataTemplate 绑定）。
     /// 空串/留空 → 透明画刷（不显示背景，但 Transparent 非 null 仍参与命中测试，控件可选中）。
@@ -422,6 +473,54 @@ namespace NavigatorHMI.Views.Helpers
                 _ => TextAlignment.Left
             };
         public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
+    /// <summary>
+    /// 安全文本色转换器（MultiBinding: TextColor + FillColor）。
+    /// 文本色为空/透明/与背景色相同 → 回退黑色，保证文字始终可见。
+    /// </summary>
+    public class SafeTextColorConverter : IMultiValueConverter
+    {
+        private static readonly BrushConverter _brushConverter = new();
+
+        public object Convert(object[] values, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            string textColor = values.Length > 0 ? values[0]?.ToString() ?? "" : "";
+            string fillColor = values.Length > 1 ? values[1]?.ToString() ?? "" : "";
+
+            if (string.IsNullOrWhiteSpace(textColor)
+             || textColor.Equals("Transparent", StringComparison.OrdinalIgnoreCase)
+             || textColor.Equals(fillColor, StringComparison.OrdinalIgnoreCase))
+                return Brushes.Black;
+
+            try { return (Brush)_brushConverter.ConvertFrom(textColor)!; }
+            catch (FormatException) { return Brushes.Black; }
+        }
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, System.Globalization.CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
+    /// <summary>TextDecoration 字符串（None/Underline）→ TextDecorationCollection 转换器。</summary>
+    public class TextDecorationConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            => value?.ToString().Equals("Underline", StringComparison.OrdinalIgnoreCase) == true
+                ? TextDecorations.Underline : null;
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
+    /// <summary>Switch 显示文本：IsOn → OnText/OffText（MultiBinding）。</summary>
+    public class SwitchTextConverter : IMultiValueConverter
+    {
+        public object Convert(object[] values, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            bool isOn = values.Length > 0 && values[0] is bool b && b;
+            return isOn ? (values.Length > 1 ? values[1]?.ToString() ?? "ON" : "ON")
+                        : (values.Length > 2 ? values[2]?.ToString() ?? "OFF" : "OFF");
+        }
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, System.Globalization.CultureInfo culture)
             => throw new NotImplementedException();
     }
 }
