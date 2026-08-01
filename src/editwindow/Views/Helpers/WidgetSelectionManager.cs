@@ -99,7 +99,7 @@ namespace NavigatorHMI.Views.Helpers
 
         /// <summary>
         /// 重置双击检测计时（拖拽结束后调用）。
-        /// 长按+拖拽的按下时间戳会污染下一次点击的双击判定，拖拽结束必须重置。
+        /// 拖拽的按下时间戳会污染下一次点击的双击判定，拖拽结束必须重置。
         /// </summary>
         public void ResetDoubleClickDetection()
         {

@@ -281,6 +281,8 @@ namespace NavigatorHMI.Views.Helpers
             tb.SetBinding(TextBox.TextProperty, new Binding("Content"));
             tb.SetBinding(TextBox.WidthProperty, new Binding("Width"));
             tb.SetBinding(TextBox.HeightProperty, new Binding("Height"));
+            // 设计态只读：值通过属性面板写入（Content），画布上不可编辑（保证按下即可拖拽）
+            tb.SetValue(TextBox.IsReadOnlyProperty, true);
             tb.SetBinding(SelectorHelper.IsSelectedProperty, new Binding("IsSelected") { Mode = BindingMode.TwoWay });
             AddInteractionHandlers(tb, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU);
             dt.VisualTree = tb;
@@ -295,6 +297,12 @@ namespace NavigatorHMI.Views.Helpers
             gb.SetBinding(GroupBox.HeaderProperty, new Binding("Title"));
             gb.SetBinding(GroupBox.WidthProperty, new Binding("Width"));
             gb.SetBinding(GroupBox.HeightProperty, new Binding("Height"));
+            // 背景色 + 背景图片（ImagePath 为空时仅显示背景色与标题框）
+            gb.SetBinding(GroupBox.BackgroundProperty, new Binding("FillColor") { Converter = new ColorStringToBrushConverter() });
+            var img = new FrameworkElementFactory(typeof(Image));
+            img.SetBinding(Image.SourceProperty, new Binding("ImagePath"));
+            img.SetValue(Image.StretchProperty, System.Windows.Media.Stretch.Fill);
+            gb.AppendChild(img);
             gb.SetBinding(SelectorHelper.IsSelectedProperty, new Binding("IsSelected") { Mode = BindingMode.TwoWay });
             AddInteractionHandlers(gb, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU);
             dt.VisualTree = gb;

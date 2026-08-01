@@ -305,6 +305,10 @@
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="FillColor:" Style="{StaticResource PropLabel}"/>
                 <TextBox Grid.Column="1" Text="{Binding FrameFillColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="图片路径:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding FrameImagePath, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
             </Grid></StackPanel></DataTemplate>
 
         <!-- ProgressBarWidget 属性 -->

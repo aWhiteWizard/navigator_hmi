@@ -462,7 +462,7 @@ public class TextBoxWidget : Widget
 }
 
 /// <summary>
-/// 框架控件。带标题的容器框，用于视觉分组其它控件。
+/// 框架控件。带标题的容器框，用于视觉分组其它控件，支持背景图片。
 /// </summary>
 [ProtoContract]
 public class FrameWidget : Widget
@@ -476,6 +476,11 @@ public class FrameWidget : Widget
     /// <summary>框架背景色（CSS 格式）</summary>
     [ProtoMember(2)]
     public string FillColor { get => _fillColor; set { _fillColor = value; OnPropertyChanged(); } }
+
+    private string _imagePath = "";
+    /// <summary>框架背景图片路径（相对工程目录或绝对路径，空则仅显示标题框）</summary>
+    [ProtoMember(3)]
+    public string ImagePath { get => _imagePath; set { _imagePath = value; OnPropertyChanged(); } }
 }
 
 /// <summary>

@@ -137,7 +137,7 @@ namespace NavigatorHMI.ViewModels
                             case IOFieldWidget io: IOFieldContent = io.Content; IOFieldIsReadOnly = io.IsReadOnly; break;
                             case CheckBoxWidget cb: CheckBoxText = cb.Text; CheckBoxIsChecked = cb.IsChecked; break;
                             case TextBoxWidget tbx: TextBoxContent = tbx.Content; TextBoxIsPassword = tbx.IsPassword; break;
-                            case FrameWidget f: FrameTitle = f.Title; FrameFillColor = f.FillColor; break;
+                            case FrameWidget f: FrameTitle = f.Title; FrameFillColor = f.FillColor; FrameImagePath = f.ImagePath; break;
                             case ProgressBarWidget pb: ProgressValue = pb.Value; ProgressMin = pb.Min; ProgressMax = pb.Max; ProgressFillColor = pb.FillColor; break;
                         }
                     }
@@ -528,6 +528,8 @@ namespace NavigatorHMI.ViewModels
         public string FrameTitle { get => _frameTitle; set { if (_frameTitle != value) { _frameTitle = value; OnPropertyChanged(); if (_selectedWidget is FrameWidget f) f.Title = value; } } }
         private string _frameFillColor = "#FFFFFF";
         public string FrameFillColor { get => _frameFillColor; set { if (_frameFillColor != value) { _frameFillColor = value; OnPropertyChanged(); if (_selectedWidget is FrameWidget f) f.FillColor = value; } } }
+        private string _frameImagePath = "";
+        public string FrameImagePath { get => _frameImagePath; set { if (_frameImagePath != value) { _frameImagePath = value; OnPropertyChanged(); if (_selectedWidget is FrameWidget f) f.ImagePath = value; } } }
 
         private double _progressValue = 0;
         public double ProgressValue { get => _progressValue; set { if (Math.Abs(_progressValue - value) > 0.001) { _progressValue = value; OnPropertyChanged(); if (_selectedWidget is ProgressBarWidget pb) pb.Value = value; } } }
