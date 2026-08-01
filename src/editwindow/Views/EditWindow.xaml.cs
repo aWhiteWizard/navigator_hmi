@@ -255,6 +255,57 @@ namespace NavigatorHMI.Views
             }
         }
 
+        /// <summary>当前已订阅脏标记的 Screen（防止重复订阅/泄漏）。</summary>
+        private Screen? _subscribedScreen;
+
+        /// <summary>
+        /// 订阅模型脏标记：任意 Widget/Screen 属性变化 → 标脏（覆盖属性面板/CLI/AI/拖拽所有入口）。
+        /// 排除瞬态属性（IsSelected）。
+        /// </summary>
+        private void SubscribeModelDirty(Screen screen)
+        {
+            if (_subscribedScreen != null)
+            {
+                _subscribedScreen.PropertyChanged -= OnScreenPropertyChanged;
+                _subscribedScreen.Widgets.CollectionChanged -= OnWidgetsCollectionChanged;
+                foreach (var w in _subscribedScreen.Widgets)
+                    w.PropertyChanged -= OnWidgetPropertyChanged;
+            }
+            _subscribedScreen = screen;
+            if (screen == null) return;
+
+            screen.PropertyChanged += OnScreenPropertyChanged;
+            screen.Widgets.CollectionChanged += OnWidgetsCollectionChanged;
+            foreach (var w in screen.Widgets)
+                w.PropertyChanged += OnWidgetPropertyChanged;
+        }
+
+        private void OnWidgetPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            // 排除选中态（瞬态，不持久化，不标脏）
+            if (e.PropertyName == nameof(Widget.IsSelected)) return;
+            MarkProjectDirty();
+        }
+
+        private void OnWidgetsCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        {
+            MarkProjectDirty();
+            // 退订被移除的 Widget（防残留订阅；Remove/Replace/Reset 均含 OldItems）
+            if (e.OldItems != null)
+            {
+                foreach (Widget w in e.OldItems)
+                    w.PropertyChanged -= OnWidgetPropertyChanged;
+            }
+            // 新增 Widget 纳入订阅（简单方案：全量重订阅）
+            if (_subscribedScreen != null)
+                SubscribeModelDirty(_subscribedScreen);
+        }
+
+        private void OnScreenPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            MarkProjectDirty();
+        }
+
         private void CheckBinding()
         {
             var vm = this.DataContext as EditWindowViewModel;
@@ -273,6 +324,8 @@ namespace NavigatorHMI.Views
             if (e.PropertyName == nameof(EditWindowViewModel.CurrentScreen))
             {
                 _selectionManager.ClearAllSelection();
+                // 画面切换：重订阅脏标记（新画面）
+                SubscribeModelDirty(_viewModel?.CurrentScreen);
                 System.Diagnostics.Debug.WriteLine("✅ 画面切换，已清除选中状态");
             }
         }
@@ -336,6 +389,9 @@ namespace NavigatorHMI.Views
 
             // 重置两点式绘制状态（切换画面时防止跨画面残留）
             HideDrawPreview();
+
+            // 订阅模型脏标记（任意控件属性变化 → 标题加 * 并在关闭时提醒保存）
+            SubscribeModelDirty(screen);
 
             System.Diagnostics.Debug.WriteLine($"✅ ItemsControl 已创建并添加到 Canvas");
             System.Diagnostics.Debug.WriteLine($"   尺寸: {itemsControl.Width}x{itemsControl.Height}");
