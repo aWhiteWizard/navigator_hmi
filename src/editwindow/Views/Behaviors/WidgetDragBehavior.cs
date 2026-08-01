@@ -25,6 +25,12 @@ namespace NavigatorHMI.Views.Behaviors
         private FrameworkElement? _pendingDragFE; // 对应按下元素（用于 CaptureMouse）
         private bool _suppressDragUntilMouseUp;   // 粘性抑制：两点式第二点击后，本次 down→up 周期内禁止拖拽
         private const double DRAG_THRESHOLD = 5;
+        /// <summary>拖拽前元素光标原值（恢复时还原，勿用 null——会连带清除模板/工厂 SetValue 的 Cursor）。</summary>
+        private Cursor? _dragOriginalCursor;
+        /// <summary>拖拽前 ForceCursor 原值。</summary>
+        private bool _dragOriginalForceCursor;
+        /// <summary>原值是否已保存（仅拖拽启动时保存；恢复只在已保存时执行，防单击周期用默认值覆盖模板光标）。</summary>
+        private bool _dragCursorSaved;
         private readonly Canvas _canvas;
         private readonly Func<EditWindowViewModel> _viewModelProvider;
         private readonly Action _markDirtyCallback;
@@ -72,13 +78,15 @@ namespace NavigatorHMI.Views.Behaviors
             _suppressDragUntilMouseUp = false;
         }
 
-        /// <summary>恢复拖拽期间设置的元素级光标（ForceCursor 成对复位，幂等）。</summary>
+        /// <summary>恢复拖拽期间设置的元素级光标（保存-还原原值；仅已保存时执行，防单击周期默认值覆盖模板光标）。</summary>
         private void RestoreDragCursor()
         {
-            if (_pendingDragFE != null)
+            if (_pendingDragFE != null && _dragCursorSaved)
             {
-                _pendingDragFE.ForceCursor = false;
-                _pendingDragFE.Cursor = null;
+                _pendingDragFE.ForceCursor = _dragOriginalForceCursor;
+                // 原值 null（模板未设 Cursor）时回退 Arrow：写入本地值而非 ClearValue（视觉等价，取舍：未来模板设自定义 Cursor 需改保存来源）
+                _pendingDragFE.Cursor = _dragOriginalCursor ?? Cursors.Arrow;
+                _dragCursorSaved = false;
             }
         }
 
@@ -174,8 +182,12 @@ namespace NavigatorHMI.Views.Behaviors
                     _isDragging = true;
                     _setCursorCallback(Cursors.SizeAll);
                     // 元素级光标：强制覆盖 TextBox 等控件的 IBeam/原生光标（元素光标优先级高于窗口光标）
+                    // 保存原值（恢复时还原，防 null 清除模板 SetValue 的 Cursor）
                     if (_pendingDragFE != null)
                     {
+                        _dragOriginalCursor = _pendingDragFE.Cursor;
+                        _dragOriginalForceCursor = _pendingDragFE.ForceCursor;
+                        _dragCursorSaved = true;
                         _pendingDragFE.ForceCursor = true;
                         _pendingDragFE.Cursor = Cursors.SizeAll;
                     }
@@ -243,6 +255,7 @@ namespace NavigatorHMI.Views.Behaviors
         internal void OnMouseRightButtonUp(object sender, MouseButtonEventArgs e)
         {
             if (sender is not FrameworkElement fe || fe.DataContext is not Widget widget) return;
+            RestoreDragCursor();   // 防御：不依赖 Preview down 先恢复的时序
             _pendingDragWidget = null;
             _pendingDragFE = null;
             _onRightClickCallback?.Invoke(widget, e.GetPosition(null));

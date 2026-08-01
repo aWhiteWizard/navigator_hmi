@@ -375,6 +375,9 @@ namespace NavigatorHMI.Views.Helpers
             tb.SetBinding(TextBox.HeightProperty, new Binding("Height"));
             // 设计态只读：值通过属性面板写入（Content），画布上不可编辑（保证按下即可拖拽）
             tb.SetValue(TextBox.IsReadOnlyProperty, true);
+            // 覆盖输入光标：组态软件中 TextBox 是显示控件（不需输入），ForceCursor 强制内部元素用普通箭头
+            tb.SetValue(TextBox.CursorProperty, Cursors.Arrow);
+            tb.SetValue(TextBox.ForceCursorProperty, true);
             tb.SetBinding(SelectorHelper.IsSelectedProperty, new Binding("IsSelected") { Mode = BindingMode.TwoWay });
             AddInteractionHandlers(tb, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU);
             dt.VisualTree = tb;
