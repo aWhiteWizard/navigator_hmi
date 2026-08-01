@@ -21,3 +21,6 @@ bin/
 .svg/
 .cr
 .picture
+
+# 用户本地配置
+*.csproj.user
