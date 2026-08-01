@@ -232,6 +232,11 @@ public class TextWidget : Widget
         get => _content;
         set { _content = value; OnPropertyChanged(); }
     }
+
+    private string _fillColor = "#EEEEEE";
+    /// <summary>背景色（CSS 格式，默认浅灰；保证控件可见、可选中）</summary>
+    [ProtoMember(2)]
+    public string FillColor { get => _fillColor; set { _fillColor = value; OnPropertyChanged(); } }
 }
 
 /// <summary>
@@ -240,9 +245,9 @@ public class TextWidget : Widget
 [ProtoContract]
 public class RectangleWidget : Widget
 {
-    private string _fillColor = "#FFFFFF";
+    private string _fillColor = "#EEEEEE";
 
-    /// <summary>填充颜色（CSS 格式，如 "#FF0000"）</summary>
+    /// <summary>填充颜色（CSS 格式，如 "#FF0000"；默认浅灰保证在白色画布上可见）</summary>
     [ProtoMember(1)]
     public string FillColor
     {
@@ -282,6 +287,11 @@ public class LabelWidget : Widget
     /// <summary>水平对齐：Left / Center / Right</summary>
     [ProtoMember(5)]
     public string HAlign { get => _hAlign; set { _hAlign = value; OnPropertyChanged(); } }
+
+    private string _fillColor = "#EEEEEE";
+    /// <summary>背景色（CSS 格式，默认浅灰；保证控件可见、可选中）</summary>
+    [ProtoMember(6)]
+    public string FillColor { get => _fillColor; set { _fillColor = value; OnPropertyChanged(); } }
 }
 
 /// <summary>
@@ -337,6 +347,11 @@ public class NumericDisplayWidget : Widget
     /// <summary>文本颜色（CSS 格式）</summary>
     [ProtoMember(5)]
     public string TextColor { get => _textColor; set { _textColor = value; OnPropertyChanged(); } }
+
+    private string _fillColor = "#EEEEEE";
+    /// <summary>背景色（CSS 格式，默认浅灰；保证控件可见、可选中）</summary>
+    [ProtoMember(6)]
+    public string FillColor { get => _fillColor; set { _fillColor = value; OnPropertyChanged(); } }
 }
 
 /// <summary>
@@ -399,8 +414,8 @@ public class LineWidget : Widget
 [ProtoContract]
 public class CircleWidget : Widget
 {
-    private string _fillColor = "#FFFFFF";
-    /// <summary>填充颜色（CSS 格式）</summary>
+    private string _fillColor = "#EEEEEE";
+    /// <summary>填充颜色（CSS 格式，默认浅灰保证白色画布上可见）</summary>
     [ProtoMember(1)]
     public string FillColor { get => _fillColor; set { _fillColor = value; OnPropertyChanged(); } }
 
@@ -431,6 +446,11 @@ public class IOFieldWidget : Widget
     /// <summary>是否只读（true=仅显示，false=可编辑）</summary>
     [ProtoMember(2)]
     public bool IsReadOnly { get => _isReadOnly; set { _isReadOnly = value; OnPropertyChanged(); } }
+
+    private string _fillColor = "#EEEEEE";
+    /// <summary>背景色（CSS 格式，默认浅灰；保证控件可见、可选中）</summary>
+    [ProtoMember(3)]
+    public string FillColor { get => _fillColor; set { _fillColor = value; OnPropertyChanged(); } }
 }
 
 /// <summary>
@@ -478,8 +498,8 @@ public class FrameWidget : Widget
     [ProtoMember(1)]
     public string Title { get => _title; set { _title = value; OnPropertyChanged(); } }
 
-    private string _fillColor = "#FFFFFF";
-    /// <summary>框架背景色（CSS 格式）</summary>
+    private string _fillColor = "#EEEEEE";
+    /// <summary>框架背景色（CSS 格式，默认浅灰保证白色画布上可见）</summary>
     [ProtoMember(2)]
     public string FillColor { get => _fillColor; set { _fillColor = value; OnPropertyChanged(); } }
 

@@ -109,14 +109,17 @@ namespace NavigatorHMI.CommandLayer.Handlers
             {
                 case ButtonWidget btn when key == "text": btn.Text = value; break;
                 case TextWidget txt when key == "content": txt.Content = value; break;
+                case TextWidget txt when key == "fillColor": txt.FillColor = value; break;
                 case RectangleWidget rect when key == "fillColor": rect.FillColor = value; break;
                 case LabelWidget lbl when key == "text": lbl.Text = value; break;
                 case LabelWidget lbl when key == "textColor": lbl.TextColor = value; break;
                 case LabelWidget lbl when key == "fontSize": lbl.FontSize = double.Parse(value); break;
+                case LabelWidget lbl when key == "fillColor": lbl.FillColor = value; break;
                 case ImageWidget img when key == "imagePath": img.ImagePath = value; break;
                 case NumericDisplayWidget nd when key == "prefix": nd.Prefix = value; break;
                 case NumericDisplayWidget nd when key == "suffix": nd.Suffix = value; break;
                 case NumericDisplayWidget nd when key == "decimalPlaces": nd.DecimalPlaces = int.Parse(value); break;
+                case NumericDisplayWidget nd when key == "fillColor": nd.FillColor = value; break;
                 case SwitchWidget sw when key == "isOn": sw.IsOn = bool.Parse(value); break;
                 case LineWidget line when key == "strokeColor": line.StrokeColor = value; break;
                 case LineWidget line when key == "strokeThickness": line.StrokeThickness = double.Parse(value); break;
@@ -124,6 +127,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 case CircleWidget c when key == "strokeColor": c.StrokeColor = value; break;
                 case IOFieldWidget io when key == "content": io.Content = value; break;
                 case IOFieldWidget io when key == "isReadOnly": io.IsReadOnly = bool.Parse(value); break;
+                case IOFieldWidget io when key == "fillColor": io.FillColor = value; break;
                 case CheckBoxWidget cb when key == "text": cb.Text = value; break;
                 case CheckBoxWidget cb when key == "isChecked": cb.IsChecked = bool.Parse(value); break;
                 case TextBoxWidget tb when key == "content": tb.Content = value; break;

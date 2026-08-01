@@ -10,13 +10,15 @@ namespace NavigatorHMI.Views.Helpers
 {
     /// <summary>
     /// Widget 类型的 DataTemplate 选择器。根据 Widget 子类类型返回不同的视觉模板。
-    /// TextWidget 和 LabelWidget 共享同一 TextBlock 模板（二者渲染逻辑一致）。
+    /// TextWidget 用 Content 绑定模板（无 Text 属性）；LabelWidget 用 Text 绑定模板——
+    /// 二者视觉结构一致（TextBlock + 背景 Border）。
     /// RectangleWidget 使用默认矩形模板。
     /// </summary>
     public class WidgetTemplateSelector : DataTemplateSelector
     {
         public DataTemplate ButtonTemplate { get; set; } = null!;
         public DataTemplate LabelTemplate { get; set; } = null!;
+        public DataTemplate TextContentTemplate { get; set; } = null!;
         public DataTemplate ImageTemplate { get; set; } = null!;
         public DataTemplate NumericDisplayTemplate { get; set; } = null!;
         public DataTemplate SwitchTemplate { get; set; } = null!;
@@ -32,13 +34,14 @@ namespace NavigatorHMI.Views.Helpers
         /// <summary>
         /// 根据 item 运行时类型选择对应的 DataTemplate。
         /// 未匹配的类型回退到 DefaultTemplate（矩形填充色渲染）。
+        /// TextWidget 用 Content 绑定模板（无 Text 属性）；LabelWidget 用 Text 绑定模板。
         /// </summary>
         public override DataTemplate SelectTemplate(object item, DependencyObject container)
         {
             return item switch
             {
                 ButtonWidget => ButtonTemplate,
-                TextWidget => LabelTemplate,       // 与 LabelWidget 共享 TextBlock 模板
+                TextWidget => TextContentTemplate,
                 LabelWidget => LabelTemplate,
                 ImageWidget => ImageTemplate,
                 NumericDisplayWidget => NumericDisplayTemplate,
@@ -103,6 +106,7 @@ namespace NavigatorHMI.Views.Helpers
             {
                 ButtonTemplate = CreateButtonTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
                 LabelTemplate = CreateLabelTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
+                TextContentTemplate = CreateTextContentTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
                 ImageTemplate = CreateImageTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
                 NumericDisplayTemplate = CreateNumericDisplayTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
                 SwitchTemplate = CreateSwitchTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
@@ -135,12 +139,17 @@ namespace NavigatorHMI.Views.Helpers
         }
 
         /// <summary>用 Border 包裹元素，设置 Width/Height/IsSelected 绑定 + 交互事件。</summary>
+        /// <param name="bindFillBackground">是否绑定 Border.Background = FillColor（Label/NumericDisplay/IOField 等
+        /// 无自带填充的控件需要背景色保证可见可选中；Circle/Rectangle 已绑定自身 Fill，传 false 避免双重绑定）。</param>
         private static FrameworkElementFactory WrapWithBorder(FrameworkElementFactory inner,
             RoutedEventHandler click, MouseButtonEventHandler pmLBD, MouseButtonEventHandler mLBD,
             MouseEventHandler mMove, MouseButtonEventHandler mLBU,
-            MouseButtonEventHandler pmRBD, MouseButtonEventHandler mRBU)
+            MouseButtonEventHandler pmRBD, MouseButtonEventHandler mRBU,
+            bool bindFillBackground = false)
         {
             var border = new FrameworkElementFactory(typeof(Border));
+            if (bindFillBackground)
+                border.SetBinding(Border.BackgroundProperty, new Binding("FillColor") { Converter = new ColorStringToBrushConverter() });
             border.SetBinding(Border.WidthProperty, new Binding("Width"));
             border.SetBinding(Border.HeightProperty, new Binding("Height"));
             border.SetBinding(SelectorHelper.IsSelectedProperty, new Binding("IsSelected") { Mode = BindingMode.TwoWay });
@@ -165,6 +174,18 @@ namespace NavigatorHMI.Views.Helpers
             return dt;
         }
 
+        /// <summary>TextWidget 专属模板：绑定 Content（TextWidget 无 Text 属性，原共享 LabelTemplate 导致文字不显示）。</summary>
+        private static DataTemplate CreateTextContentTemplate(RoutedEventHandler click, MouseButtonEventHandler pmLBD, MouseButtonEventHandler mLBD,
+            MouseEventHandler mMove, MouseButtonEventHandler mLBU, MouseButtonEventHandler pmRBD, MouseButtonEventHandler mRBU)
+        {
+            var dt = new DataTemplate();
+            var tb = new FrameworkElementFactory(typeof(TextBlock));
+            tb.SetBinding(TextBlock.TextProperty, new Binding("Content"));
+            tb.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            dt.VisualTree = WrapWithBorder(tb, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU, bindFillBackground: true);   // TextContentTemplate
+            return dt;
+        }
+
         private static DataTemplate CreateLabelTemplate(RoutedEventHandler click, MouseButtonEventHandler pmLBD, MouseButtonEventHandler mLBD,
             MouseEventHandler mMove, MouseButtonEventHandler mLBU, MouseButtonEventHandler pmRBD, MouseButtonEventHandler mRBU)
         {
@@ -172,7 +193,7 @@ namespace NavigatorHMI.Views.Helpers
             var tb = new FrameworkElementFactory(typeof(TextBlock));
             tb.SetBinding(TextBlock.TextProperty, new Binding("Text"));
             tb.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
-            dt.VisualTree = WrapWithBorder(tb, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU);
+            dt.VisualTree = WrapWithBorder(tb, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU, bindFillBackground: true);   // LabelTemplate（仅 LabelWidget 使用）
             return dt;
         }
 
@@ -203,7 +224,7 @@ namespace NavigatorHMI.Views.Helpers
             tb.SetBinding(TextBlock.TextProperty, new Binding("Prefix"));
             tb.SetValue(TextBlock.TextAlignmentProperty, TextAlignment.Center);
             tb.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
-            dt.VisualTree = WrapWithBorder(tb, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU);
+            dt.VisualTree = WrapWithBorder(tb, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU, bindFillBackground: true);   // NumericDisplayTemplate
             return dt;
         }
 
@@ -262,7 +283,7 @@ namespace NavigatorHMI.Views.Helpers
             tb.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
             tb.SetValue(TextBlock.MarginProperty, new Thickness(2));
             border.AppendChild(tb);
-            dt.VisualTree = WrapWithBorder(border, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU);
+            dt.VisualTree = WrapWithBorder(border, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU, bindFillBackground: true);   // IOFieldTemplate
             return dt;
         }
 

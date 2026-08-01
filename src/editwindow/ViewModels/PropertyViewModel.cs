@@ -126,15 +126,15 @@ namespace NavigatorHMI.ViewModels
                         switch (value)
                         {
                             case ButtonWidget btn: ButtonText = btn.Text; break;
-                            case TextWidget txt: TextContent = txt.Content; break;
+                            case TextWidget txt: TextContent = txt.Content; TextFillColor = txt.FillColor; break;
                             case RectangleWidget rect: RectFillColor = rect.FillColor; break;
-                            case LabelWidget lbl: LabelText = lbl.Text; LabelFontSize = lbl.FontSize; LabelTextColor = lbl.TextColor; break;
+                            case LabelWidget lbl: LabelText = lbl.Text; LabelFontSize = lbl.FontSize; LabelTextColor = lbl.TextColor; LabelFillColor = lbl.FillColor; break;
                             case ImageWidget img: ImagePath = img.ImagePath; ImageFillColor = img.FillColor; break;
-                            case NumericDisplayWidget nd: NumericPrefix = nd.Prefix; NumericSuffix = nd.Suffix; NumericDecimalPlaces = nd.DecimalPlaces; NumericFontSize = nd.FontSize; NumericTextColor = nd.TextColor; break;
+                            case NumericDisplayWidget nd: NumericPrefix = nd.Prefix; NumericSuffix = nd.Suffix; NumericDecimalPlaces = nd.DecimalPlaces; NumericFontSize = nd.FontSize; NumericTextColor = nd.TextColor; NumericFillColor = nd.FillColor; break;
                             case SwitchWidget sw: SwitchIsOn = sw.IsOn; SwitchOnText = sw.OnText; SwitchOffText = sw.OffText; break;
                             case LineWidget line: LineX2 = line.X2; LineY2 = line.Y2; LineStrokeColor = line.StrokeColor; LineStrokeThickness = line.StrokeThickness; break;
                             case CircleWidget c: CircleFillColor = c.FillColor; CircleStrokeColor = c.StrokeColor; CircleStrokeThickness = c.StrokeThickness; break;
-                            case IOFieldWidget io: IOFieldContent = io.Content; IOFieldIsReadOnly = io.IsReadOnly; break;
+                            case IOFieldWidget io: IOFieldContent = io.Content; IOFieldIsReadOnly = io.IsReadOnly; IOFieldFillColor = io.FillColor; break;
                             case CheckBoxWidget cb: CheckBoxText = cb.Text; CheckBoxIsChecked = cb.IsChecked; break;
                             case TextBoxWidget tbx: TextBoxContent = tbx.Content; TextBoxIsPassword = tbx.IsPassword; break;
                             case FrameWidget f: FrameTitle = f.Title; FrameFillColor = f.FillColor; FrameImagePath = f.ImagePath; break;
@@ -455,8 +455,11 @@ namespace NavigatorHMI.ViewModels
                 }
             }
         }
+        private string _textFillColor = "#EEEEEE";
+        /// <summary>Text 背景色（CSS 格式）。</summary>
+        public string TextFillColor { get => _textFillColor; set { if (_textFillColor != value) { _textFillColor = value; OnPropertyChanged(); if (_selectedWidget is TextWidget txt) txt.FillColor = value; } } }
 
-        private string _rectFillColor = "";
+        private string _rectFillColor = "#EEEEEE";
         public string RectFillColor
         {
             get => _rectFillColor;
@@ -471,6 +474,9 @@ namespace NavigatorHMI.ViewModels
 
         private string _labelTextColor = "#000000";
         public string LabelTextColor { get => _labelTextColor; set { if (_labelTextColor != value) { _labelTextColor = value; OnPropertyChanged(); if (_selectedWidget is LabelWidget lbl) lbl.TextColor = value; } } }
+        private string _labelFillColor = "#EEEEEE";
+        /// <summary>Label 背景色（CSS 格式）。</summary>
+        public string LabelFillColor { get => _labelFillColor; set { if (_labelFillColor != value) { _labelFillColor = value; OnPropertyChanged(); if (_selectedWidget is LabelWidget lbl) lbl.FillColor = value; } } }
 
         private string _imagePath = "";
         public string ImagePath { get => _imagePath; set { if (_imagePath != value) { _imagePath = value; OnPropertyChanged(); if (_selectedWidget is ImageWidget img) img.ImagePath = value; } } }
@@ -488,6 +494,9 @@ namespace NavigatorHMI.ViewModels
         public double NumericFontSize { get => _numericFontSize; set { if (Math.Abs(_numericFontSize - value) > 0.001) { _numericFontSize = value; OnPropertyChanged(); if (_selectedWidget is NumericDisplayWidget nd) nd.FontSize = value; } } }
         private string _numericTextColor = "#000000";
         public string NumericTextColor { get => _numericTextColor; set { if (_numericTextColor != value) { _numericTextColor = value; OnPropertyChanged(); if (_selectedWidget is NumericDisplayWidget nd) nd.TextColor = value; } } }
+        private string _numericFillColor = "#EEEEEE";
+        /// <summary>NumericDisplay 背景色（CSS 格式）。</summary>
+        public string NumericFillColor { get => _numericFillColor; set { if (_numericFillColor != value) { _numericFillColor = value; OnPropertyChanged(); if (_selectedWidget is NumericDisplayWidget nd) nd.FillColor = value; } } }
 
         private bool _switchIsOn = false;
         public bool SwitchIsOn { get => _switchIsOn; set { if (_switchIsOn != value) { _switchIsOn = value; OnPropertyChanged(); if (_selectedWidget is SwitchWidget sw) sw.IsOn = value; } } }
@@ -505,7 +514,7 @@ namespace NavigatorHMI.ViewModels
         private double _lineStrokeThickness = 1;
         public double LineStrokeThickness { get => _lineStrokeThickness; set { if (Math.Abs(_lineStrokeThickness - value) > 0.001) { _lineStrokeThickness = value; OnPropertyChanged(); if (_selectedWidget is LineWidget ln) ln.StrokeThickness = value; } } }
 
-        private string _circleFillColor = "#FFFFFF";
+        private string _circleFillColor = "#EEEEEE";
         public string CircleFillColor { get => _circleFillColor; set { if (_circleFillColor != value) { _circleFillColor = value; OnPropertyChanged(); if (_selectedWidget is CircleWidget c) c.FillColor = value; } } }
         private string _circleStrokeColor = "#000000";
         public string CircleStrokeColor { get => _circleStrokeColor; set { if (_circleStrokeColor != value) { _circleStrokeColor = value; OnPropertyChanged(); if (_selectedWidget is CircleWidget c) c.StrokeColor = value; } } }
@@ -516,6 +525,9 @@ namespace NavigatorHMI.ViewModels
         public string IOFieldContent { get => _ioFieldContent; set { if (_ioFieldContent != value) { _ioFieldContent = value; OnPropertyChanged(); if (_selectedWidget is IOFieldWidget io) io.Content = value; } } }
         private bool _ioFieldIsReadOnly = false;
         public bool IOFieldIsReadOnly { get => _ioFieldIsReadOnly; set { if (_ioFieldIsReadOnly != value) { _ioFieldIsReadOnly = value; OnPropertyChanged(); if (_selectedWidget is IOFieldWidget io) io.IsReadOnly = value; } } }
+        private string _ioFieldFillColor = "#EEEEEE";
+        /// <summary>IOField 背景色（CSS 格式）。</summary>
+        public string IOFieldFillColor { get => _ioFieldFillColor; set { if (_ioFieldFillColor != value) { _ioFieldFillColor = value; OnPropertyChanged(); if (_selectedWidget is IOFieldWidget io) io.FillColor = value; } } }
 
         private string _checkBoxText = "CheckBox";
         public string CheckBoxText { get => _checkBoxText; set { if (_checkBoxText != value) { _checkBoxText = value; OnPropertyChanged(); if (_selectedWidget is CheckBoxWidget cb) cb.Text = value; } } }
@@ -529,7 +541,7 @@ namespace NavigatorHMI.ViewModels
 
         private string _frameTitle = "Group";
         public string FrameTitle { get => _frameTitle; set { if (_frameTitle != value) { _frameTitle = value; OnPropertyChanged(); if (_selectedWidget is FrameWidget f) f.Title = value; } } }
-        private string _frameFillColor = "#FFFFFF";
+        private string _frameFillColor = "#EEEEEE";
         public string FrameFillColor { get => _frameFillColor; set { if (_frameFillColor != value) { _frameFillColor = value; OnPropertyChanged(); if (_selectedWidget is FrameWidget f) f.FillColor = value; } } }
         private string _frameImagePath = "";
         public string FrameImagePath { get => _frameImagePath; set { if (_frameImagePath != value) { _frameImagePath = value; OnPropertyChanged(); if (_selectedWidget is FrameWidget f) f.ImagePath = value; } } }
