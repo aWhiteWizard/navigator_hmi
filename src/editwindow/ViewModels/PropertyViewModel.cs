@@ -130,7 +130,7 @@ namespace NavigatorHMI.ViewModels
                             case RectangleWidget rect: RectFillColor = rect.FillColor; break;
                             case LabelWidget lbl: LabelText = lbl.Text; LabelFontSize = lbl.FontSize; LabelTextColor = lbl.TextColor; LabelFillColor = lbl.FillColor; break;
                             case ImageWidget img: ImagePath = img.ImagePath; ImageFillColor = img.FillColor; break;
-                            case NumericDisplayWidget nd: NumericPrefix = nd.Prefix; NumericSuffix = nd.Suffix; NumericDecimalPlaces = nd.DecimalPlaces; NumericFontSize = nd.FontSize; NumericTextColor = nd.TextColor; NumericFillColor = nd.FillColor; NumericValue = nd.Value; break;
+                            case NumericDisplayWidget nd: NumericFontSize = nd.FontSize; NumericTextColor = nd.TextColor; NumericFillColor = nd.FillColor; NumericValue = nd.Value; break;
                             case SwitchWidget sw: SwitchIsOn = sw.IsOn; SwitchOnText = sw.OnText; SwitchOffText = sw.OffText; break;
                             case LineWidget line: LineX2 = line.X2; LineY2 = line.Y2; LineStrokeColor = line.StrokeColor; LineStrokeThickness = line.StrokeThickness; break;
                             case CircleWidget c: CircleFillColor = c.FillColor; CircleStrokeColor = c.StrokeColor; CircleStrokeThickness = c.StrokeThickness; break;
@@ -496,12 +496,6 @@ namespace NavigatorHMI.ViewModels
         /// <summary>图片背景色（CSS 格式，默认浅灰；图片透明区域/无图片时可见）。</summary>
         public string ImageFillColor { get => _imageFillColor; set { if (_imageFillColor != value) { _imageFillColor = value; OnPropertyChanged(); if (_selectedWidget is ImageWidget img) img.FillColor = value; } } }
 
-        private string _numericPrefix = "";
-        public string NumericPrefix { get => _numericPrefix; set { if (_numericPrefix != value) { _numericPrefix = value; OnPropertyChanged(); if (_selectedWidget is NumericDisplayWidget nd) nd.Prefix = value; } } }
-        private string _numericSuffix = "";
-        public string NumericSuffix { get => _numericSuffix; set { if (_numericSuffix != value) { _numericSuffix = value; OnPropertyChanged(); if (_selectedWidget is NumericDisplayWidget nd) nd.Suffix = value; } } }
-        private int _numericDecimalPlaces = 1;
-        public int NumericDecimalPlaces { get => _numericDecimalPlaces; set { if (_numericDecimalPlaces != value) { _numericDecimalPlaces = value; OnPropertyChanged(); if (_selectedWidget is NumericDisplayWidget nd) nd.DecimalPlaces = value; } } }
         private double _numericFontSize = 16;
         public double NumericFontSize { get => _numericFontSize; set { if (Math.Abs(_numericFontSize - value) > 0.001) { _numericFontSize = value; OnPropertyChanged(); if (_selectedWidget is NumericDisplayWidget nd) nd.FontSize = value; } } }
         private string _numericTextColor = "#000000";

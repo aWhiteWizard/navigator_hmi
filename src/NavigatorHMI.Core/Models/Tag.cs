@@ -34,7 +34,7 @@ namespace NavigatorHMI.Common
         [ProtoMember(2)]
         public TagDataType DataType { get; set; }
 
-        /// <summary>工程单位（如 "°C" / "rpm" / "m"），用于 NumericDisplay 后缀显示</summary>
+        /// <summary>工程单位（如 "°C" / "rpm" / "m"），供 IOField/NumericDisplay 等数值控件显示单位</summary>
         [ProtoMember(3)]
         public string Unit { get; set; } = "";
 

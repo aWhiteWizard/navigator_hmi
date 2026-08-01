@@ -120,11 +120,10 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 case LabelWidget lbl when key == "fontSize": lbl.FontSize = double.Parse(value); break;
                 case LabelWidget lbl when key == "fillColor": lbl.FillColor = value; break;
                 case ImageWidget img when key == "imagePath": img.ImagePath = value; break;
-                case NumericDisplayWidget nd when key == "prefix": nd.Prefix = value; break;
-                case NumericDisplayWidget nd when key == "suffix": nd.Suffix = value; break;
-                case NumericDisplayWidget nd when key == "decimalPlaces": nd.DecimalPlaces = int.Parse(value); break;
-                case NumericDisplayWidget nd when key == "fillColor": nd.FillColor = value; break;
                 case NumericDisplayWidget nd when key == "value": nd.Value = double.Parse(value); break;
+                case NumericDisplayWidget nd when key == "fillColor": nd.FillColor = value; break;
+                case NumericDisplayWidget nd when key == "fontSize": nd.FontSize = double.Parse(value); break;
+                case NumericDisplayWidget nd when key == "textColor": nd.TextColor = value; break;
                 case SwitchWidget sw when key == "isOn": sw.IsOn = bool.Parse(value); break;
                 case LineWidget line when key == "strokeColor": line.StrokeColor = value; break;
                 case LineWidget line when key == "strokeThickness": line.StrokeThickness = double.Parse(value); break;

@@ -232,13 +232,8 @@ namespace NavigatorHMI.Views.Helpers
         {
             var dt = new DataTemplate();
             var tb = new FrameworkElementFactory(typeof(TextBlock));
-            // Prefix + Value + Suffix 组合显示（DecimalPlaces 控制小数位）；运行时由 BoundTag 变量覆盖
-            var multi = new MultiBinding { Converter = new NumericDisplayTextConverter() };
-            multi.Bindings.Add(new Binding("Prefix"));
-            multi.Bindings.Add(new Binding("Value"));
-            multi.Bindings.Add(new Binding("Suffix"));
-            multi.Bindings.Add(new Binding("DecimalPlaces"));
-            tb.SetBinding(TextBlock.TextProperty, multi);
+            // 设计态显示 Value 数值（运行时由 BoundTag 变量实时值覆盖）
+            tb.SetBinding(TextBlock.TextProperty, new Binding("Value"));
             tb.SetBinding(TextBlock.FontSizeProperty, new Binding("FontSize"));
             tb.SetBinding(TextBlock.ForegroundProperty, new Binding("TextColor") { Converter = new ColorStringToBrushConverter() });
             tb.SetValue(TextBlock.TextAlignmentProperty, TextAlignment.Center);
@@ -427,21 +422,6 @@ namespace NavigatorHMI.Views.Helpers
                 _ => TextAlignment.Left
             };
         public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
-            => throw new NotImplementedException();
-    }
-
-    /// <summary>NumericDisplay 文本组合：Prefix + Value(按 DecimalPlaces 格式化) + Suffix。</summary>
-    public class NumericDisplayTextConverter : IMultiValueConverter
-    {
-        public object Convert(object[] values, Type targetType, object parameter, System.Globalization.CultureInfo culture)
-        {
-            string prefix = values.Length > 0 ? values[0]?.ToString() ?? "" : "";
-            double value = values.Length > 1 && values[1] is double v ? v : 0;
-            string suffix = values.Length > 2 ? values[2]?.ToString() ?? "" : "";
-            int decimals = values.Length > 3 && values[3] is int d ? d : 1;
-            return $"{prefix}{value.ToString("F" + Math.Clamp(decimals, 0, 6))}{suffix}";
-        }
-        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, System.Globalization.CultureInfo culture)
             => throw new NotImplementedException();
     }
 }

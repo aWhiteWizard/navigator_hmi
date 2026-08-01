@@ -6,7 +6,7 @@ using System.Windows.Media;
 namespace NavigatorHMI.Views
 {
     /// <summary>
-    /// 颜色选择控件：显示当前颜色色块，点击弹出 <see cref="ColorPickerDialog"/>（预设色板 + 透明 + 自定义 hex）。
+    /// 颜色选择控件：显示当前颜色色块，点击弹出 <see cref="ColorPickerDialog"/>（画图式 HSV 连续取色 + 透明 + 自定义 hex）。
     /// 通过 <see cref="Value"/> 依赖属性（TwoWay）与 ViewModel 颜色属性绑定。
     /// </summary>
     public partial class ColorPickerControl : UserControl

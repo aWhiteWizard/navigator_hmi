@@ -193,20 +193,8 @@
             <Separator Margin="4,2"/>
             <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <Label Grid.Column="0" Content="Prefix:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding NumericPrefix, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
-            </Grid>
-            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Value:" Style="{StaticResource PropLabel}"/>
                 <TextBox Grid.Column="1" Text="{Binding NumericValue, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}" ToolTip="设计态预览值（运行时由变量实时值覆盖）"/>
-            </Grid>
-            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <Label Grid.Column="0" Content="Suffix:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding NumericSuffix, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
-            </Grid>
-            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <Label Grid.Column="0" Content="Decimals:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding NumericDecimalPlaces, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="FontSize:" Style="{StaticResource PropLabel}"/>

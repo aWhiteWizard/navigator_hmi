@@ -338,25 +338,19 @@ public class ImageWidget : Widget
 }
 
 /// <summary>
-/// 数值显示控件。绑定变量显示实时数值，支持前缀/后缀/小数位/字体/颜色。
+/// 数值显示控件。绑定变量显示实时数值（只读），设计态通过 <see cref="Value"/> 预览。
+/// 运行时由 BoundTag 变量实时值覆盖。
 /// </summary>
+/// <remarks>
+/// 字段号说明：1(DecimalPlaces)/2(Prefix)/3(Suffix) 已废弃删除，字段号保留不复用（protobuf 兼容）。
+/// </remarks>
 [ProtoContract]
 public class NumericDisplayWidget : Widget
 {
-    private int _decimalPlaces = 1;
-    /// <summary>小数位数</summary>
-    [ProtoMember(1)]
-    public int DecimalPlaces { get => _decimalPlaces; set { _decimalPlaces = value; OnPropertyChanged(); } }
-
-    private string _prefix = "";
-    /// <summary>数值前缀（如 "$" / "温度: "）</summary>
-    [ProtoMember(2)]
-    public string Prefix { get => _prefix; set { _prefix = value; OnPropertyChanged(); } }
-
-    private string _suffix = "";
-    /// <summary>数值后缀（如 "℃" / "rpm" / "%"）</summary>
-    [ProtoMember(3)]
-    public string Suffix { get => _suffix; set { _suffix = value; OnPropertyChanged(); } }
+    private double _value = 0;
+    /// <summary>设计态数值预览（运行时由 BoundTag 变量实时值覆盖）</summary>
+    [ProtoMember(7)]
+    public double Value { get => _value; set { _value = value; OnPropertyChanged(); } }
 
     private double _fontSize = 16;
     /// <summary>字体大小（像素）</summary>
@@ -372,11 +366,6 @@ public class NumericDisplayWidget : Widget
     /// <summary>背景色（CSS 格式，默认浅灰；保证控件可见、可选中）</summary>
     [ProtoMember(6)]
     public string FillColor { get => _fillColor; set { _fillColor = value; OnPropertyChanged(); } }
-
-    private double _value = 0;
-    /// <summary>设计态数值预览（运行时由 BoundTag 变量实时值覆盖）</summary>
-    [ProtoMember(7)]
-    public double Value { get => _value; set { _value = value; OnPropertyChanged(); } }
 }
 
 /// <summary>
