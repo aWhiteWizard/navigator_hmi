@@ -342,6 +342,13 @@ namespace NavigatorHMI.Views
             }
         }
 
+        /// <summary>菜单「默认字体」：打开工厂默认字体设置对话框。</summary>
+        private void FontDefaults_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new FontDefaultsDialog { Owner = this };
+            dialog.ShowDialog();
+        }
+
         private void CheckBinding()
         {
             var vm = this.DataContext as EditWindowViewModel;

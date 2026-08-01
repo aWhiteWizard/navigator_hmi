@@ -216,27 +216,27 @@ public class ButtonWidget : Widget
         set { _text = value; OnPropertyChanged(); }
     }
 
-    private string _fontFamily = "Microsoft YaHei UI";
+    private string _fontFamily = WidgetFontDefaults.FontFamily;
     /// <summary>字体族（如 "Microsoft YaHei UI" / "Arial"）</summary>
     [ProtoMember(2)]
     public string FontFamily { get => _fontFamily; set { if (!string.IsNullOrEmpty(value) && _fontFamily != value) { _fontFamily = value; OnPropertyChanged(); } } }
 
-    private double _fontSize = 14;
+    private double _fontSize = WidgetFontDefaults.FontSize;
     /// <summary>字体大小（像素）</summary>
     [ProtoMember(3)]
     public double FontSize { get => _fontSize; set { _fontSize = value; OnPropertyChanged(); } }
 
-    private string _fontWeight = "Normal";
+    private string _fontWeight = WidgetFontDefaults.FontWeight;
     /// <summary>字重：Normal / Bold</summary>
     [ProtoMember(4)]
     public string FontWeight { get => _fontWeight; set { _fontWeight = value; OnPropertyChanged(); } }
 
-    private string _fontStyle = "Normal";
+    private string _fontStyle = WidgetFontDefaults.FontStyle;
     /// <summary>字型：Normal / Italic</summary>
     [ProtoMember(5)]
     public string FontStyle { get => _fontStyle; set { _fontStyle = value; OnPropertyChanged(); } }
 
-    private string _textDecoration = "None";
+    private string _textDecoration = WidgetFontDefaults.TextDecoration;
     /// <summary>下划线：None / Underline</summary>
     [ProtoMember(6)]
     public string TextDecoration { get => _textDecoration; set { _textDecoration = value; OnPropertyChanged(); } }
@@ -263,12 +263,12 @@ public class TextWidget : Widget
     [ProtoMember(2)]
     public string FillColor { get => _fillColor; set { _fillColor = value; OnPropertyChanged(); } }
 
-    private double _fontSize = 14;
+    private double _fontSize = WidgetFontDefaults.FontSize;
     /// <summary>字体大小（像素）</summary>
     [ProtoMember(3)]
     public double FontSize { get => _fontSize; set { _fontSize = value; OnPropertyChanged(); } }
 
-    private string _fontWeight = "Normal";
+    private string _fontWeight = WidgetFontDefaults.FontWeight;
     /// <summary>字重：Normal / Bold</summary>
     [ProtoMember(4)]
     public string FontWeight { get => _fontWeight; set { _fontWeight = value; OnPropertyChanged(); } }
@@ -283,17 +283,17 @@ public class TextWidget : Widget
     [ProtoMember(6)]
     public string HAlign { get => _hAlign; set { _hAlign = value; OnPropertyChanged(); } }
 
-    private string _fontFamily = "Microsoft YaHei UI";
+    private string _fontFamily = WidgetFontDefaults.FontFamily;
     /// <summary>字体族（如 "Microsoft YaHei UI" / "Arial"）</summary>
     [ProtoMember(7)]
     public string FontFamily { get => _fontFamily; set { if (!string.IsNullOrEmpty(value) && _fontFamily != value) { _fontFamily = value; OnPropertyChanged(); } } }
 
-    private string _fontStyle = "Normal";
+    private string _fontStyle = WidgetFontDefaults.FontStyle;
     /// <summary>字型：Normal / Italic</summary>
     [ProtoMember(8)]
     public string FontStyle { get => _fontStyle; set { _fontStyle = value; OnPropertyChanged(); } }
 
-    private string _textDecoration = "None";
+    private string _textDecoration = WidgetFontDefaults.TextDecoration;
     /// <summary>下划线：None / Underline</summary>
     [ProtoMember(9)]
     public string TextDecoration { get => _textDecoration; set { _textDecoration = value; OnPropertyChanged(); } }
@@ -328,12 +328,12 @@ public class LabelWidget : Widget
     [ProtoMember(1)]
     public string Text { get => _text; set { _text = value; OnPropertyChanged(); } }
 
-    private double _fontSize = 14;
+    private double _fontSize = WidgetFontDefaults.FontSize;
     /// <summary>字体大小（像素）</summary>
     [ProtoMember(2)]
     public double FontSize { get => _fontSize; set { _fontSize = value; OnPropertyChanged(); } }
 
-    private string _fontWeight = "Normal";
+    private string _fontWeight = WidgetFontDefaults.FontWeight;
     /// <summary>字重：Normal / Bold</summary>
     [ProtoMember(3)]
     public string FontWeight { get => _fontWeight; set { _fontWeight = value; OnPropertyChanged(); } }
@@ -353,17 +353,17 @@ public class LabelWidget : Widget
     [ProtoMember(6)]
     public string FillColor { get => _fillColor; set { _fillColor = value; OnPropertyChanged(); } }
 
-    private string _fontFamily = "Microsoft YaHei UI";
+    private string _fontFamily = WidgetFontDefaults.FontFamily;
     /// <summary>字体族（如 "Microsoft YaHei UI" / "Arial"）</summary>
     [ProtoMember(7)]
     public string FontFamily { get => _fontFamily; set { if (!string.IsNullOrEmpty(value) && _fontFamily != value) { _fontFamily = value; OnPropertyChanged(); } } }
 
-    private string _fontStyle = "Normal";
+    private string _fontStyle = WidgetFontDefaults.FontStyle;
     /// <summary>字型：Normal / Italic</summary>
     [ProtoMember(8)]
     public string FontStyle { get => _fontStyle; set { _fontStyle = value; OnPropertyChanged(); } }
 
-    private string _textDecoration = "None";
+    private string _textDecoration = WidgetFontDefaults.TextDecoration;
     /// <summary>下划线：None / Underline</summary>
     [ProtoMember(9)]
     public string TextDecoration { get => _textDecoration; set { _textDecoration = value; OnPropertyChanged(); } }
@@ -407,7 +407,7 @@ public class NumericDisplayWidget : Widget
     [ProtoMember(7)]
     public double Value { get => _value; set { _value = value; OnPropertyChanged(); } }
 
-    private double _fontSize = 16;
+    private double _fontSize = WidgetFontDefaults.FontSize;
     /// <summary>字体大小（像素）</summary>
     [ProtoMember(4)]
     public double FontSize { get => _fontSize; set { _fontSize = value; OnPropertyChanged(); } }
@@ -422,22 +422,22 @@ public class NumericDisplayWidget : Widget
     [ProtoMember(6)]
     public string FillColor { get => _fillColor; set { _fillColor = value; OnPropertyChanged(); } }
 
-    private string _fontFamily = "Microsoft YaHei UI";
+    private string _fontFamily = WidgetFontDefaults.FontFamily;
     /// <summary>字体族（如 "Microsoft YaHei UI" / "Arial"）</summary>
     [ProtoMember(8)]
     public string FontFamily { get => _fontFamily; set { if (!string.IsNullOrEmpty(value) && _fontFamily != value) { _fontFamily = value; OnPropertyChanged(); } } }
 
-    private string _fontWeight = "Normal";
+    private string _fontWeight = WidgetFontDefaults.FontWeight;
     /// <summary>字重：Normal / Bold</summary>
     [ProtoMember(9)]
     public string FontWeight { get => _fontWeight; set { _fontWeight = value; OnPropertyChanged(); } }
 
-    private string _fontStyle = "Normal";
+    private string _fontStyle = WidgetFontDefaults.FontStyle;
     /// <summary>字型：Normal / Italic</summary>
     [ProtoMember(10)]
     public string FontStyle { get => _fontStyle; set { _fontStyle = value; OnPropertyChanged(); } }
 
-    private string _textDecoration = "None";
+    private string _textDecoration = WidgetFontDefaults.TextDecoration;
     /// <summary>下划线：None / Underline</summary>
     [ProtoMember(11)]
     public string TextDecoration { get => _textDecoration; set { _textDecoration = value; OnPropertyChanged(); } }
@@ -464,27 +464,27 @@ public class SwitchWidget : Widget
     [ProtoMember(3)]
     public string OffText { get => _offText; set { _offText = value; OnPropertyChanged(); } }
 
-    private string _fontFamily = "Microsoft YaHei UI";
+    private string _fontFamily = WidgetFontDefaults.FontFamily;
     /// <summary>字体族（如 "Microsoft YaHei UI" / "Arial"）</summary>
     [ProtoMember(4)]
     public string FontFamily { get => _fontFamily; set { if (!string.IsNullOrEmpty(value) && _fontFamily != value) { _fontFamily = value; OnPropertyChanged(); } } }
 
-    private double _fontSize = 14;
+    private double _fontSize = WidgetFontDefaults.FontSize;
     /// <summary>字体大小（像素）</summary>
     [ProtoMember(5)]
     public double FontSize { get => _fontSize; set { _fontSize = value; OnPropertyChanged(); } }
 
-    private string _fontWeight = "Normal";
+    private string _fontWeight = WidgetFontDefaults.FontWeight;
     /// <summary>字重：Normal / Bold</summary>
     [ProtoMember(6)]
     public string FontWeight { get => _fontWeight; set { _fontWeight = value; OnPropertyChanged(); } }
 
-    private string _fontStyle = "Normal";
+    private string _fontStyle = WidgetFontDefaults.FontStyle;
     /// <summary>字型：Normal / Italic</summary>
     [ProtoMember(7)]
     public string FontStyle { get => _fontStyle; set { _fontStyle = value; OnPropertyChanged(); } }
 
-    private string _textDecoration = "None";
+    private string _textDecoration = WidgetFontDefaults.TextDecoration;
     /// <summary>下划线：None / Underline</summary>
     [ProtoMember(8)]
     public string TextDecoration { get => _textDecoration; set { _textDecoration = value; OnPropertyChanged(); } }
@@ -566,27 +566,27 @@ public class IOFieldWidget : Widget
     [ProtoMember(3)]
     public string FillColor { get => _fillColor; set { _fillColor = value; OnPropertyChanged(); } }
 
-    private string _fontFamily = "Microsoft YaHei UI";
+    private string _fontFamily = WidgetFontDefaults.FontFamily;
     /// <summary>字体族（如 "Microsoft YaHei UI" / "Arial"）</summary>
     [ProtoMember(4)]
     public string FontFamily { get => _fontFamily; set { if (!string.IsNullOrEmpty(value) && _fontFamily != value) { _fontFamily = value; OnPropertyChanged(); } } }
 
-    private double _fontSize = 14;
+    private double _fontSize = WidgetFontDefaults.FontSize;
     /// <summary>字体大小（像素）</summary>
     [ProtoMember(5)]
     public double FontSize { get => _fontSize; set { _fontSize = value; OnPropertyChanged(); } }
 
-    private string _fontWeight = "Normal";
+    private string _fontWeight = WidgetFontDefaults.FontWeight;
     /// <summary>字重：Normal / Bold</summary>
     [ProtoMember(6)]
     public string FontWeight { get => _fontWeight; set { _fontWeight = value; OnPropertyChanged(); } }
 
-    private string _fontStyle = "Normal";
+    private string _fontStyle = WidgetFontDefaults.FontStyle;
     /// <summary>字型：Normal / Italic</summary>
     [ProtoMember(7)]
     public string FontStyle { get => _fontStyle; set { _fontStyle = value; OnPropertyChanged(); } }
 
-    private string _textDecoration = "None";
+    private string _textDecoration = WidgetFontDefaults.TextDecoration;
     /// <summary>下划线：None / Underline</summary>
     [ProtoMember(8)]
     public string TextDecoration { get => _textDecoration; set { _textDecoration = value; OnPropertyChanged(); } }
@@ -613,27 +613,27 @@ public class CheckBoxWidget : Widget
     [ProtoMember(2)]
     public string Text { get => _text; set { _text = value; OnPropertyChanged(); } }
 
-    private string _fontFamily = "Microsoft YaHei UI";
+    private string _fontFamily = WidgetFontDefaults.FontFamily;
     /// <summary>字体族（如 "Microsoft YaHei UI" / "Arial"）</summary>
     [ProtoMember(3)]
     public string FontFamily { get => _fontFamily; set { if (!string.IsNullOrEmpty(value) && _fontFamily != value) { _fontFamily = value; OnPropertyChanged(); } } }
 
-    private double _fontSize = 14;
+    private double _fontSize = WidgetFontDefaults.FontSize;
     /// <summary>字体大小（像素）</summary>
     [ProtoMember(4)]
     public double FontSize { get => _fontSize; set { _fontSize = value; OnPropertyChanged(); } }
 
-    private string _fontWeight = "Normal";
+    private string _fontWeight = WidgetFontDefaults.FontWeight;
     /// <summary>字重：Normal / Bold</summary>
     [ProtoMember(5)]
     public string FontWeight { get => _fontWeight; set { _fontWeight = value; OnPropertyChanged(); } }
 
-    private string _fontStyle = "Normal";
+    private string _fontStyle = WidgetFontDefaults.FontStyle;
     /// <summary>字型：Normal / Italic</summary>
     [ProtoMember(6)]
     public string FontStyle { get => _fontStyle; set { _fontStyle = value; OnPropertyChanged(); } }
 
-    private string _textDecoration = "None";
+    private string _textDecoration = WidgetFontDefaults.TextDecoration;
     /// <summary>下划线：None / Underline</summary>
     [ProtoMember(7)]
     public string TextDecoration { get => _textDecoration; set { _textDecoration = value; OnPropertyChanged(); } }
@@ -651,27 +651,27 @@ public class TextBoxWidget : Widget
     public string Content { get => _content; set { _content = value; OnPropertyChanged(); } }
 
 
-    private string _fontFamily = "Microsoft YaHei UI";
+    private string _fontFamily = WidgetFontDefaults.FontFamily;
     /// <summary>字体族（如 "Microsoft YaHei UI" / "Arial"）</summary>
     [ProtoMember(3)]
     public string FontFamily { get => _fontFamily; set { if (!string.IsNullOrEmpty(value) && _fontFamily != value) { _fontFamily = value; OnPropertyChanged(); } } }
 
-    private double _fontSize = 14;
+    private double _fontSize = WidgetFontDefaults.FontSize;
     /// <summary>字体大小（像素）</summary>
     [ProtoMember(4)]
     public double FontSize { get => _fontSize; set { _fontSize = value; OnPropertyChanged(); } }
 
-    private string _fontWeight = "Normal";
+    private string _fontWeight = WidgetFontDefaults.FontWeight;
     /// <summary>字重：Normal / Bold</summary>
     [ProtoMember(5)]
     public string FontWeight { get => _fontWeight; set { _fontWeight = value; OnPropertyChanged(); } }
 
-    private string _fontStyle = "Normal";
+    private string _fontStyle = WidgetFontDefaults.FontStyle;
     /// <summary>字型：Normal / Italic</summary>
     [ProtoMember(6)]
     public string FontStyle { get => _fontStyle; set { _fontStyle = value; OnPropertyChanged(); } }
 
-    private string _textDecoration = "None";
+    private string _textDecoration = WidgetFontDefaults.TextDecoration;
     /// <summary>下划线：None / Underline</summary>
     [ProtoMember(7)]
     public string TextDecoration { get => _textDecoration; set { _textDecoration = value; OnPropertyChanged(); } }
@@ -698,27 +698,27 @@ public class FrameWidget : Widget
     [ProtoMember(3)]
     public string ImagePath { get => _imagePath; set { _imagePath = value; OnPropertyChanged(); } }
 
-    private string _fontFamily = "Microsoft YaHei UI";
+    private string _fontFamily = WidgetFontDefaults.FontFamily;
     /// <summary>字体族（如 "Microsoft YaHei UI" / "Arial"）</summary>
     [ProtoMember(4)]
     public string FontFamily { get => _fontFamily; set { if (!string.IsNullOrEmpty(value) && _fontFamily != value) { _fontFamily = value; OnPropertyChanged(); } } }
 
-    private double _fontSize = 14;
+    private double _fontSize = WidgetFontDefaults.FontSize;
     /// <summary>字体大小（像素）</summary>
     [ProtoMember(5)]
     public double FontSize { get => _fontSize; set { _fontSize = value; OnPropertyChanged(); } }
 
-    private string _fontWeight = "Normal";
+    private string _fontWeight = WidgetFontDefaults.FontWeight;
     /// <summary>字重：Normal / Bold</summary>
     [ProtoMember(6)]
     public string FontWeight { get => _fontWeight; set { _fontWeight = value; OnPropertyChanged(); } }
 
-    private string _fontStyle = "Normal";
+    private string _fontStyle = WidgetFontDefaults.FontStyle;
     /// <summary>字型：Normal / Italic</summary>
     [ProtoMember(7)]
     public string FontStyle { get => _fontStyle; set { _fontStyle = value; OnPropertyChanged(); } }
 
-    private string _textDecoration = "None";
+    private string _textDecoration = WidgetFontDefaults.TextDecoration;
     /// <summary>下划线：None / Underline</summary>
     [ProtoMember(8)]
     public string TextDecoration { get => _textDecoration; set { _textDecoration = value; OnPropertyChanged(); } }
