@@ -9,6 +9,11 @@ namespace NavigatorHMI.Common
     {
         private static Dictionary<FrameworkElement, Adorner> _adornerMap = new Dictionary<FrameworkElement, Adorner>();
 
+        /// <summary>缩放手柄拖拽开始回调（EditWindow 注入 → 撤销快照）。</summary>
+        public static Action? ResizeDragStarted { get; set; }
+        /// <summary>画布尺寸提供器（EditWindow 注入 → 缩放钳制）。</summary>
+        public static Func<Size>? GetCanvasSize { get; set; }
+
         public static readonly DependencyProperty IsSelectedProperty =
             DependencyProperty.RegisterAttached(
                 "IsSelected",

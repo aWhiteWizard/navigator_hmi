@@ -49,6 +49,10 @@ namespace NavigatorHMI.Views
         private HMIProject _currentProject;
         private bool _isProjectDirty;
         private bool _skipClosingCheck = false;
+        /// <summary>缩放手柄静态回调引用（Closing 时比较清理，防闭包泄漏）。</summary>
+        private Action? _resizeDragStartedCallback;
+        /// <summary>画布尺寸回调引用（Closing 时比较清理）。</summary>
+        private Func<Size>? _getCanvasSizeCallback;
 
         // 画布缩放
         private double _zoomLevel = 1.0;
@@ -140,6 +144,7 @@ namespace NavigatorHMI.Views
 
             // 7. 在 Loaded 事件中初始化 UI
             this.Loaded += EditWindow_Loaded;
+            this.Closed += EditWindow_Closed;
 
             // 8. 订阅 ViewModel 事件
             _viewModel.CanvasReloadRequested += LoadCanvas;
@@ -148,6 +153,13 @@ namespace NavigatorHMI.Views
 
             // 10. 初始化属性窗口（必须在 LoadCanvas 之前——LoadCanvas 注入画布尺寸到 PropertyViewModel）
             _propertyViewModel = new PropertyViewModel();
+            // 属性面板修改前 Push 撤销快照（属性修改可撤销；选中同步初始化不触发）
+            _propertyViewModel.BeforeModify = () => _viewModel.PushUndoSnapshot();
+            // 缩放手柄：拖拽开始 Push 撤销快照 + 画布尺寸提供器（缩放钳制）
+            _resizeDragStartedCallback = () => _viewModel.PushUndoSnapshot();
+            _getCanvasSizeCallback = () => new Size(_propertyViewModel.CanvasWidth, _propertyViewModel.CanvasHeight);
+            SelectorHelper.ResizeDragStarted = _resizeDragStartedCallback;
+            SelectorHelper.GetCanvasSize = _getCanvasSizeCallback;
 
             LoadCanvas(_viewModel.CurrentScreen);
 
@@ -220,6 +232,17 @@ namespace NavigatorHMI.Views
             {
                 e.Cancel = true;
             }
+        }
+
+        /// <summary>
+        /// 窗口关闭（所有路径必触发）：清理静态回调，防闭包持有已关闭窗口/项目（GC 无法回收）。
+        /// </summary>
+        private void EditWindow_Closed(object? sender, EventArgs e)
+        {
+            if (SelectorHelper.ResizeDragStarted == _resizeDragStartedCallback)
+                SelectorHelper.ResizeDragStarted = null;
+            if (SelectorHelper.GetCanvasSize == _getCanvasSizeCallback)
+                SelectorHelper.GetCanvasSize = null;
         }
 
         #endregion

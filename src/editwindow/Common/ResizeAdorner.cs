@@ -60,6 +60,8 @@ namespace NavigatorHMI.Common
         /// <summary>缩放手柄拖拽开始（诊断用）。</summary>
         private void Thumb_DragStarted(object sender, DragStartedEventArgs e)
         {
+            // 缩放开始：Push 撤销快照（一次缩放一次快照，每帧 DragDelta 不 Push）
+            SelectorHelper.ResizeDragStarted?.Invoke();
             System.Diagnostics.Debug.WriteLine($"🎯 Resize 开始: {_widget.ObjectName}, X={_widget.X}, Y={_widget.Y}, W={_widget.Width}, H={_widget.Height}");
         }
 
@@ -212,8 +214,44 @@ private void Thumb_DragDelta(object sender, DragDeltaEventArgs e)
             _widget.Width = newW;
             _widget.Height = newH;
 
+            // 缩放钳制（与属性面板同规则：X+W 不超画布、最小 20）——缩放直改模型绕过 VM setter，此处显式钳制
+            ClampToCanvas();
+
             // 数据更新后重新测量 Adorner（InvalidateMeasure 级联触发 arrange 失效），确保缩放手柄跟随新尺寸
             InvalidateMeasure();
+        }
+
+        /// <summary>
+        /// 将控件位置/尺寸钳制到画布内（0 ≤ X ≤ 画布宽-W，X+W ≤ 画布宽；最小 20 由 DragDelta 的 Math.Max 保证）。
+        /// Line 的 X2/Y2（相对偏移）同步钳制到新边界框内。
+        /// </summary>
+        private void ClampToCanvas()
+        {
+            var size = SelectorHelper.GetCanvasSize?.Invoke();
+            if (size == null || size.Value.Width <= 0 || size.Value.Height <= 0) return;
+            double cw = size.Value.Width, ch = size.Value.Height;
+
+            // 防 NaN/Infinity 传播（与属性面板 setter 同规则）
+            if (!double.IsFinite(_widget.X) || !double.IsFinite(_widget.Y)
+             || !double.IsFinite(_widget.Width) || !double.IsFinite(_widget.Height))
+                return;
+
+            double w = Math.Min(_widget.Width, cw);
+            double h = Math.Min(_widget.Height, ch);
+            double x = Math.Max(0, Math.Min(_widget.X, cw - w));
+            double y = Math.Max(0, Math.Min(_widget.Y, ch - h));
+
+            // Line：X2/Y2 是相对 Widget 左上角的偏移，随边界框钳制同步（防线终点超画布/线与框错位）
+            if (_widget is LineWidget line)
+            {
+                line.X2 = Math.Min(Math.Max(0, line.X2), w);
+                line.Y2 = Math.Min(Math.Max(0, line.Y2), h);
+            }
+
+            _widget.X = x;
+            _widget.Y = y;
+            _widget.Width = w;
+            _widget.Height = h;
         }
 
         protected override void OnRender(DrawingContext drawingContext)
