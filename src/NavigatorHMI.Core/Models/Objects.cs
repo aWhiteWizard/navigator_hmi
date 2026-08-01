@@ -240,6 +240,16 @@ public class ButtonWidget : Widget
     /// <summary>下划线：None / Underline</summary>
     [ProtoMember(6)]
     public string TextDecoration { get => _textDecoration; set { _textDecoration = value; OnPropertyChanged(); } }
+
+    private string _textColor = "#000000";
+    /// <summary>文本颜色（CSS 格式）</summary>
+    [ProtoMember(7)]
+    public string TextColor { get => _textColor; set { _textColor = value; OnPropertyChanged(); } }
+
+    private string _fillColor = "#EEEEEE";
+    /// <summary>背景色（CSS 格式，默认浅灰；保证控件可见、可选中）</summary>
+    [ProtoMember(8)]
+    public string FillColor { get => _fillColor; set { _fillColor = value; OnPropertyChanged(); } }
 }
 
 /// <summary>
@@ -488,6 +498,16 @@ public class SwitchWidget : Widget
     /// <summary>下划线：None / Underline</summary>
     [ProtoMember(8)]
     public string TextDecoration { get => _textDecoration; set { _textDecoration = value; OnPropertyChanged(); } }
+
+    private string _textColor = "#000000";
+    /// <summary>文本颜色（CSS 格式）</summary>
+    [ProtoMember(9)]
+    public string TextColor { get => _textColor; set { _textColor = value; OnPropertyChanged(); } }
+
+    private string _fillColor = "#EEEEEE";
+    /// <summary>背景色（CSS 格式，默认浅灰；保证控件可见、可选中）</summary>
+    [ProtoMember(10)]
+    public string FillColor { get => _fillColor; set { _fillColor = value; OnPropertyChanged(); } }
 }
 
 /// <summary>
@@ -637,6 +657,16 @@ public class CheckBoxWidget : Widget
     /// <summary>下划线：None / Underline</summary>
     [ProtoMember(7)]
     public string TextDecoration { get => _textDecoration; set { _textDecoration = value; OnPropertyChanged(); } }
+
+    private string _textColor = "#000000";
+    /// <summary>文本颜色（CSS 格式）</summary>
+    [ProtoMember(8)]
+    public string TextColor { get => _textColor; set { _textColor = value; OnPropertyChanged(); } }
+
+    private string _fillColor = "#EEEEEE";
+    /// <summary>背景色（CSS 格式，默认浅灰；保证控件可见、可选中）</summary>
+    [ProtoMember(9)]
+    public string FillColor { get => _fillColor; set { _fillColor = value; OnPropertyChanged(); } }
 }
 
 /// <summary>
@@ -675,6 +705,16 @@ public class TextBoxWidget : Widget
     /// <summary>下划线：None / Underline</summary>
     [ProtoMember(7)]
     public string TextDecoration { get => _textDecoration; set { _textDecoration = value; OnPropertyChanged(); } }
+
+    private string _textColor = "#000000";
+    /// <summary>文本颜色（CSS 格式）</summary>
+    [ProtoMember(8)]
+    public string TextColor { get => _textColor; set { _textColor = value; OnPropertyChanged(); } }
+
+    private string _fillColor = "#EEEEEE";
+    /// <summary>背景色（CSS 格式，默认浅灰；保证控件可见、可选中）</summary>
+    [ProtoMember(9)]
+    public string FillColor { get => _fillColor; set { _fillColor = value; OnPropertyChanged(); } }
 }
 
 /// <summary>

@@ -110,6 +110,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 case ButtonWidget btn when key == "text": btn.Text = value; break;
                 case ButtonWidget w when key == "fontSize": w.FontSize = double.Parse(value); break;
                 case ButtonWidget w when key == "fontFamily": w.FontFamily = value; break;
+                case ButtonWidget w when key == "textColor": w.TextColor = value; break;
+                case ButtonWidget w when key == "fillColor": w.FillColor = value; break;
                 case ButtonWidget w when key == "fontWeight": w.FontWeight = value; break;
                 case ButtonWidget w when key == "fontStyle": w.FontStyle = value; break;
                 case ButtonWidget w when key == "textDecoration": w.TextDecoration = value; break;
@@ -143,6 +145,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 case SwitchWidget sw when key == "isOn": sw.IsOn = bool.Parse(value); break;
                 case SwitchWidget w when key == "fontSize": w.FontSize = double.Parse(value); break;
                 case SwitchWidget w when key == "fontFamily": w.FontFamily = value; break;
+                case SwitchWidget w when key == "textColor": w.TextColor = value; break;
+                case SwitchWidget w when key == "fillColor": w.FillColor = value; break;
                 case SwitchWidget w when key == "fontWeight": w.FontWeight = value; break;
                 case SwitchWidget w when key == "fontStyle": w.FontStyle = value; break;
                 case SwitchWidget w when key == "textDecoration": w.TextDecoration = value; break;
@@ -163,10 +167,14 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 case CheckBoxWidget cb when key == "isChecked": cb.IsChecked = bool.Parse(value); break;
                 case CheckBoxWidget w when key == "fontSize": w.FontSize = double.Parse(value); break;
                 case CheckBoxWidget w when key == "fontFamily": w.FontFamily = value; break;
+                case CheckBoxWidget w when key == "textColor": w.TextColor = value; break;
+                case CheckBoxWidget w when key == "fillColor": w.FillColor = value; break;
                 case CheckBoxWidget w when key == "fontWeight": w.FontWeight = value; break;
                 case CheckBoxWidget w when key == "fontStyle": w.FontStyle = value; break;
                 case CheckBoxWidget w when key == "textDecoration": w.TextDecoration = value; break;
                 case TextBoxWidget tb when key == "content": tb.Content = value; break;
+                case TextBoxWidget tb when key == "textColor": tb.TextColor = value; break;
+                case TextBoxWidget tb when key == "fillColor": tb.FillColor = value; break;
                 case TextBoxWidget w when key == "fontSize": w.FontSize = double.Parse(value); break;
                 case TextBoxWidget w when key == "fontFamily": w.FontFamily = value; break;
                 case TextBoxWidget w when key == "fontWeight": w.FontWeight = value; break;

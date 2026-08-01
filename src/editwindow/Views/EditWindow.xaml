@@ -142,7 +142,15 @@
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="50"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Text:" Style="{StaticResource PropLabel}"/>
                 <TextBox Grid.Column="1" Text="{Binding ButtonText, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
-        </Grid><TextBlock Text="字体" Style="{StaticResource PropGroupHeader}"/>
+        </Grid><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Color:" Style="{StaticResource PropLabel}"/>
+                <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding ButtonTextColor, Mode=TwoWay}"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="BgColor:" Style="{StaticResource PropLabel}"/>
+                <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding ButtonFillColor, Mode=TwoWay}"/>
+            </Grid>
+<TextBlock Text="字体" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Font:" Style="{StaticResource PropLabel}"/>
                 <ComboBox Grid.Column="1" SelectedValue="{Binding ButtonFontFamily, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Source" DisplayMemberPath="Source" ItemsSource="{Binding Source={StaticResource SystemFonts}}" Style="{StaticResource PropComboBox}"/>
@@ -350,7 +358,15 @@
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="OffText:" Style="{StaticResource PropLabel}"/>
                 <TextBox Grid.Column="1" Text="{Binding SwitchOffText, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
-            </Grid><TextBlock Text="字体" Style="{StaticResource PropGroupHeader}"/>
+            </Grid><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Color:" Style="{StaticResource PropLabel}"/>
+                <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding SwitchTextColor, Mode=TwoWay}"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="BgColor:" Style="{StaticResource PropLabel}"/>
+                <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding SwitchFillColor, Mode=TwoWay}"/>
+            </Grid>
+<TextBlock Text="字体" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Font:" Style="{StaticResource PropLabel}"/>
                 <ComboBox Grid.Column="1" SelectedValue="{Binding SwitchFontFamily, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Source" DisplayMemberPath="Source" ItemsSource="{Binding Source={StaticResource SystemFonts}}" Style="{StaticResource PropComboBox}"/>
@@ -479,7 +495,15 @@
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Text:" Style="{StaticResource PropLabel}"/>
                 <TextBox Grid.Column="1" Text="{Binding CheckBoxText, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
-            </Grid><TextBlock Text="字体" Style="{StaticResource PropGroupHeader}"/>
+            </Grid><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Color:" Style="{StaticResource PropLabel}"/>
+                <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding CheckBoxTextColor, Mode=TwoWay}"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="BgColor:" Style="{StaticResource PropLabel}"/>
+                <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding CheckBoxFillColor, Mode=TwoWay}"/>
+            </Grid>
+<TextBlock Text="字体" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Font:" Style="{StaticResource PropLabel}"/>
                 <ComboBox Grid.Column="1" SelectedValue="{Binding CheckBoxFontFamily, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Source" DisplayMemberPath="Source" ItemsSource="{Binding Source={StaticResource SystemFonts}}" Style="{StaticResource PropComboBox}"/>
@@ -514,7 +538,15 @@
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Content:" Style="{StaticResource PropLabel}"/>
                 <TextBox Grid.Column="1" Text="{Binding TextBoxContent, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
-            </Grid><TextBlock Text="字体" Style="{StaticResource PropGroupHeader}"/>
+            </Grid><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Color:" Style="{StaticResource PropLabel}"/>
+                <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding TextBoxTextColor, Mode=TwoWay}"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="BgColor:" Style="{StaticResource PropLabel}"/>
+                <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding TextBoxFillColor, Mode=TwoWay}"/>
+            </Grid>
+<TextBlock Text="字体" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Font:" Style="{StaticResource PropLabel}"/>
                 <ComboBox Grid.Column="1" SelectedValue="{Binding TextBoxFontFamily, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Source" DisplayMemberPath="Source" ItemsSource="{Binding Source={StaticResource SystemFonts}}" Style="{StaticResource PropComboBox}"/>

@@ -228,18 +228,18 @@ namespace NavigatorHMI.ViewModels
 
                         switch (value)
                         {
-                            case ButtonWidget btn: ButtonText = btn.Text; ButtonFontFamily = btn.FontFamily; ButtonFontSize = btn.FontSize; ButtonFontWeight = btn.FontWeight; ButtonFontStyle = btn.FontStyle; ButtonTextDecoration = btn.TextDecoration; break;
+                            case ButtonWidget btn: ButtonText = btn.Text; ButtonFontFamily = btn.FontFamily; ButtonFontSize = btn.FontSize; ButtonFontWeight = btn.FontWeight; ButtonFontStyle = btn.FontStyle; ButtonTextDecoration = btn.TextDecoration; ButtonTextColor = btn.TextColor; ButtonFillColor = btn.FillColor; break;
                             case TextWidget txt: TextContent = txt.Content; TextFillColor = txt.FillColor; TextFontSize = txt.FontSize; TextFontWeight = txt.FontWeight; TextFontStyle = txt.FontStyle; TextTextColor = txt.TextColor; TextHAlign = txt.HAlign; TextFontFamily = txt.FontFamily; TextTextDecoration = txt.TextDecoration; break;
                             case RectangleWidget rect: RectFillColor = rect.FillColor; break;
                             case LabelWidget lbl: LabelText = lbl.Text; LabelFontSize = lbl.FontSize; LabelFontWeight = lbl.FontWeight; LabelTextColor = lbl.TextColor; LabelFillColor = lbl.FillColor; LabelFontFamily = lbl.FontFamily; LabelFontStyle = lbl.FontStyle; LabelTextDecoration = lbl.TextDecoration; break;
                             case ImageWidget img: ImagePath = img.ImagePath; ImageFillColor = img.FillColor; break;
                             case NumericDisplayWidget nd: NumericFontSize = nd.FontSize; NumericTextColor = nd.TextColor; NumericFillColor = nd.FillColor; NumericValue = nd.Value; NumericFontFamily = nd.FontFamily; NumericFontWeight = nd.FontWeight; NumericFontStyle = nd.FontStyle; NumericTextDecoration = nd.TextDecoration; break;
-                            case SwitchWidget sw: SwitchIsOn = sw.IsOn; SwitchOnText = sw.OnText; SwitchOffText = sw.OffText; SwitchFontFamily = sw.FontFamily; SwitchFontSize = sw.FontSize; SwitchFontWeight = sw.FontWeight; SwitchFontStyle = sw.FontStyle; SwitchTextDecoration = sw.TextDecoration; break;
+                            case SwitchWidget sw: SwitchIsOn = sw.IsOn; SwitchOnText = sw.OnText; SwitchOffText = sw.OffText; SwitchFontFamily = sw.FontFamily; SwitchFontSize = sw.FontSize; SwitchFontWeight = sw.FontWeight; SwitchFontStyle = sw.FontStyle; SwitchTextDecoration = sw.TextDecoration; SwitchTextColor = sw.TextColor; SwitchFillColor = sw.FillColor; break;
                             case LineWidget line: LineX2 = line.X2; LineY2 = line.Y2; LineStrokeColor = line.StrokeColor; LineStrokeThickness = line.StrokeThickness; break;
                             case CircleWidget c: CircleFillColor = c.FillColor; CircleStrokeColor = c.StrokeColor; CircleStrokeThickness = c.StrokeThickness; break;
                             case IOFieldWidget io: IOFieldContent = io.Content; IOFieldIsReadOnly = io.IsReadOnly; IOFieldFillColor = io.FillColor; IOFieldTextColor = io.TextColor; IOFieldFontFamily = io.FontFamily; IOFieldFontSize = io.FontSize; IOFieldFontWeight = io.FontWeight; IOFieldFontStyle = io.FontStyle; IOFieldTextDecoration = io.TextDecoration; break;
-                            case CheckBoxWidget cb: CheckBoxText = cb.Text; CheckBoxIsChecked = cb.IsChecked; CheckBoxFontFamily = cb.FontFamily; CheckBoxFontSize = cb.FontSize; CheckBoxFontWeight = cb.FontWeight; CheckBoxFontStyle = cb.FontStyle; CheckBoxTextDecoration = cb.TextDecoration; break;
-                            case TextBoxWidget tbx: TextBoxContent = tbx.Content; TextBoxFontFamily = tbx.FontFamily; TextBoxFontSize = tbx.FontSize; TextBoxFontWeight = tbx.FontWeight; TextBoxFontStyle = tbx.FontStyle; TextBoxTextDecoration = tbx.TextDecoration; break;
+                            case CheckBoxWidget cb: CheckBoxText = cb.Text; CheckBoxIsChecked = cb.IsChecked; CheckBoxFontFamily = cb.FontFamily; CheckBoxFontSize = cb.FontSize; CheckBoxFontWeight = cb.FontWeight; CheckBoxFontStyle = cb.FontStyle; CheckBoxTextDecoration = cb.TextDecoration; CheckBoxTextColor = cb.TextColor; CheckBoxFillColor = cb.FillColor; break;
+                            case TextBoxWidget tbx: TextBoxContent = tbx.Content; TextBoxFontFamily = tbx.FontFamily; TextBoxFontSize = tbx.FontSize; TextBoxFontWeight = tbx.FontWeight; TextBoxFontStyle = tbx.FontStyle; TextBoxTextDecoration = tbx.TextDecoration; TextBoxTextColor = tbx.TextColor; TextBoxFillColor = tbx.FillColor; break;
                             case FrameWidget f: FrameTitle = f.Title; FrameFillColor = f.FillColor; FrameImagePath = f.ImagePath; FrameFontFamily = f.FontFamily; FrameFontSize = f.FontSize; FrameFontWeight = f.FontWeight; FrameFontStyle = f.FontStyle; FrameTextDecoration = f.TextDecoration; break;
                             case ProgressBarWidget pb: ProgressValue = pb.Value; ProgressMin = pb.Min; ProgressMax = pb.Max; ProgressFillColor = pb.FillColor; ProgressFillStyle = pb.FillStyle; break;
                         }
@@ -796,6 +796,35 @@ namespace NavigatorHMI.ViewModels
         private string _textBoxTextDecoration = "None";
         /// <summary>TextBoxWidget 下划线。</summary>
         public string TextBoxTextDecoration { get => _textBoxTextDecoration; set { if (_textBoxTextDecoration != value) { _textBoxTextDecoration = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is TextBoxWidget w) w.TextDecoration = value; } } }
+
+        private string _textBoxTextColor = "#000000";
+        /// <summary>TextBox 文本色。</summary>
+        public string TextBoxTextColor { get => _textBoxTextColor; set { if (_textBoxTextColor != value) { _textBoxTextColor = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is TextBoxWidget w) w.TextColor = value; } } }
+        private string _textBoxFillColor = "#EEEEEE";
+        /// <summary>TextBox 背景色。</summary>
+        public string TextBoxFillColor { get => _textBoxFillColor; set { if (_textBoxFillColor != value) { _textBoxFillColor = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is TextBoxWidget w) w.FillColor = value; } } }
+
+        private string _buttonTextColor = "#000000";
+        /// <summary>Button 文本色。</summary>
+        public string ButtonTextColor { get => _buttonTextColor; set { if (_buttonTextColor != value) { _buttonTextColor = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is ButtonWidget w) w.TextColor = value; } } }
+        private string _buttonFillColor = "#EEEEEE";
+        /// <summary>Button 背景色。</summary>
+        public string ButtonFillColor { get => _buttonFillColor; set { if (_buttonFillColor != value) { _buttonFillColor = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is ButtonWidget w) w.FillColor = value; } } }
+
+        private string _switchTextColor = "#000000";
+        /// <summary>Switch 文本色。</summary>
+        public string SwitchTextColor { get => _switchTextColor; set { if (_switchTextColor != value) { _switchTextColor = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is SwitchWidget w) w.TextColor = value; } } }
+        private string _switchFillColor = "#EEEEEE";
+        /// <summary>Switch 背景色。</summary>
+        public string SwitchFillColor { get => _switchFillColor; set { if (_switchFillColor != value) { _switchFillColor = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is SwitchWidget w) w.FillColor = value; } } }
+
+        private string _checkBoxTextColor = "#000000";
+        /// <summary>CheckBox 文本色。</summary>
+        public string CheckBoxTextColor { get => _checkBoxTextColor; set { if (_checkBoxTextColor != value) { _checkBoxTextColor = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is CheckBoxWidget w) w.TextColor = value; } } }
+        private string _checkBoxFillColor = "#EEEEEE";
+        /// <summary>CheckBox 背景色。</summary>
+        public string CheckBoxFillColor { get => _checkBoxFillColor; set { if (_checkBoxFillColor != value) { _checkBoxFillColor = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is CheckBoxWidget w) w.FillColor = value; } } }
+
 
         private string _numericFontFamily = "Microsoft YaHei UI";
         /// <summary>NumericDisplayWidget 字体族。</summary>

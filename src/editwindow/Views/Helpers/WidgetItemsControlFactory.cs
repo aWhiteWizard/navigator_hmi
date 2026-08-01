@@ -168,9 +168,11 @@ namespace NavigatorHMI.Views.Helpers
             // Content 用 TextBlock 包装：支持字体/加粗/倾斜/下划线完整渲染
             var content = new FrameworkElementFactory(typeof(TextBlock));
             content.SetBinding(TextBlock.TextProperty, new Binding("Text"));
-            BindTextFormatting(content, useSafeColor: false);
+            BindTextFormatting(content);
             content.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
             btn.AppendChild(content);
+            // 背景色（用户可设 BgColor；默认浅灰保证可见可选中）
+            btn.SetBinding(Button.BackgroundProperty, new Binding("FillColor") { Converter = new ColorStringToBrushConverter() });
             btn.SetBinding(Button.WidthProperty, new Binding("Width"));
             btn.SetBinding(Button.HeightProperty, new Binding("Height"));
             btn.SetBinding(SelectorHelper.IsSelectedProperty, new Binding("IsSelected") { Mode = BindingMode.TwoWay });
@@ -286,9 +288,11 @@ namespace NavigatorHMI.Views.Helpers
             sw.Bindings.Add(new Binding("OnText"));
             sw.Bindings.Add(new Binding("OffText"));
             content.SetBinding(TextBlock.TextProperty, sw);
-            BindTextFormatting(content, useSafeColor: false);
+            BindTextFormatting(content);
             content.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
             btn.AppendChild(content);
+            // 背景色（用户可设 BgColor）
+            btn.SetBinding(Button.BackgroundProperty, new Binding("FillColor") { Converter = new ColorStringToBrushConverter() });
             btn.SetBinding(Button.WidthProperty, new Binding("Width"));
             btn.SetBinding(Button.HeightProperty, new Binding("Height"));
             btn.SetBinding(SelectorHelper.IsSelectedProperty, new Binding("IsSelected") { Mode = BindingMode.TwoWay });
@@ -351,9 +355,11 @@ namespace NavigatorHMI.Views.Helpers
             // Content 用 TextBlock 包装：支持字体/加粗/倾斜/下划线完整渲染
             var content = new FrameworkElementFactory(typeof(TextBlock));
             content.SetBinding(TextBlock.TextProperty, new Binding("Text"));
-            BindTextFormatting(content, useSafeColor: false);
+            BindTextFormatting(content);
             content.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
             cb.AppendChild(content);
+            // 背景色（用户可设 BgColor）
+            cb.SetBinding(CheckBox.BackgroundProperty, new Binding("FillColor") { Converter = new ColorStringToBrushConverter() });
             cb.SetBinding(CheckBox.IsCheckedProperty, new Binding("IsChecked"));
             cb.SetBinding(CheckBox.WidthProperty, new Binding("Width"));
             cb.SetBinding(CheckBox.HeightProperty, new Binding("Height"));
@@ -375,6 +381,12 @@ namespace NavigatorHMI.Views.Helpers
             tb.SetBinding(TextBox.HeightProperty, new Binding("Height"));
             // 设计态只读：值通过属性面板写入（Content），画布上不可编辑（保证按下即可拖拽）
             tb.SetValue(TextBox.IsReadOnlyProperty, true);
+            // 文本色 + 背景色（SafeTextColorConverter：文本色透明/同背景回退黑）
+            var tbFg = new MultiBinding { Converter = new SafeTextColorConverter() };
+            tbFg.Bindings.Add(new Binding("TextColor"));
+            tbFg.Bindings.Add(new Binding("FillColor"));
+            tb.SetBinding(TextBox.ForegroundProperty, tbFg);
+            tb.SetBinding(TextBox.BackgroundProperty, new Binding("FillColor") { Converter = new ColorStringToBrushConverter() });
             // 覆盖输入光标：组态软件中 TextBox 是显示控件（不需输入），ForceCursor 强制内部元素用普通箭头
             tb.SetValue(TextBox.CursorProperty, Cursors.Arrow);
             tb.SetValue(TextBox.ForceCursorProperty, true);
