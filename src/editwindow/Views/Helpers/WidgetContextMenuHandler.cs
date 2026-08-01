@@ -106,24 +106,16 @@ namespace NavigatorHMI.Views.Helpers
             var vm = _viewModelProvider();
             if (vm?.CurrentScreen == null) return;
 
-            // 查找当前选中的 Widget
-            Widget? selected = null;
-            foreach (var w in vm.CurrentScreen.Widgets)
-            {
-                if (w.IsSelected)
-                {
-                    selected = w;
-                    break;
-                }
-            }
-
-            if (selected == null) return;
+            // 删除所有 IsSelected 控件（与工具栏删除行为一致）
+            var selected = vm.CurrentScreen.Widgets.Where(w => w.IsSelected).ToList();
+            if (selected.Count == 0) return;
 
             // 在删除前保存 Undo 快照
             _pushUndoCallback?.Invoke();
 
-            // 从集合中移除
-            vm.CurrentScreen.Widgets.Remove(selected);
+            // 从集合中移除（全部选中控件）
+            foreach (var w in selected)
+                vm.CurrentScreen.Widgets.Remove(w);
 
             // 清除选中状态
             _selectionManager.ClearAllSelection();
@@ -137,7 +129,7 @@ namespace NavigatorHMI.Views.Helpers
             // 关闭 Popup（如果有）
             _widgetContextMenu.IsOpen = false;
 
-            System.Diagnostics.Debug.WriteLine($"🗑 已通过 Delete 键删除 Widget: {(selected as ButtonWidget)?.Text ?? selected.GetType().Name}");
+            System.Diagnostics.Debug.WriteLine($"🗑 已通过 Delete 键删除 Widget: {selected.Count} 个");
         }
     }
 }

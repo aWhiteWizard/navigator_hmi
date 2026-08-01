@@ -20,6 +20,8 @@ namespace NavigatorHMI.Views.Helpers
         private readonly Func<EditWindowViewModel> _viewModelProvider;
         /// <summary>选中状态变化时触发的事件，参数为选中的 Widget（null=取消选中）。</summary>
         public event Action<Widget?>? WidgetSelected;
+        /// <summary>任何选中集合变化（单选/多选/清空）后触发（属性面板多选同步用）。</summary>
+        public event Action? SelectionChanged;
 
         /// <summary>
         /// 初始化 <see cref="WidgetSelectionManager"/> 实例。
@@ -64,6 +66,7 @@ namespace NavigatorHMI.Views.Helpers
             System.Diagnostics.Debug.WriteLine($"✅ 选中按钮: {(widget as ButtonWidget)?.Text ?? widget.GetType().Name}");
             // 通知属性窗口（或其它订阅者）选中状态变更
             WidgetSelected?.Invoke(widget);
+            SelectionChanged?.Invoke();
         }
 
         /// <summary>
@@ -91,6 +94,7 @@ namespace NavigatorHMI.Views.Helpers
             UpdateSelectionUI();
 
             System.Diagnostics.Debug.WriteLine($"✅ 静默选中: {(widget as ButtonWidget)?.Text ?? widget.GetType().Name}");
+            SelectionChanged?.Invoke();
         }
 
         // 双击检测字段
@@ -161,6 +165,7 @@ namespace NavigatorHMI.Views.Helpers
             }
             // 通知属性窗口（或其它订阅者）选中已清除
             WidgetSelected?.Invoke(null);
+            SelectionChanged?.Invoke();
         }
 
         /// <summary>

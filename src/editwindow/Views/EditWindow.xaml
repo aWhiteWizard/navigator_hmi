@@ -78,6 +78,43 @@
                 <Label Grid.Column="0" Content="ObjectName:" Style="{StaticResource PropLabel}"/>
                 <TextBox Grid.Column="1" Text="{Binding ObjectName, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropObjNameBox}" KeyDown="PropNumberBox_KeyDown"/>
         </Grid></StackPanel></DataTemplate>
+
+        <!-- 多选批量编辑模板（框选多个控件时显示） -->
+        <DataTemplate x:Key="PropMultiSelect"><StackPanel>
+            <TextBlock Text="{Binding SelectedWidgets.Count, StringFormat=批量编辑 (已选 {0} 个控件)}" Style="{StaticResource PropGroupHeader}"/>
+            <TextBlock Text="字体" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Font:" Style="{StaticResource PropLabel}"/>
+                <ComboBox Grid.Column="1" SelectedValue="{Binding BatchFontFamily, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Source" DisplayMemberPath="Source" ItemsSource="{Binding Source={StaticResource SystemFonts}}" Style="{StaticResource PropComboBox}"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Size:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding BatchFontSize, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}" KeyDown="PropNumberBox_KeyDown"/>
+                <Label Grid.Column="2" Content="Bold:" Style="{StaticResource PropLabel}"/>
+                <ComboBox Grid.Column="3" SelectedValue="{Binding BatchFontWeight, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" Style="{StaticResource PropComboBox}">
+                    <ComboBoxItem Content="Normal"/><ComboBoxItem Content="Bold"/>
+                </ComboBox>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Style:" Style="{StaticResource PropLabel}"/>
+                <ComboBox Grid.Column="1" SelectedValue="{Binding BatchFontStyle, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" Style="{StaticResource PropComboBox}">
+                    <ComboBoxItem Content="Normal"/><ComboBoxItem Content="Italic"/>
+                </ComboBox>
+                <Label Grid.Column="2" Content="Undr:" Style="{StaticResource PropLabel}"/>
+                <ComboBox Grid.Column="3" SelectedValue="{Binding BatchTextDecoration, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" Style="{StaticResource PropComboBox}">
+                    <ComboBoxItem Content="None"/><ComboBoxItem Content="Underline"/>
+                </ComboBox>
+            </Grid>
+            <TextBlock Text="颜色" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="文本色:" Style="{StaticResource PropLabel}"/>
+                <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding BatchTextColor, Mode=TwoWay}"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="背景色:" Style="{StaticResource PropLabel}"/>
+                <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding BatchFillColor, Mode=TwoWay}"/>
+            </Grid>
+        </StackPanel></DataTemplate>
         <DataTemplate x:Key="PropScreen"><StackPanel>
             <TextBlock Text="画面名称" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -825,6 +862,7 @@
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="Screen"><Setter Property="ContentTemplate" Value="{StaticResource PropScreen}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="ButtonWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropButton}"/></DataTrigger>
+                                                    <DataTrigger Binding="{Binding SelectedObjectType}" Value="MultiSelect"><Setter Property="ContentTemplate" Value="{StaticResource PropMultiSelect}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="TextWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropText}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="RectangleWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropRect}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="LabelWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropLabelWidget}"/></DataTrigger>

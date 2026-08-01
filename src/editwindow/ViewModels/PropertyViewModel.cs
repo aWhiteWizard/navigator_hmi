@@ -13,6 +13,7 @@ namespace NavigatorHMI.ViewModels
     {
         None,
         Screen,
+        MultiSelect,
         ButtonWidget,
         TextWidget,
         RectangleWidget,
@@ -39,6 +40,95 @@ namespace NavigatorHMI.ViewModels
         private Screen? _currentScreen;  // 当前编辑的画面，用于 ObjectName 重复检测
 
         /// <summary>当前选中的画面，null 表示无选中。</summary>
+        /// <summary>当前选中的多个控件（框选多选模式，仅 MultiSelect 时非空）。</summary>
+        public List<Widget> SelectedWidgets { get; } = new();
+
+        /// <summary>是否多选批量编辑模式（框选 ≥2 个控件）。</summary>
+        public bool IsMultiSelect => SelectedWidgets.Count > 1;
+
+        /// <summary>
+        /// 设置选中集合（框选收尾调用）。
+        /// 1 个 → 走单选逻辑；≥2 个 → MultiSelect 批量编辑模式。
+        /// </summary>
+        public void SelectWidgets(IEnumerable<Widget> widgets)
+        {
+            SelectedWidgets.Clear();
+            SelectedWidgets.AddRange(widgets);
+
+            if (SelectedWidgets.Count == 1)
+            {
+                SelectedWidget = SelectedWidgets[0];   // 单选走原逻辑
+                NotifySelectionChanged();
+                return;
+            }
+            if (SelectedWidgets.Count > 1)
+            {
+                // 多选：解订阅并置空单选/画面状态（防状态三元组残留），显示批量编辑面板
+                _syncingFromModel = true;
+                try
+                {
+                    if (_selectedWidget != null)
+                        _selectedWidget.PropertyChanged -= OnSelectedWidgetPropertyChanged;
+                    _selectedWidget = null;
+                    _selectedScreen = null;
+                    SelectedObjectType = PropertyTargetType.MultiSelect;
+                    var first = SelectedWidgets[0];
+                    BatchFontFamily = GetProperty<string>(first, "FontFamily") ?? WidgetFontDefaults.FontFamily;
+                    BatchFontSize = GetProperty<double?>(first, "FontSize") ?? WidgetFontDefaults.FontSize;
+                    BatchFontWeight = GetProperty<string>(first, "FontWeight") ?? "Normal";
+                    BatchFontStyle = GetProperty<string>(first, "FontStyle") ?? "Normal";
+                    BatchTextDecoration = GetProperty<string>(first, "TextDecoration") ?? "None";
+                    BatchTextColor = GetProperty<string>(first, "TextColor") ?? "#000000";
+                    BatchFillColor = GetProperty<string>(first, "FillColor") ?? "#EEEEEE";
+                }
+                finally { _syncingFromModel = false; }
+                NotifySelectionChanged();
+            }
+        }
+
+        /// <summary>退出多选批量编辑（清空选中三元组，面板随 IsPropertyVisible 隐藏）。</summary>
+        public void ClearMultiSelection()
+        {
+            SelectedWidgets.Clear();
+            _syncingFromModel = true;
+            try
+            {
+                if (_selectedWidget != null)
+                    _selectedWidget.PropertyChanged -= OnSelectedWidgetPropertyChanged;
+                _selectedWidget = null;
+                _selectedScreen = null;
+                SelectedObjectType = PropertyTargetType.None;
+            }
+            finally { _syncingFromModel = false; }
+            NotifySelectionChanged();
+        }
+
+        /// <summary>通知选中状态相关的计算属性（XAML Visibility/模板切换依赖）。</summary>
+        private void NotifySelectionChanged()
+        {
+            OnPropertyChanged(nameof(SelectedWidgets));   // "已选 N 个控件"数量刷新
+            OnPropertyChanged(nameof(IsMultiSelect));
+            OnPropertyChanged(nameof(IsPropertyVisible));
+            OnPropertyChanged(nameof(WidgetTypeName));
+        }
+
+        /// <summary>反射读取控件属性（无该属性/类型不符返回 null）。</summary>
+        private static T? GetProperty<T>(Widget w, string propName)
+        {
+            var p = w.GetType().GetProperty(propName);
+            if (p == null || !p.CanRead) return default;
+            var v = p.GetValue(w);
+            return v is T t ? t : default;
+        }
+
+        /// <summary>反射写入控件属性（仅对具有该属性的控件生效；同步初始化时跳过——防"读值变写回"）。</summary>
+        private static void ApplyProperty(Widget w, string propName, object value)
+        {
+            var p = w.GetType().GetProperty(propName);
+            if (p != null && p.CanWrite && p.PropertyType.IsInstanceOfType(value))
+                p.SetValue(w, value);
+        }
+
         public Screen? SelectedScreen
         {
             get => _selectedScreen;
@@ -50,6 +140,7 @@ namespace NavigatorHMI.ViewModels
                     if (_selectedWidget != null)
                         _selectedWidget.PropertyChanged -= OnSelectedWidgetPropertyChanged;
                     _selectedWidget = null;
+                    SelectedWidgets.Clear();   // 选画面时退出多选
                     _selectedScreen = value;
                     if (value != null)
                     {
@@ -88,6 +179,7 @@ namespace NavigatorHMI.ViewModels
                     if (_selectedWidget != null)
                         _selectedWidget.PropertyChanged -= OnSelectedWidgetPropertyChanged;
                     _selectedScreen = null;
+                    SelectedWidgets.Clear();   // 单选时退出多选
                     _selectedWidget = value;
                     // 订阅新 widget 的 PropertyChanged（实时同步 ResizeAdorner 的修改）
                     if (value != null)
@@ -203,13 +295,38 @@ namespace NavigatorHMI.ViewModels
 
 
         /// <summary>是否有 Widget 被选中（属性面板可见性控制）。</summary>
-        public bool IsPropertyVisible => _selectedWidget != null || _selectedScreen != null;
+        public bool IsPropertyVisible => _selectedWidget != null || _selectedScreen != null || IsMultiSelect;
         /// <summary>当前选中的是画面。</summary>
         public bool IsScreenSelected => _selectedScreen != null;
-         /// <summary>当前选中的是控件。</summary>
-         public bool IsWidgetSelected => _selectedWidget != null;
-         /// <summary>控件类型名称（选中画面时显示"画面"）。</summary>
-         public string WidgetTypeName => _selectedScreen != null ? "画面" : _selectedWidget?.GetType().Name ?? "";
+        /// <summary>当前选中的是控件（单选）。</summary>
+        public bool IsWidgetSelected => _selectedWidget != null;
+        /// <summary>控件类型名称（选中画面显示"画面"，多选显示"批量编辑"）。</summary>
+        public string WidgetTypeName => IsMultiSelect ? "批量编辑" : _selectedScreen != null ? "画面" : _selectedWidget?.GetType().Name ?? "";
+
+        // ═══ 批量编辑属性（多选模式，反射应用到所有选中控件） ═══
+
+        private string _batchFontFamily = WidgetFontDefaults.FontFamily;
+        /// <summary>批量字体族（应用到所有选中控件）。</summary>
+        public string BatchFontFamily { get => _batchFontFamily; set { if (_batchFontFamily != value) { _batchFontFamily = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (!_syncingFromModel) foreach (var w in SelectedWidgets) ApplyProperty(w, "FontFamily", value); } } }
+        private double _batchFontSize = WidgetFontDefaults.FontSize;
+        /// <summary>批量字号（应用到所有选中控件；钳制 1-200）。</summary>
+        public double BatchFontSize { get => _batchFontSize; set { if (!double.IsFinite(value)) value = _batchFontSize; value = Math.Clamp(value, 1, 200); if (Math.Abs(_batchFontSize - value) > 0.001) { _batchFontSize = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (!_syncingFromModel) foreach (var w in SelectedWidgets) ApplyProperty(w, "FontSize", value); } } }
+        private string _batchFontWeight = "Normal";
+        /// <summary>批量字重（应用到所有选中控件）。</summary>
+        public string BatchFontWeight { get => _batchFontWeight; set { if (_batchFontWeight != value) { _batchFontWeight = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (!_syncingFromModel) foreach (var w in SelectedWidgets) ApplyProperty(w, "FontWeight", value); } } }
+        private string _batchFontStyle = "Normal";
+        /// <summary>批量字型（应用到所有选中控件）。</summary>
+        public string BatchFontStyle { get => _batchFontStyle; set { if (_batchFontStyle != value) { _batchFontStyle = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (!_syncingFromModel) foreach (var w in SelectedWidgets) ApplyProperty(w, "FontStyle", value); } } }
+        private string _batchTextDecoration = "None";
+        /// <summary>批量下划线（应用到所有选中控件）。</summary>
+        public string BatchTextDecoration { get => _batchTextDecoration; set { if (_batchTextDecoration != value) { _batchTextDecoration = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (!_syncingFromModel) foreach (var w in SelectedWidgets) ApplyProperty(w, "TextDecoration", value); } } }
+        private string _batchTextColor = "#000000";
+        /// <summary>批量文本色（应用到所有选中控件）。</summary>
+        public string BatchTextColor { get => _batchTextColor; set { if (_batchTextColor != value) { _batchTextColor = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (!_syncingFromModel) foreach (var w in SelectedWidgets) ApplyProperty(w, "TextColor", value); } } }
+        private string _batchFillColor = "#EEEEEE";
+        /// <summary>批量背景色（应用到所有选中控件）。</summary>
+        public string BatchFillColor { get => _batchFillColor; set { if (_batchFillColor != value) { _batchFillColor = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (!_syncingFromModel) foreach (var w in SelectedWidgets) ApplyProperty(w, "FillColor", value); } } }
+
         public bool IsButtonWidget => _selectedWidget is ButtonWidget;
         public bool IsTextWidget => _selectedWidget is TextWidget;
         public bool IsRectangleWidget => _selectedWidget is RectangleWidget;

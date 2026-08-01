@@ -160,6 +160,8 @@ namespace NavigatorHMI.Views
             _getCanvasSizeCallback = () => new Size(_propertyViewModel.CanvasWidth, _propertyViewModel.CanvasHeight);
             SelectorHelper.ResizeDragStarted = _resizeDragStartedCallback;
             SelectorHelper.GetCanvasSize = _getCanvasSizeCallback;
+            // 选中变化（单选/多选/清空）→ 同步属性面板多选状态
+            _selectionManager.SelectionChanged += SyncSelectionToPropertyPanel;
 
             LoadCanvas(_viewModel.CurrentScreen);
 
@@ -349,6 +351,21 @@ namespace NavigatorHMI.Views
             dialog.ShowDialog();
         }
 
+        /// <summary>
+        /// 选中变化 → 同步属性面板多选状态（框选/单击/清空统一入口）。
+        /// </summary>
+        private void SyncSelectionToPropertyPanel()
+        {
+            var screen = _viewModel?.CurrentScreen;
+            var selected = screen?.Widgets.Where(w => w.IsSelected).ToList();
+            if (selected == null || selected.Count == 0)
+            {
+                _propertyViewModel.ClearMultiSelection();
+                return;
+            }
+            _propertyViewModel.SelectWidgets(selected);
+        }
+
         private void CheckBinding()
         {
             var vm = this.DataContext as EditWindowViewModel;
@@ -502,6 +519,9 @@ namespace NavigatorHMI.Views
                 else
                     widget.IsSelected = rect.IntersectsWith(wRect); // 相交即可
             }
+
+            // 框选收尾：同步属性面板（多选批量编辑 / 单选 / 清空）
+            SyncSelectionToPropertyPanel();
         }
 
         /// <summary>显示两点式绘制预览（根据创建器类型生成对应形状的 Path）。</summary>
@@ -1162,6 +1182,7 @@ namespace NavigatorHMI.Views
             foreach (var w in selected) _viewModel.CurrentScreen.Widgets.Remove(w);
             _viewModel.NotifyCanvasRefreshNeeded();
             MarkProjectDirty();
+            SyncSelectionToPropertyPanel();   // 删除后同步多选集合
             WidgetContextMenu.IsOpen = false;
         }
 
@@ -1344,6 +1365,7 @@ namespace NavigatorHMI.Views
             var selected = _viewModel.CurrentScreen.Widgets.Where(w => w.IsSelected).ToList();
             foreach (var w in selected) _viewModel.CurrentScreen.Widgets.Remove(w);
             _viewModel.NotifyCanvasRefreshNeeded();
+            SyncSelectionToPropertyPanel();   // 删除后同步多选集合
             WidgetContextMenu.IsOpen = false;
         }
         private void BringToFront_Click(object sender, RoutedEventArgs e)
