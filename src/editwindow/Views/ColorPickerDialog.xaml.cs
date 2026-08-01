@@ -54,7 +54,8 @@ namespace NavigatorHMI.Views
 
             var panel = new ItemsPanelTemplate();
             var factory = new FrameworkElementFactory(typeof(UniformGrid));
-            factory.SetValue(UniformGrid.ColumnsProperty, 8);
+            // 10 列 × 2 行 = 20 个最近色一行显示 10 个、两行全部放下（窗口适度拉长）
+            factory.SetValue(UniformGrid.ColumnsProperty, 10);
             panel.VisualTree = factory;
             RecentGrid.ItemsPanel = panel;
 
