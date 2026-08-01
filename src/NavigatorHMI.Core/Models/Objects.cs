@@ -219,7 +219,7 @@ public class ButtonWidget : Widget
     private string _fontFamily = "Microsoft YaHei UI";
     /// <summary>字体族（如 "Microsoft YaHei UI" / "Arial"）</summary>
     [ProtoMember(2)]
-    public string FontFamily { get => _fontFamily; set { _fontFamily = value; OnPropertyChanged(); } }
+    public string FontFamily { get => _fontFamily; set { if (!string.IsNullOrEmpty(value) && _fontFamily != value) { _fontFamily = value; OnPropertyChanged(); } } }
 
     private double _fontSize = 14;
     /// <summary>字体大小（像素）</summary>
@@ -286,7 +286,7 @@ public class TextWidget : Widget
     private string _fontFamily = "Microsoft YaHei UI";
     /// <summary>字体族（如 "Microsoft YaHei UI" / "Arial"）</summary>
     [ProtoMember(7)]
-    public string FontFamily { get => _fontFamily; set { _fontFamily = value; OnPropertyChanged(); } }
+    public string FontFamily { get => _fontFamily; set { if (!string.IsNullOrEmpty(value) && _fontFamily != value) { _fontFamily = value; OnPropertyChanged(); } } }
 
     private string _fontStyle = "Normal";
     /// <summary>字型：Normal / Italic</summary>
@@ -356,7 +356,7 @@ public class LabelWidget : Widget
     private string _fontFamily = "Microsoft YaHei UI";
     /// <summary>字体族（如 "Microsoft YaHei UI" / "Arial"）</summary>
     [ProtoMember(7)]
-    public string FontFamily { get => _fontFamily; set { _fontFamily = value; OnPropertyChanged(); } }
+    public string FontFamily { get => _fontFamily; set { if (!string.IsNullOrEmpty(value) && _fontFamily != value) { _fontFamily = value; OnPropertyChanged(); } } }
 
     private string _fontStyle = "Normal";
     /// <summary>字型：Normal / Italic</summary>
@@ -425,7 +425,7 @@ public class NumericDisplayWidget : Widget
     private string _fontFamily = "Microsoft YaHei UI";
     /// <summary>字体族（如 "Microsoft YaHei UI" / "Arial"）</summary>
     [ProtoMember(8)]
-    public string FontFamily { get => _fontFamily; set { _fontFamily = value; OnPropertyChanged(); } }
+    public string FontFamily { get => _fontFamily; set { if (!string.IsNullOrEmpty(value) && _fontFamily != value) { _fontFamily = value; OnPropertyChanged(); } } }
 
     private string _fontWeight = "Normal";
     /// <summary>字重：Normal / Bold</summary>
@@ -467,7 +467,7 @@ public class SwitchWidget : Widget
     private string _fontFamily = "Microsoft YaHei UI";
     /// <summary>字体族（如 "Microsoft YaHei UI" / "Arial"）</summary>
     [ProtoMember(4)]
-    public string FontFamily { get => _fontFamily; set { _fontFamily = value; OnPropertyChanged(); } }
+    public string FontFamily { get => _fontFamily; set { if (!string.IsNullOrEmpty(value) && _fontFamily != value) { _fontFamily = value; OnPropertyChanged(); } } }
 
     private double _fontSize = 14;
     /// <summary>字体大小（像素）</summary>
@@ -569,7 +569,7 @@ public class IOFieldWidget : Widget
     private string _fontFamily = "Microsoft YaHei UI";
     /// <summary>字体族（如 "Microsoft YaHei UI" / "Arial"）</summary>
     [ProtoMember(4)]
-    public string FontFamily { get => _fontFamily; set { _fontFamily = value; OnPropertyChanged(); } }
+    public string FontFamily { get => _fontFamily; set { if (!string.IsNullOrEmpty(value) && _fontFamily != value) { _fontFamily = value; OnPropertyChanged(); } } }
 
     private double _fontSize = 14;
     /// <summary>字体大小（像素）</summary>
@@ -616,7 +616,7 @@ public class CheckBoxWidget : Widget
     private string _fontFamily = "Microsoft YaHei UI";
     /// <summary>字体族（如 "Microsoft YaHei UI" / "Arial"）</summary>
     [ProtoMember(3)]
-    public string FontFamily { get => _fontFamily; set { _fontFamily = value; OnPropertyChanged(); } }
+    public string FontFamily { get => _fontFamily; set { if (!string.IsNullOrEmpty(value) && _fontFamily != value) { _fontFamily = value; OnPropertyChanged(); } } }
 
     private double _fontSize = 14;
     /// <summary>字体大小（像素）</summary>
@@ -654,7 +654,7 @@ public class TextBoxWidget : Widget
     private string _fontFamily = "Microsoft YaHei UI";
     /// <summary>字体族（如 "Microsoft YaHei UI" / "Arial"）</summary>
     [ProtoMember(3)]
-    public string FontFamily { get => _fontFamily; set { _fontFamily = value; OnPropertyChanged(); } }
+    public string FontFamily { get => _fontFamily; set { if (!string.IsNullOrEmpty(value) && _fontFamily != value) { _fontFamily = value; OnPropertyChanged(); } } }
 
     private double _fontSize = 14;
     /// <summary>字体大小（像素）</summary>
@@ -701,7 +701,7 @@ public class FrameWidget : Widget
     private string _fontFamily = "Microsoft YaHei UI";
     /// <summary>字体族（如 "Microsoft YaHei UI" / "Arial"）</summary>
     [ProtoMember(4)]
-    public string FontFamily { get => _fontFamily; set { _fontFamily = value; OnPropertyChanged(); } }
+    public string FontFamily { get => _fontFamily; set { if (!string.IsNullOrEmpty(value) && _fontFamily != value) { _fontFamily = value; OnPropertyChanged(); } } }
 
     private double _fontSize = 14;
     /// <summary>字体大小（像素）</summary>

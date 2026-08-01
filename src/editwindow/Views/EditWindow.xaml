@@ -13,6 +13,9 @@
         PreviewKeyDown="EditWindow_PreviewKeyDown"
         Title="NavigatorHMI" Height="450" Width="800">
     <Window.Resources>
+        <!-- 系统字体列表（字体下拉选择，只读不可编辑）-->
+        <!-- 注意：Fonts.SystemFontFamilies 是静态属性非方法，ODP MethodName 必须用 get_ 前缀，否则静默返回 null -->
+        <ObjectDataProvider x:Key="SystemFonts" ObjectType="{x:Type Fonts}" MethodName="get_SystemFontFamilies"/>
         <DrawingBrush x:Key="DotGridBrush" TileMode="Tile" Viewport="0,0,5,5" ViewportUnits="Absolute">
             <DrawingBrush.Drawing><DrawingGroup>
                 <GeometryDrawing Geometry="M0,0 L5,0 L5,5 L0,5 Z" Brush="Gainsboro"/>
@@ -105,7 +108,7 @@
         </Grid><TextBlock Text="字体" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Font:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding ButtonFontFamily, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+                <ComboBox Grid.Column="1" SelectedValue="{Binding ButtonFontFamily, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Source" DisplayMemberPath="Source" ItemsSource="{Binding Source={StaticResource SystemFonts}}" Style="{StaticResource PropComboBox}"/>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Size:" Style="{StaticResource PropLabel}"/>
@@ -158,7 +161,7 @@
                 </ComboBox>
             </Grid><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Font:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding TextFontFamily, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+                <ComboBox Grid.Column="1" SelectedValue="{Binding TextFontFamily, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Source" DisplayMemberPath="Source" ItemsSource="{Binding Source={StaticResource SystemFonts}}" Style="{StaticResource PropComboBox}"/>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Style:" Style="{StaticResource PropLabel}"/>
@@ -207,7 +210,7 @@
             </Grid><TextBlock Text="字体" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Font:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding LabelFontFamily, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+                <ComboBox Grid.Column="1" SelectedValue="{Binding LabelFontFamily, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Source" DisplayMemberPath="Source" ItemsSource="{Binding Source={StaticResource SystemFonts}}" Style="{StaticResource PropComboBox}"/>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Size:" Style="{StaticResource PropLabel}"/>
@@ -270,7 +273,7 @@
             </Grid><TextBlock Text="字体" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Font:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding NumericFontFamily, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+                <ComboBox Grid.Column="1" SelectedValue="{Binding NumericFontFamily, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Source" DisplayMemberPath="Source" ItemsSource="{Binding Source={StaticResource SystemFonts}}" Style="{StaticResource PropComboBox}"/>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Size:" Style="{StaticResource PropLabel}"/>
@@ -313,7 +316,7 @@
             </Grid><TextBlock Text="字体" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Font:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding SwitchFontFamily, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+                <ComboBox Grid.Column="1" SelectedValue="{Binding SwitchFontFamily, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Source" DisplayMemberPath="Source" ItemsSource="{Binding Source={StaticResource SystemFonts}}" Style="{StaticResource PropComboBox}"/>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Size:" Style="{StaticResource PropLabel}"/>
@@ -403,7 +406,7 @@
             </Grid><TextBlock Text="字体" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Font:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding IOFieldFontFamily, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+                <ComboBox Grid.Column="1" SelectedValue="{Binding IOFieldFontFamily, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Source" DisplayMemberPath="Source" ItemsSource="{Binding Source={StaticResource SystemFonts}}" Style="{StaticResource PropComboBox}"/>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Size:" Style="{StaticResource PropLabel}"/>
@@ -442,7 +445,7 @@
             </Grid><TextBlock Text="字体" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Font:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding CheckBoxFontFamily, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+                <ComboBox Grid.Column="1" SelectedValue="{Binding CheckBoxFontFamily, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Source" DisplayMemberPath="Source" ItemsSource="{Binding Source={StaticResource SystemFonts}}" Style="{StaticResource PropComboBox}"/>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Size:" Style="{StaticResource PropLabel}"/>
@@ -477,7 +480,7 @@
             </Grid><TextBlock Text="字体" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Font:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding TextBoxFontFamily, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+                <ComboBox Grid.Column="1" SelectedValue="{Binding TextBoxFontFamily, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Source" DisplayMemberPath="Source" ItemsSource="{Binding Source={StaticResource SystemFonts}}" Style="{StaticResource PropComboBox}"/>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Size:" Style="{StaticResource PropLabel}"/>
@@ -520,7 +523,7 @@
             </Grid><TextBlock Text="字体" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Font:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding FrameFontFamily, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+                <ComboBox Grid.Column="1" SelectedValue="{Binding FrameFontFamily, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Source" DisplayMemberPath="Source" ItemsSource="{Binding Source={StaticResource SystemFonts}}" Style="{StaticResource PropComboBox}"/>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Size:" Style="{StaticResource PropLabel}"/>
