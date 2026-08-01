@@ -366,16 +366,24 @@ namespace NavigatorHMI.Views.Helpers
     }
 
     /// <summary>颜色字符串到 Brush 的转换器（用于 DataTemplate 绑定）。</summary>
+    /// <summary>
+    /// 颜色字符串到 Brush 的转换器（用于 DataTemplate 绑定）。
+    /// 空串/留空 → 透明画刷（不显示背景，但 Transparent 非 null 仍参与命中测试，控件可选中）。
+    /// "Transparent"/#00000000 由 BrushConverter 原生支持；非法值回退 Gray。
+    /// </summary>
     public class ColorStringToBrushConverter : IValueConverter
     {
+        private static readonly BrushConverter _brushConverter = new();
+
         public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
         {
-            if (value is string s && !string.IsNullOrEmpty(s))
+            if (value is string s && !string.IsNullOrWhiteSpace(s))
             {
-                try { return (Brush)new BrushConverter().ConvertFrom(s)!; }
+                try { return (Brush)_brushConverter.ConvertFrom(s)!; }
                 catch { return Brushes.Gray; }
             }
-            return Brushes.Gray;
+            // null/留空 = 不显示背景（Transparent 非 null 画刷仍参与命中测试，控件保持可选中）
+            return Brushes.Transparent;
         }
         public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
             => throw new NotImplementedException();

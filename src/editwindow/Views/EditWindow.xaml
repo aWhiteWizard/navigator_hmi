@@ -111,7 +111,7 @@
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Color:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding TextFillColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+                <TextBox Grid.Column="1" Text="{Binding TextFillColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" ToolTip="留空或填 Transparent 不显示背景"/>
         </Grid></StackPanel></DataTemplate>
         <DataTemplate x:Key="PropRect"><StackPanel>
             <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
@@ -145,7 +145,7 @@
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="BgColor:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding LabelFillColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+                <TextBox Grid.Column="1" Text="{Binding LabelFillColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" ToolTip="留空或填 Transparent 不显示背景"/>
             </Grid></StackPanel></DataTemplate>
 
         <!-- ImageWidget 属性 -->
@@ -193,7 +193,7 @@
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="BgColor:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding NumericFillColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+                <TextBox Grid.Column="1" Text="{Binding NumericFillColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" ToolTip="留空或填 Transparent 不显示背景"/>
             </Grid></StackPanel></DataTemplate>
 
         <!-- SwitchWidget 属性 -->
@@ -276,7 +276,7 @@
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="BgColor:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding IOFieldFillColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+                <TextBox Grid.Column="1" Text="{Binding IOFieldFillColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" ToolTip="留空或填 Transparent 不显示背景"/>
             </Grid></StackPanel></DataTemplate>
 
         <!-- CheckBoxWidget 属性 -->
