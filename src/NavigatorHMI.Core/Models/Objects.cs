@@ -286,6 +286,7 @@ public class LabelWidget : Widget
 
 /// <summary>
 /// 图片控件。显示静态图片（PNG/JPEG/BMP），支持拉伸模式。
+/// 背景色（<see cref="FillColor"/>）保证图片路径为空/图片透明时控件仍可见、可选中。
 /// </summary>
 [ProtoContract]
 public class ImageWidget : Widget
@@ -299,6 +300,11 @@ public class ImageWidget : Widget
     /// <summary>拉伸模式：None / Fill / Uniform / UniformToFill</summary>
     [ProtoMember(2)]
     public string StretchMode { get => _stretchMode; set { _stretchMode = value; OnPropertyChanged(); } }
+
+    private string _fillColor = "#EEEEEE";
+    /// <summary>背景色（CSS 格式，默认浅灰；图片透明区域/无图片时可见）</summary>
+    [ProtoMember(3)]
+    public string FillColor { get => _fillColor; set { _fillColor = value; OnPropertyChanged(); } }
 }
 
 /// <summary>

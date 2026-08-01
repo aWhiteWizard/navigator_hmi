@@ -129,7 +129,7 @@ namespace NavigatorHMI.ViewModels
                             case TextWidget txt: TextContent = txt.Content; break;
                             case RectangleWidget rect: RectFillColor = rect.FillColor; break;
                             case LabelWidget lbl: LabelText = lbl.Text; LabelFontSize = lbl.FontSize; LabelTextColor = lbl.TextColor; break;
-                            case ImageWidget img: ImagePath = img.ImagePath; break;
+                            case ImageWidget img: ImagePath = img.ImagePath; ImageFillColor = img.FillColor; break;
                             case NumericDisplayWidget nd: NumericPrefix = nd.Prefix; NumericSuffix = nd.Suffix; NumericDecimalPlaces = nd.DecimalPlaces; NumericFontSize = nd.FontSize; NumericTextColor = nd.TextColor; break;
                             case SwitchWidget sw: SwitchIsOn = sw.IsOn; SwitchOnText = sw.OnText; SwitchOffText = sw.OffText; break;
                             case LineWidget line: LineX2 = line.X2; LineY2 = line.Y2; LineStrokeColor = line.StrokeColor; LineStrokeThickness = line.StrokeThickness; break;
@@ -474,6 +474,9 @@ namespace NavigatorHMI.ViewModels
 
         private string _imagePath = "";
         public string ImagePath { get => _imagePath; set { if (_imagePath != value) { _imagePath = value; OnPropertyChanged(); if (_selectedWidget is ImageWidget img) img.ImagePath = value; } } }
+        private string _imageFillColor = "#EEEEEE";
+        /// <summary>图片背景色（CSS 格式，默认浅灰；图片透明区域/无图片时可见）。</summary>
+        public string ImageFillColor { get => _imageFillColor; set { if (_imageFillColor != value) { _imageFillColor = value; OnPropertyChanged(); if (_selectedWidget is ImageWidget img) img.FillColor = value; } } }
 
         private string _numericPrefix = "";
         public string NumericPrefix { get => _numericPrefix; set { if (_numericPrefix != value) { _numericPrefix = value; OnPropertyChanged(); if (_selectedWidget is NumericDisplayWidget nd) nd.Prefix = value; } } }

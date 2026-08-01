@@ -61,14 +61,25 @@ namespace NavigatorHMI.Views.Behaviors
         }
 
         /// <summary>
-        /// 清理拖拽泄漏候选状态（pending + 粘性标志），但**保留** _isDragging 收尾给冒泡 up。
+        /// 清理拖拽泄漏候选状态（pending + 粘性标志 + 元素光标），但**保留** _isDragging 收尾给冒泡 up。
         /// 容器层 Preview up 调用——不能清 _isDragging，否则 widget 冒泡 up 的光标恢复/捕获释放被跳过。
         /// </summary>
         public void ClearLeakState()
         {
+            RestoreDragCursor();
             _pendingDragWidget = null;
             _pendingDragFE = null;
             _suppressDragUntilMouseUp = false;
+        }
+
+        /// <summary>恢复拖拽期间设置的元素级光标（ForceCursor 成对复位，幂等）。</summary>
+        private void RestoreDragCursor()
+        {
+            if (_pendingDragFE != null)
+            {
+                _pendingDragFE.ForceCursor = false;
+                _pendingDragFE.Cursor = null;
+            }
         }
 
         /// <summary>
@@ -162,6 +173,12 @@ namespace NavigatorHMI.Views.Behaviors
                             _draggingWidgets.Add((w, w.X, w.Y));
                     _isDragging = true;
                     _setCursorCallback(Cursors.SizeAll);
+                    // 元素级光标：强制覆盖 TextBox 等控件的 IBeam/原生光标（元素光标优先级高于窗口光标）
+                    if (_pendingDragFE != null)
+                    {
+                        _pendingDragFE.ForceCursor = true;
+                        _pendingDragFE.Cursor = Cursors.SizeAll;
+                    }
                     _pendingDragFE?.CaptureMouse();
                 }
             }
@@ -187,6 +204,8 @@ namespace NavigatorHMI.Views.Behaviors
 
         internal void OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
+            // 恢复拖拽期间设置的元素级光标（先恢复再清引用）
+            RestoreDragCursor();
             // 清理待拖拽状态（未超阈值则视为单击）+ 清除粘性抑制
             _pendingDragWidget = null;
             _pendingDragFE = null;
@@ -209,6 +228,7 @@ namespace NavigatorHMI.Views.Behaviors
             if (sender is not FrameworkElement fe || fe.DataContext is not Widget widget) return;
             _isDragging = false;
             _draggingWidgets.Clear();
+            RestoreDragCursor();
             _pendingDragWidget = null;
             _pendingDragFE = null;
             _suppressDragUntilMouseUp = false;

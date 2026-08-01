@@ -180,10 +180,18 @@ namespace NavigatorHMI.Views.Helpers
             MouseEventHandler mMove, MouseButtonEventHandler mLBU, MouseButtonEventHandler pmRBD, MouseButtonEventHandler mRBU)
         {
             var dt = new DataTemplate();
+            // Border 背景绑定 FillColor：保证图片路径为空/图片透明时控件仍可见、可选中
+            var border = new FrameworkElementFactory(typeof(Border));
+            border.SetBinding(Border.BackgroundProperty, new Binding("FillColor") { Converter = new ColorStringToBrushConverter() });
+            border.SetBinding(Border.WidthProperty, new Binding("Width"));
+            border.SetBinding(Border.HeightProperty, new Binding("Height"));
+            border.SetBinding(SelectorHelper.IsSelectedProperty, new Binding("IsSelected") { Mode = BindingMode.TwoWay });
+            AddInteractionHandlers(border, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU);
             var img = new FrameworkElementFactory(typeof(Image));
             img.SetBinding(Image.SourceProperty, new Binding("ImagePath"));
             img.SetValue(Image.StretchProperty, System.Windows.Media.Stretch.Uniform);
-            dt.VisualTree = WrapWithBorder(img, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU);
+            border.AppendChild(img);
+            dt.VisualTree = border;
             return dt;
         }
 

@@ -150,6 +150,10 @@
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Path:" Style="{StaticResource PropLabel}"/>
                 <TextBox Grid.Column="1" Text="{Binding ImagePath, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Color:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding ImageFillColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
             </Grid></StackPanel></DataTemplate>
 
         <!-- NumericDisplayWidget 属性 -->
