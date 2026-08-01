@@ -7,11 +7,17 @@
         <TextBlock Text="取色区域（点击/拖动取色）" FontWeight="Bold" Margin="0,0,0,4"/>
         <!-- HSV 渐变板：水平=色相，垂直=明暗（上亮下暗）；Background=Transparent 保证整板可命中取色 -->
         <Border x:Name="ColorBoard" Width="220" Height="140" BorderBrush="Gray" BorderThickness="1"
-                Background="Transparent" Cursor="Cross" MouseLeftButtonDown="Board_MouseDown" MouseMove="Board_MouseMove"/>
+                Background="Transparent" Cursor="Cross"
+                MouseLeftButtonDown="Board_MouseDown" MouseMove="Board_MouseMove"
+                MouseLeftButtonUp="Board_MouseUp" MouseLeave="Board_MouseLeave"/>
         <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
             <TextBlock Text="当前:" VerticalAlignment="Center"/>
             <Border x:Name="CurrentPreview" Width="70" Height="24" BorderBrush="Gray" BorderThickness="1"
                     Background="White" Margin="6,0,0,0"/>
+        </StackPanel>
+        <StackPanel x:Name="RecentPanel" Orientation="Vertical" Margin="0,8,0,0" Visibility="Collapsed">
+            <TextBlock Text="最近使用" FontWeight="Bold" Margin="0,0,0,4"/>
+            <ItemsControl x:Name="RecentGrid"/>
         </StackPanel>
         <Button x:Name="TransparentBtn" Content="▢ 透明（不显示背景）" Height="28" Margin="0,8,0,0"
                 Click="TransparentBtn_Click" Background="White" BorderBrush="Gray" BorderThickness="1"

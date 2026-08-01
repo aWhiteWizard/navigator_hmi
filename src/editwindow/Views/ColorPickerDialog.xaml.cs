@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -39,6 +40,49 @@ namespace NavigatorHMI.Views
                 HexBox.Text = "";
                 HexPreview.Background = Brushes.Transparent;
                 CurrentPreview.Background = Brushes.Transparent;
+            }
+
+            LoadRecentColors();
+        }
+
+        /// <summary>加载最近使用颜色到快捷栏（无记录时隐藏；非法色值跳过防构造崩溃）。</summary>
+        private void LoadRecentColors()
+        {
+            var recent = RecentColorStore.Load();
+            if (recent.Count == 0) return;
+            RecentPanel.Visibility = Visibility.Visible;
+
+            var panel = new ItemsPanelTemplate();
+            var factory = new FrameworkElementFactory(typeof(UniformGrid));
+            factory.SetValue(UniformGrid.ColumnsProperty, 8);
+            panel.VisualTree = factory;
+            RecentGrid.ItemsPanel = panel;
+
+            foreach (var hex in recent)
+            {
+                // 校验 #RRGGBB 格式（手改 JSON 可能含非法值，跳过避免 BrushConverter 抛异常）
+                if (hex.Length != 7 || hex[0] != '#' || !hex.Skip(1).All(Uri.IsHexDigit))
+                    continue;
+                var border = new Border
+                {
+                    Width = 24, Height = 24, Margin = new Thickness(2),
+                    Background = (Brush)_brushConverter.ConvertFrom(hex)!,
+                    BorderBrush = Brushes.Gray, BorderThickness = new Thickness(1),
+                    Cursor = Cursors.Hand, Tag = hex
+                };
+                border.MouseLeftButtonDown += Swatch_MouseLeftButtonDown;
+                RecentGrid.Items.Add(border);
+            }
+        }
+
+        /// <summary>点击色块（最近使用栏）选择颜色。</summary>
+        private void Swatch_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is Border b && b.Tag is string hex)
+            {
+                SelectedColorHex = hex;
+                HexBox.Text = hex.TrimStart('#');
+                UpdatePreview(hex);
             }
         }
 
@@ -99,6 +143,19 @@ namespace NavigatorHMI.Views
                 PickColor(e.GetPosition(ColorBoard));
         }
 
+        /// <summary>松开鼠标释放捕获（否则后续按钮点击被取色板拦截）。</summary>
+        private void Board_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            ColorBoard.ReleaseMouseCapture();
+        }
+
+        /// <summary>鼠标移出取色板且未按住时释放捕获（防残留拦截）。</summary>
+        private void Board_MouseLeave(object sender, MouseEventArgs e)
+        {
+            if (e.LeftButton != MouseButtonState.Pressed)
+                ColorBoard.ReleaseMouseCapture();
+        }
+
         /// <summary>按坐标取色：x→色相(0-360°)，y→明暗(顶亮底暗)。</summary>
         private void PickColor(Point pos)
         {
@@ -152,6 +209,9 @@ namespace NavigatorHMI.Views
 
         private void Ok_Click(object sender, RoutedEventArgs e)
         {
+            // 记住选中的颜色（非透明）到最近使用栏
+            if (SelectedColorHex.Length > 0)
+                RecentColorStore.Add(SelectedColorHex);
             DialogResult = true;
         }
     }
