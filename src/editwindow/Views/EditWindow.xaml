@@ -944,7 +944,8 @@
                     <!-- 底部: CLI -->
                     <avalon:LayoutAnchorablePane DockHeight="180">
                         <avalon:LayoutAnchorable Title="CLI 控制台" ContentId="cli">
-                            <Grid>
+                            <!-- Background=Transparent：空白区可命中测试，点击任意处才能聚焦输入框（wpf-event-routing §1） -->
+                            <Grid PreviewMouseDown="CliPanel_PreviewMouseDown" Background="Transparent">
                                 <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="5"/><RowDefinition Height="28"/></Grid.RowDefinitions>
                                 <ScrollViewer Grid.Row="0" x:Name="CliOutputScroller" VerticalScrollBarVisibility="Auto">
                                     <TextBox x:Name="CliOutput" IsReadOnly="True" FontFamily="Consolas" FontSize="12"

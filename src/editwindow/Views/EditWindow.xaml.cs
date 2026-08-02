@@ -14,6 +14,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Threading;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
@@ -1491,6 +1492,41 @@ namespace NavigatorHMI.Views
         #endregion
 
         #region CLI 控制台
+        /// <summary>
+        /// 点击 CLI 面板任意处（输出区/分隔条/提示符/空白）自动聚焦输入框并显示光标。
+        /// 用 Dispatcher.BeginInvoke 延后到冒泡阶段完成后执行——WPF TextBox 在冒泡 OnMouseDown
+        /// 会把焦点抢回自身（输出区只读 TextBox），延后聚焦保证最终焦点在输入框。
+        /// 短路条件基于点击目标视觉链归属（点击输入框内部才跳过），不依赖当前焦点状态——
+        /// 否则"输入框已聚焦 + 点击输出区"时焦点会被输出区抢走且不回（高频组合）。
+        /// 输出区文本仍可鼠标拖选（选中不依赖键盘焦点）；失焦后 Ctrl+C 作用于输入框，输出文本复制仅剩鼠标方式。
+        /// </summary>
+        private void CliPanel_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (CliInput == null) return;
+            // 仅左键触发聚焦（右键/中键用于其他用途时不干扰）
+            if (e.ChangedButton != MouseButton.Left) return;
+            // 点击目标是否在输入框内部（TextBoxView/滚动条 Thumb 等）→ 不重复聚焦
+            if (IsDescendantOfCliInput(e.OriginalSource as DependencyObject)) return;
+            // 延后到事件冒泡完成后：让输出区 TextBox 的默认 Focus 先执行，再强制聚焦输入框
+            Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+            {
+                if (CliInput == null) return;
+                CliInput.Focus();
+                CliInput.CaretIndex = CliInput.Text.Length;  // 光标移到末尾
+            }));
+        }
+
+        /// <summary>沿视觉树向上查找点击目标是否属于 CliInput 子树。</summary>
+        private bool IsDescendantOfCliInput(DependencyObject? node)
+        {
+            while (node != null)
+            {
+                if (ReferenceEquals(node, CliInput)) return true;
+                node = System.Windows.Media.VisualTreeHelper.GetParent(node);
+            }
+            return false;
+        }
+
         /// <summary>
         /// CLI 输入框回车事件：执行命令并显示结果。
         /// </summary>
