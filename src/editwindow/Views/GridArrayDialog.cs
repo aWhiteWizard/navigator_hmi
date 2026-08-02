@@ -32,7 +32,6 @@ namespace NavigatorHMI.Views
         private readonly bool _isCircle;
         private readonly TextBox _sx, _sy, _cols, _rows, _startX, _startY, _cx, _cy, _rad, _start, _end;
         private readonly Action? _preview;
-        private bool _cancelled = true;
 
         public GridArrayDialog(bool isCircle, int itemCount, double defCx, double defCy, Action? preview = null)
         {
@@ -65,12 +64,11 @@ namespace NavigatorHMI.Views
             var btnPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 16, 0, 0) };
             var okBtn = new Button { Content = "确定", Width = 80, Height = 26, Margin = new Thickness(0, 0, 10, 0) };
             var cancelBtn = new Button { Content = "取消", Width = 80, Height = 26 };
-            okBtn.Click += (_, _) => { _cancelled = false; ParseAndClose(); };
+            okBtn.Click += (_, _) => { ParseAndClose(); };
             cancelBtn.Click += (_, _) => Close();
             btnPanel.Children.Add(okBtn); btnPanel.Children.Add(cancelBtn);
             root.Children.Add(btnPanel);
             Content = root;
-            Closed += (_, _) => { if (_cancelled) preview?.Invoke(); };
             ParseParams();
         }
 
@@ -81,6 +79,11 @@ namespace NavigatorHMI.Views
             if (!_isCircle)
             {
                 if (!int.TryParse(_cols.Text, out int c) || !int.TryParse(_rows.Text, out int r)) return false;
+                // 列/行数范围校验（≥1，非法标红）
+                bool colOk = c >= 1, rowOk = r >= 1;
+                _cols.Background = colOk ? System.Windows.Media.Brushes.White : System.Windows.Media.Brushes.LightPink;
+                _rows.Background = rowOk ? System.Windows.Media.Brushes.White : System.Windows.Media.Brushes.LightPink;
+                if (!colOk || !rowOk) return false;
                 if (!double.TryParse(_startX.Text, out double sx0) || !double.TryParse(_startY.Text, out double sy0)) return false;
                 if (!double.TryParse(_sx.Text, out double sx) || !double.TryParse(_sy.Text, out double sy)) return false;
                 Cols = c; Rows = r; StartX = sx0; StartY = sy0; SpacingX = sx; SpacingY = sy;

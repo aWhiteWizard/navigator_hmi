@@ -879,8 +879,11 @@
                                             <!-- 两点式绘制预览（Line/Circle/Ellipse/Rectangle） -->
                                             <Path x:Name="DrawPreviewShape" Stroke="#1E90FF" StrokeThickness="1.5" Fill="#301E90FF"
                                                   Visibility="Collapsed" IsHitTestVisible="False" Panel.ZIndex="1002"/>
+                                            <!-- 阵列辅助线预览（虚线示意落位，不移动控件） -->
+                                            <Path x:Name="ArrayGuideShape" Stroke="#FF8C00" StrokeThickness="1.2" Fill="#20FF8C00"
+                                                  StrokeDashArray="4,3" Visibility="Collapsed" IsHitTestVisible="False" Panel.ZIndex="1003"/>
                                             <TextBlock Text="{Binding CurrentScreen.Widgets.Count, StringFormat='Widgets: {0}'}"
-                                                       Canvas.Left="10" Canvas.Top="10" Foreground="Black" Background="White" FontSize="14" FontWeight="Bold"/>
+                                                       Canvas.Left="10" Canvas.Top="10" Foreground="Black" Background="White" FontSize="14" FontWeight="Bold" Panel.ZIndex="1004"/>
                                         </Canvas>
                                     </ScrollViewer>
                                     <!-- 缩放比例 -->

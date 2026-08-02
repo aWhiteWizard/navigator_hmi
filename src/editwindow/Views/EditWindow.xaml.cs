@@ -436,6 +436,14 @@ namespace NavigatorHMI.Views
             DrawPreviewShape.Visibility = Visibility.Collapsed;
             DrawPreviewShape.Data = null;
 
+            // 重挂载阵列辅助线预览（ArrayGuideShape 同样被 Children.Clear 清掉）
+            DrawingCanvas.Children.Remove(ArrayGuideShape);
+            if (!DrawingCanvas.Children.Contains(ArrayGuideShape))
+                DrawingCanvas.Children.Add(ArrayGuideShape);
+            Panel.SetZIndex(ArrayGuideShape, 1003);
+            ArrayGuideShape.Visibility = Visibility.Collapsed;
+            ArrayGuideShape.Data = null;
+
             var vm = this.DataContext as EditWindowViewModel;
             itemsControl.Width = screen.Width > 0 ? screen.Width : (vm?.DeviceWidth ?? 800);
             itemsControl.Height = screen.Height > 0 ? screen.Height : (vm?.DeviceHeight ?? 600);
@@ -1210,40 +1218,124 @@ namespace NavigatorHMI.Views
             if (selected == null || selected.Count < 2) return;
 
             var sorted = selected.OrderBy(w => ExtractIdNumber(w.ObjectName)).ToList();
-            var saved = sorted.Select(w => (w, w.X, w.Y)).ToList();
             double cx = Math.Min(Math.Max(sorted.Average(w => w.X + w.Width / 2), 50), (_viewModel.DeviceWidth - 50));
             double cy = Math.Min(Math.Max(sorted.Average(w => w.Y + w.Height / 2), 50), (_viewModel.DeviceHeight - 50));
-
-            
+            // 钳制边界单源：与 UpdateArrayGuide 共用同一 maxW/maxH 与最宽参考尺寸
+            double maxW = _viewModel.CurrentScreen?.Width ?? _viewModel.DeviceWidth;
+            double maxH = _viewModel.CurrentScreen?.Height ?? _viewModel.DeviceHeight;
+            double refW = sorted.Count > 0 ? sorted.Max(w => w.Width) : 40;
+            double refH = sorted.Count > 0 ? sorted.Max(w => w.Height) : 40;
 
             GridArrayDialog? dialog = null;
             dialog = new GridArrayDialog(isCircle, sorted.Count, cx, cy, () =>
             {
-                // 移动控件到计算位置
-                var positions = CalcPositions(isCircle, sorted.Count, dialog!.Cols, dialog.Rows,
+                // 仅更新辅助线预览（不移动控件）
+                UpdateArrayGuide(isCircle, sorted.Count, dialog!.Cols, dialog.Rows,
                     dialog.StartX, dialog.StartY, dialog.SpacingX, dialog.SpacingY,
                     dialog.CenterX, dialog.CenterY, dialog.Radius, dialog.StartAngle, dialog.EndAngle,
-                    _viewModel.CurrentScreen?.Width ?? _viewModel.DeviceWidth,
-                    _viewModel.CurrentScreen?.Height ?? _viewModel.DeviceHeight);
+                    maxW, maxH, refW, refH);
+            }) { Owner = this };
+
+            // 初始默认值预览（画辅助线）
+            dialog.InvokePreview();
+
+            if (dialog.ShowDialog() == true)
+            {
+                // 确认：按辅助线位置真正落位
+                _viewModel.PushUndoSnapshot();
+                var positions = CalcPositions(isCircle, sorted.Count, dialog.Cols, dialog.Rows,
+                    dialog.StartX, dialog.StartY, dialog.SpacingX, dialog.SpacingY,
+                    dialog.CenterX, dialog.CenterY, dialog.Radius, dialog.StartAngle, dialog.EndAngle,
+                    maxW, maxH);
                 for (int i = 0; i < Math.Min(positions.Count, sorted.Count); i++)
                 {
-                    sorted[i].X = Math.Max(0, Math.Min(positions[i].X, (_viewModel.CurrentScreen?.Width ?? 800) - sorted[i].Width));
-                    sorted[i].Y = Math.Max(0, Math.Min(positions[i].Y, (_viewModel.CurrentScreen?.Height ?? 480) - sorted[i].Height));
+                    sorted[i].X = Math.Max(0, Math.Min(positions[i].X, maxW - sorted[i].Width));
+                    sorted[i].Y = Math.Max(0, Math.Min(positions[i].Y, maxH - sorted[i].Height));
                 }
                 _viewModel.NotifyCanvasRefreshNeeded();
                 DrawingCanvas.InvalidateVisual();
-            }) { Owner = this };
-
-            // 初始默认值预览
-            dialog.InvokePreview();
-
-            _viewModel.PushUndoSnapshot();
-
-            if (dialog.ShowDialog() != true)
-            {
-                foreach (var (w, x, y) in saved) { w.X = x; w.Y = y; }
-                _viewModel.NotifyCanvasRefreshNeeded();
             }
+            ClearArrayGuide();
+        }
+
+        /// <summary>绘制阵列辅助线预览（矩形网格 / 圆形弧线 + 落点方块），不移动控件。</summary>
+        private void UpdateArrayGuide(bool isCircle, int count, int cols, int rows,
+            double startX, double startY, double sx, double sy,
+            double centerX, double centerY, double radius, double startAngle, double endAngle,
+            double maxW, double maxH, double refW, double refH)
+        {
+            if (ArrayGuideShape == null) return;
+            var positions = CalcPositions(isCircle, count, cols, rows, startX, startY, sx, sy,
+                centerX, centerY, radius, startAngle, endAngle, maxW, maxH);
+            if (positions.Count == 0) { ClearArrayGuide(); return; }
+
+            var group = new System.Windows.Media.GeometryGroup();
+            if (isCircle)
+            {
+                // 圆形阵列：圆弧轨迹 + 圆心十字
+                double start = startAngle * Math.PI / 180, end = endAngle * Math.PI / 180;
+                double total = (end > start ? end - start : 2 * Math.PI + end - start);
+                if (total >= 2 * Math.PI - 1e-9)
+                {
+                    // 整圆退化修复：起点==终点时 ArcSegment 画不出 360° 弧，改用 EllipseGeometry
+                    group.Children.Add(new System.Windows.Media.EllipseGeometry(
+                        new Point(centerX, centerY), radius, radius));
+                }
+                else
+                {
+                    var arc = CreateArcGeometry(centerX, centerY, radius, start, end);
+                    if (arc != System.Windows.Media.Geometry.Empty) group.Children.Add(arc);
+                }
+                var cross = new System.Windows.Media.GeometryGroup();
+                cross.Children.Add(new System.Windows.Media.LineGeometry(
+                    new Point(centerX - 6, centerY), new Point(centerX + 6, centerY)));
+                cross.Children.Add(new System.Windows.Media.LineGeometry(
+                    new Point(centerX, centerY - 6), new Point(centerX, centerY + 6)));
+                group.Children.Add(cross);
+            }
+            else
+            {
+                // 矩形阵列：行/列网格线
+                for (int c = 0; c < cols; c++)
+                {
+                    double x = startX + c * sx;
+                    group.Children.Add(new System.Windows.Media.LineGeometry(
+                        new Point(x, startY), new Point(x, startY + (rows - 1) * sy)));
+                }
+                for (int r = 0; r < rows; r++)
+                {
+                    double y = startY + r * sy;
+                    group.Children.Add(new System.Windows.Media.LineGeometry(
+                        new Point(startX, y), new Point(startX + (cols - 1) * sx, y)));
+                }
+            }
+            // 落点方块（以参考控件尺寸绘制，预览真实落位大小；钳制规则与落位一致）
+            for (int i = 0; i < positions.Count; i++)
+            {
+                var p = positions[i];
+                double x = Math.Max(0, Math.Min(p.X, maxW - refW));
+                double y = Math.Max(0, Math.Min(p.Y, maxH - refH));
+                if (isCircle)
+                {
+                    group.Children.Add(new System.Windows.Media.EllipseGeometry(
+                        new Point(x + refW / 2, y + refH / 2), Math.Min(refW, refH) / 2, Math.Min(refW, refH) / 2));
+                }
+                else
+                {
+                    group.Children.Add(new System.Windows.Media.RectangleGeometry(
+                        new Rect(x, y, refW, refH)));
+                }
+            }
+            ArrayGuideShape.Data = group;
+            ArrayGuideShape.Visibility = Visibility.Visible;
+        }
+
+        /// <summary>清除阵列辅助线。</summary>
+        private void ClearArrayGuide()
+        {
+            if (ArrayGuideShape == null) return;
+            ArrayGuideShape.Data = null;
+            ArrayGuideShape.Visibility = Visibility.Collapsed;
         }
 
         private static System.Windows.Media.Geometry CreateArcGeometry(double cx, double cy, double r, double startAngle, double endAngle)
@@ -1263,6 +1355,8 @@ namespace NavigatorHMI.Views
             double centerX, double centerY, double radius, double startAngle, double endAngle,
             double maxW, double maxH)
         {
+            // 除零防御：列/行数至少为 1
+            cols = Math.Max(1, cols); rows = Math.Max(1, rows);
             var result = new List<Point>();
             if (isCircle)
             {
