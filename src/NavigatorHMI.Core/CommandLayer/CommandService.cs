@@ -27,7 +27,7 @@ namespace NavigatorHMI.CommandLayer
         public void ReplaceProject(HMIProject newProject) { lock (_lock) { _project = newProject; } }
 
         /// <summary>
-        /// 初始化 CommandService 并注册全部 24 个命令处理器。
+        /// 初始化 CommandService 并注册全部 26 个命令处理器。
         /// </summary>
         /// <param name="project">当前工程对象</param>
         public CommandService(HMIProject project)
@@ -57,6 +57,10 @@ namespace NavigatorHMI.CommandLayer
                 ["bring_forward"]   = new BringForwardHandler(),
                 ["send_backward"]   = new SendBackwardHandler(),
                 ["send_to_back"]    = new SendToBackHandler(),
+
+                // ── 布局 ──
+                ["align_widgets"]   = new AlignWidgetsHandler(),
+                ["array_layout"]    = new ArrayLayoutHandler(),
 
                 // ── 事件绑定 ──
                 ["bind_event"]      = new BindEventHandler(),

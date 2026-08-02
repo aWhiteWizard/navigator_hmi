@@ -87,6 +87,14 @@ public static class Program
             // 事件
             "bind-event"     => BindEvent(),
 
+            // 布局
+            "align"          => Cmd("align_widgets", Require("screen", "screen_name"), Require("widgets"), Require("direction")),
+            "array"          => Cmd("array_layout", Require("screen", "screen_name"), Require("widgets"), Require("mode"),
+                                    OptMap("start-x", "start_x", "0"), OptMap("start-y", "start_y", "0"), Opt("cols", "3"), Opt("rows", "2"),
+                                    OptMap("spacing-x", "spacing_x", "120"), OptMap("spacing-y", "spacing_y", "80"),
+                                    OptMap("center-x", "center_x", "0"), OptMap("center-y", "center_y", "0"),
+                                    Opt("radius", "150"), OptMap("start-angle", "start_angle", "0"), OptMap("end-angle", "end_angle", "360")),
+
             // 变量
             "create-tag"     => Cmd("create_tag", Require("name"), Require("type", "data_type"), Require("source"), Opt("unit"), OptMap("scan-interval", "scan_interval", "100"), Opt("deadband", "0"), Opt("description")),
             "bind-tag"       => Cmd("bind_tag", Require("screen", "screen_name"), Require("widget", "widget_name"), Require("tag", "tag_name")),
@@ -265,8 +273,8 @@ public static class Program
         bool hasUpDir = value.Contains("..");
         bool hasSeparator = value.Contains('/') || value.Contains('\\');
         bool isPathParam = key is "path" or "project" or "file" or "output" or "connection" or "source";
-        bool isNameParam = key is "name" or "screen" or "widget" or "tag" or "key" or "value"
-            or "event" or "action" or "nic" or "protocol" or "severity";
+        bool isNameParam = key is "name" or "screen" or "widget" or "widgets" or "tag" or "key" or "value"
+            or "event" or "action" or "nic" or "protocol" or "severity" or "direction" or "mode";
         bool isFreeText = key is "description" or "message" or "params" or "model";
 
         if (isPathParam)
@@ -423,6 +431,7 @@ public static class Program
   画面: create-screen, delete-screen
   控件: add-widget, move-widget, resize-widget, delete-widget, set-property
   层级: bring-to-front, bring-forward, send-backward, send-to-back
+  布局: align, array
   事件: bind-event
   变量: create-tag, bind-tag
   报警: create-alarm
@@ -467,6 +476,12 @@ NavigatorHMI CLI — 组态软件命令行接口
   bring-forward          --screen <name> --widget <name>
   send-backward          --screen <name> --widget <name>
   send-to-back           --screen <name> --widget <name>
+
+布局命令:
+  align                  --screen <name> --widgets <a,b,c> --direction <left|center_h|right|top|center_v|bottom>
+  array                  --screen <name> --widgets <a,b,c> --mode <rect|circle>
+                         [--start-x <n>] [--start-y <n>] [--cols <n>] [--rows <n>] [--spacing-x <n>] [--spacing-y <n>]
+                         [--center-x <n>] [--center-y <n>] [--radius <n>] [--start-angle <deg>] [--end-angle <deg>]
 
 事件命令:
   bind-event             --screen <name> --widget <name> --event <type> --action <type> [--params "k1=v1,k2=v2"]

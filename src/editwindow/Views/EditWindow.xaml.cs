@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.Messaging;
 using NavigatorHMI.Common;
 using NavigatorHMI.CommandLayer;
+using NavigatorHMI.CommandLayer.Handlers;
 using NavigatorHMI.ViewModels;
 using NavigatorHMI.Views.Behaviors;
 using NavigatorHMI.Views.Helpers;
@@ -1228,9 +1229,6 @@ namespace NavigatorHMI.Views
             var sorted = selected.OrderBy(w => ExtractIdNumber(w.ObjectName)).ToList();
             double cx = Math.Min(Math.Max(sorted.Average(w => w.X + w.Width / 2), 50), (_viewModel.DeviceWidth - 50));
             double cy = Math.Min(Math.Max(sorted.Average(w => w.Y + w.Height / 2), 50), (_viewModel.DeviceHeight - 50));
-            // 钳制边界单源：与 UpdateArrayGuide 共用同一 maxW/maxH
-            double maxW = _viewModel.CurrentScreen?.Width ?? _viewModel.DeviceWidth;
-            double maxH = _viewModel.CurrentScreen?.Height ?? _viewModel.DeviceHeight;
 
             GridArrayDialog? dialog = null;
             dialog = new GridArrayDialog(isCircle, sorted.Count, cx, cy, () =>
@@ -1238,8 +1236,7 @@ namespace NavigatorHMI.Views
                 // 仅更新辅助线预览（不移动控件）
                 UpdateArrayGuide(isCircle, sorted.Count, dialog!.Cols, dialog.Rows,
                     dialog.StartX, dialog.StartY, dialog.SpacingX, dialog.SpacingY,
-                    dialog.CenterX, dialog.CenterY, dialog.Radius, dialog.StartAngle, dialog.EndAngle,
-                    maxW, maxH);
+                    dialog.CenterX, dialog.CenterY, dialog.Radius, dialog.StartAngle, dialog.EndAngle);
             }) { Owner = this };
 
             // 初始默认值预览（画辅助线）
@@ -1247,20 +1244,37 @@ namespace NavigatorHMI.Views
 
             if (dialog.ShowDialog() == true)
             {
-                // 确认：按辅助线位置真正落位
+                // 确认：统一走 Command Layer 落位（GUI/CLI/AI 同一路径，含中心基准与钳制）
                 _viewModel.PushUndoSnapshot();
-                var positions = CalcPositions(isCircle, sorted.Count, dialog.Cols, dialog.Rows,
-                    dialog.StartX, dialog.StartY, dialog.SpacingX, dialog.SpacingY,
-                    dialog.CenterX, dialog.CenterY, dialog.Radius, dialog.StartAngle, dialog.EndAngle,
-                    maxW, maxH);
-                for (int i = 0; i < Math.Min(positions.Count, sorted.Count); i++)
+                var param = new Dictionary<string, object?>
                 {
-                    // 中心点基准：落位 = 中心点 - 控件自身宽高/2（控件中心对齐阵列点）
-                    sorted[i].X = Math.Max(0, Math.Min(positions[i].X - sorted[i].Width / 2, maxW - sorted[i].Width));
-                    sorted[i].Y = Math.Max(0, Math.Min(positions[i].Y - sorted[i].Height / 2, maxH - sorted[i].Height));
+                    ["screen_name"] = _viewModel.CurrentScreen?.Name ?? "",
+                    ["widgets"] = string.Join(",", sorted.Select(w => w.ObjectName)),
+                    ["mode"] = isCircle ? "circle" : "rect",
+                };
+                if (isCircle)
+                {
+                    param["center_x"] = dialog.CenterX;
+                    param["center_y"] = dialog.CenterY;
+                    param["radius"] = dialog.Radius;
+                    param["start_angle"] = dialog.StartAngle;
+                    param["end_angle"] = dialog.EndAngle;
                 }
-                _viewModel.NotifyCanvasRefreshNeeded();
-                DrawingCanvas.InvalidateVisual();
+                else
+                {
+                    param["start_x"] = dialog.StartX;
+                    param["start_y"] = dialog.StartY;
+                    param["cols"] = dialog.Cols;
+                    param["rows"] = dialog.Rows;
+                    param["spacing_x"] = dialog.SpacingX;
+                    param["spacing_y"] = dialog.SpacingY;
+                }
+                var result = _viewModel.CommandService.Execute("array_layout", param);
+                if (result.Success)
+                {
+                    _viewModel.NotifyCanvasRefreshNeeded();
+                    DrawingCanvas.InvalidateVisual();
+                }
             }
             ClearArrayGuide();
         }
@@ -1268,12 +1282,12 @@ namespace NavigatorHMI.Views
         /// <summary>绘制阵列辅助线预览（矩形网格 / 圆形弧线 + 落点中心标记），不移动控件。</summary>
         private void UpdateArrayGuide(bool isCircle, int count, int cols, int rows,
             double startX, double startY, double sx, double sy,
-            double centerX, double centerY, double radius, double startAngle, double endAngle,
-            double maxW, double maxH)
+            double centerX, double centerY, double radius, double startAngle, double endAngle)
         {
             if (ArrayGuideShape == null || ArrayGuideOverlay == null) return;
-            var positions = CalcPositions(isCircle, count, cols, rows, startX, startY, sx, sy,
-                centerX, centerY, radius, startAngle, endAngle, maxW, maxH);
+            var posTuples = LayoutMath.CalcPositions(isCircle, count, cols, rows, startX, startY, sx, sy,
+                centerX, centerY, radius, startAngle, endAngle);
+            var positions = posTuples.Select(t => new Point(t.X, t.Y)).ToList();
             if (positions.Count == 0) { ClearArrayGuide(); return; }
 
             var group = new System.Windows.Media.GeometryGroup();
@@ -1356,66 +1370,36 @@ namespace NavigatorHMI.Views
             return new System.Windows.Media.PathGeometry(new[] { fig });
         }
 
-        private static List<Point> CalcPositions(bool isCircle, int count,
-            int cols, int rows, double startX, double startY, double sx, double sy,
-            double centerX, double centerY, double radius, double startAngle, double endAngle,
-            double maxW, double maxH)
-        {
-            // 除零防御：列/行数至少为 1
-            cols = Math.Max(1, cols); rows = Math.Max(1, rows);
-            var result = new List<Point>();
-            if (isCircle)
-            {
-                double start = startAngle * Math.PI / 180, end = endAngle * Math.PI / 180;
-                double total = (end > start ? end - start : 2 * Math.PI + end - start);
-                bool fullCircle = total >= 2 * Math.PI - 1e-9;
-                for (int i = 0; i < count; i++)
-                {
-                    // 整圈（0~360°）时按 360°/count 均匀分布，首尾不重叠；
-                    // 非整圈弧线时首尾各在两端（total/(count-1) 间隔）
-                    double a = fullCircle
-                        ? start + 2 * Math.PI * i / count
-                        : start + total * i / Math.Max(count - 1, 1);
-                    result.Add(new Point(
-                        centerX + radius * Math.Cos(a),
-                        centerY + radius * Math.Sin(a)));
-                }
-            }
-            else
-            {
-                for (int i = 0; i < count; i++)
-                {
-                    int r = i / cols, c = i % cols;
-                    result.Add(new Point(
-                        startX + c * sx,
-                        startY + r * sy));
-                }
-            }
-            return result;
-        }
-
         private static int ExtractIdNumber(string name)
         {
             var num = new string(name.Where(char.IsDigit).ToArray());
             return int.TryParse(num, out var n) ? n : 0;
         }
 
-        private void AlignLeft_Click(object sender, RoutedEventArgs e) => AlignWidgets((refs, w) => w.X = refs.MinX);
-        private void AlignCenterH_Click(object sender, RoutedEventArgs e) => AlignWidgets((refs, w) => w.X = refs.MinX + (refs.MaxX - refs.MinX) / 2 - w.Width / 2);
-        private void AlignRight_Click(object sender, RoutedEventArgs e) => AlignWidgets((refs, w) => w.X = refs.MaxX - w.Width);
-        private void AlignTop_Click(object sender, RoutedEventArgs e) => AlignWidgets((refs, w) => w.Y = refs.MinY);
-        private void AlignCenterV_Click(object sender, RoutedEventArgs e) => AlignWidgets((refs, w) => w.Y = refs.MinY + (refs.MaxY - refs.MinY) / 2 - w.Height / 2);
-        private void AlignBottom_Click(object sender, RoutedEventArgs e) => AlignWidgets((refs, w) => w.Y = refs.MaxY - w.Height);
+        private void AlignLeft_Click(object sender, RoutedEventArgs e) => AlignWidgets("left");
+        private void AlignCenterH_Click(object sender, RoutedEventArgs e) => AlignWidgets("center_h");
+        private void AlignRight_Click(object sender, RoutedEventArgs e) => AlignWidgets("right");
+        private void AlignTop_Click(object sender, RoutedEventArgs e) => AlignWidgets("top");
+        private void AlignCenterV_Click(object sender, RoutedEventArgs e) => AlignWidgets("center_v");
+        private void AlignBottom_Click(object sender, RoutedEventArgs e) => AlignWidgets("bottom");
 
-        private void AlignWidgets(Action<(double MinX, double MinY, double MaxX, double MaxY), Widget> align)
+        private void AlignWidgets(string direction)
         {
             var selected = _viewModel.CurrentScreen?.Widgets.Where(w => w.IsSelected).ToList();
             if (selected == null || selected.Count == 0) return;
-            var bounds = (MinX: selected.Min(w => w.X), MinY: selected.Min(w => w.Y),
-                          MaxX: selected.Max(w => w.X + w.Width), MaxY: selected.Max(w => w.Y + w.Height));
             _viewModel.PushUndoSnapshot();
-            foreach (var w in selected) align(bounds, w);
-            _viewModel.NotifyCanvasRefreshNeeded();
+            // 统一走 Command Layer（GUI/CLI/AI 同一路径）
+            var result = _viewModel.CommandService.Execute("align_widgets", new()
+            {
+                ["screen_name"] = _viewModel.CurrentScreen?.Name ?? "",
+                ["widgets"] = string.Join(",", selected.Select(w => w.ObjectName)),
+                ["direction"] = direction,
+            });
+            if (result.Success)
+            {
+                _viewModel.NotifyCanvasRefreshNeeded();
+                DrawingCanvas.InvalidateVisual();
+            }
             WidgetContextMenu.IsOpen = false;
         }
 

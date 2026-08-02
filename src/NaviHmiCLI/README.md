@@ -103,6 +103,31 @@ navihmi -p ./demo.hmiproj set-property --screen "温度页" --widget button_1 --
 navihmi -p ./demo.hmiproj bring-to-front --screen "温度页" --widget button_1
 ```
 
+### 布局（阵列 / 对齐）
+
+| 命令 | 必填参数 | 可选参数 |
+|------|---------|---------|
+| `align` | `--screen`, `--widgets`, `--direction` | — |
+| `array` | `--screen`, `--widgets`, `--mode`(rect/circle) | `--start-x`(0), `--start-y`(0), `--cols`(3), `--rows`(2), `--spacing-x`(120), `--spacing-y`(80), `--center-x`(0), `--center-y`(0), `--radius`(150), `--start-angle`(0), `--end-angle`(360) |
+
+`--direction`: `left`, `center_h`, `right`, `top`, `center_v`, `bottom`
+`--widgets`: 逗号分隔的控件名列表
+
+```bash
+# 左对齐 button_1, button_2, button_3
+navihmi -p ./demo.hmiproj align --screen "温度页" --widgets button_1,button_2,button_3 --direction left
+
+# 3×2 矩形阵列（起始中心 100,100，列距 120 行距 80）
+# 注意：--start-x/--start-y 是第一个控件中心点坐标
+navihmi -p ./demo.hmiproj array --screen "温度页" --widgets button_1,button_2,button_3 \
+  --mode rect --start-x 100 --start-y 100 --cols 3 --rows 2 --spacing-x 120 --spacing-y 80
+
+# 圆形阵列（圆心 400,240，半径 150，整圈）
+navihmi -p ./demo.hmiproj array --screen "温度页" --widgets button_1,button_2,button_3 \
+  --mode circle --center-x 400 --center-y 240 --radius 150 --start-angle 0 --end-angle 360
+```
+
+> 与 GUI 阵列对话框共用同一计算逻辑（`LayoutMath`），整圈 0~360° 按 360°/数量 均匀分布首尾不重叠。
 ### 事件绑定
 
 ```bash
