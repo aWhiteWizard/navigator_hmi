@@ -94,6 +94,40 @@ navihmi -p ./demo.hmiproj set-property --screen "温度页" --widget button_1 --
 >
 > `--widget` 的值是控件的 `ObjectName`（如 `button_1`、`text_2`）
 
+### 控件颜色设置
+
+每个控件支持的颜色属性取决于其类型（按控件已有的属性，无需额外配置）：
+
+| 颜色属性 | 含义 | 适用控件 |
+|---------|------|---------|
+| `textColor` | 文字颜色 | Button / Text / Label / NumericDisplay / Switch / IOField / CheckBox / TextBox |
+| `fillColor` | 填充/背景色 | 除 Line 外全部 14 种（Image 为背景色、ProgressBar 为填充色） |
+| `strokeColor` | 描边/边框色 | Line / Circle / Ellipse |
+
+颜色值支持两种格式：
+- **十六进制**：`#RRGGBB`（如 `#FF0000`）、`#AARRGGBB`（带透明度，如 `#80FFA500`）、`#RGB` 缩写（如 `#F00`）
+- **WPF 命名颜色**：`Red`, `Green`, `Blue`, `Yellow`, `Black`, `White`, `Gray`, `Orange`, `LightBlue`, `Transparent`（透明）等
+
+```bash
+# 有文字的控件：文字色 + 背景色
+navihmi -p ./demo.hmiproj set-property --screen "温度页" --widget button_1 --key textColor --value "#FFFFFF"
+navihmi -p ./demo.hmiproj set-property --screen "温度页" --widget button_1 --key fillColor --value "#FF0000"
+
+# 有边框的控件：描边色 + 描边粗细 + 填充色
+navihmi -p ./demo.hmiproj set-property --screen "温度页" --widget circle_1 --key strokeColor --value "#0000FF"
+navihmi -p ./demo.hmiproj set-property --screen "温度页" --widget circle_1 --key strokeThickness --value 2
+navihmi -p ./demo.hmiproj set-property --screen "温度页" --widget circle_1 --key fillColor --value "#FFA500"
+
+# 纯背景控件
+navihmi -p ./demo.hmiproj set-property --screen "温度页" --widget rectangle_1 --key fillColor --value "#00FF00"
+
+# 半透明背景（#AARRGGBB）
+navihmi -p ./demo.hmiproj set-property --screen "温度页" --widget text_1 --key fillColor --value "#80FFA500"
+```
+
+> ⚠️ PowerShell 中 `#` 是注释符，值必须加引号：`--value "#FF0000"`（GUI CLI 面板无此限制）。
+> 颜色能力按控件类型划分：有文字的控件（Button/Text/Label 等）支持 `textColor`+`fillColor`；Rectangle/Frame/ProgressBar 等仅 `fillColor`；Line/Circle/Ellipse 支持 `strokeColor`。盒状控件无边框色属性（GUI 边框为系统样式）。
+
 ### 层级（Z-Order）
 
 | 命令 | 说明 |
