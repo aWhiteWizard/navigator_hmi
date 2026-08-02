@@ -866,6 +866,15 @@
                                         </StackPanel>
                                     </Border>
                                 </Popup>
+                                <!-- 树节点右键菜单（删除画面/重命名；与画布菜单分开，避免共用 Popup 内容错位） -->
+                                <Popup x:Name="TreeScreenMenu" Placement="Absolute" StaysOpen="True" AllowsTransparency="True">
+                                    <Border Background="White" BorderBrush="LightGray" BorderThickness="1" CornerRadius="4" Padding="2">
+                                        <StackPanel>
+                                            <Button Content="✏ 重命名" Click="RenameScreen_Click" Width="100" Height="28" Margin="2"/>
+                                            <Button Content="🗑 删除画面" Click="DeleteScreen_Click" Width="100" Height="28" Margin="2"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Popup>
                                 <Border BorderBrush="Black" Background="Gray" BorderThickness="2" Margin="3" x:Name="canvasContainer"
                                         PreviewMouseRightButtonDown="Canvas_PreviewRightButtonDown"
                                         PreviewMouseLeftButtonDown="Canvas_MouseLeftButtonDown"

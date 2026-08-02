@@ -116,9 +116,9 @@ namespace NavigatorHMI.Views
                 DrawingCanvas,
                 () => _viewModel);
 
-            // 4. 初始化右键菜单处理器（注入 Undo 快照回调）
+            // 4. 初始化右键菜单处理器（注入 Undo 快照回调）；树节点菜单用独立的 TreeScreenMenu（删除/重命名）
             _treeContextMenuHandler = new TreeViewContextMenuHandler(
-                TreeContextMenu,
+                TreeScreenMenu,
                 MarkProjectDirty,
                 () => _viewModel.PushUndoSnapshot());
 
@@ -170,26 +170,13 @@ namespace NavigatorHMI.Views
             _isProjectDirty = false;
             this.CheckBinding();
 
-            // 全局点击监听：点击 Popup 外部时关闭菜单
+            // 全局点击监听：点击 Popup 外部时关闭菜单（三个菜单统一处理）
             this.PreviewMouseLeftButtonDown += (s, e) =>
             {
-                if (TreeContextMenu.IsOpen)
-                {
-                    var clicked = e.OriginalSource as DependencyObject;
-                    if (clicked != null && !IsDescendantOf(clicked, TreeContextMenu.Child))
-                    {
-                        TreeContextMenu.IsOpen = false;
-                    }
-                }
-
-                if (WidgetContextMenu.IsOpen)
-                {
-                    var clicked = e.OriginalSource as DependencyObject;
-                    if (clicked != null && !IsDescendantOf(clicked, WidgetContextMenu.Child))
-                    {
-                        WidgetContextMenu.IsOpen = false;
-                    }
-                }
+                var clicked = e.OriginalSource as DependencyObject;
+                CloseIfOutsideClick(TreeContextMenu, clicked);
+                CloseIfOutsideClick(TreeScreenMenu, clicked);
+                CloseIfOutsideClick(WidgetContextMenu, clicked);
             };
             // 10. 初始化属性窗口
             _selectionManager.WidgetSelected += OnWidgetSelected;
@@ -208,6 +195,13 @@ namespace NavigatorHMI.Views
                 current = VisualTreeHelper.GetParent(current);
             }
             return false;
+        }
+
+        /// <summary>点击目标在 Popup 外部时关闭菜单（Popup 内容有独立视觉树，点击菜单内按钮不会误关）。</summary>
+        private void CloseIfOutsideClick(System.Windows.Controls.Primitives.Popup menu, DependencyObject? clicked)
+        {
+            if (menu.IsOpen && clicked != null && !IsDescendantOf(clicked, menu.Child))
+                menu.IsOpen = false;
         }
 
         private void EditWindow_Loaded(object sender, RoutedEventArgs e)
@@ -878,6 +872,9 @@ namespace NavigatorHMI.Views
             {
                 // 点击了 Widget 则交给 Widget 自己的右键菜单
                 if (FindWidgetElement(e.OriginalSource as DependencyObject) != null) return;
+
+                // 菜单互斥：打开画布菜单前先关树菜单（两菜单独立 Popup，避免重叠）
+                if (TreeScreenMenu.IsOpen) TreeScreenMenu.IsOpen = false;
 
                 var mousePos = Mouse.GetPosition(this);
                 TreeContextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Absolute;
