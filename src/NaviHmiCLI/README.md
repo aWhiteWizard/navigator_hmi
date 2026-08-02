@@ -87,7 +87,11 @@ navihmi -p ./demo.hmiproj move-widget --screen "温度页" --widget button_1 --x
 navihmi -p ./demo.hmiproj set-property --screen "温度页" --widget button_1 --key "text" --value "启动电机"
 ```
 
-> `--type` 可选值: `button`, `text`, `rectangle`
+> `--type` 可选值（15 种）：
+> - 基础：`button`, `text`, `label`, `rectangle`, `line`, `circle`, `ellipse`, `frame`
+> - 显示：`image`, `numeric`（数值显示）, `progressbar`（进度条）
+> - 交互：`switch`（开关）, `checkbox`（复选框）, `textbox`（输入框）, `iofield`（IO 字段）
+>
 > `--widget` 的值是控件的 `ObjectName`（如 `button_1`、`text_2`）
 
 ### 层级（Z-Order）
@@ -130,6 +134,10 @@ navihmi -p ./demo.hmiproj array --screen "温度页" --widgets button_1,button_2
 > 与 GUI 阵列对话框共用同一计算逻辑（`LayoutMath`），整圈 0~360° 按 360°/数量 均匀分布首尾不重叠。
 ### 事件绑定
 
+| 命令 | 必填参数 | 可选参数 |
+|------|---------|---------|
+| `bind-event` | `--screen`, `--widget`, `--event`, `--action` | `--params` |
+
 ```bash
 navihmi -p ./demo.hmiproj bind-event \
   --screen "温度页" --widget button_1 \
@@ -163,6 +171,10 @@ navihmi -p ./demo.hmiproj bind-tag --screen "温度页" --widget text_2 --tag "T
 
 ### 报警
 
+| 命令 | 必填参数 | 可选参数 |
+|------|---------|---------|
+| `create-alarm` | `--name`, `--tag`, `--type`, `--threshold` | `--deadband`(0), `--delay`(0), `--severity`(Warning), `--message` |
+
 ```bash
 navihmi -p ./demo.hmiproj create-alarm \
   --name "温度过高" --tag "Tank1_Temp" \
@@ -193,6 +205,7 @@ navihmi -p ./demo.hmiproj deploy-project --ip 192.168.1.100
 ```
 
 > `deploy-project` 和 `deploy-firmware` 需要先 `connect` 成功。
+> 设备命令当前为骨架模式：`connect`/`scan`/`deploy-*` 返回模拟成功（真实 HTTP/OTA 通信未实现），`configure-device` 已可用。
 
 ## 输出格式
 
@@ -213,7 +226,7 @@ navihmi -p ./demo.hmiproj deploy-project --ip 192.168.1.100
 
 ## 自动保存
 
-所有**修改命令**（`create-screen`、`add-widget`、`set-property` 等）执行成功后自动保存工程文件。保存失败时输出警告但不阻断。
+所有**修改命令**（`create-screen`、`add-widget`、`set-property`、`align`、`array` 等）执行成功后自动保存工程文件。保存失败时输出警告但不阻断。
 
 只读命令（`open-project`、`compile`）不触发保存。
 
@@ -252,7 +265,8 @@ navihmi -p ./Demo.hmiproj compile
 ## 注意事项
 
 - 参数名使用 `--kebab-case`，内部映射到 Handler 的 `snake_case`
-- 控件类型当前只支持 `button` / `text` / `rectangle`
-- 设备连接功能（`connect`/`scan`/`deploy-*`）尚未实现，调用返回 `NOT_IMPLEMENTED`
+- 控件类型支持 15 种：`button` / `text` / `label` / `rectangle` / `line` / `circle` / `ellipse` / `frame` / `image` / `numeric` / `progressbar` / `switch` / `checkbox` / `textbox` / `iofield`
+- `set-property` 的 `--key` 为控件属性名（如 `text`、`fillColor`、`fontSize`），`--value` 为对应值；不同控件类型支持的属性键不同（如 button 支持 `text`/`fontSize`/`textColor`/`fillColor`，text 支持 `content`/`hAlign` 等），**未匹配的属性键返回 `UNKNOWN_PROPERTY` 错误并终止命令**（属性键大小写敏感，如 `Text` ≠ `text`）
+- 设备命令（`connect`/`scan`/`deploy-*`）为**骨架模式**：返回模拟成功结果（真实 HTTP/OTA 通信尚未实现，见代码 TODO）；`configure-device` 已可用（含协议校验）
 - 工程文件名和画面名**禁止**包含 `..`、`/`、`\`（路径遍历防护）
-- 所有命令执行后自动保存，无需手动 `save-project`（除非显式需要另存为）
+- 所有**修改**命令执行后自动保存，无需手动 `save-project`（除非显式需要另存为）
