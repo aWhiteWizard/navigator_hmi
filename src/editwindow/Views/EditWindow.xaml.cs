@@ -643,6 +643,12 @@ namespace NavigatorHMI.Views
 
         private void Canvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
+            // 画布交互：聚焦画布（方向键微移判定用；延后执行避免干扰本次点击的选中/拖拽逻辑）
+            Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+            {
+                if (DrawingCanvas != null) DrawingCanvas.Focus();
+            }));
+
             if (TreeContextMenu.IsOpen) { TreeContextMenu.IsOpen = false; }
 
             // [修复] 命中 Adorner 缩放手柄（Thumb 或其内部模板元素）时，视为点击选中装饰器：
@@ -733,11 +739,59 @@ namespace NavigatorHMI.Views
         /// </summary>
         private void EditWindow_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            if (e.Key == Key.Delete && Keyboard.Modifiers == ModifierKeys.None)
-            {
-                // 如果焦点在文本框内，不处理（避免干扰 TreeView 重命名编辑操作）
-                if (Keyboard.FocusedElement is TextBox) return;
+            // 焦点在文本框/输入框内时不拦截（避免干扰 TreeView 重命名、属性输入、CLI 输入）
+            if (Keyboard.FocusedElement is TextBox or PasswordBox) return;
 
+            var ctrl = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
+            var shift = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
+            var none = Keyboard.Modifiers == ModifierKeys.None;
+
+            // ── 全选 ──
+            if (ctrl && !shift && e.Key == Key.A)
+            {
+                SelectAllWidgets();
+                e.Handled = true;
+                return;
+            }
+            // ── 复制 ──
+            if (ctrl && !shift && e.Key == Key.C)
+            {
+                CopyWidgets();
+                e.Handled = true;
+                return;
+            }
+            // ── 剪切 ──
+            if (ctrl && !shift && e.Key == Key.X)
+            {
+                if (_viewModel.CurrentScreen?.Widgets.Any(w => w.IsSelected) == true)
+                {
+                    CopyWidgets();
+                    DeleteSelectedWidgets();
+                }
+                e.Handled = true;
+                return;
+            }
+            // ── 粘贴（无右键菜单位置时用当前位置）──
+            if (ctrl && !shift && e.Key == Key.V)
+            {
+                if (_clipboard.Count > 0)
+                    PasteWidgetsAtCurrent();
+                e.Handled = true;
+                return;
+            }
+            // ── 方向键微移选中控件（无 Ctrl/Shift：1px；Shift：10px）──
+            // 仅当键盘焦点在画布内且画布有选中控件时才拦截（否则放行 TreeView/ComboBox 等键盘导航）
+            if ((none || shift) && e.Key is Key.Left or Key.Right or Key.Up or Key.Down
+                && DrawingCanvas.IsKeyboardFocusWithin
+                && _viewModel.CurrentScreen?.Widgets.Any(w => w.IsSelected) == true)
+            {
+                NudgeSelectedWidgets(e.Key, shift ? 10 : 1);
+                e.Handled = true;
+                return;
+            }
+
+            if (e.Key == Key.Delete && none)
+            {
                 _widgetContextMenuHandler.DeleteSelectedWidget();
                 e.Handled = true;
             }
@@ -750,6 +804,61 @@ namespace NavigatorHMI.Views
                     e.Handled = true;
                 }
             }
+        }
+
+        /// <summary>全选当前画面的所有控件（选中状态不持久化，不推 Undo 快照）。</summary>
+        private void SelectAllWidgets()
+        {
+            var widgets = _viewModel.CurrentScreen?.Widgets;
+            if (widgets == null || widgets.Count == 0) return;
+            foreach (var w in widgets) w.IsSelected = true;
+            _selectionManager.UpdateSelectionUI();
+            SyncSelectionToPropertyPanel();
+        }
+
+        /// <summary>方向键微移选中控件（1px / Shift 10px）。同会话连续按键只推一次 Undo 快照（防 key repeat 吃光栈）。</summary>
+        private int _nudgeSnapshotDepth = -1;
+        private void NudgeSelectedWidgets(Key key, double step)
+        {
+            var selected = _viewModel.CurrentScreen?.Widgets.Where(w => w.IsSelected).ToList();
+            if (selected == null || selected.Count == 0)
+            {
+                _nudgeSnapshotDepth = -1;
+                return;
+            }
+            // 版本变化（任何 push/undo/redo 发生）→ 重新推快照并记录版本；同版本（纯微移）不重复推
+            if (_nudgeSnapshotDepth != _viewModel.UndoVersion)
+            {
+                _viewModel.PushUndoSnapshot();
+                _nudgeSnapshotDepth = _viewModel.UndoVersion;
+            }
+            double dx = 0, dy = 0;
+            switch (key)
+            {
+                case Key.Left: dx = -step; break;
+                case Key.Right: dx = step; break;
+                case Key.Up: dy = -step; break;
+                case Key.Down: dy = step; break;
+            }
+            foreach (var w in selected) { w.X += dx; w.Y += dy; }
+            _viewModel.NotifyCanvasRefreshNeeded();
+        }
+
+        /// <summary>粘贴到当前画布中心附近（快捷键 Ctrl+V；右键菜单粘贴用 PasteWidget_Click）。</summary>
+        private void PasteWidgetsAtCurrent()
+        {
+            if (_viewModel.CurrentScreen == null || _clipboard.Count == 0) return;
+            _viewModel.PushUndoSnapshot();
+            foreach (var data in _clipboard)
+            {
+                using var ms = new MemoryStream(data);
+                var w = Serializer.Deserialize<Widget>(ms);
+                // 相对中心粘贴：后续可改为光标位置
+                w.X += 20 / _zoomLevel; w.Y += 20 / _zoomLevel;
+                w.ObjectName = UniqueName(w.ObjectName);
+                _viewModel.CurrentScreen.Widgets.Add(w);
+            }
+            _viewModel.NotifyCanvasRefreshNeeded();
         }
 
 
@@ -1291,9 +1400,9 @@ namespace NavigatorHMI.Views
 
         private void CopyWidgets()
         {
-            _clipboard.Clear();
             var selected = _viewModel.CurrentScreen?.Widgets.Where(w => w.IsSelected).ToList();
-            if (selected == null) return;
+            if (selected == null || selected.Count == 0) return;   // 无选中不操作（不清空剪贴板）
+            _clipboard.Clear();
             foreach (var w in selected) { using var ms = new MemoryStream(); Serializer.Serialize(ms, w); _clipboard.Add(ms.ToArray()); }
             // 同步写入 CLI 剪贴板（GUI 复制的内容可在 CLI 面板 paste-widget）
             NavigatorHMI.CommandLayer.Handlers.WidgetClipboard.SetItems(new List<byte[]>(_clipboard));

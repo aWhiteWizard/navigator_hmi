@@ -29,6 +29,9 @@ namespace NavigatorHMI.ViewModels
         public int DeviceHeight => _currentProject.DeviceHeight;
         public int DeviceWidth => _currentProject.DeviceWidth;
 
+        /// <summary>当前工程 undo 版本号（单调递增，画布微移快照会话判断用；对跨屏/裁剪免疫）。</summary>
+        public int UndoVersion => _undoManager.Version;
+
         /// <summary>画布顶部页面标签集合：已打开的画面（Custom/全局/世界地图），打开才显示，可关闭。</summary>
         public ObservableCollection<Screen> OpenScreens { get; } = new();
 

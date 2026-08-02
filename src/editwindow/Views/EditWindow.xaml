@@ -929,7 +929,7 @@
                                     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                                         <Canvas x:Name="DrawingCanvas" HorizontalAlignment="Left" VerticalAlignment="Top"
                                                 Background="{StaticResource DotGridBrush}" Width="{Binding DeviceWidth}" Height="{Binding DeviceHeight}"
-                                                MouseDown="Canvas_MouseDown">
+                                                Focusable="True" MouseDown="Canvas_MouseDown">
                                             <!-- 框选矩形 -->
                                             <Rectangle x:Name="MarqueeRect" Stroke="Blue" StrokeThickness="2" Fill="#300000FF"
                                                        Visibility="Collapsed" IsHitTestVisible="False" Panel.ZIndex="1001"/>

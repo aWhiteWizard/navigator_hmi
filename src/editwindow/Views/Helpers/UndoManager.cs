@@ -16,6 +16,10 @@ namespace NavigatorHMI.Views.Helpers
         public int UndoCount => _undoStacks.Values.Sum(s => s.Count);
         public int RedoCount => _redoStacks.Values.Sum(s => s.Count);
 
+        private int _version;
+        /// <summary>单调递增版本号：PushSnapshot/Undo/Redo 每次操作 +1（含裁剪），供 UI 判断快照会话变更。</summary>
+        public int Version => _version;
+
         /// <summary>保存快照（修改前调用）。</summary>
         public void PushSnapshot(Screen screen)
         {
@@ -23,6 +27,7 @@ namespace NavigatorHMI.Views.Helpers
             PushToStack(GetUndoStack(screen), screen);
             // 新操作清空 redo
             if (_redoStacks.ContainsKey(screen)) _redoStacks[screen].Clear();
+            _version++;
         }
 
         /// <summary>撤销。</summary>
@@ -32,6 +37,7 @@ namespace NavigatorHMI.Views.Helpers
             // 当前状态推入 redo
             PushToStack(GetRedoStack(screen), screen);
             // 从 undo 弹出恢复
+            _version++;
             return Deserialize(GetUndoStack(screen).Pop());
         }
 
@@ -42,6 +48,7 @@ namespace NavigatorHMI.Views.Helpers
             // 当前状态推入 undo
             PushToStack(GetUndoStack(screen), screen);
             // 从 redo 弹出恢复
+            _version++;
             return Deserialize(GetRedoStack(screen).Pop());
         }
 
@@ -50,6 +57,7 @@ namespace NavigatorHMI.Views.Helpers
             if (screen == null) return;
             _undoStacks.Remove(screen);
             _redoStacks.Remove(screen);
+            _version++;   // 清栈也推进版本（微移快照会话判断用）
         }
 
         /// <summary>按画面名称清理 undo/redo 栈（删除画面后调用，防内存泄漏）。</summary>
@@ -58,6 +66,7 @@ namespace NavigatorHMI.Views.Helpers
             if (string.IsNullOrEmpty(screenName)) return;
             foreach (var key in _undoStacks.Keys.Where(k => k.Name == screenName).ToList()) _undoStacks.Remove(key);
             foreach (var key in _redoStacks.Keys.Where(k => k.Name == screenName).ToList()) _redoStacks.Remove(key);
+            _version++;   // 清栈也推进版本（微移快照会话判断用）
         }
 
         private Stack<byte[]> GetUndoStack(Screen s) { if (!_undoStacks.ContainsKey(s)) _undoStacks[s] = new(); return _undoStacks[s]; }
