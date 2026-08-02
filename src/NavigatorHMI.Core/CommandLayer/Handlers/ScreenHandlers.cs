@@ -50,12 +50,26 @@ namespace NavigatorHMI.CommandLayer.Handlers
             {
                 Name = name,
                 Type = type,
-                Width = Convert.ToDouble(parameters.GetValueOrDefault("width", 800)),
-                Height = Convert.ToDouble(parameters.GetValueOrDefault("height", 480)),
+                // 宽高：显式传参优先，否则回退到工程设备尺寸（create-project 时设置）
+                Width = ResolveDimension(parameters, "width", project.DeviceWidth),
+                Height = ResolveDimension(parameters, "height", project.DeviceHeight),
             };
 
             project.Screens.Add(screen);
             return CommandResult.Ok(new { screen_name = name });
+        }
+
+        /// <summary>解析宽/高参数：显式合法值优先，非法/缺失回退默认（工程设备尺寸）。</summary>
+        private static double ResolveDimension(Dictionary<string, object?> parameters, string key, int fallback)
+        {
+            if (!parameters.TryGetValue(key, out var v) || v == null) return fallback;
+            // 统一 InvariantCulture 序列化（避免逗号小数点 locale 下 ToString/TryParse 两侧不一致）
+            var s = Convert.ToString(v, System.Globalization.CultureInfo.InvariantCulture);
+            if (string.IsNullOrWhiteSpace(s)) return fallback;
+            // NumberStyles.Float + IsFinite：拦截 NaN/Infinity 穿透（IEEE 特殊值 > 0 会误过 d>0 校验）
+            if (double.TryParse(s, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var d)
+                && double.IsFinite(d) && d > 0) return d;
+            return fallback;
         }
     }
 

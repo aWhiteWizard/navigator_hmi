@@ -1608,7 +1608,7 @@ namespace NavigatorHMI.Views
             return command switch
             {
                 "create-screen" or "cs" => _viewModel.CommandService.Execute("create_screen",
-                    new() { ["name"] = opts.GetValueOrDefault("name", ""), ["type"] = opts.GetValueOrDefault("type", "custom"), ["width"] = opts.GetValueOrDefault("width", "800"), ["height"] = opts.GetValueOrDefault("height", "480") }),
+                    new() { ["name"] = opts.GetValueOrDefault("name", ""), ["type"] = opts.GetValueOrDefault("type", "custom"), ["width"] = opts.GetValueOrDefault("width", ""), ["height"] = opts.GetValueOrDefault("height", "") }),
                 "delete-screen" or "ds" => _viewModel.CommandService.Execute("delete_screen", new() { ["name"] = opts.GetValueOrDefault("name", "") }),
                 "add-widget" or "aw" => _viewModel.CommandService.Execute("add_widget",
                     new() { ["screen_name"] = opts.GetValueOrDefault("screen", ""), ["widget_type"] = opts.GetValueOrDefault("type", "button"), ["x"] = opts.GetValueOrDefault("x", "0"), ["y"] = opts.GetValueOrDefault("y", "0"), ["width"] = opts.GetValueOrDefault("width", "100"), ["height"] = opts.GetValueOrDefault("height", "40") }),

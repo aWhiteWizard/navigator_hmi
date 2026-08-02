@@ -68,7 +68,7 @@ public static class Program
             "compile"        => Compile(),
 
             // 画面
-            "create-screen"  => Cmd("create_screen", Require("name"), Opt("type", "custom"), Opt("width", "800"), Opt("height", "480")),
+            "create-screen"  => Cmd("create_screen", Require("name"), Opt("type", "custom"), Opt("width", ""), Opt("height", "")),
             "delete-screen"  => Cmd("delete_screen", Require("name")),
 
             // 控件
