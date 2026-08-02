@@ -273,9 +273,11 @@ public static class Program
         bool hasUpDir = value.Contains("..");
         bool hasSeparator = value.Contains('/') || value.Contains('\\');
         bool isPathParam = key is "path" or "project" or "file" or "output" or "connection" or "source";
-        bool isNameParam = key is "name" or "screen" or "widget" or "widgets" or "tag" or "key" or "value"
+        bool isNameParam = key is "name" or "screen" or "widget" or "widgets" or "tag" or "key"
             or "event" or "action" or "nic" or "protocol" or "severity" or "direction" or "mode" or "ip" or "device_ip";
-        bool isFreeText = key is "description" or "message" or "params" or "model";
+        // value 语义由 --key 决定（颜色/文本/路径/数值），静态分类无法覆盖：
+        // 归自由文本类仅拦 '..'（imagePath 值含 / 或 \ 是合法的相对/绝对路径）
+        bool isFreeText = key is "description" or "message" or "params" or "model" or "value";
 
         if (isPathParam)
         {
@@ -437,6 +439,13 @@ public static class Program
   报警: create-alarm
   设备: configure-device, connect, scan, deploy-project, deploy-firmware
 
+set-property 属性键 (--screen <画面> --widget <控件> --key <键> --value <值>):
+  文本: text | content | title | onText | offText
+  颜色: textColor | fillColor | strokeColor
+  字体: fontFamily | fontSize | fontWeight | fontStyle | textDecoration
+  数值: value | min | max | strokeThickness | x2 | y2
+  其他: hAlign | imagePath | stretchMode | isOn | isChecked | isReadOnly | fillStyle
+
 参数格式: --key value  或  --key "value with spaces"
 退出: exit / quit / q
 """);
@@ -470,6 +479,13 @@ NavigatorHMI CLI — 组态软件命令行接口
   resize-widget          --screen <name> --widget <name> --width <n> --height <n>
   delete-widget          --screen <name> --widget <name>
   set-property           --screen <name> --widget <name> --key <key> --value <val>
+
+set-property 属性键 (--screen <画面> --widget <控件> --key <键> --value <值>):
+  文本: text | content | title | onText | offText
+  颜色: textColor | fillColor | strokeColor
+  字体: fontFamily | fontSize | fontWeight | fontStyle | textDecoration
+  数值: value | min | max | strokeThickness | x2 | y2
+  其他: hAlign | imagePath | stretchMode | isOn | isChecked | isReadOnly | fillStyle
 
 层级命令:
   bring-to-front         --screen <name> --widget <name>

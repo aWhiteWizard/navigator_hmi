@@ -1678,8 +1678,10 @@ namespace NavigatorHMI.Views
                 bool hasUpDir = value.Contains("..");
                 bool hasSep = value.Contains('/') || value.Contains('\\');
                 bool isPathParam = key is "path" or "project" or "file" or "output" or "connection" or "source";
-                bool isNameParam = key is "name" or "screen" or "widget" or "widgets" or "tag" or "key" or "value" or "event" or "action" or "nic" or "protocol" or "severity" or "direction" or "mode" or "ip" or "device_ip";
-                bool isFreeText = key is "description" or "message" or "params" or "model";
+                bool isNameParam = key is "name" or "screen" or "widget" or "widgets" or "tag" or "key" or "event" or "action" or "nic" or "protocol" or "severity" or "direction" or "mode" or "ip" or "device_ip";
+                // value 语义由 --key 决定（颜色/文本/路径/数值），静态分类无法覆盖：
+                // 归自由文本类仅拦 '..'（imagePath 值含 / 或 \ 是合法的相对/绝对路径）
+                bool isFreeText = key is "description" or "message" or "params" or "model" or "value";
 
                 if (isPathParam)
                 {
@@ -1742,7 +1744,14 @@ namespace NavigatorHMI.Views
   save                                          保存工程
   list-screens / ls                             列出所有画面
   cls / clear                                   清屏
-  help / ?                                      显示帮助";
+  help / ?                                      显示帮助
+
+set-property 属性键 (--screen <画面> --widget <控件> --key <键> --value <值>):
+  文本: text | content | title | onText | offText
+  颜色: textColor | fillColor | strokeColor
+  字体: fontFamily | fontSize | fontWeight | fontStyle | textDecoration
+  数值: value | min | max | strokeThickness | x2 | y2
+  其他: hAlign | imagePath | stretchMode | isOn | isChecked | isReadOnly | fillStyle";
         #endregion
     }
 }

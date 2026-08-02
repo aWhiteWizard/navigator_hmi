@@ -128,6 +128,53 @@ navihmi -p ./demo.hmiproj set-property --screen "温度页" --widget text_1 --ke
 > ⚠️ PowerShell 中 `#` 是注释符，值必须加引号：`--value "#FF0000"`（GUI CLI 面板无此限制）。
 > 颜色能力按控件类型划分：有文字的控件（Button/Text/Label 等）支持 `textColor`+`fillColor`；Rectangle/Frame/ProgressBar 等仅 `fillColor`；Line/Circle/Ellipse 支持 `strokeColor`。盒状控件无边框色属性（GUI 边框为系统样式）。
 
+### set-property 属性键参考
+
+`set-property` 支持以下属性键（不同控件类型可用键不同，未匹配的键返回 `UNKNOWN_PROPERTY` 错误）：
+
+| 分类 | 属性键 | 含义 | 适用控件 |
+|------|--------|------|---------|
+| 文本 | `text` | 按钮/标签/复选框显示文字 | Button / Label / CheckBox |
+| 文本 | `content` | 文本内容 | Text / TextBox / IOField |
+| 文本 | `title` | 标题 | Frame |
+| 文本 | `onText` / `offText` | 开关 ON/OFF 标签 | Switch |
+| 颜色 | `textColor` | 文字颜色 | Button / Text / Label / NumericDisplay / Switch / IOField / CheckBox / TextBox |
+| 颜色 | `fillColor` | 填充/背景色 | 除 Line 外全部 |
+| 颜色 | `strokeColor` | 描边/边框色 | Line / Circle / Ellipse |
+| 字体 | `fontFamily` | 字体族 | 有文字控件 |
+| 字体 | `fontSize` | 字号 | 有文字控件 |
+| 字体 | `fontWeight` | 字重（Normal/Bold） | 有文字控件 |
+| 字体 | `fontStyle` | 字型（Normal/Italic） | 有文字控件 |
+| 字体 | `textDecoration` | 下划线（None/Underline） | 有文字控件 |
+| 数值 | `value` | 数值 | NumericDisplay / ProgressBar |
+| 数值 | `min` / `max` | 范围 | ProgressBar |
+| 数值 | `strokeThickness` | 描边粗细 | Line / Circle / Ellipse |
+| 数值 | `x2` / `y2` | 线终点偏移 | Line |
+| 其他 | `hAlign` | 水平对齐（Left/Center/Right） | Text / Label |
+| 其他 | `imagePath` | 图片路径 | Image / Frame |
+| 其他 | `stretchMode` | 拉伸模式（None/Fill/Uniform/UniformToFill） | Image |
+| 其他 | `isOn` | 开关状态 | Switch |
+| 其他 | `isChecked` | 勾选状态 | CheckBox |
+| 其他 | `isReadOnly` | 只读 | IOField |
+| 其他 | `fillStyle` | 填充样式（Solid/Diagonal/Grid） | ProgressBar |
+
+```bash
+# 改按钮文字 + 字号
+navihmi -p ./demo.hmiproj set-property --screen "温度页" --widget button_1 --key text --value "启动电机"
+navihmi -p ./demo.hmiproj set-property --screen "温度页" --widget button_1 --key fontSize --value 24
+
+# 开关/复选框状态
+navihmi -p ./demo.hmiproj set-property --screen "温度页" --widget switch_1 --key isOn --value true
+navihmi -p ./demo.hmiproj set-property --screen "温度页" --widget checkbox_1 --key isChecked --value false
+
+# 进度条范围与填充样式
+navihmi -p ./demo.hmiproj set-property --screen "温度页" --widget progressbar_1 --key min --value 0
+navihmi -p ./demo.hmiproj set-property --screen "温度页" --widget progressbar_1 --key max --value 100
+navihmi -p ./demo.hmiproj set-property --screen "温度页" --widget progressbar_1 --key value --value 60
+```
+
+> 提示：GUI 内嵌 CLI 面板输入 `help` 也会显示同一份属性键分类，无需记忆。
+
 ### 层级（Z-Order）
 
 | 命令 | 说明 |

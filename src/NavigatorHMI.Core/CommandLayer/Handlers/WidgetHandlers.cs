@@ -106,6 +106,20 @@ namespace NavigatorHMI.CommandLayer.Handlers
             var (_, widget, err) = WidgetHelper.FindWidget(project, p);
             if (err != null) return err;
             var key = p["key"]!.ToString()!; var value = p["value"]!.ToString()!;
+
+            // 数值型 key 统一预校验（防 double.Parse 裸转抛 FormatException 崩溃）
+            if (key is "fontSize" or "strokeThickness" or "value" or "min" or "max" or "x2" or "y2")
+            {
+                if (!double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var num)
+                    || !double.IsFinite(num))
+                    return CommandResult.Fail("INVALID_VALUE", $"属性 {key} 需要数字，收到: \"{value}\"");
+            }
+            // 布尔型 key 统一预校验
+            if (key is "isOn" or "isChecked" or "isReadOnly")
+            {
+                if (!bool.TryParse(value, out _))
+                    return CommandResult.Fail("INVALID_VALUE", $"属性 {key} 需要 true/false，收到: \"{value}\"");
+            }
             switch (widget)
             {
                 case ButtonWidget btn when key == "text": btn.Text = value; break;
@@ -122,6 +136,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 case TextWidget txt when key == "fontWeight": txt.FontWeight = value; break;
                 case TextWidget txt when key == "textColor": txt.TextColor = value; break;
                 case TextWidget txt when key == "hAlign": txt.HAlign = value; break;
+                case LabelWidget lbl when key == "hAlign": lbl.HAlign = value; break;
                 case TextWidget w when key == "fontFamily": w.FontFamily = value; break;
                 case TextWidget w when key == "fontStyle": w.FontStyle = value; break;
                 case TextWidget w when key == "textDecoration": w.TextDecoration = value; break;
@@ -135,6 +150,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 case LabelWidget w when key == "fontStyle": w.FontStyle = value; break;
                 case LabelWidget w when key == "textDecoration": w.TextDecoration = value; break;
                 case ImageWidget img when key == "imagePath": img.ImagePath = value; break;
+                case ImageWidget img when key == "fillColor": img.FillColor = value; break;
+                case ImageWidget img when key == "stretchMode": img.StretchMode = value; break;
                 case NumericDisplayWidget nd when key == "value": nd.Value = double.Parse(value); break;
                 case NumericDisplayWidget nd when key == "fillColor": nd.FillColor = value; break;
                 case NumericDisplayWidget nd when key == "fontSize": nd.FontSize = double.Parse(value); break;
@@ -144,6 +161,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 case NumericDisplayWidget w when key == "fontStyle": w.FontStyle = value; break;
                 case NumericDisplayWidget w when key == "textDecoration": w.TextDecoration = value; break;
                 case SwitchWidget sw when key == "isOn": sw.IsOn = bool.Parse(value); break;
+                case SwitchWidget sw when key == "onText": sw.OnText = value; break;
+                case SwitchWidget sw when key == "offText": sw.OffText = value; break;
                 case SwitchWidget w when key == "fontSize": w.FontSize = double.Parse(value); break;
                 case SwitchWidget w when key == "fontFamily": w.FontFamily = value; break;
                 case SwitchWidget w when key == "textColor": w.TextColor = value; break;
@@ -153,6 +172,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 case SwitchWidget w when key == "textDecoration": w.TextDecoration = value; break;
                 case LineWidget line when key == "strokeColor": line.StrokeColor = value; break;
                 case LineWidget line when key == "strokeThickness": line.StrokeThickness = double.Parse(value); break;
+                case LineWidget line when key == "x2": line.X2 = double.Parse(value); break;
+                case LineWidget line when key == "y2": line.Y2 = double.Parse(value); break;
                 case CircleWidget c when key == "fillColor": c.FillColor = value; break;
                 case CircleWidget c when key == "strokeColor": c.StrokeColor = value; break;
                 case CircleWidget c when key == "strokeThickness": c.StrokeThickness = double.Parse(value); break;
@@ -186,6 +207,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 case TextBoxWidget w when key == "fontStyle": w.FontStyle = value; break;
                 case TextBoxWidget w when key == "textDecoration": w.TextDecoration = value; break;
                 case FrameWidget f when key == "title": f.Title = value; break;
+                case FrameWidget f when key == "imagePath": f.ImagePath = value; break;
                 case FrameWidget f when key == "fillColor": f.FillColor = value; break;
                 case FrameWidget w when key == "fontSize": w.FontSize = double.Parse(value); break;
                 case FrameWidget w when key == "fontFamily": w.FontFamily = value; break;
