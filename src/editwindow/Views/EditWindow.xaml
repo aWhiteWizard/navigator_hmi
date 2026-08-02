@@ -659,7 +659,7 @@
             </Grid></StackPanel></DataTemplate>
     </Window.Resources>
 
-    <Window.CommandBindings><CommandBinding Command="Save" Executed="SaveCurrentProject_Click"/></Window.CommandBindings>
+    <Window.CommandBindings><CommandBinding Command="Save" Executed="SaveCurrentProject_Click"/><CommandBinding Command="Help" Executed="Help_Click"/></Window.CommandBindings>
     <Window.InputBindings>
         <KeyBinding Key="S" Modifiers="Control" Command="Save"/>
         <!-- Ctrl+Shift+Z 必须先于 Ctrl+Z（WPF 修饰键子集匹配 + 先注册先命中，否则 Ctrl+Shift+Z 会误触撤销）
@@ -667,6 +667,7 @@
         <KeyBinding Key="Z" Modifiers="Control+Shift" Command="{Binding RedoCommand}"/>
         <KeyBinding Key="Z" Modifiers="Control" Command="{Binding UndoCommand}"/>
         <KeyBinding Key="Y" Modifiers="Control" Command="{Binding RedoCommand}"/>
+        <KeyBinding Key="F1" Command="{x:Static ApplicationCommands.Help}"/>
     </Window.InputBindings>
 
     <Grid>
@@ -683,6 +684,9 @@
             </MenuItem>
             <MenuItem Header="设置">
                 <MenuItem Header="默认字体..." Click="FontDefaults_Click"/>
+            </MenuItem>
+            <MenuItem Header="帮助">
+                <MenuItem Header="帮助文档" Click="Help_Click" InputGestureText="F1"/>
             </MenuItem>
             <MenuItem Header="视图">
                 <MenuItem Header="文件工具" IsCheckable="True" IsChecked="True"

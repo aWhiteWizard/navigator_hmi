@@ -368,6 +368,13 @@ namespace NavigatorHMI.Views
             dialog.ShowDialog();
         }
 
+        /// <summary>菜单「帮助文档」/ F1：打开帮助对话框。</summary>
+        private void Help_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new HelpDialog { Owner = this };
+            dialog.ShowDialog();
+        }
+
         /// <summary>
         /// 选中变化 → 同步属性面板多选状态（框选/单击/清空统一入口）。
         /// </summary>
@@ -2004,31 +2011,7 @@ namespace NavigatorHMI.Views
             return result.ToArray();
         }
 
-        private const string CliHelpText = @"GUI CLI 帮助:
-  create-screen --name <name> [--type custom]  创建画面
-  delete-screen --name <name>                    删除画面
-  rename-screen --name <name> --new-name <name>  重命名画面
-  copy-screen --name <name>                      复制画面
-  paste-screen                                   粘贴画面
-  add-widget --screen <name> --type button --x 0 --y 0  添加控件
-  create-tag --name <name> --type FLOAT --source <uri>  创建变量
-  copy-widget --screen <name> --widget <name>   复制控件
-  paste-widget --screen <name>                   粘贴控件
-  set-default-font --font-size 14                设置默认字体
-  align --screen <name> --widgets a,b,c --direction left  对齐控件
-  array --screen <name> --widgets a,b,c --mode rect --start-x 0 --start-y 0 --cols 3 --rows 2 --spacing-x 120 --spacing-y 80  阵列排列
-  compile                                       编译工程
-  save                                          保存工程
-  list-screens / ls                             列出所有画面
-  cls / clear                                   清屏
-  help / ?                                      显示帮助
-
-set-property 属性键 (--screen <画面> --widget <控件> --key <键> --value <值>):
-  文本: text | content | title | onText | offText
-  颜色: textColor | fillColor | strokeColor
-  字体: fontFamily | fontSize | fontWeight | fontStyle | textDecoration
-  数值: value | min | max | strokeThickness | x2 | y2
-  其他: hAlign | imagePath | stretchMode | isOn | isChecked | isReadOnly | fillStyle";
+        private const string CliHelpText = NavigatorHMI.Common.CliHelpContent.Text;  // 与帮助对话框共用单一来源
         #endregion
     }
 }
