@@ -5,6 +5,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using NavigatorHMI.Common;
+using NavigatorHMI.CommandLayer.Handlers;
 using NavigatorHMI.ViewModels;
 
 namespace NavigatorHMI.Views.Helpers
@@ -59,6 +60,16 @@ namespace NavigatorHMI.Views.Helpers
 
             item.IsSelected = true;
 
+            // 右键目标：自定义画面根节点（粘贴到自定义画面下）或具体画面节点
+            if (item.DataContext is CustomScreensRootNode)
+            {
+                _rightClickedTreeNode = null;
+                // 根节点菜单：仅粘贴可用（粘贴到自定义画面下）
+                ShowTreeMenu(e, showPasteOnly: true);
+                e.Handled = true;
+                return;
+            }
+
             var node = item.DataContext as ScreenItemNode;
             if (node == null)
             {
@@ -75,14 +86,36 @@ namespace NavigatorHMI.Views.Helpers
 
             // 把目标存到字段，防止 ContextMenu 弹出后 SelectedItem 丢失
             _rightClickedTreeNode = node;
+            ShowTreeMenu(e, showPasteOnly: false);
+            e.Handled = true;
+        }
 
-            // 用 Popup 方式，位置在鼠标右下方
+        /// <summary>显示树右键菜单；showPasteOnly=true 时隐藏画面级按钮（根节点场景）。</summary>
+        private void ShowTreeMenu(MouseButtonEventArgs e, bool showPasteOnly)
+        {
+            // 粘贴按钮：剪贴板为空时禁用
+            if (_treeContextMenu.Child is System.Windows.Controls.Border border
+                && border.Child is System.Windows.Controls.StackPanel sp)
+            {
+                foreach (var child in sp.Children)
+                {
+                    if (child is System.Windows.Controls.Button btn)
+                    {
+                        bool isPaste = btn.Name == "ScreenPasteBtn";
+                        btn.Visibility = (!showPasteOnly || isPaste) ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+                        if (isPaste) btn.IsEnabled = ScreenClipboard.GetItems() != null;
+                    }
+                    else if (child is System.Windows.Controls.Separator sep)
+                    {
+                        sep.Visibility = showPasteOnly ? System.Windows.Visibility.Collapsed : System.Windows.Visibility.Visible;
+                    }
+                }
+            }
+
             var screenPos = e.GetPosition(null);
             _treeContextMenu.HorizontalOffset = screenPos.X + 5;
             _treeContextMenu.VerticalOffset = screenPos.Y + 5;
             _treeContextMenu.IsOpen = true;
-
-            e.Handled = true;
         }
 
         /// <summary>

@@ -849,15 +849,20 @@
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
-                                <!-- 画布顶部页面标签栏：显示全部自定义画面，高亮当前编辑页，点击切换 -->
+                                <!-- 画布顶部页面标签栏：显示已打开的画面（含全局/世界地图/自定义），高亮当前编辑页，点击切换，可关闭 -->
                                 <Border Grid.Row="0" Background="#F0F0F0" BorderBrush="LightGray" BorderThickness="0,0,0,1" Padding="4,2">
-                                    <ItemsControl ItemsSource="{Binding ScreenTabs}">
+                                    <ItemsControl ItemsSource="{Binding OpenScreens}">
                                         <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Border x:Name="TabBorder" Background="#E0E0E0" BorderBrush="#B0B0B0" BorderThickness="1" CornerRadius="3" Padding="8,3" Margin="0,0,4,0"
+                                                <Border x:Name="TabBorder" Background="#E0E0E0" BorderBrush="#B0B0B0" BorderThickness="1" CornerRadius="3" Padding="6,3" Margin="0,0,4,0"
                                                         MouseLeftButtonDown="ScreenTab_Click" Cursor="Hand">
-                                                    <TextBlock Text="{Binding Name}" FontSize="12"/>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding Name}" FontSize="12" VerticalAlignment="Center"/>
+                                                        <!-- 关闭按钮 -->
+                                                        <TextBlock Text=" ✕" FontSize="10" Foreground="#888888" VerticalAlignment="Center" Margin="4,0,0,0"
+                                                                   Cursor="Hand" Tag="{Binding}" MouseLeftButtonDown="ScreenTabClose_Click"/>
+                                                    </StackPanel>
                                                 </Border>
                                                 <DataTemplate.Triggers>
                                                     <!-- 当前编辑页高亮 -->

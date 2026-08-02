@@ -116,9 +116,10 @@ namespace NavigatorHMI.Views
                 DrawingCanvas,
                 () => _viewModel);
 
-            // 4. 初始化右键菜单处理器（注入 Undo 快照回调）；树节点菜单用独立的 TreeScreenMenu（删除/重命名）
+            // 4. 初始化右键菜单处理器（注入 CommandService 统一命令层 + Undo 快照回调）；树节点菜单用独立的 TreeScreenMenu（删除/重命名）
             _treeContextMenuHandler = new TreeViewContextMenuHandler(
                 TreeScreenMenu,
+                _viewModel.CommandService,
                 MarkProjectDirty,
                 () => _viewModel.PushUndoSnapshot());
 
@@ -1013,7 +1014,7 @@ namespace NavigatorHMI.Views
             Dispatcher.Invoke(() =>
             {
                 MarkProjectDirty();
-                _viewModel.NotifyScreenTabsChanged();   // 新增画面后刷新页面标签
+                // 新增画面不自动加标签（打开才显示），ObservableCollection 通知冗余
             });
         }
 
@@ -1034,6 +1035,16 @@ namespace NavigatorHMI.Views
             if (sender is not FrameworkElement fe || fe.DataContext is not Screen screen) return;
             _viewModel.CurrentScreen = screen;
             e.Handled = true;
+        }
+
+        /// <summary>画布顶部页面标签关闭：从打开集合移除（画面不删除）。</summary>
+        private void ScreenTabClose_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is FrameworkElement fe && fe.Tag is Screen screen)
+            {
+                _viewModel.CloseScreenTab(screen);
+                e.Handled = true;
+            }
         }
 
         /// <summary>
