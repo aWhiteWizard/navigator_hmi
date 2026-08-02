@@ -71,6 +71,8 @@ public static class Program
             "create-screen"  => Cmd("create_screen", Require("name"), Opt("type", "custom"), Opt("width", ""), Opt("height", "")),
             "delete-screen"  => Cmd("delete_screen", Require("name")),
             "rename-screen"  => Cmd("rename_screen", Require("name"), Require("new-name", "new_name")),
+            "copy-screen"    => Cmd("copy_screen", Require("name")),
+            "paste-screen"   => Cmd("paste_screen", Opt("name", "")),
 
             // 控件
             "add-widget"     => Cmd("add_widget", Require("screen", "screen_name"), OptMap("type", "widget_type", "button"), Require("x"), Require("y"), Opt("width", "100"), Opt("height", "40")),
@@ -441,7 +443,7 @@ public static class Program
         Console.WriteLine("""
 可用命令:
   工程: create-project, open-project, save-project, compile
-  画面: create-screen, delete-screen, rename-screen
+  画面: create-screen, delete-screen, rename-screen, copy-screen, paste-screen
   控件: add-widget, move-widget, resize-widget, delete-widget, set-property
   剪贴板: copy-widget, paste-widget
   默认字体: set-default-font
@@ -486,6 +488,8 @@ NavigatorHMI CLI — 组态软件命令行接口
   create-screen          --name <name> [--type custom] [--width 800] [--height 480]
   delete-screen          --name <name>
   rename-screen          --name <name> --new-name <name>
+  copy-screen            --name <name>
+  paste-screen           [--name <name>]
 
 控件命令:
   add-widget             --screen <name> --type button --x <n> --y <n> [--width <n>] [--height <n>]

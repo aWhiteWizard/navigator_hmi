@@ -1,4 +1,6 @@
+using System.Collections.ObjectModel;
 using NavigatorHMI.Common;
+using ProtoBuf;
 
 namespace NavigatorHMI.CommandLayer.Handlers
 {
@@ -155,6 +157,102 @@ namespace NavigatorHMI.CommandLayer.Handlers
 
             screen.Name = newName;
             return CommandResult.Ok(new { screen_name = newName });
+        }
+    }
+
+    /// <summary>画面剪贴板（CommandService 级，同进程会话内有效；含控件深拷贝）。</summary>
+    public static class ScreenClipboard
+    {
+        internal static byte[]? Items { get; set; }
+
+        /// <summary>写入剪贴板（GUI 复制时调用，与 CLI copy-screen 共用）。</summary>
+        public static void SetItems(byte[] items) => Items = items;
+
+        /// <summary>读取剪贴板。</summary>
+        public static byte[]? GetItems() => Items;
+    }
+
+    /// <summary>复制画面到剪贴板（ProtoBuf 深拷贝含全部控件；Template/WorldMap 受保护）。</summary>
+    public class CopyScreenHandler : ICommandHandler
+    {
+        public CommandDefinition Definition => new()
+        {
+            Name = "copy_screen", Description = "复制画面到剪贴板（含全部控件，同进程内可粘贴）",
+            Parameters = new()
+            {
+                ["name"] = new() { Type = "string", Required = true },
+            }
+        };
+
+        public ValidationResult Validate(Dictionary<string, object?> parameters)
+        {
+            if (!parameters.ContainsKey("name") || string.IsNullOrWhiteSpace(parameters["name"]?.ToString()))
+                return ValidationResult.Fail("缺少必填参数: name");
+            return ValidationResult.Ok;
+        }
+
+        public CommandResult Execute(HMIProject project, Dictionary<string, object?> parameters)
+        {
+            var name = parameters["name"]?.ToString() ?? "";
+            var screen = project.Screens.FirstOrDefault(s => s.Name == name);
+            if (screen == null) return CommandResult.Fail("NOT_FOUND", $"画面 \"{name}\" 不存在");
+            if (screen.Type is ScreenType.Template or ScreenType.WorldMap)
+                return CommandResult.Fail("PROTECTED", $"画面 \"{name}\" ({screen.Type}) 不可复制");
+
+            using var ms = new MemoryStream();
+            Serializer.Serialize(ms, screen);
+            ScreenClipboard.SetItems(ms.ToArray());
+            return CommandResult.Ok(new { copied = name, widgets = screen.Widgets.Count });
+        }
+    }
+
+    /// <summary>从剪贴板粘贴画面（新名称自动去重，控件深拷贝）。</summary>
+    public class PasteScreenHandler : ICommandHandler
+    {
+        public CommandDefinition Definition => new()
+        {
+            Name = "paste_screen", Description = "从剪贴板粘贴画面（新画面名自动去重）",
+            Parameters = new()
+            {
+                ["name"] = new() { Type = "string", Required = false, Description = "新画面名（默认 原名称_副本）" },
+            }
+        };
+
+        public ValidationResult Validate(Dictionary<string, object?> parameters) => ValidationResult.Ok;
+
+        public CommandResult Execute(HMIProject project, Dictionary<string, object?> parameters)
+        {
+            if (ScreenClipboard.Items == null)
+                return CommandResult.Fail("EMPTY_CLIPBOARD", "剪贴板为空，请先 copy-screen");
+
+            Screen newScreen;
+            using (var ms = new MemoryStream(ScreenClipboard.Items))
+                newScreen = Serializer.Deserialize<Screen>(ms);
+            if (newScreen == null) return CommandResult.Fail("CLIPBOARD_ERROR", "剪贴板数据无效");
+
+            // 新画面名：显式指定或自动 原名称_副本
+            string baseName = parameters.TryGetValue("name", out var nv) && nv != null && !string.IsNullOrWhiteSpace(nv.ToString())
+                ? nv.ToString()!.Trim()
+                : newScreen.Name + "_副本";
+            var newName = UniqueScreenName(project, baseName);
+            newScreen.Name = newName;
+            newScreen.Type = ScreenType.Custom;   // 粘贴的画面始终为自定义（可再改名/删除）
+            newScreen.IsGlobal = false;           // 全局画面工程中最多一个，粘贴副本不能是全局
+            // 反序列化已创建全新对象图（含 Widgets 深拷贝），无需再复制集合
+            project.Screens.Add(newScreen);
+            return CommandResult.Ok(new { screen_name = newName, widgets = newScreen.Widgets.Count });
+        }
+
+        private static string UniqueScreenName(HMIProject project, string baseName)
+        {
+            var name = baseName;
+            int n = 1;
+            while (project.Screens.Any(s => s.Name == name))
+            {
+                name = baseName + "_" + n;
+                n++;
+            }
+            return name;
         }
     }
 }

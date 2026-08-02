@@ -30,7 +30,7 @@ namespace NavigatorHMI.CommandLayer
         internal void SetConnected(bool connected) { lock (_lock) { IsConnected = connected; } }
 
         /// <summary>
-        /// 初始化 CommandService 并注册全部 30 个命令处理器。
+        /// 初始化 CommandService 并注册全部 32 个命令处理器。
         /// </summary>
         /// <param name="project">当前工程对象</param>
         public CommandService(HMIProject project)
@@ -48,6 +48,8 @@ namespace NavigatorHMI.CommandLayer
                 ["create_screen"]   = new CreateScreenHandler(),
                 ["delete_screen"]   = new DeleteScreenHandler(),
                 ["rename_screen"]   = new RenameScreenHandler(),
+                ["copy_screen"]     = new CopyScreenHandler(),
+                ["paste_screen"]    = new PasteScreenHandler(),
 
                 // ── 控件操作 ──
                 ["add_widget"]      = new AddWidgetHandler(),

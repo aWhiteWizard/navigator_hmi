@@ -8,7 +8,7 @@
 
 | 目录 | 说明 |
 |------|------|
-| `src/NavigatorHMI.Core/` | 数据模型、Command Layer（26 个命令处理器） |
+| `src/NavigatorHMI.Core/` | 数据模型、Command Layer（32 个命令处理器） |
 | `src/editwindow/` | PC 组态软件（WPF，画面编辑器/属性面板/CLI 控制台） |
 | `src/NaviHmiCLI/` | 独立命令行工具（与 GUI 走同一 Command Layer） |
 

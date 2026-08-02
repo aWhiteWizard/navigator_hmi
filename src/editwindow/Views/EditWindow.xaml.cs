@@ -1013,6 +1013,7 @@ namespace NavigatorHMI.Views
             Dispatcher.Invoke(() =>
             {
                 MarkProjectDirty();
+                _viewModel.NotifyScreenTabsChanged();   // 新增画面后刷新页面标签
             });
         }
 
@@ -1027,12 +1028,25 @@ namespace NavigatorHMI.Views
 
         #region 树形视图右键编辑菜单（委托给 TreeViewContextMenuHandler）
 
+        /// <summary>画布顶部页面标签点击：切换当前编辑画面。</summary>
+        private void ScreenTab_Click(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is not FrameworkElement fe || fe.DataContext is not Screen screen) return;
+            _viewModel.CurrentScreen = screen;
+            e.Handled = true;
+        }
+
         /// <summary>
         /// 右键点击树节点：选中节点并显示上下文菜单。
         /// 委托给 <see cref="TreeViewContextMenuHandler.OnTreeViewItemRightClick"/>。
         /// </summary>
         private void TreeViewItem_RightClick(object sender, MouseButtonEventArgs e)
-            => _treeContextMenuHandler.OnTreeViewItemRightClick(sender, e);
+        {
+            // 粘贴按钮：剪贴板为空时禁用（避免静默失败）
+            if (ScreenPasteBtn != null)
+                ScreenPasteBtn.IsEnabled = ScreenClipboard.GetItems() != null;
+            _treeContextMenuHandler.OnTreeViewItemRightClick(sender, e);
+        }
 
         /// <summary>
         /// 树节点右键菜单「删除画面」点击。
@@ -1040,6 +1054,55 @@ namespace NavigatorHMI.Views
         /// </summary>
         private void DeleteScreen_Click(object sender, RoutedEventArgs e)
             => _treeContextMenuHandler.OnDeleteScreenClick(sender, e);
+
+        /// <summary>树节点右键「复制画面」：走 CommandLayer copy_screen（含控件深拷贝）。画面级操作不推 Undo 快照。</summary>
+        private void CopyScreen_Click(object sender, RoutedEventArgs e)
+        {
+            var node = _treeContextMenuHandler.GetRightClickedNode();
+            if (node == null) return;
+            var result = _viewModel.CommandService.Execute("copy_screen", new() { ["name"] = node.Screen.Name });
+            if (!result.Success)
+                System.Windows.MessageBox.Show($"复制失败: {result.ErrorMessage}", "NavigatorHMI", MessageBoxButton.OK, MessageBoxImage.Warning);
+            TreeScreenMenu.IsOpen = false;
+            _treeContextMenuHandler.ClearRightClickedNode();
+        }
+
+        /// <summary>树节点右键「剪切画面」：复制 + 删除（可粘贴还原）。画面级操作不推 Undo 快照。</summary>
+        private void CutScreen_Click(object sender, RoutedEventArgs e)
+        {
+            var node = _treeContextMenuHandler.GetRightClickedNode();
+            if (node == null) return;
+            // 复制成功后再删除（copy_screen 触发 CommandExecuted → 树重建，旧 node 引用失效，删除必须走 CommandLayer 保持一致）
+            var copyResult = _viewModel.CommandService.Execute("copy_screen", new() { ["name"] = node.Screen.Name });
+            if (copyResult.Success)
+            {
+                var deleteResult = _viewModel.CommandService.Execute("delete_screen", new() { ["name"] = node.Screen.Name });
+                if (!deleteResult.Success)
+                    System.Windows.MessageBox.Show($"剪切失败（画面未删除）: {deleteResult.ErrorMessage}", "NavigatorHMI", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            else
+                System.Windows.MessageBox.Show($"剪切失败: {copyResult.ErrorMessage}", "NavigatorHMI", MessageBoxButton.OK, MessageBoxImage.Warning);
+            TreeScreenMenu.IsOpen = false;
+            _treeContextMenuHandler.ClearRightClickedNode();
+        }
+
+        /// <summary>树节点右键「粘贴画面」：走 CommandLayer paste_screen（新画面名自动去重），完成后切换到新画面。</summary>
+        private void PasteScreen_Click(object sender, RoutedEventArgs e)
+        {
+            var result = _viewModel.CommandService.Execute("paste_screen", new() { });
+            if (result.Success)
+            {
+                // 从匿名结果取 screen_name（CommandResult.Data 为 { screen_name, widgets }）
+                var newName = result.Data?.GetType().GetProperty("screen_name")?.GetValue(result.Data)?.ToString();
+                if (!string.IsNullOrEmpty(newName))
+                {
+                    var screen = _viewModel.CurrentProject.Screens.FirstOrDefault(s => s.Name == newName);
+                    if (screen != null) _viewModel.CurrentScreen = screen;
+                }
+            }
+            TreeScreenMenu.IsOpen = false;
+            _treeContextMenuHandler.ClearRightClickedNode();
+        }
 
         /// <summary>
         /// 右键菜单「重命名」按钮点击：进入编辑模式。
@@ -1230,6 +1293,8 @@ namespace NavigatorHMI.Views
         {
             if (_viewModel.CurrentScreen == null) return;
             var selected = _viewModel.CurrentScreen.Widgets.Where(w => w.IsSelected).ToList();
+            if (selected.Count == 0) return;
+            _viewModel.PushUndoSnapshot();   // 剪切/删除前快照（对齐 Delete 键行为）
             foreach (var w in selected) _viewModel.CurrentScreen.Widgets.Remove(w);
             _viewModel.NotifyCanvasRefreshNeeded();
             MarkProjectDirty();
@@ -1666,6 +1731,8 @@ namespace NavigatorHMI.Views
                     new() { ["name"] = opts.GetValueOrDefault("name", ""), ["type"] = opts.GetValueOrDefault("type", "custom"), ["width"] = opts.GetValueOrDefault("width", ""), ["height"] = opts.GetValueOrDefault("height", "") }),
                 "delete-screen" or "ds" => _viewModel.CommandService.Execute("delete_screen", new() { ["name"] = opts.GetValueOrDefault("name", "") }),
                 "rename-screen" => _viewModel.CommandService.Execute("rename_screen", new() { ["name"] = opts.GetValueOrDefault("name", ""), ["new_name"] = opts.GetValueOrDefault("new-name", "") }),
+                "copy-screen" => _viewModel.CommandService.Execute("copy_screen", new() { ["name"] = opts.GetValueOrDefault("name", "") }),
+                "paste-screen" => _viewModel.CommandService.Execute("paste_screen", new() { ["name"] = opts.GetValueOrDefault("name", "") }),
                 "copy-widget" => _viewModel.CommandService.Execute("copy_widget", new() { ["screen_name"] = opts.GetValueOrDefault("screen", ""), ["widget_name"] = opts.GetValueOrDefault("widget", "") }),
                 "paste-widget" => _viewModel.CommandService.Execute("paste_widget", new() { ["screen_name"] = opts.GetValueOrDefault("screen", ""), ["x"] = opts.GetValueOrDefault("x", ""), ["y"] = opts.GetValueOrDefault("y", "") }),
                 "set-default-font" => _viewModel.CommandService.Execute("set_default_font",
@@ -1805,6 +1872,8 @@ namespace NavigatorHMI.Views
   create-screen --name <name> [--type custom]  创建画面
   delete-screen --name <name>                    删除画面
   rename-screen --name <name> --new-name <name>  重命名画面
+  copy-screen --name <name>                      复制画面
+  paste-screen                                   粘贴画面
   add-widget --screen <name> --type button --x 0 --y 0  添加控件
   create-tag --name <name> --type FLOAT --source <uri>  创建变量
   copy-widget --screen <name> --widget <name>   复制控件

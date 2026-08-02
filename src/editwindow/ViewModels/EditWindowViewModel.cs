@@ -29,6 +29,12 @@ namespace NavigatorHMI.ViewModels
         public int DeviceHeight => _currentProject.DeviceHeight;
         public int DeviceWidth => _currentProject.DeviceWidth;
 
+        /// <summary>画布顶部页面标签集合（全部 Custom 画面，按加入顺序）。</summary>
+        public List<Screen> ScreenTabs => _currentProject.Screens.Where(s => s.Type == ScreenType.Custom).ToList();
+
+        /// <summary>刷新页面标签栏（新增/删除画面后调用）。</summary>
+        public void NotifyScreenTabsChanged() => OnPropertyChanged(nameof(ScreenTabs));
+
         private Screen _currentScreen;
         public Screen CurrentScreen
         {
@@ -40,6 +46,10 @@ namespace NavigatorHMI.ViewModels
                 var oldScreen = _currentScreen;
                 _currentScreen = value;
                 OnPropertyChanged();
+
+                // 更新 Screen.IsCurrent（标签栏高亮）
+                if (oldScreen != null) oldScreen.IsCurrent = false;
+                if (value != null) value.IsCurrent = true;
 
                 // 🆕 更新树节点的 IsCurrent 状态
                 UpdateTreeNodeCurrentStatus(oldScreen, value);
@@ -90,6 +100,7 @@ namespace NavigatorHMI.ViewModels
             RefreshCanvasRequested?.Invoke();
             OnPropertyChanged(nameof(CurrentScreen));
             OnPropertyChanged(nameof(CurrentScreen.Widgets));
+            OnPropertyChanged(nameof(ScreenTabs));   // 画面增删后刷新页面标签
             // 标记工程已修改
             ProjectDirtyRequested?.Invoke();
 
@@ -98,6 +109,17 @@ namespace NavigatorHMI.ViewModels
             {
                 var screen = CurrentProject.Screens.FirstOrDefault(s => s.Name == nameObj?.ToString());
                 if (screen != null) CurrentScreen = screen;
+            }
+            // delete_screen/paste_screen：当前画面被删时切换，避免悬空引用（幽灵画面可编辑但保存丢失）
+            if (cmdName is "delete_screen" or "paste_screen")
+            {
+                if (CurrentScreen != null && !CurrentProject.Screens.Contains(CurrentScreen))
+                {
+                    CurrentScreen = CurrentProject.Screens.FirstOrDefault(s => s.Type != ScreenType.Custom);
+                    // CurrentScreen setter 内部已触发 CanvasReloadRequested，无需重复
+                }
+                if (cmdName == "delete_screen" && parameters.TryGetValue("name", out var dn))
+                    _undoManager.ClearByName(dn?.ToString() ?? "");   // 删除后清理该画面 undo 栈
             }
         }
 
@@ -116,7 +138,9 @@ namespace NavigatorHMI.ViewModels
                 if (CurrentScreen == deletedScreen)
                     CurrentScreen = CurrentProject.Screens.FirstOrDefault(s => s.Type != ScreenType.Custom);
                 CanvasReloadRequested?.Invoke(CurrentScreen);
+                OnPropertyChanged(nameof(ScreenTabs));   // 删除画面后刷新页面标签
             };
+            customRoot.OnScreenUndoCleared += name => _undoManager.ClearByName(name);   // 清理被删画面的 undo/redo 栈
             TreeRoots.Add(globalNode);
             TreeRoots.Add(mapNode);
             TreeRoots.Add(customRoot);
@@ -166,12 +190,12 @@ namespace NavigatorHMI.ViewModels
                 {
                     // 切换到其他可用画面（比如全局画面或地图画面）
                     CurrentScreen = project.Screens.FirstOrDefault(s => s.Type != ScreenType.Custom);
-                    // 或者设置为 null，并让画布显示空白
-                    // CurrentScreen = null;
                     // 触发画布刷新
                     CanvasReloadRequested?.Invoke(CurrentScreen);
                 }
+                OnPropertyChanged(nameof(ScreenTabs));   // 删除画面后刷新页面标签
             };
+            customRoot.OnScreenUndoCleared += name => _undoManager.ClearByName(name);   // 清理被删画面的 undo/redo 栈
 
             TreeRoots.Add(globalNode);
             TreeRoots.Add(mapNode);

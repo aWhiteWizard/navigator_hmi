@@ -147,6 +147,7 @@ namespace NavigatorHMI.ViewModels
         private HMIProject _project;
 
         public event Action<Screen> OnScreenDeleted;  // 通知外部画面被删除
+        public event Action<string>? OnScreenUndoCleared;  // 通知外部清理该画面 undo/redo 栈
         public CustomScreensRootNode(HMIProject project)
         {
             _project = project;
@@ -172,6 +173,8 @@ namespace NavigatorHMI.ViewModels
         {
             // 从工程中移除 Screen
             _project.Screens.Remove(node.Screen);
+            // 清理该画面的 undo/redo 栈（防内存泄漏）
+            OnScreenUndoCleared?.Invoke(node.Screen.Name);
             // 从树中移除节点
             Children.Remove(node);
             // 如果删除的是当前选中的画面，需要通知上层清除 CurrentScreen

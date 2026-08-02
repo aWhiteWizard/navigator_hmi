@@ -36,6 +36,12 @@ namespace NavigatorHMI.Views.Helpers
             _pushUndoCallback = pushUndoCallback;
         }
 
+        /// <summary>当前右键点击的树节点（供 EditWindow 的复制/剪切/粘贴菜单按钮使用）。</summary>
+        public ScreenItemNode? GetRightClickedNode() => _rightClickedTreeNode;
+
+        /// <summary>清除右键节点引用（菜单操作完成后调用，防悬空引用）。</summary>
+        public void ClearRightClickedNode() => _rightClickedTreeNode = null;
+
         /// <summary>
         /// 右键点击树节点：选中节点并显示上下文菜单。
         /// 仅对自定义画面（<see cref="ScreenType.Custom"/>）节点生效。
@@ -86,8 +92,7 @@ namespace NavigatorHMI.Views.Helpers
 
             if (node.DeleteCommand.CanExecute(null))
             {
-                // 在删除前保存 Undo 快照
-                _pushUndoCallback?.Invoke();
+                // 画面级操作不推 Undo 快照（Undo 只能恢复 Widgets 列表，画面删除不可撤销）
                 node.DeleteCommand.Execute(null);
                 _markProjectDirty();
             }
@@ -137,8 +142,7 @@ namespace NavigatorHMI.Views.Helpers
                 var node = tb?.DataContext as ScreenItemNode;
                 if (node != null)
                 {
-                    // 在重命名前保存 Undo 快照
-                    _pushUndoCallback?.Invoke();
+                    // 画面名变更不可撤销（Undo 只能恢复 Widgets 列表），不推快照
                     node.ConfirmRenameCommand.Execute(null);
                     _markProjectDirty();
                 }

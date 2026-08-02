@@ -52,6 +52,14 @@ namespace NavigatorHMI.Views.Helpers
             _redoStacks.Remove(screen);
         }
 
+        /// <summary>按画面名称清理 undo/redo 栈（删除画面后调用，防内存泄漏）。</summary>
+        public void ClearByName(string screenName)
+        {
+            if (string.IsNullOrEmpty(screenName)) return;
+            foreach (var key in _undoStacks.Keys.Where(k => k.Name == screenName).ToList()) _undoStacks.Remove(key);
+            foreach (var key in _redoStacks.Keys.Where(k => k.Name == screenName).ToList()) _redoStacks.Remove(key);
+        }
+
         private Stack<byte[]> GetUndoStack(Screen s) { if (!_undoStacks.ContainsKey(s)) _undoStacks[s] = new(); return _undoStacks[s]; }
         private Stack<byte[]> GetRedoStack(Screen s) { if (!_redoStacks.ContainsKey(s)) _redoStacks[s] = new(); return _redoStacks[s]; }
 

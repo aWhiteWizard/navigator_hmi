@@ -56,11 +56,17 @@ navihmi -p ./demo.hmiproj compile
 | `create-screen` | `--name` | `--type`(custom), `--width`(800), `--height`(480) |
 | `delete-screen` | `--name` | — |
 | `rename-screen` | `--name`, `--new-name` | — |
+| `copy-screen` | `--name` | — |
+| `paste-screen` | — | `--name`(默认 原名称_副本) |
 
 ```bash
 navihmi -p ./demo.hmiproj create-screen --name "主控页" --type custom
 navihmi -p ./demo.hmiproj delete-screen --name "主控页"
 navihmi -p ./demo.hmiproj rename-screen --name "主控页" --new-name "总览页"
+
+# 复制/粘贴画面（含全部控件深拷贝；同进程内有效，跨命令调用需 REPL 或 GUI 面板）
+navihmi -p ./demo.hmiproj copy-screen --name "总览页"
+navihmi -p ./demo.hmiproj paste-screen                    # 生成 总览页_副本
 ```
 
 > Template（全局画面）和 WorldMap（世界地图）不可删除。

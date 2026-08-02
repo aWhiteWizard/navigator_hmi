@@ -81,6 +81,15 @@ namespace NavigatorHMI.Common
         [ProtoMember(8)]
         public int NavOrder { get; set; }
 
+        private bool _isCurrent;
+        /// <summary>是否当前编辑画面（瞬态，标签栏高亮用，不持久化）</summary>
+        [ProtoIgnore]
+        public bool IsCurrent
+        {
+            get => _isCurrent;
+            set { if (_isCurrent != value) { _isCurrent = value; OnPropertyChanged(); } }
+        }
+
         /// <inheritdoc/>
         public event PropertyChangedEventHandler? PropertyChanged;
 
