@@ -16,6 +16,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 ["y"] = new() { Type = "int", Required = true },
                 ["width"] = new() { Type = "int", DefaultValue = 100 },
                 ["height"] = new() { Type = "int", DefaultValue = 40 },
+                ["bound_tag"] = new() { Type = "string", DefaultValue = "", Description = "绑定变量（可选，创建后立即绑定）" },
             }
         };
         public ValidationResult Validate(Dictionary<string, object?> parameters)
@@ -54,6 +55,14 @@ namespace NavigatorHMI.CommandLayer.Handlers
             widget.X = Convert.ToDouble(parameters["x"] ?? 0); widget.Y = Convert.ToDouble(parameters["y"] ?? 0);
             widget.Width = Convert.ToDouble(parameters.GetValueOrDefault("width", 100)); widget.Height = Convert.ToDouble(parameters.GetValueOrDefault("height", 40));
             widget.ObjectName = $"{widgetType}_{screen.Widgets.Count + 1}";
+            // 可选：创建后立即绑定变量（拖拽生成绑定控件用）
+            var boundTag = parameters.GetValueOrDefault("bound_tag")?.ToString() ?? "";
+            if (boundTag.Length > 0)
+            {
+                if (!project.Tags.Any(t => t.Name == boundTag))
+                    return CommandResult.Fail("NOT_FOUND", $"变量 \"{boundTag}\" 不存在");
+                widget.BoundTag = boundTag;
+            }
             screen.Widgets.Add(widget);
             return CommandResult.Ok(new { widget_name = widget.ObjectName });
         }

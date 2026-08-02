@@ -835,7 +835,8 @@
                         <!-- 左侧: 项目树 + 控件面板 -->
                         <avalon:LayoutAnchorablePane DockWidth="200">
                             <avalon:LayoutAnchorable Title="项目窗口" ContentId="project">
-                                <TreeView x:Name="ProjectTreeView" ItemsSource="{Binding TreeRoots}" MouseRightButtonDown="ProjectTree_RightClick" Background="Transparent">
+                                <TreeView x:Name="ProjectTreeView" ItemsSource="{Binding TreeRoots}" MouseRightButtonDown="ProjectTree_RightClick" Background="Transparent"
+                                          AllowDrop="True" DragOver="ProjectTree_DragOver" Drop="ProjectTree_Drop">
                                     <TreeView.Resources>
                                         <HierarchicalDataTemplate DataType="{x:Type vm:ScreenItemNode}" ItemsSource="{Binding Children}">
                                             <Grid>
@@ -969,7 +970,8 @@
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <Border x:Name="TabBorder" Background="#E0E0E0" BorderBrush="#B0B0B0" BorderThickness="1" CornerRadius="3" Padding="6,3" Margin="0,0,4,0"
-                                                        MouseLeftButtonDown="ScreenTab_Click" Cursor="Hand">
+                                                        MouseLeftButtonDown="ScreenTab_Click" Cursor="Hand"
+                                                        AllowDrop="True" DragOver="ScreenTab_DragOver" Drop="ScreenTab_Drop">
                                                     <StackPanel Orientation="Horizontal">
                                                         <TextBlock Text="{Binding Name}" FontSize="12" VerticalAlignment="Center"/>
                                                         <!-- 关闭按钮 -->
@@ -1031,7 +1033,8 @@
                                 <Border BorderBrush="Black" Background="Gray" BorderThickness="2" Margin="3" x:Name="canvasContainer" Grid.Row="1"
                                         PreviewMouseRightButtonDown="Canvas_PreviewRightButtonDown"
                                         PreviewMouseLeftButtonDown="Canvas_MouseLeftButtonDown"
-                                        PreviewMouseMove="Canvas_MouseMove" PreviewMouseLeftButtonUp="Canvas_MouseLeftButtonUp">
+                                        PreviewMouseMove="Canvas_MouseMove" PreviewMouseLeftButtonUp="Canvas_MouseLeftButtonUp"
+                                        AllowDrop="True" DragOver="Canvas_DragOver" Drop="Canvas_Drop">
                                     <Border.Style>
                                         <Style TargetType="Border">
                                             <Setter Property="Visibility" Value="Visible"/>
@@ -1097,9 +1100,10 @@
                                         <TextBlock DockPanel.Dock="Left" Text="搜索:" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="12"/>
                                         <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" FontSize="12" VerticalContentAlignment="Center"/>
                                     </DockPanel>
-                                    <DataGrid Grid.Row="2" ItemsSource="{Binding Tags}" SelectedItem="{Binding SelectedTag}"
+                                    <DataGrid Grid.Row="2" x:Name="TagGrid" ItemsSource="{Binding Tags}" SelectedItem="{Binding SelectedTag}"
                                               AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="True"
                                               HeadersVisibility="Column" IsReadOnly="True" MouseDoubleClick="TagGrid_DoubleClick"
+                                              PreviewMouseLeftButtonDown="TagGrid_PreviewMouseLeftButtonDown" PreviewMouseMove="TagGrid_PreviewMouseMove"
                                               SelectionMode="Single" GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12"
                                               RowHeight="26">
                                         <DataGrid.Columns>

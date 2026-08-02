@@ -76,9 +76,8 @@ namespace NavigatorHMI.Views
 
         private void Canvas_PreviewRightButtonDown(object sender, MouseButtonEventArgs e)
         {
+            // GetPosition 已返回逻辑坐标（LayoutTransform 逆变换），禁除缩放（双重除 bug）；_contextMenuPos 供粘贴定位
             _contextMenuPos = e.GetPosition(DrawingCanvas);
-            _contextMenuPos.X /= _zoomLevel;
-            _contextMenuPos.Y /= _zoomLevel;
         }
 
         // widget的专职类
@@ -311,6 +310,135 @@ namespace NavigatorHMI.Views
         {
             if (_commDeviceVM.SelectedDevice != null)
                 _commDeviceVM.EditDeviceCommand.Execute(null);
+        }
+        #endregion
+
+        #region 变量拖拽（变量行 → 标签页/树节点切画面 → 画布生成绑定 IO Field）
+        /// <summary>拖拽起点（TagGrid_PreviewMouseMove 判定阈值用）。</summary>
+        private Point _tagDragStart;
+        /// <summary>悬停切换画面节流时间戳（DragOver 高频触发，200ms 内不重复切换）。</summary>
+        private DateTime _lastDragSwitchTime = DateTime.MinValue;
+
+        private void TagGrid_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            _tagDragStart = e.GetPosition(null);
+        }
+
+        /// <summary>按住变量行拖动超过阈值 → 开始拖拽（数据：Tag 对象）。</summary>
+        private void TagGrid_PreviewMouseMove(object sender, MouseEventArgs e)
+        {
+            if (e.LeftButton != MouseButtonState.Pressed) return;
+            var pos = e.GetPosition(null);
+            if (Math.Abs(pos.X - _tagDragStart.X) < SystemParameters.MinimumHorizontalDragDistance
+             && Math.Abs(pos.Y - _tagDragStart.Y) < SystemParameters.MinimumVerticalDragDistance)
+                return;
+            if (FindDataContext<Tag>(e.OriginalSource as DependencyObject) is not Tag tag) return;
+            DragDrop.DoDragDrop((DependencyObject)sender, new DataObject("NavigatorHMI.Tag", tag), DragDropEffects.Copy);
+        }
+
+        /// <summary>沿视觉树上溯查找指定类型 DataContext（DataGridRow/TreeViewItem 通用）。</summary>
+        private static T? FindDataContext<T>(DependencyObject? source) where T : class
+        {
+            while (source != null)
+            {
+                if (source is System.Windows.FrameworkElement fe && fe.DataContext is T t) return t;
+                source = VisualTreeHelper.GetParent(source);
+            }
+            return null;
+        }
+
+        /// <summary>拖拽的是否为变量（统一判定）。</summary>
+        private static bool IsTagDrag(DragEventArgs e, out Tag? tag)
+        {
+            tag = e.Data.GetDataPresent("NavigatorHMI.Tag") ? e.Data.GetData("NavigatorHMI.Tag") as Tag : null;
+            return tag != null;
+        }
+
+        /// <summary>标签页悬停/放下 → 自动切换画面（200ms 节流防 DragOver 高频来回切换）。</summary>
+        private void ScreenTab_DragOver(object sender, DragEventArgs e)
+        {
+            if (IsTagDrag(e, out _))
+            {
+                e.Effects = DragDropEffects.Copy;
+                if (sender is System.Windows.FrameworkElement fe && fe.DataContext is Screen screen
+                 && !ReferenceEquals(screen, _viewModel.CurrentScreen)
+                 && (DateTime.Now - _lastDragSwitchTime).TotalMilliseconds >= 200)
+                {
+                    _lastDragSwitchTime = DateTime.Now;
+                    _viewModel.ActivateScreen(screen);   // 悬停即切换（节流）
+                }
+                e.Handled = true;
+            }
+            else e.Effects = DragDropEffects.None;
+        }
+
+        private void ScreenTab_Drop(object sender, DragEventArgs e)
+        {
+            if (IsTagDrag(e, out _))
+            {
+                if (sender is System.Windows.FrameworkElement fe && fe.DataContext is Screen screen)
+                    _viewModel.ActivateScreen(screen);
+                e.Handled = true;
+            }
+        }
+
+        /// <summary>树画面节点悬停/放下 → 自动切换画面（200ms 节流防 DragOver 高频来回切换）。</summary>
+        private void ProjectTree_DragOver(object sender, DragEventArgs e)
+        {
+            if (IsTagDrag(e, out _))
+            {
+                e.Effects = DragDropEffects.Copy;
+                if (FindDataContext<ScreenItemNode>(e.OriginalSource as DependencyObject) is { } node
+                 && !ReferenceEquals(node.Screen, _viewModel.CurrentScreen)
+                 && (DateTime.Now - _lastDragSwitchTime).TotalMilliseconds >= 200)
+                {
+                    _lastDragSwitchTime = DateTime.Now;
+                    _viewModel.ActivateScreen(node.Screen);   // 悬停即切换（节流）
+                }
+                e.Handled = true;
+            }
+            else e.Effects = DragDropEffects.None;
+        }
+
+        private void ProjectTree_Drop(object sender, DragEventArgs e)
+        {
+            if (IsTagDrag(e, out _))
+            {
+                if (FindDataContext<ScreenItemNode>(e.OriginalSource as DependencyObject) is { } node)
+                    _viewModel.ActivateScreen(node.Screen);
+                e.Handled = true;
+            }
+        }
+
+        /// <summary>画布悬停：接受变量拖拽（Copy 光标）。</summary>
+        private void Canvas_DragOver(object sender, DragEventArgs e)
+        {
+            if (IsTagDrag(e, out _)) { e.Effects = DragDropEffects.Copy; e.Handled = true; }
+            else e.Effects = DragDropEffects.None;
+        }
+
+        /// <summary>画布放下 → 生成绑定该变量的 IO Field（add_widget + bound_tag 一步落库）。</summary>
+        private void Canvas_Drop(object sender, DragEventArgs e)
+        {
+            if (!IsTagDrag(e, out var tag) || tag == null) return;
+            if (_viewModel.CurrentScreen == null) return;
+            // GetPosition(DrawingCanvas) 经 LayoutTransform 逆变换已返回逻辑坐标，禁再次除缩放（双重除 bug）
+            var pos = e.GetPosition(DrawingCanvas);
+            // 坐标钳制到画布逻辑范围（拖到边框/滚动条区域不生成越界控件）
+            pos.X = Math.Clamp(pos.X, 0, Math.Max(0, _viewModel.CurrentScreen.Width - 100));
+            pos.Y = Math.Clamp(pos.Y, 0, Math.Max(0, _viewModel.CurrentScreen.Height - 30));
+            _viewModel.PushUndoSnapshot();
+            var r = _viewModel.CommandService.Execute("add_widget", new Dictionary<string, object?>
+            {
+                ["screen_name"] = _viewModel.CurrentScreen.Name,
+                ["widget_type"] = "iofield",
+                ["x"] = (int)pos.X, ["y"] = (int)pos.Y,
+                ["width"] = 100, ["height"] = 30,
+                ["bound_tag"] = tag.Name,
+            });
+            if (!r.Success)
+                MessageBox.Show(r.ErrorMessage ?? "生成绑定控件失败", "拖拽绑定", MessageBoxButton.OK, MessageBoxImage.Warning);
+            e.Handled = true;
         }
         #endregion
 
@@ -1144,9 +1272,7 @@ namespace NavigatorHMI.Views
                 TreeContextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Absolute;
                 TreeContextMenu.HorizontalOffset = mousePos.X;
                 TreeContextMenu.VerticalOffset = mousePos.Y;
-                _contextMenuPos = e.GetPosition(DrawingCanvas);
-                _contextMenuPos.X /= _zoomLevel;
-                _contextMenuPos.Y /= _zoomLevel;
+                _contextMenuPos = e.GetPosition(DrawingCanvas);   // 逻辑坐标（LayoutTransform 逆变换），禁除缩放（双重除 bug）
                 UpdateCanvasMenuButtons();
                 TreeContextMenu.IsOpen = true;
                 e.Handled = true;
