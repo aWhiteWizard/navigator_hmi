@@ -92,6 +92,10 @@ namespace NavigatorHMI.Views
         private readonly PropertyViewModel _propertyViewModel;
         /// <summary>属性面板 ViewModel（供 XAML 绑定）。</summary>
         public PropertyViewModel PropertyVM => _propertyViewModel;
+        // 变量管理器面板
+        private readonly VariableManagerViewModel _variableManagerVM;
+        /// <summary>变量管理器 ViewModel（供 XAML 绑定）。</summary>
+        public VariableManagerViewModel VariableManagerVM => _variableManagerVM;
         #endregion
 
         #region 构造函数 & 初始化
@@ -166,6 +170,11 @@ namespace NavigatorHMI.Views
             // 选中变化（单选/多选/清空）→ 同步属性面板多选状态
             _selectionManager.SelectionChanged += SyncSelectionToPropertyPanel;
 
+            // 11. 初始化变量管理器面板（新建/编辑/删除走 CommandService）
+            _variableManagerVM = new VariableManagerViewModel(_currentProject, _viewModel.CommandService);
+            _variableManagerVM.TagEditRequested += OnTagEditRequested;
+            _variableManagerVM.TagDeleteRequested += OnTagDeleteRequested;
+
             LoadCanvas(_viewModel.CurrentScreen);
 
             _isProjectDirty = false;
@@ -182,6 +191,65 @@ namespace NavigatorHMI.Views
             // 10. 初始化属性窗口
             _selectionManager.WidgetSelected += OnWidgetSelected;
         }
+
+        #region 变量管理器
+        /// <summary>变量新建/编辑：对话框收集 → CommandService 落库（GUI/CLI/AI 同一路径）。</summary>
+        private void OnTagEditRequested(Tag? tag)
+        {
+            var dlg = new TagEditDialog(tag, _currentProject) { Owner = this };
+            if (dlg.ShowDialog() != true) return;
+            var result = dlg.Result;
+            if (tag == null)
+            {
+                var r = _viewModel.CommandService.Execute("create_tag", new Dictionary<string, object?>
+                {
+                    ["name"] = result.Name,
+                    ["data_type"] = result.DataType.ToString(),
+                    ["source"] = result.Source,
+                    ["unit"] = result.Unit,
+                    ["scan_interval"] = result.ScanIntervalMs,
+                    ["deadband"] = result.Deadband,
+                    ["description"] = result.Description,
+                });
+                if (!r.Success) MessageBox.Show(r.ErrorMessage ?? "创建变量失败", "变量管理器", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            else
+            {
+                // 只提交变化的字段（避免空操作）；重命名由 update_tag 级联同步控件/报警引用
+                var p = new Dictionary<string, object?> { ["name"] = tag.Name };
+                if (result.Name != tag.Name) p["new_name"] = result.Name;
+                if (result.DataType != tag.DataType) p["data_type"] = result.DataType.ToString();
+                if (result.Source != tag.Source) p["source"] = result.Source;
+                if (result.Unit != tag.Unit) p["unit"] = result.Unit;
+                if (result.ScanIntervalMs != tag.ScanIntervalMs) p["scan_interval"] = result.ScanIntervalMs;
+                if (result.Deadband != tag.Deadband) p["deadband"] = result.Deadband;
+                if (result.Description != tag.Description) p["description"] = result.Description;
+                if (p.Count > 1)
+                {
+                    var r = _viewModel.CommandService.Execute("update_tag", p);
+                    if (!r.Success) MessageBox.Show(r.ErrorMessage ?? "更新变量失败", "变量管理器", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+        }
+
+        /// <summary>变量删除：确认 → CommandService（delete_tag 自带引用保护）。</summary>
+        private void OnTagDeleteRequested(Tag tag)
+        {
+            var confirm = MessageBox.Show($"确定删除变量 \"{tag.Name}\" 吗？", "删除变量",
+                MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (confirm != MessageBoxResult.Yes) return;
+            var r = _viewModel.CommandService.Execute("delete_tag", new Dictionary<string, object?> { ["name"] = tag.Name });
+            if (!r.Success)
+                MessageBox.Show(r.ErrorMessage ?? "删除失败", "变量管理器", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+
+        /// <summary>双击变量行 → 编辑。</summary>
+        private void TagGrid_DoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (_variableManagerVM.SelectedTag != null)
+                _variableManagerVM.EditTagCommand.Execute(null);
+        }
+        #endregion
 
         /// <summary>
         /// 判断 child 是否是 parent 的视觉子树后代。

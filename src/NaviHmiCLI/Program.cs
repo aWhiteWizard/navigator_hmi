@@ -100,6 +100,10 @@ public static class Program
 
             // 变量
             "create-tag"     => Cmd("create_tag", Require("name"), Require("type", "data_type"), Require("source"), Opt("unit"), OptMap("scan-interval", "scan_interval", "100"), Opt("deadband", "0"), Opt("description")),
+            "update-tag"     => Cmd("update_tag", Require("name"),
+                                    OptIfProvided("new-name", "new_name"), OptIfProvided("type", "data_type"), OptIfProvided("source"), OptIfProvided("unit"),
+                                    OptIfProvided("scan-interval", "scan_interval"), OptIfProvided("deadband"), OptIfProvided("description")),
+            "delete-tag"     => Cmd("delete_tag", Require("name")),
             "bind-tag"       => Cmd("bind_tag", Require("screen", "screen_name"), Require("widget", "widget_name"), Require("tag", "tag_name")),
 
             // 剪贴板
@@ -180,8 +184,21 @@ public static class Program
         var parameters = new Dictionary<string, object?>();
         foreach (var d in defs)
         {
-            var val = d.Required ? RequireVal(d.CliKey) : OptVal(d.CliKey, d.Default ?? "");
-            parameters[d.CmdKey] = val;
+            if (d.Required)
+            {
+                parameters[d.CmdKey] = RequireVal(d.CliKey);
+            }
+            else if (d.Default != null)
+            {
+                // 有默认值：未提供时写入默认值（与 handler 的 GetValueOrDefault 兜底一致）
+                parameters[d.CmdKey] = OptVal(d.CliKey, d.Default);
+            }
+            else if (_opts.TryGetValue(d.CliKey, out var raw) && !string.IsNullOrWhiteSpace(raw))
+            {
+                // 无默认值（OptIfProvided）：仅显式提供才写入，未提供不进字典
+                // → handler 的 TryGetValue 跳过，保留模型现值（防 update_tag 误清空 unit/description）
+                parameters[d.CmdKey] = OptVal(d.CliKey);
+            }
         }
         var exitCode = Execute(service, commandName, parameters);
         if (exitCode == 0) AutoSave(project);
@@ -315,11 +332,14 @@ public static class Program
     {
         public static ParamDef Require(string key, string? cmdKey = null) => new(key, cmdKey ?? key, true, null);
         public static ParamDef Opt(string key, string defaultValue, string? cmdKey = null) => new(key, cmdKey ?? key, false, defaultValue);
+        /// <summary>可选参数（无默认值）：未提供时不进参数字典，handler 保留模型现值。</summary>
+        public static ParamDef OptIfProvided(string key, string? cmdKey = null) => new(key, cmdKey ?? key, false, null);
     }
 
     private static ParamDef Require(string cliKey, string? cmdKey = null) => ParamDef.Require(cliKey, cmdKey);
     private static ParamDef Opt(string cliKey, string defaultValue = "") => ParamDef.Opt(cliKey, defaultValue);
     private static ParamDef OptMap(string cliKey, string cmdKey, string defaultValue) => ParamDef.Opt(cliKey, defaultValue, cmdKey);
+    private static ParamDef OptIfProvided(string cliKey, string? cmdKey = null) => ParamDef.OptIfProvided(cliKey, cmdKey);
 
     /// <summary>
     /// 加载工程文件。优先级: --project 参数 > 当前目录 *.hmiproj。
@@ -450,7 +470,7 @@ public static class Program
   层级: bring-to-front, bring-forward, send-backward, send-to-back
   布局: align, array
   事件: bind-event
-  变量: create-tag, bind-tag
+  变量: create-tag, update-tag, delete-tag, bind-tag
   报警: create-alarm
   设备: configure-device, connect, scan, deploy-project, deploy-firmware
 
@@ -522,6 +542,8 @@ set-property 属性键 (--screen <画面> --widget <控件> --key <键> --value 
 
 变量命令:
   create-tag             --name <name> --type <BOOL|INT16|FLOAT|...> --source <uri> [--unit <u>] [--scan-interval <ms>]
+  update-tag             --name <name> [--new-name <name>] [--type <...>] [--source <uri>] [--unit <u>] [--scan-interval <ms>] [--deadband <n>] [--description <text>]  重命名自动同步控件/报警引用
+  delete-tag             --name <name>   被控件/报警引用时拒绝
   bind-tag               --screen <name> --widget <name> --tag <name>
 
 剪贴板命令:

@@ -12,6 +12,46 @@
 | `src/editwindow/` | PC 组态软件（WPF，画面编辑器/属性面板/CLI 控制台） |
 | `src/NaviHmiCLI/` | 独立命令行工具（与 GUI 走同一 Command Layer） |
 
+## 画布快捷键
+
+所有快捷键在当前编辑画面生效（焦点在输入框/属性编辑时自动放行，不干扰输入）：
+
+| 快捷键 | 功能 |
+|--------|------|
+| `Ctrl+A` | 全选当前画面所有控件 |
+| `Ctrl+C` | 复制选中控件 |
+| `Ctrl+X` | 剪切选中控件（可粘贴还原） |
+| `Ctrl+V` | 粘贴控件 |
+| `Delete` | 删除选中控件 |
+| `←` `→` `↑` `↓` | 微移选中控件 1px |
+| `Shift` + 方向键 | 微移选中控件 10px |
+| `Ctrl+Z` | 撤销 |
+| `Ctrl+Y` / `Ctrl+Shift+Z` | 重做 |
+| `Ctrl+S` | 保存工程 |
+| `ESC` | 退出添加控件模式 / 取消两点式绘制 |
+
+> 微移细节：连续按方向键只记一次撤销点（不会吃光撤销历史）；无选中时方向键不拦截（TreeView/下拉框导航正常）。
+
+## 画布页面标签
+
+- 画布顶部标签栏显示**已打开的画面**（自定义/全局画面/世界地图），打开才显示，避免画面多时标签过长
+- 点击标签切换画面（项目树 ✅ 高亮同步）；点标签 `✕` 关闭（画面不删除，树中可重新打开）
+
+## 变量管理器
+
+右侧「变量管理器」面板（视图菜单可开关）管理工程全部变量，变量是控件与数据采集的桥梁：
+
+| 能力 | 说明 |
+|------|------|
+| 新建/编辑 | 名称（唯一）/数据类型/来源/单位/采集周期/死区/描述 |
+| 搜索过滤 | 按名称/来源/描述模糊过滤 |
+| 双击编辑 | 双击表格行或点「✏ 编辑」 |
+| 删除保护 | 被控件绑定或报警引用的变量**拒绝删除**并列出引用位置 |
+| 重命名级联 | 改名后自动同步所有引用它的控件/报警，引用不悬空 |
+
+数据类型：BOOL / INT16 / UINT16 / INT32 / FLOAT / STRING；来源格式：`modbus://{从站}/{寄存器地址}` 或 `mqtt://{主题}`。
+CLI 命令对应：`create-tag` / `update-tag` / `delete-tag` / `bind-tag`。
+
 ## CLI 使用指南
 
 所有操作（GUI / CLI / AI Agent）走**同一 Command Layer**，命令格式统一。
@@ -20,9 +60,9 @@
 
 主界面**底部**的「CLI 控制台」面板（黑色区域，`>` 提示符）：
 
-1. 在 `>` 后的输入框直接输入命令，**回车执行**
-2. 输出显示在上方区域（白色=成功，红色=错误，灰色=列表/帮助）
-3. `↑`/`↓` 键切换命令历史，`help` 或 `?` 查看帮助，`cls` 清屏
+1. 在 `>` 后的输入框直接输入命令，**回车执行**（支持粘贴多行命令批量执行）
+2. 输出显示在上方区域（白色=成功，红色=错误，灰色=列表/帮助），自动滚动到底部
+3. `↑`/`↓` 键切换命令历史，`Shift+Enter` 换行继续编辑，`help` 或 `?` 查看帮助，`cls` 清屏
 
 **常用命令**（与独立 CLI 格式一致，`--key value`）：
 
@@ -38,6 +78,10 @@ array --screen 测试页 --widgets button_1,button_2,button_3 --mode rect \
 array --screen 测试页 --widgets button_1,button_2,button_3 --mode circle \
   --center-x 400 --center-y 240 --radius 150 --start-angle 0 --end-angle 360
 
+# 画面复制/粘贴
+copy-screen --name 主控页
+paste-screen                              # 生成 主控页_副本
+
 ls                                       列出所有画面（ls=list-screens 简写）
 b                                        编译工程（b=compile 简写）
 save                                     保存工程
@@ -45,7 +89,7 @@ save                                     保存工程
 
 **简写对照**：`cs`=create-screen，`ds`=delete-screen，`aw`=add-widget，`ct`=create-tag，`ls`=list-screens，`b`=compile，`save`=save-project
 
-> GUI 内 CLI 与独立 CLI 共享同一 Command Layer：常用命令（create-screen/add-widget/create-tag/align/array/scan/connect/create-alarm/compile/save 等）有显式路由，其余命令走通用路由（命令名 `-` 转 `_`，参数键经 MapCliKey 映射）。两个入口的 26 个命令均可执行；`bind-event` 的 `--params` 需字典参数，GUI 面板暂不支持（请用独立 CLI）。
+> GUI 内 CLI 与独立 CLI 共享同一 Command Layer（32 个命令）：常用命令有显式路由，其余走通用路由（命令名 `-` 转 `_`，参数键经 MapCliKey 映射）。`bind-event` 的 `--params` 需字典参数，GUI 面板暂不支持（请用独立 CLI）。
 
 ### 方式二：独立 CLI 工具（脚本/CI 用）
 
@@ -59,7 +103,7 @@ navihmi.exe --project ./demo.hmiproj align --screen 测试页 --widgets button_1
 dotnet src/NaviHmiCLI/bin/Release/net8.0/navihmi.dll create-project --name demo --path .
 ```
 
-完整命令参考见 [`src/NaviHmiCLI/README.md`](src/NaviHmiCLI/README.md)（26 个命令：工程/画面/控件/层级/布局/事件/变量/报警/设备）。
+完整命令参考见 [`src/NaviHmiCLI/README.md`](src/NaviHmiCLI/README.md)（32 个命令：工程/画面/控件/层级/布局/剪贴板/事件/变量/报警/设备/默认字体）。
 
 ## 构建
 

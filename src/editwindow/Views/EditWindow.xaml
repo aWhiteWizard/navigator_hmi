@@ -705,6 +705,8 @@
                           Click="ToggleAnchorable_Click" Tag="toolbox"/>
                 <MenuItem Header="属性窗口" IsCheckable="True" IsChecked="True"
                           Click="ToggleAnchorable_Click" Tag="property"/>
+                <MenuItem Header="变量管理器" IsCheckable="True" IsChecked="True"
+                          Click="ToggleAnchorable_Click" Tag="variables"/>
                 <MenuItem Header="CLI 控制台" IsCheckable="True" IsChecked="True"
                           Click="ToggleAnchorable_Click" Tag="cli"/>
                 <Separator/>
@@ -997,6 +999,47 @@
                                             </Style></ContentControl.Style></ContentControl>
                                         </StackPanel>
                                     </ScrollViewer>
+                                </Grid>
+                            </avalon:LayoutAnchorable>
+
+                            <!-- 变量管理器面板：新建/编辑/删除/搜索 + 变量表格（全部走 CommandService） -->
+                            <avalon:LayoutAnchorable Title="变量管理器" ContentId="variables">
+                                <Grid Margin="4" DataContext="{Binding VariableManagerVM, RelativeSource={RelativeSource AncestorType=Window}}">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
+                                        <Button Content="＋ 新建" Command="{Binding NewTagCommand}" Width="64" Height="26" Margin="0,0,4,0" ToolTip="新建变量"/>
+                                        <Button Content="✏ 编辑" Command="{Binding EditTagCommand}" Width="56" Height="26" Margin="0,0,4,0" ToolTip="编辑选中变量（或双击行）"/>
+                                        <Button Content="🗑 删除" Command="{Binding DeleteTagCommand}" Width="56" Height="26" ToolTip="删除选中变量（被引用时拒绝）"/>
+                                    </StackPanel>
+                                    <DockPanel Grid.Row="1" Margin="0,0,0,4">
+                                        <TextBlock DockPanel.Dock="Left" Text="搜索:" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="12"/>
+                                        <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" FontSize="12" VerticalContentAlignment="Center"/>
+                                    </DockPanel>
+                                    <DataGrid Grid.Row="2" ItemsSource="{Binding Tags}" SelectedItem="{Binding SelectedTag}"
+                                              AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="True"
+                                              HeadersVisibility="Column" IsReadOnly="True" MouseDoubleClick="TagGrid_DoubleClick"
+                                              SelectionMode="Single" GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12"
+                                              RowHeight="26">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="名称" Binding="{Binding Name}" Width="*"/>
+                                            <DataGridTextColumn Header="类型" Binding="{Binding DataType}" Width="55"/>
+                                            <DataGridTextColumn Header="来源" Binding="{Binding Source}" Width="*"/>
+                                            <DataGridTextColumn Header="单位" Binding="{Binding Unit}" Width="42"/>
+                                            <DataGridTextColumn Header="周期" Binding="{Binding ScanIntervalMs}" Width="48"/>
+                                        </DataGrid.Columns>
+                                        <DataGrid.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="＋ 新建变量" Command="{Binding NewTagCommand}"/>
+                                                <MenuItem Header="✏ 编辑变量" Command="{Binding EditTagCommand}"/>
+                                                <Separator/>
+                                                <MenuItem Header="🗑 删除变量" Command="{Binding DeleteTagCommand}"/>
+                                            </ContextMenu>
+                                        </DataGrid.ContextMenu>
+                                    </DataGrid>
                                 </Grid>
                             </avalon:LayoutAnchorable>
                         </avalon:LayoutAnchorablePane>

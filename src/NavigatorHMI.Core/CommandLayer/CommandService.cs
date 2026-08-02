@@ -80,6 +80,8 @@ namespace NavigatorHMI.CommandLayer
 
                 // ── 变量操作 ──
                 ["create_tag"]      = new CreateTagHandler(),
+                ["update_tag"]      = new UpdateTagHandler(),
+                ["delete_tag"]      = new DeleteTagHandler(),
                 ["bind_tag"]        = new BindTagHandler(),
 
                 // ── 报警操作 ──
