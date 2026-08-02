@@ -123,70 +123,67 @@ namespace NavigatorHMI.Common
             return new Size(w, h);
         }
 
-private void Thumb_DragDelta(object sender, DragDeltaEventArgs e)
+        private void Thumb_DragDelta(object sender, DragDeltaEventArgs e)
         {
             var thumb = sender as Thumb;
             var dir = (ResizeDirection)thumb!.Tag;
-            double newX = _widget.X;
-            double newY = _widget.Y;
-            double newW = _widget.Width;
-            double newH = _widget.Height;
+            double oldX = _widget.X, oldY = _widget.Y;
+            double oldW = _widget.Width, oldH = _widget.Height;
+            double newX = oldX, newY = oldY, newW = oldW, newH = oldH;
 
+            // 先按拖拽增量计算目标尺寸（含最小尺寸钳制），再按“锚点不动”重算位置：
+            // 对角/对边锚定，尺寸钳到最小 20 时控件不会被拖走（旧逻辑先移位置再钳尺寸导致漂移）
             switch (dir)
             {
-                case ResizeDirection.TopLeft:
-                    newW -= e.HorizontalChange;
-                    newH -= e.VerticalChange;
-                    newX += e.HorizontalChange;
-                    newY += e.VerticalChange;
+                case ResizeDirection.TopLeft: // 右下角固定
+                    newW = Math.Max(20, oldW - e.HorizontalChange);
+                    newH = Math.Max(20, oldH - e.VerticalChange);
+                    newX = oldX + oldW - newW;
+                    newY = oldY + oldH - newH;
                     break;
-                case ResizeDirection.Top:
-                    newH -= e.VerticalChange;
-                    newY += e.VerticalChange;
+                case ResizeDirection.Top: // 底边固定
+                    newH = Math.Max(20, oldH - e.VerticalChange);
+                    newY = oldY + oldH - newH;
                     break;
-                case ResizeDirection.TopRight:
-                    newW += e.HorizontalChange;
-                    newH -= e.VerticalChange;
-                    newY += e.VerticalChange;
+                case ResizeDirection.TopRight: // 左下角固定
+                    newW = Math.Max(20, oldW + e.HorizontalChange);
+                    newH = Math.Max(20, oldH - e.VerticalChange);
+                    newY = oldY + oldH - newH;
                     break;
-                case ResizeDirection.Left:
-                    newW -= e.HorizontalChange;
-                    newX += e.HorizontalChange;
+                case ResizeDirection.Left: // 右边固定
+                    newW = Math.Max(20, oldW - e.HorizontalChange);
+                    newX = oldX + oldW - newW;
                     break;
-                case ResizeDirection.Right:
-                    newW += e.HorizontalChange;
+                case ResizeDirection.Right: // 左边固定
+                    newW = Math.Max(20, oldW + e.HorizontalChange);
                     break;
-                case ResizeDirection.BottomLeft:
-                    newW -= e.HorizontalChange;
-                    newH += e.VerticalChange;
-                    newX += e.HorizontalChange;
+                case ResizeDirection.BottomLeft: // 右上角固定
+                    newW = Math.Max(20, oldW - e.HorizontalChange);
+                    newH = Math.Max(20, oldH + e.VerticalChange);
+                    newX = oldX + oldW - newW;
                     break;
-                case ResizeDirection.Bottom:
-                    newH += e.VerticalChange;
+                case ResizeDirection.Bottom: // 顶边固定
+                    newH = Math.Max(20, oldH + e.VerticalChange);
                     break;
-                case ResizeDirection.BottomRight:
-                    newW += e.HorizontalChange;
-                    newH += e.VerticalChange;
+                case ResizeDirection.BottomRight: // 左上角固定
+                    newW = Math.Max(20, oldW + e.HorizontalChange);
+                    newH = Math.Max(20, oldH + e.VerticalChange);
                     break;
             }
-
-            // 限制最小尺寸
-            newW = Math.Max(20, newW);
-            newH = Math.Max(20, newH);
 
             // 类型特化处理
             if (_widget is LineWidget line)
             {
                 // Line: X2/Y2 跟随边界框增量同步（保持视觉效果一致）
-                line.X2 += (newW - _widget.Width);
-                line.Y2 += (newH - _widget.Height);
+                line.X2 += (newW - oldW);
+                line.Y2 += (newH - oldH);
             }
             else if (_widget is CircleWidget)
             {
                 // 圆形控件：所有方向拖拽都保持 1:1 正圆（中心锚定，手感一致）
                 // 椭圆由独立 EllipseWidget 支持（可自由宽高）
-                double centerX = _widget.X + _widget.Width / 2;
-                double centerY = _widget.Y + _widget.Height / 2;
+                double centerX = oldX + oldW / 2;
+                double centerY = oldY + oldH / 2;
                 // 按手柄方向取变化维（Top/Bottom → 高度、Left/Right → 宽度、角 → 取大），边拖拽向内缩小也生效
                 double size = dir switch
                 {

@@ -880,10 +880,13 @@
                                             <Path x:Name="DrawPreviewShape" Stroke="#1E90FF" StrokeThickness="1.5" Fill="#301E90FF"
                                                   Visibility="Collapsed" IsHitTestVisible="False" Panel.ZIndex="1002"/>
                                             <!-- 阵列辅助线预览（虚线示意落位，不移动控件） -->
-                                            <Path x:Name="ArrayGuideShape" Stroke="#FF8C00" StrokeThickness="1.2" Fill="#20FF8C00"
-                                                  StrokeDashArray="4,3" Visibility="Collapsed" IsHitTestVisible="False" Panel.ZIndex="1003"/>
-                                            <TextBlock Text="{Binding CurrentScreen.Widgets.Count, StringFormat='Widgets: {0}'}"
-                                                       Canvas.Left="10" Canvas.Top="10" Foreground="Black" Background="White" FontSize="14" FontWeight="Bold" Panel.ZIndex="1004"/>
+                                            <Path x:Name="ArrayGuideShape" Stroke="#FF7F00" StrokeThickness="2" Fill="#20FF7F00"
+                                                  StrokeDashArray="5,3" Visibility="Collapsed" IsHitTestVisible="False" Panel.ZIndex="1003"/>
+                                            <!-- 阵列落点中心圆点（实心高不透明，独立层避免 GeometryGroup EvenOdd 挖空） -->
+                                            <Path x:Name="ArrayGuideDotShape" Fill="#FFFF7F00" Stroke="#FFFF7F00" StrokeThickness="1"
+                                                  Visibility="Collapsed" IsHitTestVisible="False" Panel.ZIndex="1004"/>
+                                            <TextBlock x:Name="WidgetCountText" Text="{Binding CurrentScreen.Widgets.Count, StringFormat='Widgets: {0}'}"
+                                                       Canvas.Left="10" Canvas.Top="10" Foreground="Black" Background="White" FontSize="14" FontWeight="Bold" IsHitTestVisible="False" Panel.ZIndex="1005"/>
                                         </Canvas>
                                     </ScrollViewer>
                                     <!-- 缩放比例 -->
