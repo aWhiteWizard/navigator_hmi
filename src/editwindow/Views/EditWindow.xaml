@@ -882,8 +882,8 @@
                                             <!-- 阵列辅助线预览（虚线示意落位，不移动控件） -->
                                             <Path x:Name="ArrayGuideShape" Stroke="#FF7F00" StrokeThickness="2" Fill="#20FF7F00"
                                                   StrokeDashArray="5,3" Visibility="Collapsed" IsHitTestVisible="False" Panel.ZIndex="1003"/>
-                                            <!-- 阵列落点中心圆点（实心高不透明，独立层避免 GeometryGroup EvenOdd 挖空） -->
-                                            <Path x:Name="ArrayGuideDotShape" Fill="#FFFF7F00" Stroke="#FFFF7F00" StrokeThickness="1"
+                                            <!-- 阵列落点标记：蓝色空心方块 + 序号数字（自绘覆盖层） -->
+                                            <ctrl:ArrayGuideOverlay x:Name="ArrayGuideOverlay"
                                                   Visibility="Collapsed" IsHitTestVisible="False" Panel.ZIndex="1004"/>
                                         </Canvas>
                                     </ScrollViewer>

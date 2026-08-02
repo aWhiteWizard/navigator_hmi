@@ -444,13 +444,13 @@ namespace NavigatorHMI.Views
             ArrayGuideShape.Visibility = Visibility.Collapsed;
             ArrayGuideShape.Data = null;
 
-            // 重挂载阵列落点圆点层（独立 Path，避免与虚线层合并导致 EvenOdd 挖空）
-            DrawingCanvas.Children.Remove(ArrayGuideDotShape);
-            if (!DrawingCanvas.Children.Contains(ArrayGuideDotShape))
-                DrawingCanvas.Children.Add(ArrayGuideDotShape);
-            Panel.SetZIndex(ArrayGuideDotShape, 1004);
-            ArrayGuideDotShape.Visibility = Visibility.Collapsed;
-            ArrayGuideDotShape.Data = null;
+            // 重挂载阵列落点标记层（自绘覆盖层，同样被 Children.Clear 清掉）
+            DrawingCanvas.Children.Remove(ArrayGuideOverlay);
+            if (!DrawingCanvas.Children.Contains(ArrayGuideOverlay))
+                DrawingCanvas.Children.Add(ArrayGuideOverlay);
+            Panel.SetZIndex(ArrayGuideOverlay, 1004);
+            ArrayGuideOverlay.Visibility = Visibility.Collapsed;
+            ArrayGuideOverlay.ClearMarks();
 
             var vm = this.DataContext as EditWindowViewModel;
             itemsControl.Width = screen.Width > 0 ? screen.Width : (vm?.DeviceWidth ?? 800);
@@ -1271,7 +1271,7 @@ namespace NavigatorHMI.Views
             double centerX, double centerY, double radius, double startAngle, double endAngle,
             double maxW, double maxH)
         {
-            if (ArrayGuideShape == null || ArrayGuideDotShape == null) return;
+            if (ArrayGuideShape == null || ArrayGuideOverlay == null) return;
             var positions = CalcPositions(isCircle, count, cols, rows, startX, startY, sx, sy,
                 centerX, centerY, radius, startAngle, endAngle, maxW, maxH);
             if (positions.Count == 0) { ClearArrayGuide(); return; }
@@ -1321,25 +1321,12 @@ namespace NavigatorHMI.Views
             ArrayGuideShape.Data = group;
             ArrayGuideShape.Visibility = Visibility.Visible;
 
-            // 落点中心标记层（独立 Path 避免 EvenOdd 挖空）：
-            // 中心基准：CalcPositions 返回的中心点即网格线交点（点落在虚线上）；
-            // 圆点直接画在 p（中心点），与落位（p - 半尺寸）中心一致
-            var dotGroup = new System.Windows.Media.GeometryGroup { FillRule = System.Windows.Media.FillRule.Nonzero };
-            var boxGroup = new System.Windows.Media.GeometryGroup();
-            for (int i = 0; i < positions.Count; i++)
+            // 落点标记层（自绘覆盖层）：蓝色空心方块 + 序号数字，中心 = CalcPositions 返回的中心点（网格线交点）
+            if (ArrayGuideOverlay != null)
             {
-                var p = positions[i];
-                // 中心小圆点（半径 5，实心高不透明）画在中心点（网格线交点）
-                dotGroup.Children.Add(new System.Windows.Media.EllipseGeometry(p, 5, 5));
-                // 外圈小方框（10×10 中心对齐，虚线描边示意）
-                boxGroup.Children.Add(new System.Windows.Media.RectangleGeometry(new Rect(p.X - 5, p.Y - 5, 10, 10)));
+                ArrayGuideOverlay.SetMarks(positions);
+                ArrayGuideOverlay.Visibility = Visibility.Visible;
             }
-            ArrayGuideDotShape.Data = dotGroup;
-            ArrayGuideDotShape.Visibility = Visibility.Visible;
-            // 外圈方框并入虚线层（与网格/弧线同 Stroke，虚线描边）
-            foreach (var child in boxGroup.Children)
-                group.Children.Add(child);
-            ArrayGuideShape.Data = group;
         }
 
         /// <summary>清除阵列辅助线。</summary>
@@ -1350,10 +1337,10 @@ namespace NavigatorHMI.Views
                 ArrayGuideShape.Data = null;
                 ArrayGuideShape.Visibility = Visibility.Collapsed;
             }
-            if (ArrayGuideDotShape != null)
+            if (ArrayGuideOverlay != null)
             {
-                ArrayGuideDotShape.Data = null;
-                ArrayGuideDotShape.Visibility = Visibility.Collapsed;
+                ArrayGuideOverlay.ClearMarks();
+                ArrayGuideOverlay.Visibility = Visibility.Collapsed;
             }
         }
 
