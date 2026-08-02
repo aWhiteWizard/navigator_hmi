@@ -1169,6 +1169,20 @@ namespace NavigatorHMI.Views
         }
 
         /// <summary>
+        /// 项目树空白处右键：弹粘贴画面菜单（粘贴到自定义画面下）。
+        /// 节点右键已在 ItemContainerStyle 的 MouseRightButtonDown 处理（Handled=true），此事件仅在空白处触发。
+        /// </summary>
+        private void ProjectTree_RightClick(object sender, MouseButtonEventArgs e)
+        {
+            // 已由节点处理器处理（Handled=true）则不重复弹菜单
+            if (e.Handled) return;
+            // 粘贴按钮：剪贴板为空时禁用
+            if (ScreenPasteBtn != null)
+                ScreenPasteBtn.IsEnabled = ScreenClipboard.GetItems() != null;
+            _treeContextMenuHandler.OnTreeViewItemRightClick(sender, e);
+        }
+
+        /// <summary>
         /// 树节点右键菜单「删除画面」点击。
         /// 委托给 <see cref="TreeViewContextMenuHandler.OnDeleteScreenClick"/>。
         /// </summary>

@@ -56,7 +56,21 @@ namespace NavigatorHMI.Views.Helpers
         {
             var source = e.OriginalSource as DependencyObject;
             var item = FindVisualParent<TreeViewItem>(source);
-            if (item == null) return;
+
+            // 空白处右键（item==null）：视为根节点场景，弹粘贴菜单（粘贴到自定义画面下）
+            if (item == null)
+            {
+                // 滚动条等非内容区域右键不弹菜单（FindVisualParent<ScrollBar> 命中则忽略）
+                if (FindVisualParent<System.Windows.Controls.Primitives.ScrollBar>(source) != null)
+                {
+                    e.Handled = true;
+                    return;
+                }
+                _rightClickedTreeNode = null;
+                ShowTreeMenu(e, showPasteOnly: true);
+                e.Handled = true;
+                return;
+            }
 
             item.IsSelected = true;
 

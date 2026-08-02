@@ -797,7 +797,7 @@
                         <!-- 左侧: 项目树 + 控件面板 -->
                         <avalon:LayoutAnchorablePane DockWidth="200">
                             <avalon:LayoutAnchorable Title="项目窗口" ContentId="project">
-                                <TreeView x:Name="ProjectTreeView" ItemsSource="{Binding TreeRoots}">
+                                <TreeView x:Name="ProjectTreeView" ItemsSource="{Binding TreeRoots}" MouseRightButtonDown="ProjectTree_RightClick" Background="Transparent">
                                     <TreeView.Resources>
                                         <HierarchicalDataTemplate DataType="{x:Type vm:ScreenItemNode}" ItemsSource="{Binding Children}">
                                             <Grid>
