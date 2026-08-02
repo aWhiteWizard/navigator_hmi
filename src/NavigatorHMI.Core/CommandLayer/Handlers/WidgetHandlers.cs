@@ -120,6 +120,18 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 if (!bool.TryParse(value, out _))
                     return CommandResult.Fail("INVALID_VALUE", $"属性 {key} 需要 true/false，收到: \"{value}\"");
             }
+            // 枚举型 key 统一预校验（合法值与 GUI 属性面板 ComboBox 一致）
+            if (key is "fontWeight" or "fontStyle" or "textDecoration" or "hAlign" or "stretchMode" or "fillStyle")
+            {
+                if (!IsValidEnum(key, value))
+                    return CommandResult.Fail("INVALID_VALUE", $"属性 {key} 取值无效: \"{value}\"（合法值: {EnumOptions(key)}）");
+            }
+            // 颜色型 key 统一预校验（与渲染端 ColorStringToBrushConverter 同规则：BrushConverter 可解析）
+            if (key is "textColor" or "fillColor" or "strokeColor")
+            {
+                if (!IsValidColor(value))
+                    return CommandResult.Fail("INVALID_VALUE", $"属性 {key} 需要颜色值（#RRGGBB / #AARRGGBB / 命名色如 Red），收到: \"{value}\"");
+            }
             switch (widget)
             {
                 case ButtonWidget btn when key == "text": btn.Text = value; break;
@@ -222,6 +234,69 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 default: return CommandResult.Fail("UNKNOWN_PROPERTY", $"不支持属性: {key}");
             }
             return CommandResult.Ok();
+        }
+
+        /// <summary>枚举型属性合法值（单一数据源，校验与提示共用；与 GUI ComboBox 精确值一致）。</summary>
+        private static readonly System.Collections.Generic.IReadOnlyDictionary<string, string[]> _enumOptions =
+            new System.Collections.Generic.Dictionary<string, string[]>
+            {
+                ["fontWeight"] = new[] { "Normal", "Bold" },
+                ["fontStyle"] = new[] { "Normal", "Italic" },
+                ["textDecoration"] = new[] { "None", "Underline" },
+                ["hAlign"] = new[] { "Left", "Center", "Right" },
+                ["stretchMode"] = new[] { "None", "Fill", "Uniform", "UniformToFill" },
+                ["fillStyle"] = new[] { "Solid", "Diagonal", "Grid" },
+            };
+
+        /// <summary>校验枚举型属性值（大小写敏感，与 GUI 属性面板 ComboBox 精确值一致——保证 GUI 下拉回显；
+        /// 渲染端除 hAlign 转换器精确匹配外，fontWeight/fontStyle 等走 WPF 原生转换器大小写宽容，
+        /// 但保守拒绝小写可避免 GUI 下拉选中丢失）。</summary>
+        private static bool IsValidEnum(string key, string value)
+            => _enumOptions.TryGetValue(key, out var allowed) && allowed.Contains(value);
+
+        /// <summary>枚举型属性的合法值列表（错误提示用）。</summary>
+        private static string EnumOptions(string key)
+            => _enumOptions.TryGetValue(key, out var allowed) ? string.Join(", ", allowed) : "";
+
+        /// <summary>
+        /// 校验颜色值（纯字符串校验，Core 层无 WPF 依赖）：
+        /// 支持 #RGB / #RRGGBB / #ARGB / #AARRGGBB / 命名色（BrushConverter 常用子集）；
+        /// 空串 = 透明（与渲染端 ColorStringToBrushConverter / ColorPickerControl 语义一致）；
+        /// 拒绝 0x 前缀、其他非法格式。
+        /// </summary>
+        private static readonly System.Collections.Generic.HashSet<string> _namedColors = new(System.StringComparer.OrdinalIgnoreCase)
+        {
+            // BrushConverter 命名色常用子集（完整集 ~141 个，此处收录常用；缺失项 CLI 提示改用 #RRGGBB）
+            "Red", "Green", "Blue", "Yellow", "Black", "White", "Gray", "Grey", "Orange", "Pink",
+            "Purple", "Brown", "Cyan", "Magenta", "Lime", "Navy", "Teal", "Silver", "Gold", "Beige",
+            "Transparent", "LightBlue", "LightGray", "LightGrey", "DarkGray", "DarkGrey", "DarkRed",
+            "DarkGreen", "DarkBlue", "LightGreen", "LightYellow", "LightCyan", "LightPink", "LightSalmon",
+            "SkyBlue", "RoyalBlue", "SteelBlue", "DodgerBlue", "ForestGreen", "SeaGreen", "OrangeRed",
+            "Tomato", "Coral", "Chocolate", "SaddleBrown", "Olive", "Khaki", "Lavender", "Ivory", "MintCream"
+        };
+        private static bool IsValidColor(string value)
+        {
+            if (value == null) return false;
+            var s = value.Trim();
+            // 空串 = 透明（渲染端同语义）
+            if (s.Length == 0) return true;
+            // 显式拒绝 0x/0X 前缀（十六进制数格式，非 CSS 颜色）
+            if (s.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) return false;
+            // 命名色
+            if (_namedColors.Contains(s)) return true;
+            // 十六进制 #RGB / #RRGGBB / #ARGB / #AARRGGBB
+            if (s.StartsWith('#'))
+            {
+                var hex = s[1..];
+                if (hex.Length is 3 or 4 or 6 or 8)
+                {
+                    // 全部字符必须是十六进制数字
+                    foreach (var c in hex)
+                        if (!Uri.IsHexDigit(c)) return false;
+                    return true;
+                }
+            }
+            return false;
         }
     }
 

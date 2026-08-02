@@ -346,6 +346,26 @@ namespace NavigatorHMI.Views
             }
         }
 
+        /// <summary>
+        /// 数值输入框字符过滤：整体 TryParse 校验（防多小数点/逗号/非法字符）。
+        /// 允许负数前缀态（"-"/"."/"-."）——逐字符输入时中间态，失焦时绑定兜底校验。
+        /// 粘贴/IME 等非单字符输入走 PreviewTextInput 统一拦截。
+        /// </summary>
+        private void PropNumberBox_PreviewTextInput(object sender, System.Windows.Input.TextCompositionEventArgs e)
+        {
+            if (sender is not TextBox tb) return;
+            if (tb.IsReadOnly) { e.Handled = true; return; }
+            var input = e.Text;
+            var newText = tb.Text.Remove(tb.SelectionStart, tb.SelectionLength).Insert(tb.SelectionStart, input);
+            // 负数前缀中间态放行（如 "-" / "." / "-."），失焦/回车时绑定校验兜底
+            if (newText is "-" or "." or "-.") { return; }
+            bool valid = double.TryParse(newText, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var d)
+                && double.IsFinite(d)
+                && !input.Contains(',');   // 拒绝逗号小数点 locale 差异
+            e.Handled = !valid;
+        }
+
         /// <summary>菜单「默认字体」：打开工厂默认字体设置对话框。</summary>
         private void FontDefaults_Click(object sender, RoutedEventArgs e)
         {
@@ -1740,7 +1760,15 @@ namespace NavigatorHMI.Views
             Dispatcher.Invoke(() =>
             {
                 CliOutput.AppendText(text + "\n");
-                CliOutput.ScrollToEnd();
+                // 输出更新后自动滚动到新一行：延后到布局完成后（AppendText 只触发 InvalidateMeasure，
+                // 立即 ScrollToEnd 时 ScrollableHeight 还是旧值，连续多行会停在旧底部）
+                Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+                {
+                    if (CliOutputScroller != null)
+                        CliOutputScroller.ScrollToEnd();
+                    else
+                        CliOutput.ScrollToEnd();
+                }));
             });
         }
 

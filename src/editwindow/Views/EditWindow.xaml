@@ -37,6 +37,8 @@
             <Setter Property="Height" Value="22"/><Setter Property="Margin" Value="2"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="FontSize" Value="11"/>
             <Setter Property="TextAlignment" Value="Right"/>
+            <!-- 数值输入过滤：仅允许数字/小数点/负号/编辑键（与 CLI 数值校验同规则） -->
+            <EventSetter Event="PreviewTextInput" Handler="PropNumberBox_PreviewTextInput"/>
             <Style.Triggers><Trigger Property="IsReadOnly" Value="True">
                 <Setter Property="Background" Value="#F0F0F0"/><Setter Property="Foreground" Value="#999999"/><Setter Property="BorderBrush" Value="#D0D0D0"/>
             </Trigger></Style.Triggers>
@@ -157,7 +159,7 @@
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Size:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding ButtonFontSize, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+                <TextBox Grid.Column="1" Text="{Binding ButtonFontSize, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}"/>
                 <Label Grid.Column="2" Content="Bold:" Style="{StaticResource PropLabel}"/>
                 <ComboBox Grid.Column="3" SelectedValue="{Binding ButtonFontWeight, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" Style="{StaticResource PropComboBox}">
                     <ComboBoxItem Content="Normal"/><ComboBoxItem Content="Bold"/>
@@ -191,7 +193,7 @@
             <TextBlock Text="字体" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Size:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding TextFontSize, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+                <TextBox Grid.Column="1" Text="{Binding TextFontSize, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}"/>
                 <Label Grid.Column="2" Content="Weight:" Style="{StaticResource PropLabel}"/>
                 <ComboBox Grid.Column="3" SelectedValue="{Binding TextFontWeight, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" Style="{StaticResource PropComboBox}">
                     <ComboBoxItem Content="Normal"/><ComboBoxItem Content="Bold"/>
@@ -243,7 +245,7 @@
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="FontSize:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding LabelFontSize, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+                <TextBox Grid.Column="1" Text="{Binding LabelFontSize, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}"/>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Color:" Style="{StaticResource PropLabel}"/>
@@ -259,7 +261,7 @@
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Size:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding LabelFontSize, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+                <TextBox Grid.Column="1" Text="{Binding LabelFontSize, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}"/>
                 <Label Grid.Column="2" Content="Bold:" Style="{StaticResource PropLabel}"/>
                 <ComboBox Grid.Column="3" SelectedValue="{Binding LabelFontWeight, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" Style="{StaticResource PropComboBox}">
                     <ComboBoxItem Content="Normal"/><ComboBoxItem Content="Bold"/>
@@ -302,11 +304,11 @@
             <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Value:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding NumericValue, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}" ToolTip="设计态预览值（运行时由变量实时值覆盖）"/>
+                <TextBox Grid.Column="1" Text="{Binding NumericValue, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}" ToolTip="设计态预览值（运行时由变量实时值覆盖）"/>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="FontSize:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding NumericFontSize, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+                <TextBox Grid.Column="1" Text="{Binding NumericFontSize, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}"/>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Color:" Style="{StaticResource PropLabel}"/>
@@ -322,7 +324,7 @@
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Size:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding NumericFontSize, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+                <TextBox Grid.Column="1" Text="{Binding NumericFontSize, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}"/>
                 <Label Grid.Column="2" Content="Bold:" Style="{StaticResource PropLabel}"/>
                 <ComboBox Grid.Column="3" SelectedValue="{Binding NumericFontWeight, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" Style="{StaticResource PropComboBox}">
                     <ComboBoxItem Content="Normal"/><ComboBoxItem Content="Bold"/>
@@ -373,7 +375,7 @@
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Size:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding SwitchFontSize, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+                <TextBox Grid.Column="1" Text="{Binding SwitchFontSize, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}"/>
                 <Label Grid.Column="2" Content="Bold:" Style="{StaticResource PropLabel}"/>
                 <ComboBox Grid.Column="3" SelectedValue="{Binding SwitchFontWeight, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" Style="{StaticResource PropComboBox}">
                     <ComboBoxItem Content="Normal"/><ComboBoxItem Content="Bold"/>
@@ -411,7 +413,7 @@
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="110"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Thickness:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding LineStrokeThickness, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+                <TextBox Grid.Column="1" Text="{Binding LineStrokeThickness, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}"/>
             </Grid></StackPanel></DataTemplate>
 
         <!-- CircleWidget 属性 -->
@@ -431,7 +433,7 @@
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Thickness:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding CircleStrokeThickness, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+                <TextBox Grid.Column="1" Text="{Binding CircleStrokeThickness, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}"/>
             </Grid></StackPanel></DataTemplate>
 <DataTemplate x:Key="PropEllipse"><StackPanel>
             <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
@@ -449,7 +451,7 @@
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Thickness:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding EllipseStrokeThickness, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+                <TextBox Grid.Column="1" Text="{Binding EllipseStrokeThickness, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}"/>
             </Grid></StackPanel></DataTemplate>
 
         <!-- IOFieldWidget 属性 -->
@@ -481,7 +483,7 @@
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Size:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding IOFieldFontSize, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+                <TextBox Grid.Column="1" Text="{Binding IOFieldFontSize, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}"/>
                 <Label Grid.Column="2" Content="Bold:" Style="{StaticResource PropLabel}"/>
                 <ComboBox Grid.Column="3" SelectedValue="{Binding IOFieldFontWeight, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" Style="{StaticResource PropComboBox}">
                     <ComboBoxItem Content="Normal"/><ComboBoxItem Content="Bold"/>
@@ -528,7 +530,7 @@
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Size:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding CheckBoxFontSize, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+                <TextBox Grid.Column="1" Text="{Binding CheckBoxFontSize, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}"/>
                 <Label Grid.Column="2" Content="Bold:" Style="{StaticResource PropLabel}"/>
                 <ComboBox Grid.Column="3" SelectedValue="{Binding CheckBoxFontWeight, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" Style="{StaticResource PropComboBox}">
                     <ComboBoxItem Content="Normal"/><ComboBoxItem Content="Bold"/>
@@ -571,7 +573,7 @@
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Size:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding TextBoxFontSize, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+                <TextBox Grid.Column="1" Text="{Binding TextBoxFontSize, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}"/>
                 <Label Grid.Column="2" Content="Bold:" Style="{StaticResource PropLabel}"/>
                 <ComboBox Grid.Column="3" SelectedValue="{Binding TextBoxFontWeight, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" Style="{StaticResource PropComboBox}">
                     <ComboBoxItem Content="Normal"/><ComboBoxItem Content="Bold"/>
@@ -614,7 +616,7 @@
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Size:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding FrameFontSize, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+                <TextBox Grid.Column="1" Text="{Binding FrameFontSize, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}"/>
                 <Label Grid.Column="2" Content="Bold:" Style="{StaticResource PropLabel}"/>
                 <ComboBox Grid.Column="3" SelectedValue="{Binding FrameFontWeight, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" Style="{StaticResource PropComboBox}">
                     <ComboBoxItem Content="Normal"/><ComboBoxItem Content="Bold"/>
@@ -637,13 +639,13 @@
             <TextBlock Text="参数" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="50"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Value:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding ProgressValue, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+                <TextBox Grid.Column="1" Text="{Binding ProgressValue, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}"/>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="50"/><ColumnDefinition Width="*"/><ColumnDefinition Width="50"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Min:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding ProgressMin, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+                <TextBox Grid.Column="1" Text="{Binding ProgressMin, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}"/>
                 <Label Grid.Column="2" Content="Max:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="3" Text="{Binding ProgressMax, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropNumberBox}"/>
+                <TextBox Grid.Column="3" Text="{Binding ProgressMax, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}"/>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="FillColor:" Style="{StaticResource PropLabel}"/>
