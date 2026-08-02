@@ -1224,6 +1224,8 @@ namespace NavigatorHMI.Views
             var selected = _viewModel.CurrentScreen?.Widgets.Where(w => w.IsSelected).ToList();
             if (selected == null) return;
             foreach (var w in selected) { using var ms = new MemoryStream(); Serializer.Serialize(ms, w); _clipboard.Add(ms.ToArray()); }
+            // 同步写入 CLI 剪贴板（GUI 复制的内容可在 CLI 面板 paste-widget）
+            NavigatorHMI.CommandLayer.Handlers.WidgetClipboard.SetItems(new List<byte[]>(_clipboard));
             WidgetPasteBtn.IsEnabled = _clipboard.Count > 0;
             UpdateCanvasMenuButtons();
         }
@@ -1666,6 +1668,11 @@ namespace NavigatorHMI.Views
                 "create-screen" or "cs" => _viewModel.CommandService.Execute("create_screen",
                     new() { ["name"] = opts.GetValueOrDefault("name", ""), ["type"] = opts.GetValueOrDefault("type", "custom"), ["width"] = opts.GetValueOrDefault("width", ""), ["height"] = opts.GetValueOrDefault("height", "") }),
                 "delete-screen" or "ds" => _viewModel.CommandService.Execute("delete_screen", new() { ["name"] = opts.GetValueOrDefault("name", "") }),
+                "rename-screen" => _viewModel.CommandService.Execute("rename_screen", new() { ["name"] = opts.GetValueOrDefault("name", ""), ["new_name"] = opts.GetValueOrDefault("new-name", "") }),
+                "copy-widget" => _viewModel.CommandService.Execute("copy_widget", new() { ["screen_name"] = opts.GetValueOrDefault("screen", ""), ["widget_name"] = opts.GetValueOrDefault("widget", "") }),
+                "paste-widget" => _viewModel.CommandService.Execute("paste_widget", new() { ["screen_name"] = opts.GetValueOrDefault("screen", ""), ["x"] = opts.GetValueOrDefault("x", ""), ["y"] = opts.GetValueOrDefault("y", "") }),
+                "set-default-font" => _viewModel.CommandService.Execute("set_default_font",
+                    new() { ["font_family"] = opts.GetValueOrDefault("font-family", ""), ["font_size"] = opts.GetValueOrDefault("font-size", ""), ["font_weight"] = opts.GetValueOrDefault("font-weight", ""), ["font_style"] = opts.GetValueOrDefault("font-style", ""), ["text_decoration"] = opts.GetValueOrDefault("text-decoration", "") }),
                 "add-widget" or "aw" => _viewModel.CommandService.Execute("add_widget",
                     new() { ["screen_name"] = opts.GetValueOrDefault("screen", ""), ["widget_type"] = opts.GetValueOrDefault("type", "button"), ["x"] = opts.GetValueOrDefault("x", "0"), ["y"] = opts.GetValueOrDefault("y", "0"), ["width"] = opts.GetValueOrDefault("width", "100"), ["height"] = opts.GetValueOrDefault("height", "40") }),
                 "compile" or "b" => _viewModel.CommandService.Execute("compile", new()),
@@ -1734,10 +1741,10 @@ namespace NavigatorHMI.Views
                 bool hasUpDir = value.Contains("..");
                 bool hasSep = value.Contains('/') || value.Contains('\\');
                 bool isPathParam = key is "path" or "project" or "file" or "output" or "connection" or "source";
-                bool isNameParam = key is "name" or "screen" or "widget" or "widgets" or "tag" or "key" or "event" or "action" or "nic" or "protocol" or "severity" or "direction" or "mode" or "ip" or "device_ip";
+                bool isNameParam = key is "name" or "screen" or "widget" or "widgets" or "tag" or "key" or "new-name" or "event" or "action" or "nic" or "protocol" or "severity" or "direction" or "mode" or "ip" or "device_ip";
                 // value 语义由 --key 决定（颜色/文本/路径/数值），静态分类无法覆盖：
                 // 归自由文本类仅拦 '..'（imagePath 值含 / 或 \ 是合法的相对/绝对路径）
-                bool isFreeText = key is "description" or "message" or "params" or "model" or "value";
+                bool isFreeText = key is "description" or "message" or "params" or "model" or "value" or "font-family";
 
                 if (isPathParam)
                 {
@@ -1800,8 +1807,12 @@ namespace NavigatorHMI.Views
         private const string CliHelpText = @"GUI CLI 帮助:
   create-screen --name <name> [--type custom]  创建画面
   delete-screen --name <name>                    删除画面
+  rename-screen --name <name> --new-name <name>  重命名画面
   add-widget --screen <name> --type button --x 0 --y 0  添加控件
   create-tag --name <name> --type FLOAT --source <uri>  创建变量
+  copy-widget --screen <name> --widget <name>   复制控件
+  paste-widget --screen <name>                   粘贴控件
+  set-default-font --font-size 14                设置默认字体
   align --screen <name> --widgets a,b,c --direction left  对齐控件
   array --screen <name> --widgets a,b,c --mode rect --start-x 0 --start-y 0 --cols 3 --rows 2 --spacing-x 120 --spacing-y 80  阵列排列
   compile                                       编译工程

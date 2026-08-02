@@ -112,4 +112,49 @@ namespace NavigatorHMI.CommandLayer.Handlers
             return CommandResult.Ok();
         }
     }
+
+    /// <summary>
+    /// 重命名画面。Template/WorldMap 受保护不可重命名。
+    /// </summary>
+    public class RenameScreenHandler : ICommandHandler
+    {
+        /// <inheritdoc/>
+        public CommandDefinition Definition => new()
+        {
+            Name = "rename_screen",
+            Description = "重命名画面（Template/WorldMap 不可重命名）",
+            Parameters = new()
+            {
+                ["name"] = new() { Type = "string", Required = true, Description = "当前画面名称" },
+                ["new_name"] = new() { Type = "string", Required = true, Description = "新画面名称" },
+            }
+        };
+
+        /// <inheritdoc/>
+        public ValidationResult Validate(Dictionary<string, object?> parameters)
+        {
+            if (!parameters.ContainsKey("name") || string.IsNullOrWhiteSpace(parameters["name"]?.ToString()))
+                return ValidationResult.Fail("缺少必填参数: name");
+            if (!parameters.ContainsKey("new_name") || string.IsNullOrWhiteSpace(parameters["new_name"]?.ToString()))
+                return ValidationResult.Fail("缺少必填参数: new_name");
+            return ValidationResult.Ok;
+        }
+
+        /// <inheritdoc/>
+        public CommandResult Execute(HMIProject project, Dictionary<string, object?> parameters)
+        {
+            var name = parameters["name"]?.ToString() ?? "";
+            var newName = parameters["new_name"]?.ToString() ?? "";
+            var screen = project.Screens.FirstOrDefault(s => s.Name == name);
+            if (screen == null)
+                return CommandResult.Fail("NOT_FOUND", $"画面 \"{name}\" 不存在");
+            if (screen.Type is ScreenType.Template or ScreenType.WorldMap)
+                return CommandResult.Fail("PROTECTED", $"画面 \"{name}\" ({screen.Type}) 不可重命名");
+            if (project.Screens.Any(s => s.Name == newName && !ReferenceEquals(s, screen)))
+                return CommandResult.Fail("DUPLICATE", $"画面名 \"{newName}\" 已存在");
+
+            screen.Name = newName;
+            return CommandResult.Ok(new { screen_name = newName });
+        }
+    }
 }

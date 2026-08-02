@@ -55,10 +55,12 @@ navihmi -p ./demo.hmiproj compile
 |------|---------|---------|
 | `create-screen` | `--name` | `--type`(custom), `--width`(800), `--height`(480) |
 | `delete-screen` | `--name` | — |
+| `rename-screen` | `--name`, `--new-name` | — |
 
 ```bash
 navihmi -p ./demo.hmiproj create-screen --name "主控页" --type custom
 navihmi -p ./demo.hmiproj delete-screen --name "主控页"
+navihmi -p ./demo.hmiproj rename-screen --name "主控页" --new-name "总览页"
 ```
 
 > Template（全局画面）和 WorldMap（世界地图）不可删除。
@@ -229,6 +231,34 @@ navihmi -p ./demo.hmiproj bind-event \
 `--event`: `onClick`, `onPress`, `onRelease`, `onValueChange`, `onScreenLoad`, `onScreenUnload`, `onTimer`
 `--action`: `tag_write`, `screen_switch`, `set_property`, `run_command`, `show_popup`, `send_notification`
 `--params`: `key1=val1,key2=val2` 格式
+
+### 剪贴板
+
+| 命令 | 必填参数 | 可选参数 |
+|------|---------|---------|
+| `copy-widget` | `--screen`, `--widget` | — |
+| `paste-widget` | `--screen` | `--x`, `--y`（默认原位置+20） |
+
+```bash
+# 复制控件（同一 CLI 会话内有效，跨命令调用需用 REPL 模式）
+navihmi -p ./demo.hmiproj copy-widget --screen "温度页" --widget button_1
+navihmi -p ./demo.hmiproj paste-widget --screen "温度页" --x 300 --y 200
+```
+
+> ⚠️ 剪贴板存储在进程内：独立命令行每次调用是新进程，`copy-widget` 后 `paste-widget` 需在**同一 REPL 会话**或 GUI 内嵌 CLI 面板（同进程）中执行。
+
+### 默认字体
+
+| 命令 | 必填参数 | 可选参数 |
+|------|---------|---------|
+| `set-default-font` | —（至少一个） | `--font-family`, `--font-size`, `--font-weight`(Normal/Bold), `--font-style`(Normal/Italic), `--text-decoration`(None/Underline) |
+
+```bash
+navihmi -p ./demo.hmiproj set-default-font --font-size 16 --font-weight Bold
+```
+
+> 写入全局 AppData 配置（`%APPDATA%\NavigatorHMI\font_defaults.json`），影响之后新建的控件；与 GUI「设置→默认字体」同源。
+> ⚠️ 静态值在进程启动时加载一次：独立 CLI 修改后，**已运行的 GUI 需重启才生效**（GUI 内嵌 CLI 面板同进程，立即生效）。
 
 ### 变量
 

@@ -105,9 +105,9 @@ namespace NavigatorHMI.ViewModels
         private void RebuildProjectTree()
         {
             TreeRoots.Clear();
-            var globalNode = new ScreenItemNode(CurrentProject.Screens.First(s => s.Type == ScreenType.Template));
+            var globalNode = new ScreenItemNode(CurrentProject.Screens.First(s => s.Type == ScreenType.Template), CurrentProject);
             globalNode.OnSelected += s => CurrentScreen = s;
-            var mapNode = new ScreenItemNode(CurrentProject.Screens.First(s => s.Type == ScreenType.WorldMap));
+            var mapNode = new ScreenItemNode(CurrentProject.Screens.First(s => s.Type == ScreenType.WorldMap), CurrentProject);
             mapNode.OnSelected += s => CurrentScreen = s;
             var customRoot = new CustomScreensRootNode(CurrentProject);
             customRoot.OnScreenSelected += s => CurrentScreen = s;
@@ -154,9 +154,9 @@ namespace NavigatorHMI.ViewModels
             CommandService = new CommandService(project);
             CommandService.CommandExecuted += OnCommandExecuted;
             // 构建树根：全局画面、地图画面、自定义画面列表根
-            var globalNode = new ScreenItemNode(project.Screens.First(s => s.Type == ScreenType.Template));
+            var globalNode = new ScreenItemNode(project.Screens.First(s => s.Type == ScreenType.Template), project);
             globalNode.OnSelected += s => CurrentScreen = s;
-            var mapNode = new ScreenItemNode(project.Screens.First(s => s.Type == ScreenType.WorldMap));
+            var mapNode = new ScreenItemNode(project.Screens.First(s => s.Type == ScreenType.WorldMap), project);
             mapNode.OnSelected += s => CurrentScreen = s;
             var customRoot = new CustomScreensRootNode(project);
             customRoot.OnScreenSelected += s => CurrentScreen = s;

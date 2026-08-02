@@ -86,10 +86,12 @@ namespace NavigatorHMI.ViewModels
     {
         public Screen Screen { get; set; }
         public ICommand DeleteCommand { get; }
+        private readonly HMIProject _project;
 
-        public ScreenItemNode(Screen screen, Action<ScreenItemNode> deleteCallback=null)
+        public ScreenItemNode(Screen screen, HMIProject project, Action<ScreenItemNode> deleteCallback=null)
         {
             Screen = screen;
+            _project = project;
             Name = screen.Name;
             // 监听 Screen.Name 变更，同步更新树节点名称
             screen.PropertyChanged += (s, e) =>
@@ -113,15 +115,26 @@ namespace NavigatorHMI.ViewModels
                 IsEditing = true;
             });
 
-            // 确认重命名
+            // 确认重命名（与 CLI rename-screen 同规则：重名校验 + Template/WorldMap 保护）
             ConfirmRenameCommand = new RelayCommand(() =>
             {
                 if (!string.IsNullOrWhiteSpace(EditName))
                 {
-                    Screen.Name = EditName;
-                    // 更新节点名称并通知 UI
-                    Name = EditName;
-                    OnPropertyChanged(nameof(Name));
+                    var newName = EditName.Trim();
+                    bool duplicate = _project?.Screens.Any(s => s.Name == newName && !ReferenceEquals(s, Screen)) ?? false;
+                    bool protectedScreen = Screen.Type is ScreenType.Template or ScreenType.WorldMap;
+                    if (!duplicate && !protectedScreen)
+                    {
+                        Screen.Name = newName;
+                        // 更新节点名称并通知 UI
+                        Name = newName;
+                        OnPropertyChanged(nameof(Name));
+                    }
+                    else
+                    {
+                        // 重名/受保护：回退显示原名
+                        EditName = Name;
+                    }
                 }
                 IsEditing = false;
             });
@@ -149,7 +162,7 @@ namespace NavigatorHMI.ViewModels
 
         private void AddScreenNodeInternal(Screen screen)
         {
-            var node = new ScreenItemNode(screen, DeleteScreenNode);
+            var node = new ScreenItemNode(screen, _project, DeleteScreenNode);
             node.OnSelected += (s) => OnScreenSelected?.Invoke(s);
             // 插入到“添加画面”节点之前
             Children.Insert(Children.Count - 1, node);

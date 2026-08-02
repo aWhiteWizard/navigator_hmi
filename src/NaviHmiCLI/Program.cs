@@ -70,6 +70,7 @@ public static class Program
             // 画面
             "create-screen"  => Cmd("create_screen", Require("name"), Opt("type", "custom"), Opt("width", ""), Opt("height", "")),
             "delete-screen"  => Cmd("delete_screen", Require("name")),
+            "rename-screen"  => Cmd("rename_screen", Require("name"), Require("new-name", "new_name")),
 
             // 控件
             "add-widget"     => Cmd("add_widget", Require("screen", "screen_name"), OptMap("type", "widget_type", "button"), Require("x"), Require("y"), Opt("width", "100"), Opt("height", "40")),
@@ -98,6 +99,16 @@ public static class Program
             // 变量
             "create-tag"     => Cmd("create_tag", Require("name"), Require("type", "data_type"), Require("source"), Opt("unit"), OptMap("scan-interval", "scan_interval", "100"), Opt("deadband", "0"), Opt("description")),
             "bind-tag"       => Cmd("bind_tag", Require("screen", "screen_name"), Require("widget", "widget_name"), Require("tag", "tag_name")),
+
+            // 剪贴板
+            "copy-widget"    => Cmd("copy_widget", Require("screen", "screen_name"), Require("widget", "widget_name")),
+            "paste-widget"   => Cmd("paste_widget", Require("screen", "screen_name"), Opt("x", ""), Opt("y", "")),
+
+            // 默认字体
+            "set-default-font" => Cmd("set_default_font",
+                                    OptMap("font-family", "font_family", ""), OptMap("font-size", "font_size", ""),
+                                    OptMap("font-weight", "font_weight", ""), OptMap("font-style", "font_style", ""),
+                                    OptMap("text-decoration", "text_decoration", "")),
 
             // 报警
             "create-alarm"   => Cmd("create_alarm", Require("name"), Require("tag", "tag_name"), Require("type"), Require("threshold"), Opt("deadband", "0"), OptMap("delay", "delay_ms", "0"), Opt("severity", "Warning"), Opt("message")),
@@ -273,11 +284,11 @@ public static class Program
         bool hasUpDir = value.Contains("..");
         bool hasSeparator = value.Contains('/') || value.Contains('\\');
         bool isPathParam = key is "path" or "project" or "file" or "output" or "connection" or "source";
-        bool isNameParam = key is "name" or "screen" or "widget" or "widgets" or "tag" or "key"
+        bool isNameParam = key is "name" or "screen" or "widget" or "widgets" or "tag" or "key" or "new-name"
             or "event" or "action" or "nic" or "protocol" or "severity" or "direction" or "mode" or "ip" or "device_ip";
         // value 语义由 --key 决定（颜色/文本/路径/数值），静态分类无法覆盖：
         // 归自由文本类仅拦 '..'（imagePath 值含 / 或 \ 是合法的相对/绝对路径）
-        bool isFreeText = key is "description" or "message" or "params" or "model" or "value";
+        bool isFreeText = key is "description" or "message" or "params" or "model" or "value" or "font-family";
 
         if (isPathParam)
         {
@@ -430,8 +441,10 @@ public static class Program
         Console.WriteLine("""
 可用命令:
   工程: create-project, open-project, save-project, compile
-  画面: create-screen, delete-screen
+  画面: create-screen, delete-screen, rename-screen
   控件: add-widget, move-widget, resize-widget, delete-widget, set-property
+  剪贴板: copy-widget, paste-widget
+  默认字体: set-default-font
   层级: bring-to-front, bring-forward, send-backward, send-to-back
   布局: align, array
   事件: bind-event
@@ -472,6 +485,7 @@ NavigatorHMI CLI — 组态软件命令行接口
 画面命令:
   create-screen          --name <name> [--type custom] [--width 800] [--height 480]
   delete-screen          --name <name>
+  rename-screen          --name <name> --new-name <name>
 
 控件命令:
   add-widget             --screen <name> --type button --x <n> --y <n> [--width <n>] [--height <n>]
@@ -505,6 +519,13 @@ set-property 属性键 (--screen <画面> --widget <控件> --key <键> --value 
 变量命令:
   create-tag             --name <name> --type <BOOL|INT16|FLOAT|...> --source <uri> [--unit <u>] [--scan-interval <ms>]
   bind-tag               --screen <name> --widget <name> --tag <name>
+
+剪贴板命令:
+  copy-widget            --screen <name> --widget <name>
+  paste-widget           --screen <name> [--x <n>] [--y <n>]
+
+默认字体命令:
+  set-default-font       [--font-family <name>] [--font-size <n>] [--font-weight Normal|Bold] [--font-style Normal|Italic] [--text-decoration None|Underline]
 
 报警命令:
   create-alarm           --name <name> --tag <name> --type <High|Low|...> --threshold <n> [--severity Warning]

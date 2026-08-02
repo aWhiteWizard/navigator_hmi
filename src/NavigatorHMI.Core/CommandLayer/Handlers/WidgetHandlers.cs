@@ -23,6 +23,9 @@ namespace NavigatorHMI.CommandLayer.Handlers
             if (!parameters.ContainsKey("screen_name") || string.IsNullOrWhiteSpace(parameters["screen_name"]?.ToString())) return ValidationResult.Fail("缺少必填参数: screen_name");
             if (!parameters.ContainsKey("widget_type") || string.IsNullOrWhiteSpace(parameters["widget_type"]?.ToString())) return ValidationResult.Fail("缺少必填参数: widget_type");
             if (!parameters.ContainsKey("x") || !parameters.ContainsKey("y")) return ValidationResult.Fail("缺少必填参数: x/y");
+            // 数值参数校验（防 Convert.ToDouble 裸转崩溃）
+            var numCheck = WidgetHelper.ValidateNumericParams(parameters, "x", "y", "width", "height");
+            if (!numCheck.IsValid) return numCheck;
             return ValidationResult.Ok;
         }
         public CommandResult Execute(HMIProject project, Dictionary<string, object?> parameters)
@@ -60,7 +63,12 @@ namespace NavigatorHMI.CommandLayer.Handlers
     public class MoveWidgetHandler : ICommandHandler
     {
         public CommandDefinition Definition => new() { Name = "move_widget", Description = "移动控件位置", Parameters = WidgetHelper.ScreenWidgetParams("x", "y") };
-        public ValidationResult Validate(Dictionary<string, object?> p) => WidgetHelper.ValidateScreenWidget(p);
+        public ValidationResult Validate(Dictionary<string, object?> p)
+        {
+            var v = WidgetHelper.ValidateScreenWidget(p);
+            if (!v.IsValid) return v;
+            return WidgetHelper.ValidateNumericParams(p, "x", "y");
+        }
         public CommandResult Execute(HMIProject project, Dictionary<string, object?> p) => WidgetHelper.WithWidget(project, p, w => { w.X = Convert.ToDouble(p["x"] ?? 0); w.Y = Convert.ToDouble(p["y"] ?? 0); });
     }
 
@@ -68,7 +76,12 @@ namespace NavigatorHMI.CommandLayer.Handlers
     public class ResizeWidgetHandler : ICommandHandler
     {
         public CommandDefinition Definition => new() { Name = "resize_widget", Description = "调整控件尺寸", Parameters = WidgetHelper.ScreenWidgetParams("width", "height") };
-        public ValidationResult Validate(Dictionary<string, object?> p) => WidgetHelper.ValidateScreenWidget(p);
+        public ValidationResult Validate(Dictionary<string, object?> p)
+        {
+            var v = WidgetHelper.ValidateScreenWidget(p);
+            if (!v.IsValid) return v;
+            return WidgetHelper.ValidateNumericParams(p, "width", "height");
+        }
         public CommandResult Execute(HMIProject project, Dictionary<string, object?> p) => WidgetHelper.WithWidget(project, p, w => { w.Width = Convert.ToDouble(p["width"] ?? 0); w.Height = Convert.ToDouble(p["height"] ?? 0); });
     }
 
@@ -318,6 +331,18 @@ namespace NavigatorHMI.CommandLayer.Handlers
         internal static ValidationResult ValidateScreenWidget(Dictionary<string, object?> p)
         {
             if (!p.ContainsKey("screen_name") || !p.ContainsKey("widget_name")) return ValidationResult.Fail("缺少必填参数: screen_name/widget_name");
+            return ValidationResult.Ok;
+        }
+
+        /// <summary>校验数值参数（double.TryParse + IsFinite + InvariantCulture，防 Convert 裸转崩溃）。</summary>
+        internal static ValidationResult ValidateNumericParams(Dictionary<string, object?> p, params string[] keys)
+        {
+            foreach (var k in keys)
+            {
+                if (p.TryGetValue(k, out var v) && v != null && !string.IsNullOrWhiteSpace(v.ToString())
+                    && (!double.TryParse(v.ToString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var d) || !double.IsFinite(d)))
+                    return ValidationResult.Fail($"{k} 必须是数字");
+            }
             return ValidationResult.Ok;
         }
 
