@@ -452,12 +452,6 @@ namespace NavigatorHMI.Views
             ArrayGuideDotShape.Visibility = Visibility.Collapsed;
             ArrayGuideDotShape.Data = null;
 
-            // 重挂载 Widgets 计数文本（同样被 Children.Clear 清掉，补漏）
-            DrawingCanvas.Children.Remove(WidgetCountText);
-            if (!DrawingCanvas.Children.Contains(WidgetCountText))
-                DrawingCanvas.Children.Add(WidgetCountText);
-            Panel.SetZIndex(WidgetCountText, 1005);
-
             var vm = this.DataContext as EditWindowViewModel;
             itemsControl.Width = screen.Width > 0 ? screen.Width : (vm?.DeviceWidth ?? 800);
             itemsControl.Height = screen.Height > 0 ? screen.Height : (vm?.DeviceHeight ?? 600);
@@ -1234,14 +1228,9 @@ namespace NavigatorHMI.Views
             var sorted = selected.OrderBy(w => ExtractIdNumber(w.ObjectName)).ToList();
             double cx = Math.Min(Math.Max(sorted.Average(w => w.X + w.Width / 2), 50), (_viewModel.DeviceWidth - 50));
             double cy = Math.Min(Math.Max(sorted.Average(w => w.Y + w.Height / 2), 50), (_viewModel.DeviceHeight - 50));
-            // 钳制边界单源：与 UpdateArrayGuide 共用同一 maxW/maxH 与最宽参考尺寸
+            // 钳制边界单源：与 UpdateArrayGuide 共用同一 maxW/maxH
             double maxW = _viewModel.CurrentScreen?.Width ?? _viewModel.DeviceWidth;
             double maxH = _viewModel.CurrentScreen?.Height ?? _viewModel.DeviceHeight;
-            // 各控件实际尺寸（用于逐点中心基准：中心 = 落位 + 自身宽高/2，与落位完全一致）
-            double[] refWs = sorted.Select(w => w.Width).ToArray();
-            double[] refHs = sorted.Select(w => w.Height).ToArray();
-            double refW = sorted.Count > 0 ? sorted.Max(w => w.Width) : 40;
-            double refH = sorted.Count > 0 ? sorted.Max(w => w.Height) : 40;
 
             GridArrayDialog? dialog = null;
             dialog = new GridArrayDialog(isCircle, sorted.Count, cx, cy, () =>
@@ -1250,7 +1239,7 @@ namespace NavigatorHMI.Views
                 UpdateArrayGuide(isCircle, sorted.Count, dialog!.Cols, dialog.Rows,
                     dialog.StartX, dialog.StartY, dialog.SpacingX, dialog.SpacingY,
                     dialog.CenterX, dialog.CenterY, dialog.Radius, dialog.StartAngle, dialog.EndAngle,
-                    maxW, maxH, refW, refH, refWs, refHs);
+                    maxW, maxH);
             }) { Owner = this };
 
             // 初始默认值预览（画辅助线）
@@ -1266,8 +1255,9 @@ namespace NavigatorHMI.Views
                     maxW, maxH);
                 for (int i = 0; i < Math.Min(positions.Count, sorted.Count); i++)
                 {
-                    sorted[i].X = Math.Max(0, Math.Min(positions[i].X, maxW - sorted[i].Width));
-                    sorted[i].Y = Math.Max(0, Math.Min(positions[i].Y, maxH - sorted[i].Height));
+                    // 中心点基准：落位 = 中心点 - 控件自身宽高/2（控件中心对齐阵列点）
+                    sorted[i].X = Math.Max(0, Math.Min(positions[i].X - sorted[i].Width / 2, maxW - sorted[i].Width));
+                    sorted[i].Y = Math.Max(0, Math.Min(positions[i].Y - sorted[i].Height / 2, maxH - sorted[i].Height));
                 }
                 _viewModel.NotifyCanvasRefreshNeeded();
                 DrawingCanvas.InvalidateVisual();
@@ -1279,7 +1269,7 @@ namespace NavigatorHMI.Views
         private void UpdateArrayGuide(bool isCircle, int count, int cols, int rows,
             double startX, double startY, double sx, double sy,
             double centerX, double centerY, double radius, double startAngle, double endAngle,
-            double maxW, double maxH, double refW, double refH, double[] refWs, double[] refHs)
+            double maxW, double maxH)
         {
             if (ArrayGuideShape == null || ArrayGuideDotShape == null) return;
             var positions = CalcPositions(isCircle, count, cols, rows, startX, startY, sx, sy,
@@ -1312,14 +1302,16 @@ namespace NavigatorHMI.Views
             }
             else
             {
-                // 矩形阵列：行/列网格线
+                // 矩形阵列：行/列网格线（经过中心点，圆点落在交点上）
+                // 行数按实际所需 ceil(count/cols) 画，避免 count > rows*cols 时圆点悬空
+                int gridRows = Math.Max(rows, (count + cols - 1) / cols);
                 for (int c = 0; c < cols; c++)
                 {
                     double x = startX + c * sx;
                     group.Children.Add(new System.Windows.Media.LineGeometry(
-                        new Point(x, startY), new Point(x, startY + (rows - 1) * sy)));
+                        new Point(x, startY), new Point(x, startY + (gridRows - 1) * sy)));
                 }
-                for (int r = 0; r < rows; r++)
+                for (int r = 0; r < gridRows; r++)
                 {
                     double y = startY + r * sy;
                     group.Children.Add(new System.Windows.Media.LineGeometry(
@@ -1330,22 +1322,17 @@ namespace NavigatorHMI.Views
             ArrayGuideShape.Visibility = Visibility.Visible;
 
             // 落点中心标记层（独立 Path 避免 EvenOdd 挖空）：
-            // 中心 = 各控件实际落位 + 自身宽高/2（与落位钳制完全一致，逐点基准）；
-            // 实心高不透明圆点 + 虚线小方框（方框用 refW/refH 示意外框）
+            // 中心基准：CalcPositions 返回的中心点即网格线交点（点落在虚线上）；
+            // 圆点直接画在 p（中心点），与落位（p - 半尺寸）中心一致
             var dotGroup = new System.Windows.Media.GeometryGroup { FillRule = System.Windows.Media.FillRule.Nonzero };
             var boxGroup = new System.Windows.Media.GeometryGroup();
             for (int i = 0; i < positions.Count; i++)
             {
                 var p = positions[i];
-                double wi = refWs.Length > i && refWs[i] > 0 ? refWs[i] : refW;
-                double hi = refHs.Length > i && refHs[i] > 0 ? refHs[i] : refH;
-                double x = Math.Max(0, Math.Min(p.X, maxW - wi));
-                double y = Math.Max(0, Math.Min(p.Y, maxH - hi));
-                double cx = x + wi / 2, cy = y + hi / 2;
-                // 中心小圆点（半径 5，实心高不透明）
-                dotGroup.Children.Add(new System.Windows.Media.EllipseGeometry(new Point(cx, cy), 5, 5));
+                // 中心小圆点（半径 5，实心高不透明）画在中心点（网格线交点）
+                dotGroup.Children.Add(new System.Windows.Media.EllipseGeometry(p, 5, 5));
                 // 外圈小方框（10×10 中心对齐，虚线描边示意）
-                boxGroup.Children.Add(new System.Windows.Media.RectangleGeometry(new Rect(cx - 5, cy - 5, 10, 10)));
+                boxGroup.Children.Add(new System.Windows.Media.RectangleGeometry(new Rect(p.X - 5, p.Y - 5, 10, 10)));
             }
             ArrayGuideDotShape.Data = dotGroup;
             ArrayGuideDotShape.Visibility = Visibility.Visible;
