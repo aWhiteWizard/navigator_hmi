@@ -1368,9 +1368,14 @@ namespace NavigatorHMI.Views
             {
                 double start = startAngle * Math.PI / 180, end = endAngle * Math.PI / 180;
                 double total = (end > start ? end - start : 2 * Math.PI + end - start);
+                bool fullCircle = total >= 2 * Math.PI - 1e-9;
                 for (int i = 0; i < count; i++)
                 {
-                    double a = start + total * i / Math.Max(count - 1, 1);
+                    // 整圈（0~360°）时按 360°/count 均匀分布，首尾不重叠；
+                    // 非整圈弧线时首尾各在两端（total/(count-1) 间隔）
+                    double a = fullCircle
+                        ? start + 2 * Math.PI * i / count
+                        : start + total * i / Math.Max(count - 1, 1);
                     result.Add(new Point(
                         centerX + radius * Math.Cos(a),
                         centerY + radius * Math.Sin(a)));
