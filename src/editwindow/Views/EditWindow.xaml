@@ -685,9 +685,6 @@
             <MenuItem Header="设置">
                 <MenuItem Header="默认字体..." Click="FontDefaults_Click"/>
             </MenuItem>
-            <MenuItem Header="帮助">
-                <MenuItem Header="帮助文档" Click="Help_Click" InputGestureText="F1"/>
-            </MenuItem>
             <MenuItem Header="视图">
                 <MenuItem Header="文件工具" IsCheckable="True" IsChecked="True"
                           Click="ToggleToolbarBlock_Click" Tag="TbSave"/>
@@ -715,6 +712,9 @@
             </MenuItem>
             <MenuItem Header="调试">
                 <MenuItem Header="生成" Click="BuildProject_Click" InputGestureText="F5"/>
+            </MenuItem>
+            <MenuItem Header="帮助">
+                <MenuItem Header="帮助文档" Click="Help_Click" InputGestureText="F1"/>
             </MenuItem>
         </Menu>
 
