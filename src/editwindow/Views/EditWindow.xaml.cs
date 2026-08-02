@@ -1215,13 +1215,6 @@ namespace NavigatorHMI.Views
 
         #region 树形视图右键编辑菜单（委托给 TreeViewContextMenuHandler）
 
-        /// <summary>树节点选中变化：单击选中「变量」节点 → 打开变量管理器 Tab。</summary>
-        private void ProjectTree_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
-        {
-            if (e.NewValue is VariableManagerNode)
-                _viewModel.OpenVariableManager();
-        }
-
         /// <summary>画布顶部页面标签点击：切换当前编辑画面（同时退出变量管理器视图）。</summary>
         private void ScreenTab_Click(object sender, MouseButtonEventArgs e)
         {
@@ -1254,13 +1247,8 @@ namespace NavigatorHMI.Views
             _viewModel.CloseVariableManagerTab();
             e.Handled = true;
         }
-
-        /// <summary>视图菜单「变量管理器」：打开变量管理器 Tab。</summary>
-        private void OpenVariableManagerMenu_Click(object sender, RoutedEventArgs e)
-        {
-            _viewModel.OpenVariableManager();
-        }
         #endregion
+
 
         /// <summary>
         /// 右键点击树节点：选中节点并显示上下文菜单。

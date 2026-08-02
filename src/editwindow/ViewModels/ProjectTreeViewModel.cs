@@ -239,7 +239,7 @@ namespace NavigatorHMI.ViewModels
         internal void NotifyVariableManagerSelected() => OnVariableManagerSelected?.Invoke();
     }
 
-    /// <summary>「变量」叶子节点：单击/双击打开变量管理器（画布 Tab）。</summary>
+    /// <summary>「变量」叶子节点：双击打开变量管理器（画布 Tab）。</summary>
     public class VariableManagerNode : ProjectTreeViewModel
     {
         private readonly CommunicationRootNode _parent;

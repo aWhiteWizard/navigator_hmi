@@ -705,7 +705,6 @@
                           Click="ToggleAnchorable_Click" Tag="toolbox"/>
                 <MenuItem Header="属性窗口" IsCheckable="True" IsChecked="True"
                           Click="ToggleAnchorable_Click" Tag="property"/>
-                <MenuItem Header="变量管理器" Click="OpenVariableManagerMenu_Click" InputGestureText="通信变量→变量"/>
                 <MenuItem Header="CLI 控制台" IsCheckable="True" IsChecked="True"
                           Click="ToggleAnchorable_Click" Tag="cli"/>
                 <Separator/>
@@ -802,8 +801,7 @@
                         <!-- 左侧: 项目树 + 控件面板 -->
                         <avalon:LayoutAnchorablePane DockWidth="200">
                             <avalon:LayoutAnchorable Title="项目窗口" ContentId="project">
-                                <TreeView x:Name="ProjectTreeView" ItemsSource="{Binding TreeRoots}" MouseRightButtonDown="ProjectTree_RightClick" Background="Transparent"
-                                          SelectedItemChanged="ProjectTree_SelectedItemChanged">
+                                <TreeView x:Name="ProjectTreeView" ItemsSource="{Binding TreeRoots}" MouseRightButtonDown="ProjectTree_RightClick" Background="Transparent">
                                     <TreeView.Resources>
                                         <HierarchicalDataTemplate DataType="{x:Type vm:ScreenItemNode}" ItemsSource="{Binding Children}">
                                             <Grid>
@@ -825,6 +823,13 @@
                                         </HierarchicalDataTemplate>
                                         <DataTemplate DataType="{x:Type vm:AddScreenNode}">
                                             <TextBlock Text="{Binding Name}" Foreground="Green" Cursor="Hand"/>
+                                        </DataTemplate>
+                                        <!-- 通信变量 → 变量：缺模板会显示类名（WPF 无匹配模板时 ToString） -->
+                                        <HierarchicalDataTemplate DataType="{x:Type vm:CommunicationRootNode}" ItemsSource="{Binding Children}">
+                                            <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
+                                        </HierarchicalDataTemplate>
+                                        <DataTemplate DataType="{x:Type vm:VariableManagerNode}">
+                                            <TextBlock Text="{Binding Name}" Cursor="Hand" Foreground="#2B579A"/>
                                         </DataTemplate>
                                     </TreeView.Resources>
                                     <TreeView.ItemContainerStyle><Style TargetType="TreeViewItem">
@@ -870,7 +875,7 @@
                                 <!-- 画布顶部页面标签栏：画面 Tab（打开才显示）+ 变量管理器 Tab（固定），点击切换，可关闭 -->
                                 <Border Grid.Row="0" Background="#F0F0F0" BorderBrush="LightGray" BorderThickness="0,0,0,1" Padding="4,2">
                                     <StackPanel Orientation="Horizontal">
-                                        <!-- 变量管理器 Tab（由「通信变量→变量」树节点或视图菜单打开，打开才显示，激活高亮） -->
+                                        <!-- 变量管理器 Tab（由「通信变量→变量」树节点双击打开，打开才显示，激活高亮） -->
                                         <Border x:Name="VarManagerTab" BorderThickness="1" CornerRadius="3" Padding="6,3" Margin="0,0,4,0"
                                                 Cursor="Hand" MouseLeftButtonDown="VarManagerTab_Click"
                                                 Visibility="{Binding VariableManagerTabOpen, Converter={StaticResource BoolToVisibilityConverter}}">
