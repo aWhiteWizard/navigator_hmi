@@ -88,11 +88,12 @@ namespace NavigatorHMI.ViewModels
             set { if (_variableManagerActive != value) { _variableManagerActive = value; OnPropertyChanged(); } }
         }
 
-        /// <summary>打开变量管理器：显示 Tab 并切到变量管理器视图。</summary>
+        /// <summary>打开变量管理器：显示 Tab 并切到变量管理器视图（树高亮同步到「变量」节点）。</summary>
         public void OpenVariableManager()
         {
             VariableManagerTabOpen = true;
             VariableManagerActive = true;
+            RefreshTreeCurrentStatus();
         }
 
         /// <summary>激活变量管理器视图（Tab 已打开时点击标签栏）。</summary>
@@ -100,20 +101,23 @@ namespace NavigatorHMI.ViewModels
         {
             if (!VariableManagerTabOpen) VariableManagerTabOpen = true;
             VariableManagerActive = true;
+            RefreshTreeCurrentStatus();
         }
 
-        /// <summary>关闭变量管理器 Tab（若当前激活则切回当前画面）。</summary>
+        /// <summary>关闭变量管理器 Tab（若当前激活则切回当前画面，树高亮恢复画面节点）。</summary>
         public void CloseVariableManagerTab()
         {
             if (VariableManagerActive) VariableManagerActive = false;
             VariableManagerTabOpen = false;
+            RefreshTreeCurrentStatus();
         }
 
         /// <summary>激活画面：退出变量管理器视图并切换画面（即使 CurrentScreen 未变也生效）。</summary>
         public void ActivateScreen(Screen screen)
         {
             VariableManagerActive = false;
-            CurrentScreen = screen;
+            CurrentScreen = screen;   // 可能短路（值未变），短路时树高亮靠下方 RefreshTreeCurrentStatus 兜底
+            RefreshTreeCurrentStatus();
         }
 
         private Screen _currentScreen;
@@ -138,8 +142,8 @@ namespace NavigatorHMI.ViewModels
                 if (oldScreen != null) oldScreen.IsCurrent = false;
                 if (value != null) value.IsCurrent = true;
 
-                // 🆕 更新树节点的 IsCurrent 状态
-                UpdateTreeNodeCurrentStatus(oldScreen, value);
+                // 🆕 更新树节点的 IsCurrent 状态（含变量管理器激活时的「变量」节点高亮）
+                RefreshTreeCurrentStatus();
 
                 // 通知画布重新加载
                 OnPropertyChanged(nameof(CurrentScreen.Widgets));
@@ -147,27 +151,28 @@ namespace NavigatorHMI.ViewModels
             }
         }
 
-        /// <summary>
-        /// 更新树节点中画面的当前状态标记。
-        /// 切换画面时，旧画面取消标记，新画面打上标记。
-        /// </summary>
-        private void UpdateTreeNodeCurrentStatus(Screen oldScreen, Screen newScreen)
+        /// <summary>按当前激活状态重刷树节点高亮（切换画面/打开关闭变量管理器后调用）。</summary>
+        private void RefreshTreeCurrentStatus()
         {
             foreach (var root in TreeRoots)
             {
-                UpdateNodeRecursive(root, newScreen);
+                UpdateNodeRecursive(root, CurrentScreen, VariableManagerActive);
             }
         }
 
-        private static void UpdateNodeRecursive(ProjectTreeViewModel node, Screen currentScreen)
+        private static void UpdateNodeRecursive(ProjectTreeViewModel node, Screen currentScreen, bool variableManagerActive)
         {
             if (node is ScreenItemNode screenNode)
             {
-                screenNode.IsCurrent = (screenNode.Screen == currentScreen);
+                screenNode.IsCurrent = !variableManagerActive && (screenNode.Screen == currentScreen);
+            }
+            else if (node is VariableManagerNode vmNode)
+            {
+                vmNode.IsCurrent = variableManagerActive;
             }
             foreach (var child in node.Children)
             {
-                UpdateNodeRecursive(child, currentScreen);
+                UpdateNodeRecursive(child, currentScreen, variableManagerActive);
             }
         }
 
@@ -183,9 +188,8 @@ namespace NavigatorHMI.ViewModels
             // 确保自定义画面列表展开
             if (TreeRoots.Count >= 3 && TreeRoots[2] is CustomScreensRootNode customRoot)
                 customRoot.IsExpanded = true;
-            // 树重建后恢复当前画面高亮（新节点 IsCurrent 默认 false）
-            if (CurrentScreen != null)
-                UpdateTreeNodeCurrentStatus(null, CurrentScreen);
+            // 树重建后恢复当前画面高亮（新节点 IsCurrent 默认 false）；变量管理器激活时「变量」节点高亮不丢
+            RefreshTreeCurrentStatus();
             // 刷新画布
             RefreshCanvasRequested?.Invoke();
             OnPropertyChanged(nameof(CurrentScreen));

@@ -829,7 +829,11 @@
                                             <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
                                         </HierarchicalDataTemplate>
                                         <DataTemplate DataType="{x:Type vm:VariableManagerNode}">
-                                            <TextBlock Text="{Binding Name}" Cursor="Hand" Foreground="#2B579A"/>
+                                            <!-- 与画面节点一致的选中样式（✅ 高亮 + 默认字体颜色） -->
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="✅" Visibility="{Binding IsCurrent, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,4,0" FontSize="12"/>
+                                                <TextBlock Text="{Binding Name}"/>
+                                            </StackPanel>
                                         </DataTemplate>
                                     </TreeView.Resources>
                                     <TreeView.ItemContainerStyle><Style TargetType="TreeViewItem">
@@ -892,7 +896,7 @@
                                                 </Style>
                                             </Border.Style>
                                             <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="📊 变量管理器" FontSize="12" VerticalAlignment="Center"/>
+                                                <TextBlock Text="变量" FontSize="12" VerticalAlignment="Center"/>
                                                 <TextBlock Text=" ✕" FontSize="10" Foreground="#888888" VerticalAlignment="Center" Margin="4,0,0,0"
                                                            Cursor="Hand" MouseLeftButtonDown="VarManagerTabClose_Click"/>
                                             </StackPanel>

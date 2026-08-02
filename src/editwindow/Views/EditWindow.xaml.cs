@@ -211,7 +211,7 @@ namespace NavigatorHMI.Views
                     ["deadband"] = result.Deadband,
                     ["description"] = result.Description,
                 });
-                if (!r.Success) MessageBox.Show(r.ErrorMessage ?? "创建变量失败", "变量管理器", MessageBoxButton.OK, MessageBoxImage.Warning);
+                if (!r.Success) MessageBox.Show(r.ErrorMessage ?? "创建变量失败", "变量", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
             else
             {
@@ -227,7 +227,7 @@ namespace NavigatorHMI.Views
                 if (p.Count > 1)
                 {
                     var r = _viewModel.CommandService.Execute("update_tag", p);
-                    if (!r.Success) MessageBox.Show(r.ErrorMessage ?? "更新变量失败", "变量管理器", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    if (!r.Success) MessageBox.Show(r.ErrorMessage ?? "更新变量失败", "变量", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
             }
         }
@@ -240,7 +240,7 @@ namespace NavigatorHMI.Views
             if (confirm != MessageBoxResult.Yes) return;
             var r = _viewModel.CommandService.Execute("delete_tag", new Dictionary<string, object?> { ["name"] = tag.Name });
             if (!r.Success)
-                MessageBox.Show(r.ErrorMessage ?? "删除失败", "变量管理器", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(r.ErrorMessage ?? "删除失败", "变量", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
 
         /// <summary>双击变量行 → 编辑。</summary>
