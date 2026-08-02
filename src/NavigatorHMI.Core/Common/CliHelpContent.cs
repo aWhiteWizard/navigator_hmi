@@ -10,8 +10,8 @@ namespace NavigatorHMI.Common
   copy-screen --name <name>                      复制画面
   paste-screen                                   粘贴画面
   add-widget --screen <name> --type button --x 0 --y 0  添加控件
-  create-tag --name <name> --type FLOAT --source <uri>  创建变量
-  update-tag --name <name> [--new-name <name>] [--type FLOAT] [--source <uri>] [--unit °C] [--scan-interval 100] [--deadband 0] [--description ...]  更新变量
+  create-tag --name <name> --type FLOAT [--source <uri>]  创建变量（source 缺省 = 内部变量）
+  update-tag --name <name> [--new-name <name>] [--type FLOAT] [--source <uri>] [--unit °C] [--scan-interval 100] [--deadband 0] [--description ...]  更新变量（--source "" 清空为内部变量）
   delete-tag --name <name>                           删除变量（被引用时拒绝）
   bind-tag --screen <name> --widget <name> --tag <name>  绑定变量到控件
   create-alarm --name <name> --tag <name> --type High --threshold 80  创建报警

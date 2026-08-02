@@ -12,7 +12,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
             {
                 ["name"] = new() { Type = "string", Required = true, Description = "变量名" },
                 ["data_type"] = new() { Type = "enum", Required = true, EnumValues = new[] { "BOOL", "INT16", "UINT16", "INT32", "FLOAT", "STRING" }, Description = "数据类型" },
-                ["source"] = new() { Type = "string", Required = true, Description = "数据来源 (modbus:// 或 mqtt://)" },
+                ["source"] = new() { Type = "string", DefaultValue = "", Description = "数据来源 (modbus:// 或 mqtt://)，空/缺省 = 内部变量" },
                 ["unit"] = new() { Type = "string", DefaultValue = "", Description = "工程单位" },
                 ["scan_interval"] = new() { Type = "int", DefaultValue = 100, Description = "采集周期 ms" },
                 ["deadband"] = new() { Type = "double", DefaultValue = 0, Description = "变化死区" },
@@ -22,7 +22,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
         public ValidationResult Validate(Dictionary<string, object?> p)
         {
             if (!p.ContainsKey("name") || string.IsNullOrWhiteSpace(p["name"]?.ToString())) return ValidationResult.Fail("缺少必填参数: name");
-            if (!p.ContainsKey("data_type") || !p.ContainsKey("source") || string.IsNullOrWhiteSpace(p["source"]?.ToString())) return ValidationResult.Fail("缺少必填参数: data_type/source");
+            if (!p.ContainsKey("data_type") || string.IsNullOrWhiteSpace(p["data_type"]?.ToString())) return ValidationResult.Fail("缺少必填参数: data_type");
+            // source 可选：空/缺省 = 内部变量（无外部来源）
             // 数值参数预校验：整数+正数、有限数字（防 NaN/Infinity/负数写入工程，bugs §7）
             if (p.TryGetValue("scan_interval", out var si) && si != null && !string.IsNullOrWhiteSpace(si.ToString()))
             {
@@ -47,7 +48,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
             project.Tags.Add(new Tag
             {
                 Name = name, DataType = dt,
-                Source = p["source"]!.ToString()!,
+                Source = p.GetValueOrDefault("source")?.ToString() ?? "",
                 Unit = p.GetValueOrDefault("unit")?.ToString() ?? "",
                 ScanIntervalMs = Convert.ToInt32(p.GetValueOrDefault("scan_interval", 100)),
                 Deadband = Convert.ToDouble(p.GetValueOrDefault("deadband", 0)),
@@ -210,7 +211,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 ["name"] = new() { Type = "string", Required = true, Description = "原变量名" },
                 ["new_name"] = new() { Type = "string", Description = "新变量名（重命名）" },
                 ["data_type"] = new() { Type = "enum", EnumValues = new[] { "BOOL", "INT16", "UINT16", "INT32", "FLOAT", "STRING" }, Description = "数据类型" },
-                ["source"] = new() { Type = "string", Description = "数据来源 (modbus:// 或 mqtt://)" },
+                ["source"] = new() { Type = "string", Description = "数据来源；未提供=保留现值，空串=清空为内部变量 (modbus:// 或 mqtt://)" },
                 ["unit"] = new() { Type = "string", Description = "工程单位" },
                 ["scan_interval"] = new() { Type = "int", Description = "采集周期 ms" },
                 ["deadband"] = new() { Type = "double", Description = "变化死区" },
@@ -262,8 +263,9 @@ namespace NavigatorHMI.CommandLayer.Handlers
                     return CommandResult.Fail("INVALID_PARAM", $"未知数据类型: {dt}");
                 tag.DataType = td;
             }
-            if (p.TryGetValue("source", out var src) && src != null && !string.IsNullOrWhiteSpace(src.ToString()))
-                tag.Source = src.ToString()!;
+            if (p.TryGetValue("source", out var src) && src != null)
+                // 显式空串 = 清空为内部变量（OptIfProvided 语义：CLI 未提供不进字典，保留现值）
+                tag.Source = src.ToString()?.Trim() ?? "";
             if (p.TryGetValue("unit", out var un) && un != null)
                 tag.Unit = un.ToString() ?? "";
             if (p.TryGetValue("scan_interval", out var si) && si != null && !string.IsNullOrWhiteSpace(si.ToString()))

@@ -14,6 +14,9 @@ public static class Program
     private static bool _jsonOutput;
     private static string _command = "";
     private static readonly Dictionary<string, string> _opts = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>无值参数标记（--key 后无值）：仅记录键、不进 _opts（纯语义记录，无读取点——
+    /// 有效性由"无值参数不写入 _opts → TryGetValue 天然失败"保证），避免哨兵字符串与合法值域碰撞。</summary>
+    private static readonly HashSet<string> _flagOpts = new(StringComparer.OrdinalIgnoreCase);
     private static readonly JsonSerializerOptions _jsonOpts = new() { WriteIndented = true };
 
     /// <summary>
@@ -25,6 +28,7 @@ public static class Program
     {
         // 重置静态状态（防止单元测试/托管场景下状态残留）
         _opts.Clear();
+        _flagOpts.Clear();
         _projectPath = null;
         _command = "";
         _jsonOutput = false;
@@ -43,7 +47,7 @@ public static class Program
             else if (a is "--help" or "-h")
                 { ShowHelp(); return 0; }
             else if (a.StartsWith("--"))
-                { if (i + 1 < args.Length && !args[i + 1].StartsWith("--")) _opts[a[2..]] = args[++i]; else _opts[a[2..]] = "true"; }
+                { if (i + 1 < args.Length && !args[i + 1].StartsWith("--")) _opts[a[2..]] = args[++i]; else _flagOpts.Add(a[2..]); }
             else if (!a.StartsWith("-"))
                 { _command = a; }
             i++;
@@ -99,7 +103,7 @@ public static class Program
                                     Opt("radius", "150"), OptMap("start-angle", "start_angle", "0"), OptMap("end-angle", "end_angle", "360")),
 
             // 变量
-            "create-tag"     => Cmd("create_tag", Require("name"), Require("type", "data_type"), Require("source"), Opt("unit"), OptMap("scan-interval", "scan_interval", "100"), Opt("deadband", "0"), Opt("description")),
+            "create-tag"     => Cmd("create_tag", Require("name"), Require("type", "data_type"), Opt("source", ""), Opt("unit"), OptMap("scan-interval", "scan_interval", "100"), Opt("deadband", "0"), Opt("description")),
             "update-tag"     => Cmd("update_tag", Require("name"),
                                     OptIfProvided("new-name", "new_name"), OptIfProvided("type", "data_type"), OptIfProvided("source"), OptIfProvided("unit"),
                                     OptIfProvided("scan-interval", "scan_interval"), OptIfProvided("deadband"), OptIfProvided("description")),
@@ -195,10 +199,10 @@ public static class Program
                 // 有默认值：未提供时写入默认值（与 handler 的 GetValueOrDefault 兜底一致）
                 parameters[d.CmdKey] = OptVal(d.CliKey, d.Default);
             }
-            else if (_opts.TryGetValue(d.CliKey, out var raw) && !string.IsNullOrWhiteSpace(raw))
+            else if (_opts.ContainsKey(d.CliKey))
             {
-                // 无默认值（OptIfProvided）：仅显式提供才写入，未提供不进字典
-                // → handler 的 TryGetValue 跳过，保留模型现值（防 update_tag 误清空 unit/description）
+                // 无默认值（OptIfProvided）：显式提供才写入（含空串 = 清空语义，如 update-tag --source "" 改回内部变量）；
+                // 无值参数（--key 后无值）只记入 _flagOpts 不进 _opts → ContainsKey 失败 → handler 保留模型现值
                 parameters[d.CmdKey] = OptVal(d.CliKey);
             }
         }
@@ -406,6 +410,7 @@ public static class Program
 
             // 每轮重置
             _opts.Clear();
+            _flagOpts.Clear();
             _command = "";
             _jsonOutput = false;
             var parts = ParseLine(line);
@@ -416,7 +421,7 @@ public static class Program
                 if (a is "--json")
                     _jsonOutput = true;
                 else if (a.StartsWith("--"))
-                    { if (i + 1 < parts.Length && !parts[i + 1].StartsWith("--")) _opts[a[2..]] = parts[++i]; else _opts[a[2..]] = "true"; }
+                    { if (i + 1 < parts.Length && !parts[i + 1].StartsWith("--")) _opts[a[2..]] = parts[++i]; else _flagOpts.Add(a[2..]); }
                 else if (!a.StartsWith("-"))
                     { _command = a; }
                 i++;
@@ -543,8 +548,8 @@ set-property 属性键 (--screen <画面> --widget <控件> --key <键> --value 
   bind-event             --screen <name> --widget <name> --event <type> --action <type> [--params "k1=v1,k2=v2"]
 
 变量命令:
-  create-tag             --name <name> --type <BOOL|INT16|FLOAT|...> --source <uri> [--unit <u>] [--scan-interval <ms>]
-  update-tag             --name <name> [--new-name <name>] [--type <...>] [--source <uri>] [--unit <u>] [--scan-interval <ms>] [--deadband <n>] [--description <text>]  重命名自动同步控件/报警引用
+  create-tag             --name <name> --type <BOOL|INT16|FLOAT|...> [--source <uri>] [--unit <u>] [--scan-interval <ms>]   # source 缺省 = 内部变量
+  update-tag             --name <name> [--new-name <name>] [--type <...>] [--source <uri>] [--unit <u>] [--scan-interval <ms>] [--deadband <n>] [--description <text>]  重命名自动同步控件/报警引用；--source "" 清空为内部变量
   delete-tag             --name <name>   被控件/报警引用时拒绝
   bind-tag               --screen <name> --widget <name> --tag <name>
 
