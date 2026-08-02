@@ -121,6 +121,8 @@ public static class Program
 
             // 设备
             "configure-device" => Cmd("configure_device", Require("name"), Require("protocol"), Require("connection", "connection_info")),
+            "update-device"   => Cmd("update_device", Require("name"), OptIfProvided("new-name", "new_name"), OptIfProvided("protocol"), OptIfProvided("connection", "connection_info")),
+            "delete-device"   => Cmd("delete_device", Require("name")),
             "connect"         => Cmd("connect", Require("ip"), Opt("model", "NavigatorHMI")),
             "scan"            => Cmd("scan_devices", Opt("nic", "eth0")),
             "deploy-project"  => Cmd("deploy_project", Require("ip", "device_ip"), OptMap("file", "file_path", "")),
@@ -472,7 +474,7 @@ public static class Program
   事件: bind-event
   变量: create-tag, update-tag, delete-tag, bind-tag
   报警: create-alarm
-  设备: configure-device, connect, scan, deploy-project, deploy-firmware
+  设备: configure-device, update-device, delete-device, connect, scan, deploy-project, deploy-firmware
 
 set-property 属性键 (--screen <画面> --widget <控件> --key <键> --value <值>):
   文本: text | content | title | onText | offText
@@ -558,6 +560,8 @@ set-property 属性键 (--screen <画面> --widget <控件> --key <键> --value 
 
 设备命令:
   configure-device       --name <name> --protocol <ModbusRTU|ModbusTCP|MQTT> --connection <json>
+  update-device          --name <name> [--new-name <name>] [--protocol <...>] [--connection <json>]
+  delete-device          --name <name>
   connect                --ip <addr> [--model NavigatorHMI]
   scan                   [--nic eth0]
   deploy-project         --ip <addr> [--file <path>]

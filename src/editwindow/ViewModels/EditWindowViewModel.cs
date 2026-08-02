@@ -88,11 +88,12 @@ namespace NavigatorHMI.ViewModels
             set { if (_variableManagerActive != value) { _variableManagerActive = value; OnPropertyChanged(); } }
         }
 
-        /// <summary>打开变量管理器：显示 Tab 并切到变量管理器视图（树高亮同步到「变量」节点）。</summary>
+        /// <summary>打开变量管理器：显示 Tab 并切到变量管理器视图（树高亮同步到「变量」节点，与通讯互斥）。</summary>
         public void OpenVariableManager()
         {
             VariableManagerTabOpen = true;
             VariableManagerActive = true;
+            CommunicationActive = false;
             RefreshTreeCurrentStatus();
         }
 
@@ -101,6 +102,7 @@ namespace NavigatorHMI.ViewModels
         {
             if (!VariableManagerTabOpen) VariableManagerTabOpen = true;
             VariableManagerActive = true;
+            CommunicationActive = false;
             RefreshTreeCurrentStatus();
         }
 
@@ -112,10 +114,59 @@ namespace NavigatorHMI.ViewModels
             RefreshTreeCurrentStatus();
         }
 
-        /// <summary>激活画面：退出变量管理器视图并切换画面（即使 CurrentScreen 未变也生效）。</summary>
+        // ═══════════════════════════════════════════
+        // 通讯配置 Tab（与变量管理器/画面互斥切换）
+        // ═══════════════════════════════════════════
+
+        private bool _communicationTabOpen;
+
+        /// <summary>通讯配置 Tab 是否打开（打开才在标签栏显示）。</summary>
+        public bool CommunicationTabOpen
+        {
+            get => _communicationTabOpen;
+            set { if (_communicationTabOpen != value) { _communicationTabOpen = value; OnPropertyChanged(); } }
+        }
+
+        private bool _communicationActive;
+
+        /// <summary>当前内容是否为通讯配置（true=显示通讯表格，false=其他）。</summary>
+        public bool CommunicationActive
+        {
+            get => _communicationActive;
+            set { if (_communicationActive != value) { _communicationActive = value; OnPropertyChanged(); } }
+        }
+
+        /// <summary>打开通讯配置：显示 Tab 并切到通讯视图（树高亮同步到「通讯」节点，与变量管理器互斥）。</summary>
+        public void OpenCommunication()
+        {
+            CommunicationTabOpen = true;
+            CommunicationActive = true;
+            VariableManagerActive = false;
+            RefreshTreeCurrentStatus();
+        }
+
+        /// <summary>激活通讯配置视图（Tab 已打开时点击标签栏）。</summary>
+        public void ActivateCommunication()
+        {
+            if (!CommunicationTabOpen) CommunicationTabOpen = true;
+            CommunicationActive = true;
+            VariableManagerActive = false;
+            RefreshTreeCurrentStatus();
+        }
+
+        /// <summary>关闭通讯配置 Tab（若当前激活则切回当前画面，树高亮恢复画面节点）。</summary>
+        public void CloseCommunicationTab()
+        {
+            if (CommunicationActive) CommunicationActive = false;
+            CommunicationTabOpen = false;
+            RefreshTreeCurrentStatus();
+        }
+
+        /// <summary>激活画面：退出变量管理器/通讯视图并切换画面（即使 CurrentScreen 未变也生效）。</summary>
         public void ActivateScreen(Screen screen)
         {
             VariableManagerActive = false;
+            CommunicationActive = false;
             CurrentScreen = screen;   // 可能短路（值未变），短路时树高亮靠下方 RefreshTreeCurrentStatus 兜底
             RefreshTreeCurrentStatus();
         }
@@ -132,8 +183,9 @@ namespace NavigatorHMI.ViewModels
                 _currentScreen = value;
                 OnPropertyChanged();
 
-                // 切到画面时自动退出变量管理器视图（标签栏高亮同步）
+                // 切到画面时自动退出变量管理器/通讯视图（标签栏高亮同步）
                 VariableManagerActive = false;
+                CommunicationActive = false;
 
                 // 打开画面 → 自动加入标签集合（打开才显示标签）
                 EnsureScreenOpen(value);
@@ -151,28 +203,32 @@ namespace NavigatorHMI.ViewModels
             }
         }
 
-        /// <summary>按当前激活状态重刷树节点高亮（切换画面/打开关闭变量管理器后调用）。</summary>
+        /// <summary>按当前激活状态重刷树节点高亮（切换画面/打开关闭工具 Tab 后调用）。</summary>
         private void RefreshTreeCurrentStatus()
         {
             foreach (var root in TreeRoots)
             {
-                UpdateNodeRecursive(root, CurrentScreen, VariableManagerActive);
+                UpdateNodeRecursive(root, CurrentScreen, VariableManagerActive, CommunicationActive);
             }
         }
 
-        private static void UpdateNodeRecursive(ProjectTreeViewModel node, Screen currentScreen, bool variableManagerActive)
+        private static void UpdateNodeRecursive(ProjectTreeViewModel node, Screen currentScreen, bool variableManagerActive, bool communicationActive)
         {
             if (node is ScreenItemNode screenNode)
             {
-                screenNode.IsCurrent = !variableManagerActive && (screenNode.Screen == currentScreen);
+                screenNode.IsCurrent = !variableManagerActive && !communicationActive && (screenNode.Screen == currentScreen);
             }
             else if (node is VariableManagerNode vmNode)
             {
                 vmNode.IsCurrent = variableManagerActive;
             }
+            else if (node is DeviceConfigNode deviceNode)
+            {
+                deviceNode.IsCurrent = communicationActive;
+            }
             foreach (var child in node.Children)
             {
-                UpdateNodeRecursive(child, currentScreen, variableManagerActive);
+                UpdateNodeRecursive(child, currentScreen, variableManagerActive, communicationActive);
             }
         }
 
@@ -247,11 +303,12 @@ namespace NavigatorHMI.ViewModels
             TreeRoots.Add(BuildCommunicationRootNode());
         }
 
-        /// <summary>构建「通信变量」根节点（含「变量」子节点，点击在画布位置打开变量管理器 Tab）。</summary>
+        /// <summary>构建「通信变量」根节点（含「变量」/「通讯」子节点，双击在画布位置打开对应 Tab）。</summary>
         private CommunicationRootNode BuildCommunicationRootNode()
         {
             var node = new CommunicationRootNode();
             node.OnVariableManagerSelected += OpenVariableManager;
+            node.OnDeviceConfigSelected += OpenCommunication;
             return node;
         }
         // 撤销操作执行后触发，用于通知 View 层标记工程已修改

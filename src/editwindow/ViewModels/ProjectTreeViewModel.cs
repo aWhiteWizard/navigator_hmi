@@ -223,20 +223,27 @@ namespace NavigatorHMI.ViewModels
         }
     }
 
-    /// <summary>「通信变量」根节点：展开显示「变量」子节点，点击子节点在画布位置打开变量管理器 Tab。</summary>
+    /// <summary>「通信变量」根节点：展开显示「变量」「通讯」子节点，双击子节点在画布位置打开对应 Tab。</summary>
     public class CommunicationRootNode : ProjectTreeViewModel
     {
         public CommunicationRootNode()
         {
             Name = "通信变量";
             Children.Add(new VariableManagerNode(this));
+            Children.Add(new DeviceConfigNode(this));
         }
 
         /// <summary>「变量」子节点被选中时触发（上层打开变量管理器 Tab）。</summary>
         public event Action? OnVariableManagerSelected;
 
-        /// <summary>供 VariableManagerNode 调用的内部入口。</summary>
+        /// <summary>「通讯」子节点被选中时触发（上层打开通讯配置 Tab）。</summary>
+        public event Action? OnDeviceConfigSelected;
+
+        /// <summary>供子节点调用的内部入口。</summary>
         internal void NotifyVariableManagerSelected() => OnVariableManagerSelected?.Invoke();
+
+        /// <summary>供子节点调用的内部入口。</summary>
+        internal void NotifyDeviceConfigSelected() => OnDeviceConfigSelected?.Invoke();
     }
 
     /// <summary>「变量」叶子节点：双击打开变量管理器（画布 Tab）。</summary>
@@ -249,6 +256,19 @@ namespace NavigatorHMI.ViewModels
             _parent = parent;
             Name = "变量";
             DoubleClickCommand = new RelayCommand(() => _parent.NotifyVariableManagerSelected());
+        }
+    }
+
+    /// <summary>「通讯」叶子节点：双击打开通讯配置（画布 Tab）。</summary>
+    public class DeviceConfigNode : ProjectTreeViewModel
+    {
+        private readonly CommunicationRootNode _parent;
+
+        public DeviceConfigNode(CommunicationRootNode parent)
+        {
+            _parent = parent;
+            Name = "通讯";
+            DoubleClickCommand = new RelayCommand(() => _parent.NotifyDeviceConfigSelected());
         }
     }
 }

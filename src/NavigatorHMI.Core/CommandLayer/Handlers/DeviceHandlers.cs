@@ -26,7 +26,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
         public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
         {
             var name = p["name"]!.ToString()!;
-            if (!Enum.TryParse<ProtocolType>(p["protocol"]!.ToString(), ignoreCase: true, out var pt))
+            if (!Enum.TryParse<ProtocolType>(p["protocol"]!.ToString(), ignoreCase: true, out var pt)
+             || !Enum.IsDefined(pt))
                 return CommandResult.Fail("INVALID_PARAM", $"未知协议: {p["protocol"]}");
             if (project.Devices.Any(d => d.Name == name))
                 return CommandResult.Fail("DUPLICATE", $"设备 \"{name}\" 已存在");
@@ -124,6 +125,80 @@ namespace NavigatorHMI.CommandLayer.Handlers
         {
             // TODO: 真实固件部署需要文件传输 + OTA 触发。骨架模拟。
             return CommandResult.Ok(new { message = "固件部署成功（骨架模式）" });
+        }
+    }
+
+    /// <summary>更新设备通信配置。仅更新提供的字段；重命名做唯一性校验。</summary>
+    public class UpdateDeviceHandler : ICommandHandler
+    {
+        public CommandDefinition Definition => new()
+        {
+            Name = "update_device", Description = "更新设备通信配置",
+            Parameters = new()
+            {
+                ["name"] = new() { Type = "string", Required = true, Description = "原设备名" },
+                ["new_name"] = new() { Type = "string", Description = "新设备名（重命名）" },
+                ["protocol"] = new() { Type = "enum", EnumValues = new[] { "ModbusRTU", "ModbusTCP", "MQTT" }, Description = "通信协议" },
+                ["connection_info"] = new() { Type = "string", Description = "连接信息 (JSON)" },
+            }
+        };
+        public ValidationResult Validate(Dictionary<string, object?> p)
+        {
+            if (!p.ContainsKey("name") || string.IsNullOrWhiteSpace(p["name"]?.ToString()))
+                return ValidationResult.Fail("缺少必填参数: name");
+            return ValidationResult.Ok;
+        }
+        public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
+        {
+            var name = p["name"]!.ToString()!;
+            var device = project.Devices.FirstOrDefault(d => d.Name == name);
+            if (device == null) return CommandResult.Fail("NOT_FOUND", $"设备 \"{name}\" 不存在");
+
+            if (p.TryGetValue("new_name", out var nn) && nn != null && !string.IsNullOrWhiteSpace(nn.ToString()) && nn.ToString() != name)
+            {
+                var newName = nn.ToString()!;
+                if (project.Devices.Any(d => d.Name == newName))
+                    return CommandResult.Fail("DUPLICATE", $"设备 \"{newName}\" 已存在");
+                device.Name = newName;
+            }
+            if (p.TryGetValue("protocol", out var pt) && pt != null && !string.IsNullOrWhiteSpace(pt.ToString()))
+            {
+                if (!Enum.TryParse<ProtocolType>(pt.ToString(), ignoreCase: true, out var proto)
+                 || !Enum.IsDefined(proto))
+                    return CommandResult.Fail("INVALID_PARAM", $"未知协议: {pt}");
+                device.Protocol = proto;
+            }
+            if (p.TryGetValue("connection_info", out var ci) && ci != null && !string.IsNullOrWhiteSpace(ci.ToString()))
+                device.ConnectionInfo = ci.ToString()!;
+
+            return CommandResult.Ok(new { device_name = device.Name });
+        }
+    }
+
+    /// <summary>删除设备通信配置。</summary>
+    public class DeleteDeviceHandler : ICommandHandler
+    {
+        public CommandDefinition Definition => new()
+        {
+            Name = "delete_device", Description = "删除设备通信配置",
+            Parameters = new()
+            {
+                ["name"] = new() { Type = "string", Required = true, Description = "设备名" },
+            }
+        };
+        public ValidationResult Validate(Dictionary<string, object?> p)
+        {
+            if (!p.ContainsKey("name") || string.IsNullOrWhiteSpace(p["name"]?.ToString()))
+                return ValidationResult.Fail("缺少必填参数: name");
+            return ValidationResult.Ok;
+        }
+        public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
+        {
+            var name = p["name"]!.ToString()!;
+            var device = project.Devices.FirstOrDefault(d => d.Name == name);
+            if (device == null) return CommandResult.Fail("NOT_FOUND", $"设备 \"{name}\" 不存在");
+            project.Devices.Remove(device);
+            return CommandResult.Ok(new { device_name = name });
         }
     }
 }

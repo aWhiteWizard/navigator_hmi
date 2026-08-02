@@ -96,6 +96,10 @@ namespace NavigatorHMI.Views
         private readonly VariableManagerViewModel _variableManagerVM;
         /// <summary>变量管理器 ViewModel（供 XAML 绑定）。</summary>
         public VariableManagerViewModel VariableManagerVM => _variableManagerVM;
+        // 通讯配置面板
+        private readonly CommunicationDeviceViewModel _commDeviceVM;
+        /// <summary>通讯配置 ViewModel（供 XAML 绑定）。</summary>
+        public CommunicationDeviceViewModel CommDeviceVM => _commDeviceVM;
         #endregion
 
         #region 构造函数 & 初始化
@@ -175,6 +179,11 @@ namespace NavigatorHMI.Views
             _variableManagerVM.TagEditRequested += OnTagEditRequested;
             _variableManagerVM.TagDeleteRequested += OnTagDeleteRequested;
 
+            // 12. 初始化通讯配置面板（新建/编辑/删除走 CommandService）
+            _commDeviceVM = new CommunicationDeviceViewModel(_currentProject, _viewModel.CommandService);
+            _commDeviceVM.DeviceEditRequested += OnDeviceEditRequested;
+            _commDeviceVM.DeviceDeleteRequested += OnDeviceDeleteRequested;
+
             LoadCanvas(_viewModel.CurrentScreen);
 
             _isProjectDirty = false;
@@ -250,6 +259,71 @@ namespace NavigatorHMI.Views
                 _variableManagerVM.EditTagCommand.Execute(null);
         }
         #endregion
+
+        #region 通讯配置
+        /// <summary>设备新建/编辑：对话框收集 → CommandService 落库（GUI/CLI/AI 同一路径）。</summary>
+        private void OnDeviceEditRequested(DeviceConfig? device)
+        {
+            var dlg = new DeviceEditDialog(device, _currentProject) { Owner = this };
+            if (dlg.ShowDialog() != true) return;
+            var result = dlg.Result;
+            if (device == null)
+            {
+                var r = _viewModel.CommandService.Execute("configure_device", new Dictionary<string, object?>
+                {
+                    ["name"] = result.Name,
+                    ["protocol"] = result.Protocol.ToString(),
+                    ["connection_info"] = result.ConnectionInfo,
+                });
+                if (!r.Success) MessageBox.Show(r.ErrorMessage ?? "新建设备失败", "通讯", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            else
+            {
+                // 只提交变化的字段（避免空操作）
+                var p = new Dictionary<string, object?> { ["name"] = device.Name };
+                if (result.Name != device.Name) p["new_name"] = result.Name;
+                if (result.Protocol != device.Protocol) p["protocol"] = result.Protocol.ToString();
+                if (result.ConnectionInfo != device.ConnectionInfo) p["connection_info"] = result.ConnectionInfo;
+                if (p.Count > 1)
+                {
+                    var r = _viewModel.CommandService.Execute("update_device", p);
+                    if (!r.Success) MessageBox.Show(r.ErrorMessage ?? "更新设备失败", "通讯", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+        }
+
+        /// <summary>设备删除：确认 → CommandService。</summary>
+        private void OnDeviceDeleteRequested(DeviceConfig device)
+        {
+            var confirm = MessageBox.Show($"确定删除设备 \"{device.Name}\" 吗？", "删除设备",
+                MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (confirm != MessageBoxResult.Yes) return;
+            var r = _viewModel.CommandService.Execute("delete_device", new Dictionary<string, object?> { ["name"] = device.Name });
+            if (!r.Success)
+                MessageBox.Show(r.ErrorMessage ?? "删除失败", "通讯", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+
+        /// <summary>双击设备行 → 编辑。</summary>
+        private void DeviceGrid_DoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (_commDeviceVM.SelectedDevice != null)
+                _commDeviceVM.EditDeviceCommand.Execute(null);
+        }
+        #endregion
+
+        /// <summary>点击「通讯」Tab：切到通讯配置视图（与变量管理器/画面互斥切换）。</summary>
+        private void CommTab_Click(object sender, MouseButtonEventArgs e)
+        {
+            _viewModel.ActivateCommunication();
+            e.Handled = true;
+        }
+
+        /// <summary>关闭「通讯」Tab（当前激活时切回当前画面）。</summary>
+        private void CommTabClose_Click(object sender, MouseButtonEventArgs e)
+        {
+            _viewModel.CloseCommunicationTab();
+            e.Handled = true;
+        }
 
         /// <summary>
         /// 判断 child 是否是 parent 的视觉子树后代。

@@ -30,7 +30,7 @@ namespace NavigatorHMI.CommandLayer
         internal void SetConnected(bool connected) { lock (_lock) { IsConnected = connected; } }
 
         /// <summary>
-        /// 初始化 CommandService 并注册全部 32 个命令处理器。
+        /// 初始化 CommandService 并注册全部命令处理器（工程/画面/控件/层级/布局/事件/剪贴板/字体/变量/报警/设备）。
         /// </summary>
         /// <param name="project">当前工程对象</param>
         public CommandService(HMIProject project)
@@ -89,6 +89,8 @@ namespace NavigatorHMI.CommandLayer
 
                 // ── 设备操作 ──
                 ["configure_device"] = new ConfigureDeviceHandler(),
+                ["update_device"]    = new UpdateDeviceHandler(),
+                ["delete_device"]    = new DeleteDeviceHandler(),
                 ["connect"]          = new ConnectHandler(),
                 ["scan_devices"]     = new ScanDevicesHandler(),
                 ["deploy_project"]   = new DeployProjectHandler(),
