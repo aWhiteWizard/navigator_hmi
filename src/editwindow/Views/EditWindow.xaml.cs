@@ -164,6 +164,9 @@ namespace NavigatorHMI.Views
 
             // 10. 初始化属性窗口（必须在 LoadCanvas 之前——LoadCanvas 注入画布尺寸到 PropertyViewModel）
             _propertyViewModel = new PropertyViewModel();
+            // 注入工程引用（绑定变量下拉数据源）+ 命令服务（bind_tag 统一入口）
+            _propertyViewModel.Project = _currentProject;
+            _propertyViewModel.CommandService = _viewModel.CommandService;
             // 属性面板修改前 Push 撤销快照（属性修改可撤销；选中同步初始化不触发）
             _propertyViewModel.BeforeModify = () => _viewModel.PushUndoSnapshot();
             // 缩放手柄：拖拽开始 Push 撤销快照 + 画布尺寸提供器（缩放钳制）

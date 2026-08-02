@@ -239,6 +239,13 @@ namespace NavigatorHMI.ViewModels
         /// <summary>CommandService 执行命令成功后，智能刷新 UI。</summary>
         private void OnCommandExecuted(string cmdName, Dictionary<string, object?> parameters, CommandResult result)
         {
+            // bind_tag 只影响运行时绑定，设计态无视觉/树/标签变化：跳过全量重建（防属性面板选中丢失），仅标脏
+            if (cmdName == "bind_tag")
+            {
+                ProjectDirtyRequested?.Invoke();
+                return;
+            }
+
             // 重建项目树
             RebuildProjectTree();
             // 确保自定义画面列表展开

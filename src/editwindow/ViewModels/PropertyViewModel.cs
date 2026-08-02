@@ -2,6 +2,7 @@ using System;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using NavigatorHMI.CommandLayer;
 using NavigatorHMI.Common;
 
 namespace NavigatorHMI.ViewModels
@@ -39,6 +40,43 @@ namespace NavigatorHMI.ViewModels
         private Widget? _selectedWidget;
         private Screen? _selectedScreen;
         private Screen? _currentScreen;  // 当前编辑的画面，用于 ObjectName 重复检测
+
+        /// <summary>工程引用（绑定变量下拉数据源，EditWindow 注入）。</summary>
+        public HMIProject? Project { get; set; }
+
+        /// <summary>命令服务（bind_tag 统一入口，GUI/CLI/AI 同一路径）。变量增删改成功后自动刷新绑定下拉。</summary>
+        public CommandLayer.CommandService? CommandService
+        {
+            get => _commandService;
+            set
+            {
+                if (_commandService == value) return;
+                if (_commandService != null)
+                    _commandService.CommandExecuted -= OnTagCommandExecuted;
+                _commandService = value;
+                if (_commandService != null)
+                    _commandService.CommandExecuted += OnTagCommandExecuted;
+            }
+        }
+        private CommandLayer.CommandService? _commandService;
+
+        /// <summary>变量增删改成功后刷新绑定下拉（防下拉残留已删变量导致静默绑定失败）。</summary>
+        private void OnTagCommandExecuted(string cmdName, Dictionary<string, object?> parameters, CommandResult result)
+        {
+            if (result.Success && cmdName is "create_tag" or "update_tag" or "delete_tag")
+            {
+                RefreshBindableTags();
+                // 选中控件仍有效时，按模型 BoundTag 重同步下拉选中（变量可能被删/重命名；
+                // 同步性质直接赋值，不发 bind_tag 命令——避免 update_tag 改名后的冗余绑定+重复快照）
+                if (_selectedWidget != null)
+                {
+                    var tag = Project?.Tags.FirstOrDefault(t => t.Name == _selectedWidget.BoundTag);
+                    _syncingFromModel = true;
+                    try { _boundTag = tag; OnPropertyChanged(nameof(BoundTag)); }
+                    finally { _syncingFromModel = false; }
+                }
+            }
+        }
 
         /// <summary>当前选中的画面，null 表示无选中。</summary>
         /// <summary>当前选中的多个控件（框选多选模式，仅 MultiSelect 时非空）。</summary>
@@ -246,6 +284,10 @@ namespace NavigatorHMI.ViewModels
                             case FrameWidget f: FrameTitle = f.Title; FrameFillColor = f.FillColor; FrameImagePath = f.ImagePath; FrameFontFamily = f.FontFamily; FrameFontSize = f.FontSize; FrameFontWeight = f.FontWeight; FrameFontStyle = f.FontStyle; FrameTextDecoration = f.TextDecoration; break;
                             case ProgressBarWidget pb: ProgressValue = pb.Value; ProgressMin = pb.Min; ProgressMax = pb.Max; ProgressFillColor = pb.FillColor; ProgressFillStyle = pb.FillStyle; break;
                         }
+
+                        // 绑定变量（基类通用属性，选中控件时同步下拉 + 刷新变量列表）
+                        RefreshBindableTags();
+                        BoundTag = Project?.Tags.FirstOrDefault(t => t.Name == value.BoundTag);
                         }
                         finally { _syncingFromModel = false; }
                     }
@@ -270,6 +312,11 @@ namespace NavigatorHMI.ViewModels
                 {
                     case nameof(Widget.X):
                         X = _selectedWidget.X;
+                        break;
+                    case nameof(Widget.BoundTag):
+                        // CLI/Undo 等外部改模型 BoundTag → 面板实时同步（不触发命令）
+                        _boundTag = Project?.Tags.FirstOrDefault(t => t.Name == _selectedWidget.BoundTag);
+                        OnPropertyChanged(nameof(BoundTag));
                         break;
                     case nameof(Widget.Y):
                     Y = _selectedWidget.Y;
@@ -674,6 +721,53 @@ namespace NavigatorHMI.ViewModels
         }
 
         private string _labelText = "";
+        #region 绑定变量
+        /// <summary>绑定下拉数据源：第一项 null = 无绑定，其后为工程全部变量。</summary>
+        public System.Collections.ObjectModel.ObservableCollection<Tag?> BindableTags { get; } = new();
+
+        /// <summary>重建绑定下拉（null + 工程变量），选中控件时调用。</summary>
+        public void RefreshBindableTags()
+        {
+            BindableTags.Clear();
+            BindableTags.Add(null);   // 无绑定
+            if (Project != null)
+                foreach (var t in Project.Tags)
+                    BindableTags.Add(t);
+        }
+
+        private Tag? _boundTag;
+
+        /// <summary>选中控件绑定的变量（null = 未绑定）；变更走 CommandService.bind_tag（空 tag_name = 解绑）。</summary>
+        public Tag? BoundTag
+        {
+            get => _boundTag;
+            set
+            {
+                if (_boundTag == value) return;
+                _boundTag = value;
+                OnPropertyChanged();
+                if (!_syncingFromModel && _selectedWidget != null && CurrentScreen != null && CommandService != null)
+                {
+                    BeforeModify?.Invoke();
+                    var result = CommandService.Execute("bind_tag", new Dictionary<string, object?>
+                    {
+                        ["screen_name"] = CurrentScreen.Name,
+                        ["widget_name"] = _selectedWidget.ObjectName,
+                        ["tag_name"] = value?.Name ?? "",
+                    });
+                    // 失败（如变量已被删）：回滚 UI 选中态并提示，防静默不一致
+                    if (!result.Success)
+                    {
+                        _boundTag = Project?.Tags.FirstOrDefault(t => t.Name == _selectedWidget.BoundTag);
+                        OnPropertyChanged(nameof(BoundTag));
+                        System.Windows.MessageBox.Show(result.ErrorMessage ?? "绑定变量失败", "绑定",
+                            System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                    }
+                }
+            }
+        }
+        #endregion
+
         public string LabelText { get => _labelText; set { if (_labelText != value) { _labelText = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is LabelWidget lbl) lbl.Text = value; } } }
 
         private double _labelFontSize = 14;

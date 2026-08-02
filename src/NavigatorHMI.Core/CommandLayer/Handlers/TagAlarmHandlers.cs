@@ -58,33 +58,35 @@ namespace NavigatorHMI.CommandLayer.Handlers
         }
     }
 
-    /// <summary>将控件绑定到变量（设置 Widget.BoundTag）。</summary>
+    /// <summary>将控件绑定到变量（tag_name 为空 = 解除绑定）。</summary>
     public class BindTagHandler : ICommandHandler
     {
         public CommandDefinition Definition => new()
         {
-            Name = "bind_tag", Description = "将控件绑定到变量",
+            Name = "bind_tag", Description = "将控件绑定到变量（空 tag_name = 解绑）",
             Parameters = new()
             {
                 ["screen_name"] = new() { Type = "string", Required = true },
                 ["widget_name"] = new() { Type = "string", Required = true },
-                ["tag_name"] = new() { Type = "string", Required = true },
+                ["tag_name"] = new() { Type = "string", DefaultValue = "", Description = "变量名，空 = 解除绑定" },
             }
         };
         public ValidationResult Validate(Dictionary<string, object?> p)
         {
-            if (!p.ContainsKey("screen_name") || !p.ContainsKey("widget_name") || !p.ContainsKey("tag_name"))
-                return ValidationResult.Fail("缺少必填参数");
+            if (!p.ContainsKey("screen_name") || string.IsNullOrWhiteSpace(p["screen_name"]?.ToString())
+             || !p.ContainsKey("widget_name") || string.IsNullOrWhiteSpace(p["widget_name"]?.ToString()))
+                return ValidationResult.Fail("缺少必填参数: screen_name/widget_name");
             return ValidationResult.Ok;
         }
         public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
         {
-            if (!project.Tags.Any(t => t.Name == p["tag_name"]!.ToString()))
-                return CommandResult.Fail("NOT_FOUND", $"变量 \"{p["tag_name"]}\" 不存在，请先 create-tag");
+            var tagName = p.GetValueOrDefault("tag_name")?.ToString() ?? "";
+            if (tagName.Length > 0 && !project.Tags.Any(t => t.Name == tagName))
+                return CommandResult.Fail("NOT_FOUND", $"变量 \"{tagName}\" 不存在，请先 create-tag");
             var (_, widget, err) = WidgetHelper.FindWidget(project, p);
             if (err != null) return err;
-            widget!.BoundTag = p["tag_name"]!.ToString()!;
-            return CommandResult.Ok();
+            widget!.BoundTag = tagName;
+            return CommandResult.Ok(new { bound_tag = tagName });
         }
     }
 

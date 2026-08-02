@@ -48,7 +48,7 @@
             <TextBox Grid.Row="3" Grid.Column="1" x:Name="AddressBox" Visibility="Collapsed"
                      ToolTip="Modbus: 寄存器地址如 40001 / 00001；MQTT: 主题路径如 robot/pose/x"/>
 
-            <TextBlock Grid.Row="4" Grid.Column="0" Text="单位:" VerticalAlignment="Center"/>
+            <TextBlock Grid.Row="4" Grid.Column="0" VerticalAlignment="Center"><Run Text="单位:"/><Run Text="（可选）" Foreground="Gray" FontSize="10"/></TextBlock>
             <TextBox Grid.Row="4" Grid.Column="1" x:Name="UnitBox" ToolTip="如 °C / rpm / m（可留空）"/>
 
             <TextBlock Grid.Row="5" Grid.Column="0" Text="采集周期:" VerticalAlignment="Center"/>
@@ -62,10 +62,10 @@
                 <ComboBoxItem Content="10 秒" Tag="10000"/>
             </ComboBox>
 
-            <TextBlock Grid.Row="6" Grid.Column="0" Text="死区:" VerticalAlignment="Center"/>
-            <TextBox Grid.Row="6" Grid.Column="1" x:Name="DeadbandBox" Text="0" ToolTip="变化小于此值不触发刷新"/>
+            <TextBlock Grid.Row="6" Grid.Column="0" VerticalAlignment="Center"><Run Text="死区:"/><Run Text="（可选）" Foreground="Gray" FontSize="10"/></TextBlock>
+            <TextBox Grid.Row="6" Grid.Column="1" x:Name="DeadbandBox" Text="0" ToolTip="变化小于此值不触发刷新（默认 0 = 不启用）"/>
 
-            <TextBlock Grid.Row="7" Grid.Column="0" Text="描述:" VerticalAlignment="Center"/>
+            <TextBlock Grid.Row="7" Grid.Column="0" VerticalAlignment="Center"><Run Text="描述:"/><Run Text="（可选）" Foreground="Gray" FontSize="10"/></TextBlock>
             <TextBox Grid.Row="7" Grid.Column="1" x:Name="DescriptionBox" ToolTip="用户备注（不参与运行时逻辑）"/>
         </Grid>
 

@@ -81,6 +81,34 @@
                 <TextBox Grid.Column="1" Text="{Binding ObjectName, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropObjNameBox}" KeyDown="PropNumberBox_KeyDown"/>
         </Grid></StackPanel></DataTemplate>
 
+        <!-- 数据绑定：控件绑定变量（下拉选变量，空 = 无绑定） -->
+        <DataTemplate x:Key="PropBinding"><StackPanel>
+            <TextBlock Text="数据绑定" Style="{StaticResource PropGroupHeader}"/>
+            <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="变量:" Style="{StaticResource PropLabel}"/>
+                <Grid Grid.Column="1">
+                    <ComboBox SelectedItem="{Binding BoundTag}" ItemsSource="{Binding BindableTags}" Style="{StaticResource PropComboBox}"
+                              ToolTip="绑定变量后，控件显示该变量的实时值（选「（无绑定）」解除）">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Name, FallbackValue=（无绑定）}"/>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <!-- 未绑定时灰色占位（SelectedItem=null 时 ComboBox 显示空白，覆盖提示） -->
+                    <TextBlock Text="（无绑定）" Foreground="Gray" FontSize="11" Margin="6,2,0,0" VerticalAlignment="Center" IsHitTestVisible="False">
+                        <TextBlock.Style><Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers><DataTrigger Binding="{Binding BoundTag}" Value="{x:Null}">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger></Style.Triggers>
+                        </Style></TextBlock.Style>
+                    </TextBlock>
+                </Grid>
+            </Grid>
+        </StackPanel></DataTemplate>
+
         <!-- 多选批量编辑模板（框选多个控件时显示） -->
         <DataTemplate x:Key="PropMultiSelect"><StackPanel>
             <TextBlock Text="{Binding SelectedWidgets.Count, StringFormat=批量编辑 (已选 {0} 个控件)}" Style="{StaticResource PropGroupHeader}"/>
@@ -180,6 +208,7 @@
             <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropBinding}" Content="{Binding}"/>
             <Separator Margin="4,2"/>
             <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -237,6 +266,7 @@
             <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropBinding}" Content="{Binding}"/>
             <Separator Margin="4,2"/>
             <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -300,6 +330,7 @@
             <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropBinding}" Content="{Binding}"/>
             <Separator Margin="4,2"/>
             <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -347,6 +378,7 @@
             <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropBinding}" Content="{Binding}"/>
             <Separator Margin="4,2"/>
             <TextBlock Text="状态" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -459,6 +491,7 @@
             <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropBinding}" Content="{Binding}"/>
             <Separator Margin="4,2"/>
             <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -553,6 +586,7 @@
             <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropBinding}" Content="{Binding}"/>
             <Separator Margin="4,2"/>
             <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
