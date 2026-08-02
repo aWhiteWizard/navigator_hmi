@@ -26,6 +26,9 @@ namespace NavigatorHMI.CommandLayer
         /// <summary>替换当前工程引用（open_project 等命令使用）。</summary>
         public void ReplaceProject(HMIProject newProject) { lock (_lock) { _project = newProject; } }
 
+        /// <summary>设置设备连接状态（仅供内部 connect 命令执行后调用）。</summary>
+        internal void SetConnected(bool connected) { lock (_lock) { IsConnected = connected; } }
+
         /// <summary>
         /// 初始化 CommandService 并注册全部 26 个命令处理器。
         /// </summary>
@@ -102,6 +105,9 @@ namespace NavigatorHMI.CommandLayer
                 return CommandResult.Fail("NOT_CONNECTED", "请先连接设备 (connect 或 scan)");
 
             var result = handler.Execute(_project, parameters);
+            // 骨架模式：connect 成功后先置连接状态（否则 RequiresConnection 命令永远 NOT_CONNECTED；
+            // 且须在 CommandExecuted 事件触发前置位，订阅者刷新连接状态 UI 时读到最新值）
+            if (result.Success && commandName == "connect") IsConnected = true;
             if (result.Success) CommandExecuted?.Invoke(commandName, parameters, result);
             return result;
             }

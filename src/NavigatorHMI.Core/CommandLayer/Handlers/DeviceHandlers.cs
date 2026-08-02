@@ -17,8 +17,10 @@ namespace NavigatorHMI.CommandLayer.Handlers
         };
         public ValidationResult Validate(Dictionary<string, object?> p)
         {
-            if (!p.ContainsKey("name") || !p.ContainsKey("protocol") || !p.ContainsKey("connection_info"))
-                return ValidationResult.Fail("缺少必填参数");
+            if (!p.ContainsKey("name") || string.IsNullOrWhiteSpace(p["name"]?.ToString())
+             || !p.ContainsKey("protocol") || string.IsNullOrWhiteSpace(p["protocol"]?.ToString())
+             || !p.ContainsKey("connection_info") || string.IsNullOrWhiteSpace(p["connection_info"]?.ToString()))
+                return ValidationResult.Fail("缺少必填参数: name/protocol/connection_info");
             return ValidationResult.Ok;
         }
         public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
@@ -91,7 +93,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
         };
         public ValidationResult Validate(Dictionary<string, object?> p)
         {
-            if (!p.ContainsKey("device_ip")) return ValidationResult.Fail("缺少必填参数: device_ip");
+            if (!p.ContainsKey("device_ip") || string.IsNullOrWhiteSpace(p["device_ip"]?.ToString())) return ValidationResult.Fail("缺少必填参数: device_ip");
             return ValidationResult.Ok;
         }
         public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
@@ -115,7 +117,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
         };
         public ValidationResult Validate(Dictionary<string, object?> p)
         {
-            if (!p.ContainsKey("device_ip")) return ValidationResult.Fail("缺少必填参数: device_ip");
+            if (!p.ContainsKey("device_ip") || string.IsNullOrWhiteSpace(p["device_ip"]?.ToString())) return ValidationResult.Fail("缺少必填参数: device_ip");
             return ValidationResult.Ok;
         }
         public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)

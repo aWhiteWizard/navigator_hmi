@@ -1594,7 +1594,29 @@ namespace NavigatorHMI.Views
                 "save" => _viewModel.CommandService.Execute("save_project", new()),
                 "create-tag" or "ct" => _viewModel.CommandService.Execute("create_tag",
                     new() { ["name"] = opts.GetValueOrDefault("name", ""), ["data_type"] = opts.GetValueOrDefault("type", "FLOAT"), ["source"] = opts.GetValueOrDefault("source", ""), ["unit"] = opts.GetValueOrDefault("unit", ""), ["scan_interval"] = opts.GetValueOrDefault("scan-interval", "100"), ["deadband"] = opts.GetValueOrDefault("deadband", "0"), ["description"] = opts.GetValueOrDefault("description", "") }),
+                "align" => _viewModel.CommandService.Execute("align_widgets",
+                    new() { ["screen_name"] = opts.GetValueOrDefault("screen", ""), ["widgets"] = opts.GetValueOrDefault("widgets", ""), ["direction"] = opts.GetValueOrDefault("direction", "") }),
+                "array" => _viewModel.CommandService.Execute("array_layout",
+                    new() {
+                        ["screen_name"] = opts.GetValueOrDefault("screen", ""), ["widgets"] = opts.GetValueOrDefault("widgets", ""), ["mode"] = opts.GetValueOrDefault("mode", "rect"),
+                        ["start_x"] = opts.GetValueOrDefault("start-x", "0"), ["start_y"] = opts.GetValueOrDefault("start-y", "0"),
+                        ["cols"] = opts.GetValueOrDefault("cols", "3"), ["rows"] = opts.GetValueOrDefault("rows", "2"),
+                        ["spacing_x"] = opts.GetValueOrDefault("spacing-x", "120"), ["spacing_y"] = opts.GetValueOrDefault("spacing-y", "80"),
+                        ["center_x"] = opts.GetValueOrDefault("center-x", "0"), ["center_y"] = opts.GetValueOrDefault("center-y", "0"),
+                        ["radius"] = opts.GetValueOrDefault("radius", "150"), ["start_angle"] = opts.GetValueOrDefault("start-angle", "0"), ["end_angle"] = opts.GetValueOrDefault("end-angle", "360") }),
                 "list-screens" or "ls" => ListScreens(),
+                "scan" => _viewModel.CommandService.Execute("scan_devices",
+                    new() { ["nic"] = opts.GetValueOrDefault("nic", "") }),
+                "connect" => _viewModel.CommandService.Execute("connect",
+                    new() { ["ip"] = opts.GetValueOrDefault("ip", ""), ["model"] = opts.GetValueOrDefault("model", "NavigatorHMI") }),
+                "configure-device" => _viewModel.CommandService.Execute("configure_device",
+                    new() { ["name"] = opts.GetValueOrDefault("name", ""), ["protocol"] = opts.GetValueOrDefault("protocol", ""), ["connection_info"] = opts.GetValueOrDefault("connection", "") }),
+                "deploy-project" => _viewModel.CommandService.Execute("deploy_project",
+                    new() { ["device_ip"] = opts.GetValueOrDefault("ip", ""), ["file_path"] = opts.GetValueOrDefault("file", "") }),
+                "deploy-firmware" => _viewModel.CommandService.Execute("deploy_firmware",
+                    new() { ["device_ip"] = opts.GetValueOrDefault("ip", ""), ["file_path"] = opts.GetValueOrDefault("file", "") }),
+                "create-alarm" => _viewModel.CommandService.Execute("create_alarm",
+                    new() { ["name"] = opts.GetValueOrDefault("name", ""), ["tag_name"] = opts.GetValueOrDefault("tag", ""), ["type"] = opts.GetValueOrDefault("type", ""), ["threshold"] = opts.GetValueOrDefault("threshold", ""), ["deadband"] = opts.GetValueOrDefault("deadband", "0"), ["delay_ms"] = opts.GetValueOrDefault("delay", "0"), ["severity"] = opts.GetValueOrDefault("severity", "Warning"), ["message"] = opts.GetValueOrDefault("message", "") }),
                 _ => ExecuteDefaultCommand(command, opts)
             };
         }
@@ -1602,7 +1624,13 @@ namespace NavigatorHMI.Views
         private static string MapCliKey(string key) => key switch
         {
             "screen" => "screen_name", "widget" => "widget_name", "type" => "widget_type",
-            "tag" => "tag_name", "ip" => "device_ip", "file" => "file_path",
+            "tag" => "tag_name", "file" => "file_path",
+            // 布局命令参数键（与 CLI OptMap 对齐）：kebab → snake
+            "start-x" => "start_x", "start-y" => "start_y",
+            "spacing-x" => "spacing_x", "spacing-y" => "spacing_y",
+            "center-x" => "center_x", "center-y" => "center_y",
+            "start-angle" => "start_angle", "end-angle" => "end_angle",
+            "scan-interval" => "scan_interval",
             _ => key
         };
 
@@ -1628,7 +1656,7 @@ namespace NavigatorHMI.Views
                 bool hasUpDir = value.Contains("..");
                 bool hasSep = value.Contains('/') || value.Contains('\\');
                 bool isPathParam = key is "path" or "project" or "file" or "output" or "connection" or "source";
-                bool isNameParam = key is "name" or "screen" or "widget" or "tag" or "key" or "value" or "event" or "action" or "nic" or "protocol" or "severity";
+                bool isNameParam = key is "name" or "screen" or "widget" or "widgets" or "tag" or "key" or "value" or "event" or "action" or "nic" or "protocol" or "severity" or "direction" or "mode" or "ip" or "device_ip";
                 bool isFreeText = key is "description" or "message" or "params" or "model";
 
                 if (isPathParam)
@@ -1686,6 +1714,8 @@ namespace NavigatorHMI.Views
   delete-screen --name <name>                    删除画面
   add-widget --screen <name> --type button --x 0 --y 0  添加控件
   create-tag --name <name> --type FLOAT --source <uri>  创建变量
+  align --screen <name> --widgets a,b,c --direction left  对齐控件
+  array --screen <name> --widgets a,b,c --mode rect --start-x 0 --start-y 0 --cols 3 --rows 2 --spacing-x 120 --spacing-y 80  阵列排列
   compile                                       编译工程
   save                                          保存工程
   list-screens / ls                             列出所有画面

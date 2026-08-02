@@ -22,7 +22,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
         public ValidationResult Validate(Dictionary<string, object?> p)
         {
             if (!p.ContainsKey("name") || string.IsNullOrWhiteSpace(p["name"]?.ToString())) return ValidationResult.Fail("缺少必填参数: name");
-            if (!p.ContainsKey("data_type") || !p.ContainsKey("source")) return ValidationResult.Fail("缺少必填参数");
+            if (!p.ContainsKey("data_type") || !p.ContainsKey("source") || string.IsNullOrWhiteSpace(p["source"]?.ToString())) return ValidationResult.Fail("缺少必填参数: data_type/source");
             return ValidationResult.Ok;
         }
         public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
@@ -94,8 +94,21 @@ namespace NavigatorHMI.CommandLayer.Handlers
         };
         public ValidationResult Validate(Dictionary<string, object?> p)
         {
-            if (!p.ContainsKey("name") || !p.ContainsKey("tag_name") || !p.ContainsKey("type") || !p.ContainsKey("threshold"))
-                return ValidationResult.Fail("缺少必填参数");
+            if (!p.ContainsKey("name") || string.IsNullOrWhiteSpace(p["name"]?.ToString())
+             || !p.ContainsKey("tag_name") || string.IsNullOrWhiteSpace(p["tag_name"]?.ToString())
+             || !p.ContainsKey("type") || string.IsNullOrWhiteSpace(p["type"]?.ToString())
+             || !p.ContainsKey("threshold"))
+                return ValidationResult.Fail("缺少必填参数: name/tag_name/type/threshold");
+            // 数值参数 TryParse 校验（拒绝非法/空字符串，防 Convert.ToDouble 抛 FormatException）
+            if (p.TryGetValue("threshold", out var t) && t != null
+             && !double.TryParse(t.ToString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _))
+                return ValidationResult.Fail("threshold 必须是数字");
+            if (p.TryGetValue("deadband", out var d) && d != null && !string.IsNullOrWhiteSpace(d.ToString())
+             && !double.TryParse(d.ToString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _))
+                return ValidationResult.Fail("deadband 必须是数字");
+            if (p.TryGetValue("delay_ms", out var dm) && dm != null && !string.IsNullOrWhiteSpace(dm.ToString())
+             && !int.TryParse(dm.ToString(), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _))
+                return ValidationResult.Fail("delay_ms 必须是整数");
             return ValidationResult.Ok;
         }
         public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)

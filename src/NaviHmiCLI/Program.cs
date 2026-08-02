@@ -274,7 +274,7 @@ public static class Program
         bool hasSeparator = value.Contains('/') || value.Contains('\\');
         bool isPathParam = key is "path" or "project" or "file" or "output" or "connection" or "source";
         bool isNameParam = key is "name" or "screen" or "widget" or "widgets" or "tag" or "key" or "value"
-            or "event" or "action" or "nic" or "protocol" or "severity" or "direction" or "mode";
+            or "event" or "action" or "nic" or "protocol" or "severity" or "direction" or "mode" or "ip" or "device_ip";
         bool isFreeText = key is "description" or "message" or "params" or "model";
 
         if (isPathParam)
