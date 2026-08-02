@@ -28,7 +28,7 @@
             <TextBox Grid.Row="0" Grid.Column="1" x:Name="NameBox" ToolTip="设备名，如 主PLC / 温度模块"/>
 
             <TextBlock Grid.Row="1" Grid.Column="0" Text="协议:" VerticalAlignment="Center"/>
-            <ComboBox Grid.Row="1" Grid.Column="1" x:Name="ProtocolBox" SelectionChanged="ProtocolBox_SelectionChanged" SelectedIndex="1">
+            <ComboBox Grid.Row="1" Grid.Column="1" x:Name="ProtocolBox" SelectionChanged="ProtocolBox_SelectionChanged">
                 <ComboBoxItem Content="ModbusRTU"/>
                 <ComboBoxItem Content="ModbusTCP"/>
                 <ComboBoxItem Content="MQTT"/>
@@ -42,7 +42,7 @@
                         <TextBlock Grid.Column="0" Text="串口:" VerticalAlignment="Center"/>
                         <TextBox Grid.Column="1" x:Name="RtuPortBox" Text="/dev/ttyS1"/>
                         <TextBlock Grid.Column="2" Text="波特率:" VerticalAlignment="Center"/>
-                        <ComboBox Grid.Column="3" x:Name="RtuBaudBox" SelectedIndex="0">
+                        <ComboBox Grid.Column="3" x:Name="RtuBaudBox">
                             <ComboBoxItem Content="9600"/><ComboBoxItem Content="19200"/><ComboBoxItem Content="38400"/><ComboBoxItem Content="57600"/><ComboBoxItem Content="115200"/>
                         </ComboBox>
                     </Grid>

@@ -30,7 +30,9 @@ namespace NavigatorHMI.Views
             {
                 DialogTitle.Text = "新建设备";
                 Title = "新建设备";
-                ShowProtocolPanel(ProtocolType.ModbusTCP);   // 默认 ModbusTCP
+                // 默认 ModbusTCP（InitializeComponent 已完成，SelectionChanged 正常触发并显示 TCP 参数面板）
+                ProtocolBox.SelectedIndex = 1;
+                RtuBaudBox.SelectedIndex = 0;   // 默认波特率 9600（无 SelectionChanged 处理器，安全）
                 NameBox.Focus();
             }
             else
@@ -38,8 +40,8 @@ namespace NavigatorHMI.Views
                 DialogTitle.Text = $"编辑设备 - {existing.Name}";
                 Title = "编辑设备";
                 NameBox.Text = existing.Name;
-                ProtocolBox.SelectedIndex = (int)existing.Protocol;
-                ShowProtocolPanel(existing.Protocol);
+                // 契约：ProtocolType 枚举声明序 = XAML 下拉项序（ModbusRTU=0/ModbusTCP=1/MQTT=2），加成员时须同步
+                ProtocolBox.SelectedIndex = (int)existing.Protocol;   // 触发 SelectionChanged → ShowProtocolPanel
                 PrefillConnectionInfo(existing);
             }
         }
@@ -54,6 +56,8 @@ namespace NavigatorHMI.Views
 
         private void ShowProtocolPanel(ProtocolType pt)
         {
+            // 防御：InitializeComponent 期间事件可能在控件创建前触发（XAML SelectedIndex 陷阱），null 直接返回
+            if (RtuPanel == null || TcpPanel == null || MqttPanel == null) return;
             RtuPanel.Visibility = pt == ProtocolType.ModbusRTU ? Visibility.Visible : Visibility.Collapsed;
             TcpPanel.Visibility = pt == ProtocolType.ModbusTCP ? Visibility.Visible : Visibility.Collapsed;
             MqttPanel.Visibility = pt == ProtocolType.MQTT ? Visibility.Visible : Visibility.Collapsed;
@@ -69,7 +73,15 @@ namespace NavigatorHMI.Views
                 if (existing.Protocol == ProtocolType.ModbusRTU)
                 {
                     if (root.TryGetProperty("port", out var p) && p.ValueKind == JsonValueKind.String) RtuPortBox.Text = p.GetString() ?? RtuPortBox.Text;
-                    if (root.TryGetProperty("baud", out var b) && b.ValueKind == JsonValueKind.Number) RtuBaudBox.Text = b.GetInt32().ToString();
+                    if (root.TryGetProperty("baud", out var b) && b.ValueKind == JsonValueKind.Number)
+                    {
+                        var baud = b.GetInt32().ToString();
+                        // 非编辑 ComboBox 仅能选中列表内选项；存储值不在标准列表（如 4800）时动态插入，
+                        // 避免回填静默失败导致保存时被默认值悄悄覆盖（wpf-combobox-style §3 同类陷阱）
+                        if (!RtuBaudBox.Items.Cast<System.Windows.Controls.ComboBoxItem>().Any(i => i.Content?.ToString() == baud))
+                            RtuBaudBox.Items.Add(new System.Windows.Controls.ComboBoxItem { Content = baud });
+                        RtuBaudBox.SelectedValue = baud;
+                    }
                     if (root.TryGetProperty("slaveId", out var s) && s.ValueKind == JsonValueKind.Number) RtuSlaveBox.Text = s.GetInt32().ToString();
                 }
                 else if (existing.Protocol == ProtocolType.ModbusTCP)
@@ -101,6 +113,20 @@ namespace NavigatorHMI.Views
                 || !Enum.TryParse<ProtocolType>(item.Content.ToString(), out var pt))
             { ShowError("请选择协议"); return; }
 
+            // 数值字段校验（先于 BuildJson，错误消息统一；intKeys 内的键在此已确保可解析）
+            if (pt == ProtocolType.ModbusRTU)
+            {
+                if (!int.TryParse(RtuSlaveBox.Text.Trim(), out var s) || s < 1 || s > 247)
+                { ShowError("从站号必须是 1-247 的整数"); return; }
+            }
+            else if (pt == ProtocolType.ModbusTCP)
+            {
+                if (!int.TryParse(TcpPortBox.Text.Trim(), out var p) || p < 1 || p > 65535)
+                { ShowError("端口必须是 1-65535 的整数"); return; }
+                if (!int.TryParse(TcpSlaveBox.Text.Trim(), out var s) || s < 1 || s > 247)
+                { ShowError("从站号必须是 1-247 的整数"); return; }
+            }
+
             string json;
             try
             {
@@ -121,17 +147,6 @@ namespace NavigatorHMI.Views
                 };
             }
             catch (Exception ex) { ShowError(ex.Message); return; }
-
-            // 范围校验：从站号 1-247、端口 1-65535
-            if (pt is ProtocolType.ModbusRTU)
-            {
-                if (int.TryParse(RtuSlaveBox.Text.Trim(), out var s) && (s < 1 || s > 247)) { ShowError("从站号必须在 1-247 之间"); return; }
-            }
-            else if (pt == ProtocolType.ModbusTCP)
-            {
-                if (int.TryParse(TcpPortBox.Text.Trim(), out var p) && (p < 1 || p > 65535)) { ShowError("端口必须在 1-65535 之间"); return; }
-                if (int.TryParse(TcpSlaveBox.Text.Trim(), out var s) && (s < 1 || s > 247)) { ShowError("从站号必须在 1-247 之间"); return; }
-            }
 
             Result = new DeviceConfig { Name = name, Protocol = pt, ConnectionInfo = json };
             DialogResult = true;
