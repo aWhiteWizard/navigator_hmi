@@ -954,7 +954,9 @@
                                 <Grid Grid.Row="2"><Grid.ColumnDefinitions><ColumnDefinition Width="20"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text=">" FontFamily="Consolas" FontSize="13" Foreground="LimeGreen" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                                     <TextBox Grid.Column="1" x:Name="CliInput" FontFamily="Consolas" FontSize="13"
-                                             Background="#1E1E1E" Foreground="White" BorderThickness="0" PreviewKeyDown="CliInput_KeyDown"/>
+                                             Background="#1E1E1E" Foreground="White" BorderThickness="0"
+                                             AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" MaxHeight="120"
+                                             PreviewKeyDown="CliInput_KeyDown"/>
                                 </Grid>
                             </Grid>
                         </avalon:LayoutAnchorable>

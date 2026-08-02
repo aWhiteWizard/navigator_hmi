@@ -1526,18 +1526,40 @@ namespace NavigatorHMI.Views
             }
 
             if (e.Key != Key.Enter) return;
+
+            // Shift+Enter：插入换行继续编辑（多行命令输入）；普通 Enter：执行全部行
+            if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
+            {
+                CliInput.SelectedText = "\n"; // 光标处断行，光标跟随
+                e.Handled = true;
+                return;
+            }
             e.Handled = true;
 
-            var input = CliInput.Text.Trim();
-            if (string.IsNullOrEmpty(input)) return;
+            var input = CliInput.Text;
+            CliInput.Clear();
 
-            // 记入历史
-            _cliHistory.Add(input);
+            // 多行支持：按行拆分逐条执行（支持粘贴多行命令脚本）
+            // WPF TextBox 行分隔符为 \r\n，显式处理 \r 避免残留（不依赖 Trim 兜底）
+            var lines = input.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries)
+                             .Select(l => l.Trim())
+                             .Where(l => l.Length > 0)
+                             .ToList();
+            if (lines.Count == 0) return;
+
+            // 记入历史（整段，回显逐条）
+            _cliHistory.Add(input.Trim());
             _historyIndex = _cliHistory.Count;
 
+            foreach (var line in lines)
+                ExecuteCliLine(line);
+        }
+
+        /// <summary>执行单条 CLI 命令（含回显与结果输出）。</summary>
+        private void ExecuteCliLine(string input)
+        {
             // 回显命令
             AppendCliOutput($"> {input}", "LimeGreen");
-            CliInput.Clear();
 
             // 特殊命令
             if (input is "cls" or "clear") { CliOutput.Clear(); return; }
