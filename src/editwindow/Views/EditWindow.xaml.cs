@@ -841,7 +841,9 @@ namespace NavigatorHMI.Views
                 case Key.Down: dy = step; break;
             }
             foreach (var w in selected) { w.X += dx; w.Y += dy; }
-            _viewModel.NotifyCanvasRefreshNeeded();
+            // 不触发全量 LoadCanvas（会清空选中）：Widget.X/Y setter 的 PropertyChanged
+            // 已驱动 Canvas.Left/Top 绑定自动更新位置，选中状态（TwoWay 绑定）保持不变
+            _selectionManager.UpdateSelectionUI();   // 确保选中装饰器跟随新位置
         }
 
         /// <summary>粘贴到当前画布中心附近（快捷键 Ctrl+V；右键菜单粘贴用 PasteWidget_Click）。</summary>
