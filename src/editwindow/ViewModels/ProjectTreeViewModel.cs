@@ -223,5 +223,33 @@ namespace NavigatorHMI.ViewModels
         }
     }
 
+    /// <summary>「通信变量」根节点：展开显示「变量」子节点，点击子节点在画布位置打开变量管理器 Tab。</summary>
+    public class CommunicationRootNode : ProjectTreeViewModel
+    {
+        public CommunicationRootNode()
+        {
+            Name = "通信变量";
+            Children.Add(new VariableManagerNode(this));
+        }
+
+        /// <summary>「变量」子节点被选中时触发（上层打开变量管理器 Tab）。</summary>
+        public event Action? OnVariableManagerSelected;
+
+        /// <summary>供 VariableManagerNode 调用的内部入口。</summary>
+        internal void NotifyVariableManagerSelected() => OnVariableManagerSelected?.Invoke();
+    }
+
+    /// <summary>「变量」叶子节点：单击/双击打开变量管理器（画布 Tab）。</summary>
+    public class VariableManagerNode : ProjectTreeViewModel
+    {
+        private readonly CommunicationRootNode _parent;
+
+        public VariableManagerNode(CommunicationRootNode parent)
+        {
+            _parent = parent;
+            Name = "变量";
+            DoubleClickCommand = new RelayCommand(() => _parent.NotifyVariableManagerSelected());
+        }
+    }
 }
  

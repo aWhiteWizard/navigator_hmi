@@ -705,8 +705,7 @@
                           Click="ToggleAnchorable_Click" Tag="toolbox"/>
                 <MenuItem Header="属性窗口" IsCheckable="True" IsChecked="True"
                           Click="ToggleAnchorable_Click" Tag="property"/>
-                <MenuItem Header="变量管理器" IsCheckable="True" IsChecked="True"
-                          Click="ToggleAnchorable_Click" Tag="variables"/>
+                <MenuItem Header="变量管理器" Click="OpenVariableManagerMenu_Click" InputGestureText="通信变量→变量"/>
                 <MenuItem Header="CLI 控制台" IsCheckable="True" IsChecked="True"
                           Click="ToggleAnchorable_Click" Tag="cli"/>
                 <Separator/>
@@ -803,7 +802,8 @@
                         <!-- 左侧: 项目树 + 控件面板 -->
                         <avalon:LayoutAnchorablePane DockWidth="200">
                             <avalon:LayoutAnchorable Title="项目窗口" ContentId="project">
-                                <TreeView x:Name="ProjectTreeView" ItemsSource="{Binding TreeRoots}" MouseRightButtonDown="ProjectTree_RightClick" Background="Transparent">
+                                <TreeView x:Name="ProjectTreeView" ItemsSource="{Binding TreeRoots}" MouseRightButtonDown="ProjectTree_RightClick" Background="Transparent"
+                                          SelectedItemChanged="ProjectTree_SelectedItemChanged">
                                     <TreeView.Resources>
                                         <HierarchicalDataTemplate DataType="{x:Type vm:ScreenItemNode}" ItemsSource="{Binding Children}">
                                             <Grid>
@@ -862,14 +862,37 @@
 
                         <!-- 中央: 画布 -->
                         <avalon:LayoutDocumentPane>
-                            <avalon:LayoutDocument Title="画布" ContentId="canvas" CanClose="False"><Grid>
+                            <avalon:LayoutDocument Title="画布" ContentId="canvas" CanClose="False" CanFloat="False"><Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
-                                <!-- 画布顶部页面标签栏：显示已打开的画面（含全局/世界地图/自定义），高亮当前编辑页，点击切换，可关闭 -->
+                                <!-- 画布顶部页面标签栏：画面 Tab（打开才显示）+ 变量管理器 Tab（固定），点击切换，可关闭 -->
                                 <Border Grid.Row="0" Background="#F0F0F0" BorderBrush="LightGray" BorderThickness="0,0,0,1" Padding="4,2">
-                                    <ItemsControl ItemsSource="{Binding OpenScreens}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <!-- 变量管理器 Tab（由「通信变量→变量」树节点或视图菜单打开，打开才显示，激活高亮） -->
+                                        <Border x:Name="VarManagerTab" BorderThickness="1" CornerRadius="3" Padding="6,3" Margin="0,0,4,0"
+                                                Cursor="Hand" MouseLeftButtonDown="VarManagerTab_Click"
+                                                Visibility="{Binding VariableManagerTabOpen, Converter={StaticResource BoolToVisibilityConverter}}">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="#E0E0E0"/>
+                                                    <Setter Property="BorderBrush" Value="#B0B0B0"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding VariableManagerActive}" Value="True">
+                                                            <Setter Property="Background" Value="#0078D4"/>
+                                                            <Setter Property="BorderBrush" Value="#0078D4"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="📊 变量管理器" FontSize="12" VerticalAlignment="Center"/>
+                                                <TextBlock Text=" ✕" FontSize="10" Foreground="#888888" VerticalAlignment="Center" Margin="4,0,0,0"
+                                                           Cursor="Hand" MouseLeftButtonDown="VarManagerTabClose_Click"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <ItemsControl ItemsSource="{Binding OpenScreens}">
                                         <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
@@ -883,15 +906,20 @@
                                                     </StackPanel>
                                                 </Border>
                                                 <DataTemplate.Triggers>
-                                                    <!-- 当前编辑页高亮 -->
-                                                    <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                                    <!-- 当前编辑页高亮；变量管理器激活时画面 Tab 不高亮（高亮互斥，避免双蓝） -->
+                                                    <MultiDataTrigger>
+                                                        <MultiDataTrigger.Conditions>
+                                                            <Condition Binding="{Binding IsCurrent}" Value="True"/>
+                                                            <Condition Binding="{Binding DataContext.VariableManagerActive, RelativeSource={RelativeSource AncestorType=Window}}" Value="False"/>
+                                                        </MultiDataTrigger.Conditions>
                                                         <Setter TargetName="TabBorder" Property="Background" Value="#0078D4"/>
                                                         <Setter TargetName="TabBorder" Property="BorderBrush" Value="#0078D4"/>
-                                                    </DataTrigger>
+                                                    </MultiDataTrigger>
                                                 </DataTemplate.Triggers>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
+                                    </StackPanel>
                                 </Border>
                                 <Popup x:Name="WidgetContextMenu" Placement="Absolute" StaysOpen="False" AllowsTransparency="True" Grid.RowSpan="2">
                                     <Border Background="White" BorderBrush="LightGray" BorderThickness="1" CornerRadius="4" Padding="2">
@@ -931,6 +959,17 @@
                                         PreviewMouseRightButtonDown="Canvas_PreviewRightButtonDown"
                                         PreviewMouseLeftButtonDown="Canvas_MouseLeftButtonDown"
                                         PreviewMouseMove="Canvas_MouseMove" PreviewMouseLeftButtonUp="Canvas_MouseLeftButtonUp">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                            <Style.Triggers>
+                                                <!-- 变量管理器激活时隐藏画布（同一位置切换） -->
+                                                <DataTrigger Binding="{Binding VariableManagerActive}" Value="True">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
                                     <Grid>
                                     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                                         <Canvas x:Name="DrawingCanvas" HorizontalAlignment="Left" VerticalAlignment="Top"
@@ -955,6 +994,48 @@
                                                Foreground="Gray" FontSize="12" Margin="0,0,8,4"/>
                                     </Grid>
                                 </Border>
+                                <!-- 变量管理器内容（画布 Tab 激活时显示，与画布同一位置切换）
+                                     注意：Visibility 必须从 Window.DataContext（EditWindowViewModel）取，
+                                     不能在本 Grid 的 DataContext（VariableManagerVM）上解析——该 VM 无此属性，
+                                     绑定失败会退回默认 Visible 导致常驻遮挡画布（wpf-event-routing §7 DataContext 覆盖陷阱） -->
+                                <Grid Grid.Row="1" Margin="3" DataContext="{Binding VariableManagerVM, RelativeSource={RelativeSource AncestorType=Window}}"
+                                      Visibility="{Binding DataContext.VariableManagerActive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
+                                        <Button Content="＋ 新建变量" Command="{Binding NewTagCommand}" Width="90" Height="26" Margin="0,0,4,0" ToolTip="新建变量"/>
+                                        <Button Content="✏ 编辑" Command="{Binding EditTagCommand}" Width="60" Height="26" Margin="0,0,4,0" ToolTip="编辑选中变量（或双击行）"/>
+                                        <Button Content="🗑 删除" Command="{Binding DeleteTagCommand}" Width="60" Height="26" ToolTip="删除选中变量（被引用时拒绝）"/>
+                                    </StackPanel>
+                                    <DockPanel Grid.Row="1" Margin="0,0,0,4">
+                                        <TextBlock DockPanel.Dock="Left" Text="搜索:" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="12"/>
+                                        <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" FontSize="12" VerticalContentAlignment="Center"/>
+                                    </DockPanel>
+                                    <DataGrid Grid.Row="2" ItemsSource="{Binding Tags}" SelectedItem="{Binding SelectedTag}"
+                                              AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="True"
+                                              HeadersVisibility="Column" IsReadOnly="True" MouseDoubleClick="TagGrid_DoubleClick"
+                                              SelectionMode="Single" GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12"
+                                              RowHeight="26">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="名称" Binding="{Binding Name}" Width="*"/>
+                                            <DataGridTextColumn Header="类型" Binding="{Binding DataType}" Width="55"/>
+                                            <DataGridTextColumn Header="来源" Binding="{Binding Source}" Width="*"/>
+                                            <DataGridTextColumn Header="单位" Binding="{Binding Unit}" Width="42"/>
+                                            <DataGridTextColumn Header="周期" Binding="{Binding ScanIntervalMs}" Width="48"/>
+                                        </DataGrid.Columns>
+                                        <DataGrid.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="＋ 新建变量" Command="{Binding NewTagCommand}"/>
+                                                <MenuItem Header="✏ 编辑变量" Command="{Binding EditTagCommand}"/>
+                                                <Separator/>
+                                                <MenuItem Header="🗑 删除变量" Command="{Binding DeleteTagCommand}"/>
+                                            </ContextMenu>
+                                        </DataGrid.ContextMenu>
+                                    </DataGrid>
+                                </Grid>
                             </Grid></avalon:LayoutDocument>
                         </avalon:LayoutDocumentPane>
 
@@ -999,47 +1080,6 @@
                                             </Style></ContentControl.Style></ContentControl>
                                         </StackPanel>
                                     </ScrollViewer>
-                                </Grid>
-                            </avalon:LayoutAnchorable>
-
-                            <!-- 变量管理器面板：新建/编辑/删除/搜索 + 变量表格（全部走 CommandService） -->
-                            <avalon:LayoutAnchorable Title="变量管理器" ContentId="variables">
-                                <Grid Margin="4" DataContext="{Binding VariableManagerVM, RelativeSource={RelativeSource AncestorType=Window}}">
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="*"/>
-                                    </Grid.RowDefinitions>
-                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
-                                        <Button Content="＋ 新建" Command="{Binding NewTagCommand}" Width="64" Height="26" Margin="0,0,4,0" ToolTip="新建变量"/>
-                                        <Button Content="✏ 编辑" Command="{Binding EditTagCommand}" Width="56" Height="26" Margin="0,0,4,0" ToolTip="编辑选中变量（或双击行）"/>
-                                        <Button Content="🗑 删除" Command="{Binding DeleteTagCommand}" Width="56" Height="26" ToolTip="删除选中变量（被引用时拒绝）"/>
-                                    </StackPanel>
-                                    <DockPanel Grid.Row="1" Margin="0,0,0,4">
-                                        <TextBlock DockPanel.Dock="Left" Text="搜索:" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="12"/>
-                                        <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" FontSize="12" VerticalContentAlignment="Center"/>
-                                    </DockPanel>
-                                    <DataGrid Grid.Row="2" ItemsSource="{Binding Tags}" SelectedItem="{Binding SelectedTag}"
-                                              AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="True"
-                                              HeadersVisibility="Column" IsReadOnly="True" MouseDoubleClick="TagGrid_DoubleClick"
-                                              SelectionMode="Single" GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12"
-                                              RowHeight="26">
-                                        <DataGrid.Columns>
-                                            <DataGridTextColumn Header="名称" Binding="{Binding Name}" Width="*"/>
-                                            <DataGridTextColumn Header="类型" Binding="{Binding DataType}" Width="55"/>
-                                            <DataGridTextColumn Header="来源" Binding="{Binding Source}" Width="*"/>
-                                            <DataGridTextColumn Header="单位" Binding="{Binding Unit}" Width="42"/>
-                                            <DataGridTextColumn Header="周期" Binding="{Binding ScanIntervalMs}" Width="48"/>
-                                        </DataGrid.Columns>
-                                        <DataGrid.ContextMenu>
-                                            <ContextMenu>
-                                                <MenuItem Header="＋ 新建变量" Command="{Binding NewTagCommand}"/>
-                                                <MenuItem Header="✏ 编辑变量" Command="{Binding EditTagCommand}"/>
-                                                <Separator/>
-                                                <MenuItem Header="🗑 删除变量" Command="{Binding DeleteTagCommand}"/>
-                                            </ContextMenu>
-                                        </DataGrid.ContextMenu>
-                                    </DataGrid>
                                 </Grid>
                             </avalon:LayoutAnchorable>
                         </avalon:LayoutAnchorablePane>

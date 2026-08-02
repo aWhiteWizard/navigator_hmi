@@ -66,6 +66,56 @@ namespace NavigatorHMI.ViewModels
             OnPropertyChanged(nameof(OpenScreens));
         }
 
+        // ═══════════════════════════════════════════
+        // 变量管理器 Tab（画布标签栏，与画面 Tab 并列切换）
+        // ═══════════════════════════════════════════
+
+        private bool _variableManagerTabOpen;
+
+        /// <summary>变量管理器 Tab 是否打开（打开才在标签栏显示）。</summary>
+        public bool VariableManagerTabOpen
+        {
+            get => _variableManagerTabOpen;
+            set { if (_variableManagerTabOpen != value) { _variableManagerTabOpen = value; OnPropertyChanged(); } }
+        }
+
+        private bool _variableManagerActive;
+
+        /// <summary>当前内容是否为变量管理器（true=显示变量管理器，false=显示画布）。</summary>
+        public bool VariableManagerActive
+        {
+            get => _variableManagerActive;
+            set { if (_variableManagerActive != value) { _variableManagerActive = value; OnPropertyChanged(); } }
+        }
+
+        /// <summary>打开变量管理器：显示 Tab 并切到变量管理器视图。</summary>
+        public void OpenVariableManager()
+        {
+            VariableManagerTabOpen = true;
+            VariableManagerActive = true;
+        }
+
+        /// <summary>激活变量管理器视图（Tab 已打开时点击标签栏）。</summary>
+        public void ActivateVariableManager()
+        {
+            if (!VariableManagerTabOpen) VariableManagerTabOpen = true;
+            VariableManagerActive = true;
+        }
+
+        /// <summary>关闭变量管理器 Tab（若当前激活则切回当前画面）。</summary>
+        public void CloseVariableManagerTab()
+        {
+            if (VariableManagerActive) VariableManagerActive = false;
+            VariableManagerTabOpen = false;
+        }
+
+        /// <summary>激活画面：退出变量管理器视图并切换画面（即使 CurrentScreen 未变也生效）。</summary>
+        public void ActivateScreen(Screen screen)
+        {
+            VariableManagerActive = false;
+            CurrentScreen = screen;
+        }
+
         private Screen _currentScreen;
         public Screen CurrentScreen
         {
@@ -77,6 +127,9 @@ namespace NavigatorHMI.ViewModels
                 var oldScreen = _currentScreen;
                 _currentScreen = value;
                 OnPropertyChanged();
+
+                // 切到画面时自动退出变量管理器视图（标签栏高亮同步）
+                VariableManagerActive = false;
 
                 // 打开画面 → 自动加入标签集合（打开才显示标签）
                 EnsureScreenOpen(value);
@@ -170,11 +223,11 @@ namespace NavigatorHMI.ViewModels
         {
             TreeRoots.Clear();
             var globalNode = new ScreenItemNode(CurrentProject.Screens.First(s => s.Type == ScreenType.Template), CurrentProject);
-            globalNode.OnSelected += s => CurrentScreen = s;
+            globalNode.OnSelected += s => ActivateScreen(s);
             var mapNode = new ScreenItemNode(CurrentProject.Screens.First(s => s.Type == ScreenType.WorldMap), CurrentProject);
-            mapNode.OnSelected += s => CurrentScreen = s;
+            mapNode.OnSelected += s => ActivateScreen(s);
             var customRoot = new CustomScreensRootNode(CurrentProject);
-            customRoot.OnScreenSelected += s => CurrentScreen = s;
+            customRoot.OnScreenSelected += s => ActivateScreen(s);
             customRoot.OnScreenDeleted += (deletedScreen) =>
             {
                 OpenScreens.Remove(deletedScreen);   // 删除画面 → 移除其标签
@@ -187,6 +240,15 @@ namespace NavigatorHMI.ViewModels
             TreeRoots.Add(globalNode);
             TreeRoots.Add(mapNode);
             TreeRoots.Add(customRoot);
+            TreeRoots.Add(BuildCommunicationRootNode());
+        }
+
+        /// <summary>构建「通信变量」根节点（含「变量」子节点，点击在画布位置打开变量管理器 Tab）。</summary>
+        private CommunicationRootNode BuildCommunicationRootNode()
+        {
+            var node = new CommunicationRootNode();
+            node.OnVariableManagerSelected += OpenVariableManager;
+            return node;
         }
         // 撤销操作执行后触发，用于通知 View 层标记工程已修改
         public event Action? ProjectDirtyRequested;
@@ -221,12 +283,13 @@ namespace NavigatorHMI.ViewModels
             CommandService = new CommandService(project);
             CommandService.CommandExecuted += OnCommandExecuted;
             // 构建树根：全局画面、地图画面、自定义画面列表根
+            // 注意：树节点选中一律走 ActivateScreen（当前画面未变时也能退出变量管理器视图）
             var globalNode = new ScreenItemNode(project.Screens.First(s => s.Type == ScreenType.Template), project);
-            globalNode.OnSelected += s => CurrentScreen = s;
+            globalNode.OnSelected += s => ActivateScreen(s);
             var mapNode = new ScreenItemNode(project.Screens.First(s => s.Type == ScreenType.WorldMap), project);
-            mapNode.OnSelected += s => CurrentScreen = s;
+            mapNode.OnSelected += s => ActivateScreen(s);
             var customRoot = new CustomScreensRootNode(project);
-            customRoot.OnScreenSelected += s => CurrentScreen = s;
+            customRoot.OnScreenSelected += s => ActivateScreen(s);
             customRoot.OnScreenDeleted += (deletedScreen) =>
             {
                 OpenScreens.Remove(deletedScreen);   // 删除画面 → 移除其标签
@@ -244,6 +307,7 @@ namespace NavigatorHMI.ViewModels
             TreeRoots.Add(globalNode);
             TreeRoots.Add(mapNode);
             TreeRoots.Add(customRoot);
+            TreeRoots.Add(BuildCommunicationRootNode());
 
             // 默认选中全局画面
             CurrentScreen = project.Screens.First(s => s.Type == ScreenType.WorldMap);
