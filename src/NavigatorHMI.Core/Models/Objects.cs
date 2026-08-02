@@ -184,9 +184,38 @@ public abstract class Widget : INotifyPropertyChanged
         set { _objectName = value; OnPropertyChanged(); }
     }
 
+    private string _boundTag = "";
+
     /// <summary>绑定的变量名（可选，控件显示该变量的实时值）</summary>
     [ProtoMember(6)]
-    public string BoundTag { get; set; } = "";
+    public string BoundTag
+    {
+        get => _boundTag;
+        set
+        {
+            if (_boundTag != value)
+            {
+                _boundTag = value;
+                OnPropertyChanged();
+                // 绑定变化 → 通知设计态显示属性刷新（渲染模板绑定 Display*）
+                OnPropertyChanged(nameof(DisplayText));
+                OnPropertyChanged(nameof(DisplayPath));
+                OnPropertyChanged(nameof(DisplayProgressValue));
+            }
+        }
+    }
+
+    /// <summary>设计态显示文本：绑定变量 → 变量基准值；否则控件自身值。子类 override。</summary>
+    [ProtoIgnore]
+    public virtual string DisplayText => "";
+
+    /// <summary>设计态显示路径（Image/Frame 背景图）：绑定变量 → 变量基准值；否则控件自身路径。子类 override。</summary>
+    [ProtoIgnore]
+    public virtual string DisplayPath => "";
+
+    /// <summary>设计态显示进度值（ProgressBar）：绑定变量 → 变量基准值；否则控件自身值。子类 override。</summary>
+    [ProtoIgnore]
+    public virtual double DisplayProgressValue => 0;
 
     /// <summary>事件-动作绑定列表。每个条目定义"什么事件→执行什么动作"。</summary>
     [ProtoMember(7)]
@@ -399,7 +428,7 @@ public class ImageWidget : Widget
     private string _imagePath = "";
     /// <summary>图片文件路径（相对工程目录或绝对路径）</summary>
     [ProtoMember(1)]
-    public string ImagePath { get => _imagePath; set { _imagePath = value; OnPropertyChanged(); } }
+    public string ImagePath { get => _imagePath; set { if (_imagePath != value) { _imagePath = value; OnPropertyChanged(); OnPropertyChanged(nameof(DisplayPath)); } } }
 
     private string _stretchMode = "Uniform";
     /// <summary>拉伸模式：None / Fill / Uniform / UniformToFill</summary>
@@ -410,6 +439,21 @@ public class ImageWidget : Widget
     /// <summary>背景色（CSS 格式，默认浅灰；图片透明区域/无图片时可见）</summary>
     [ProtoMember(3)]
     public string FillColor { get => _fillColor; set { _fillColor = value; OnPropertyChanged(); } }
+
+    /// <summary>设计态显示路径：绑定变量 → 变量基准值；否则控件 ImagePath。</summary>
+    [ProtoIgnore]
+    public override string DisplayPath
+    {
+        get
+        {
+            if (!string.IsNullOrEmpty(BoundTag))
+            {
+                var bv = TagResolver.ResolveBaseValue(BoundTag);
+                if (bv.Length > 0) return bv;
+            }
+            return ImagePath;
+        }
+    }
 }
 
 /// <summary>
@@ -425,7 +469,7 @@ public class NumericDisplayWidget : Widget
     private double _value = 0;
     /// <summary>设计态数值预览（运行时由 BoundTag 变量实时值覆盖）</summary>
     [ProtoMember(7)]
-    public double Value { get => _value; set { _value = value; OnPropertyChanged(); } }
+    public double Value { get => _value; set { if (_value != value) { _value = value; OnPropertyChanged(); OnPropertyChanged(nameof(DisplayText)); } } }
 
     private double _fontSize = WidgetFontDefaults.FontSize;
     /// <summary>字体大小（像素）</summary>
@@ -461,6 +505,21 @@ public class NumericDisplayWidget : Widget
     /// <summary>下划线：None / Underline</summary>
     [ProtoMember(11)]
     public string TextDecoration { get => _textDecoration; set { _textDecoration = value; OnPropertyChanged(); } }
+
+    /// <summary>设计态显示文本：绑定变量 → 变量基准值；否则控件 Value 数值。</summary>
+    [ProtoIgnore]
+    public override string DisplayText
+    {
+        get
+        {
+            if (!string.IsNullOrEmpty(BoundTag))
+            {
+                var bv = TagResolver.ResolveBaseValue(BoundTag);
+                if (bv.Length > 0) return bv;
+            }
+            return Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+    }
 }
 
 /// <summary>
@@ -605,7 +664,7 @@ public class IOFieldWidget : Widget
     private string _content = "";
     /// <summary>显示/输入内容</summary>
     [ProtoMember(1)]
-    public string Content { get => _content; set { _content = value; OnPropertyChanged(); } }
+    public string Content { get => _content; set { if (_content != value) { _content = value; OnPropertyChanged(); OnPropertyChanged(nameof(DisplayText)); } } }
 
     private bool _isReadOnly = false;
     /// <summary>是否只读（true=仅显示，false=可编辑）</summary>
@@ -646,6 +705,21 @@ public class IOFieldWidget : Widget
     /// <summary>文本颜色（CSS 格式）</summary>
     [ProtoMember(9)]
     public string TextColor { get => _textColor; set { _textColor = value; OnPropertyChanged(); } }
+
+    /// <summary>设计态显示文本：绑定变量 → 变量基准值；否则控件 Content。</summary>
+    [ProtoIgnore]
+    public override string DisplayText
+    {
+        get
+        {
+            if (!string.IsNullOrEmpty(BoundTag))
+            {
+                var bv = TagResolver.ResolveBaseValue(BoundTag);
+                if (bv.Length > 0) return bv;
+            }
+            return Content;
+        }
+    }
 }
 
 /// <summary>
@@ -767,7 +841,7 @@ public class FrameWidget : Widget
     private string _imagePath = "";
     /// <summary>框架背景图片路径（相对工程目录或绝对路径，空则仅显示标题框）</summary>
     [ProtoMember(3)]
-    public string ImagePath { get => _imagePath; set { _imagePath = value; OnPropertyChanged(); } }
+    public string ImagePath { get => _imagePath; set { if (_imagePath != value) { _imagePath = value; OnPropertyChanged(); OnPropertyChanged(nameof(DisplayPath)); } } }
 
     private string _fontFamily = WidgetFontDefaults.FontFamily;
     /// <summary>字体族（如 "Microsoft YaHei UI" / "Arial"）</summary>
@@ -793,6 +867,21 @@ public class FrameWidget : Widget
     /// <summary>下划线：None / Underline</summary>
     [ProtoMember(8)]
     public string TextDecoration { get => _textDecoration; set { _textDecoration = value; OnPropertyChanged(); } }
+
+    /// <summary>设计态显示背景路径：绑定变量 → 变量基准值；否则控件 ImagePath。</summary>
+    [ProtoIgnore]
+    public override string DisplayPath
+    {
+        get
+        {
+            if (!string.IsNullOrEmpty(BoundTag))
+            {
+                var bv = TagResolver.ResolveBaseValue(BoundTag);
+                if (bv.Length > 0) return bv;
+            }
+            return ImagePath;
+        }
+    }
 }
 
 /// <summary>
@@ -804,7 +893,7 @@ public class ProgressBarWidget : Widget
     private double _value = 0;
     /// <summary>当前进度值（在 Min-Max 范围内）</summary>
     [ProtoMember(1)]
-    public double Value { get => _value; set { _value = value; OnPropertyChanged(); } }
+    public double Value { get => _value; set { if (_value != value) { _value = value; OnPropertyChanged(); OnPropertyChanged(nameof(DisplayProgressValue)); } } }
 
     private double _min = 0;
     /// <summary>最小值</summary>
@@ -825,6 +914,22 @@ public class ProgressBarWidget : Widget
     /// <summary>填充样式：Solid（实心）/ Diagonal（斜线）/ Grid（方格）</summary>
     [ProtoMember(5)]
     public string FillStyle { get => _fillStyle; set { _fillStyle = value; OnPropertyChanged(); } }
+
+    /// <summary>设计态进度值：绑定变量 → 变量基准值（解析 double）；否则控件 Value。</summary>
+    [ProtoIgnore]
+    public override double DisplayProgressValue
+    {
+        get
+        {
+            if (!string.IsNullOrEmpty(BoundTag))
+            {
+                var bv = TagResolver.ResolveBaseValue(BoundTag);
+                if (double.TryParse(bv, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var v))
+                    return v;
+            }
+            return Value;
+        }
+    }
 }
 
 } // namespace NavigatorHMI.Common

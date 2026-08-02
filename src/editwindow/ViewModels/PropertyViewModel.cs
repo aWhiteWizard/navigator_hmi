@@ -72,7 +72,7 @@ namespace NavigatorHMI.ViewModels
                 {
                     var tag = Project?.Tags.FirstOrDefault(t => t.Name == _selectedWidget.BoundTag);
                     _syncingFromModel = true;
-                    try { _boundTag = tag; OnPropertyChanged(nameof(BoundTag)); }
+                    try { _boundTag = tag; OnPropertyChanged(nameof(BoundTag)); OnPropertyChanged(nameof(IsValueEditable)); }
                     finally { _syncingFromModel = false; }
                 }
             }
@@ -317,6 +317,7 @@ namespace NavigatorHMI.ViewModels
                         // CLI/Undo 等外部改模型 BoundTag → 面板实时同步（不触发命令）
                         _boundTag = Project?.Tags.FirstOrDefault(t => t.Name == _selectedWidget.BoundTag);
                         OnPropertyChanged(nameof(BoundTag));
+                        OnPropertyChanged(nameof(IsValueEditable));
                         break;
                     case nameof(Widget.Y):
                     Y = _selectedWidget.Y;
@@ -725,15 +726,41 @@ namespace NavigatorHMI.ViewModels
         /// <summary>绑定下拉数据源：第一项 null = 无绑定，其后为工程全部变量。</summary>
         public System.Collections.ObjectModel.ObservableCollection<Tag?> BindableTags { get; } = new();
 
-        /// <summary>重建绑定下拉（null + 工程变量），选中控件时调用。</summary>
+        /// <summary>重建绑定下拉（null + 按控件类型过滤的工程变量），选中控件时调用。</summary>
         public void RefreshBindableTags()
         {
             BindableTags.Clear();
             BindableTags.Add(null);   // 无绑定
-            if (Project != null)
-                foreach (var t in Project.Tags)
+            if (Project == null) return;
+            // 类型过滤：数值控件只显示数字变量（BOOL/INT16/UINT16/INT32/FLOAT），图片控件只显示 STRING，其他不限
+            var req = _selectedWidget != null ? TagCompatibility.GetRequirement(_selectedWidget) : TagRequirement.Any;
+            var current = _selectedWidget?.BoundTag ?? "";
+            bool currentIncluded = false;
+            foreach (var t in Project.Tags)
+            {
+                bool ok = req switch
+                {
+                    TagRequirement.Numeric => TagCompatibility.IsNumericCompatible(t.DataType),
+                    TagRequirement.StringPath => TagCompatibility.IsStringPathCompatible(t.DataType),
+                    _ => true,
+                };
+                if (ok)
+                {
                     BindableTags.Add(t);
+                    if (t.Name == current) currentIncluded = true;
+                }
+            }
+            // 当前绑定变量被类型过滤掉（历史/CLI 不兼容绑定）：保留该项
+            // → SelectedItem 不失配 → 不回写 null → 不静默解绑（wpf-combobox-style §3 场景 B 防护）
+            if (!currentIncluded && current.Length > 0)
+            {
+                var cur = Project.Tags.FirstOrDefault(t => t.Name == current);
+                if (cur != null) BindableTags.Add(cur);
+            }
         }
+
+        /// <summary>绑定变量后设计态 value 字段（NumericValue/IOFieldContent/ImagePath/FrameImagePath/ProgressValue）不可编辑（只显示变量值）。</summary>
+        public bool IsValueEditable => BoundTag == null;
 
         private Tag? _boundTag;
 
@@ -746,6 +773,7 @@ namespace NavigatorHMI.ViewModels
                 if (_boundTag == value) return;
                 _boundTag = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(IsValueEditable));   // 绑定状态 → 设计态 value 字段可编辑性
                 if (!_syncingFromModel && _selectedWidget != null && CurrentScreen != null && CommandService != null)
                 {
                     BeforeModify?.Invoke();
@@ -760,6 +788,7 @@ namespace NavigatorHMI.ViewModels
                     {
                         _boundTag = Project?.Tags.FirstOrDefault(t => t.Name == _selectedWidget.BoundTag);
                         OnPropertyChanged(nameof(BoundTag));
+                        OnPropertyChanged(nameof(IsValueEditable));
                         System.Windows.MessageBox.Show(result.ErrorMessage ?? "绑定变量失败", "绑定",
                             System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
                     }

@@ -55,5 +55,10 @@ namespace NavigatorHMI.Common
         /// <summary>变量描述（给用户看的注释，不参与运行时逻辑）</summary>
         [ProtoMember(7)]
         public string Description { get; set; } = "";
+
+        /// <summary>基准值（设计态预览值，字符串；绑定该变量的控件在设计态显示此值，运行时由实时值覆盖）。
+        /// 数字变量存数字文本（如 "25.5"），字符串变量存原值（如图片路径/文本）。</summary>
+        [ProtoMember(8)]
+        public string BaseValue { get; set; } = "";
     }
 }

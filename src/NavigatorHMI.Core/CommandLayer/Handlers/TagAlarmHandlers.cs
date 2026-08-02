@@ -17,6 +17,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 ["scan_interval"] = new() { Type = "int", DefaultValue = 100, Description = "采集周期 ms" },
                 ["deadband"] = new() { Type = "double", DefaultValue = 0, Description = "变化死区" },
                 ["description"] = new() { Type = "string", DefaultValue = "", Description = "描述" },
+                ["base_value"] = new() { Type = "string", DefaultValue = "", Description = "基准值（设计态预览）" },
             }
         };
         public ValidationResult Validate(Dictionary<string, object?> p)
@@ -53,6 +54,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 ScanIntervalMs = Convert.ToInt32(p.GetValueOrDefault("scan_interval", 100)),
                 Deadband = Convert.ToDouble(p.GetValueOrDefault("deadband", 0)),
                 Description = p.GetValueOrDefault("description")?.ToString() ?? "",
+                BaseValue = p.GetValueOrDefault("base_value")?.ToString() ?? "",
             });
             return CommandResult.Ok(new { tag_name = name });
         }
@@ -81,10 +83,16 @@ namespace NavigatorHMI.CommandLayer.Handlers
         public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
         {
             var tagName = p.GetValueOrDefault("tag_name")?.ToString() ?? "";
-            if (tagName.Length > 0 && !project.Tags.Any(t => t.Name == tagName))
-                return CommandResult.Fail("NOT_FOUND", $"变量 \"{tagName}\" 不存在，请先 create-tag");
             var (_, widget, err) = WidgetHelper.FindWidget(project, p);
             if (err != null) return err;
+            if (tagName.Length > 0)
+            {
+                var tag = project.Tags.FirstOrDefault(t => t.Name == tagName);
+                if (tag == null) return CommandResult.Fail("NOT_FOUND", $"变量 \"{tagName}\" 不存在，请先 create-tag");
+                // 类型兼容校验（数字控件绑数字、图片控件绑 STRING）
+                var incompat = TagCompatibility.Check(widget!, tag);
+                if (incompat != null) return CommandResult.Fail("INVALID_TYPE", incompat);
+            }
             widget!.BoundTag = tagName;
             return CommandResult.Ok(new { bound_tag = tagName });
         }
@@ -218,6 +226,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 ["scan_interval"] = new() { Type = "int", Description = "采集周期 ms" },
                 ["deadband"] = new() { Type = "double", Description = "变化死区" },
                 ["description"] = new() { Type = "string", Description = "描述" },
+                ["base_value"] = new() { Type = "string", Description = "基准值（设计态预览）" },
             }
         };
         public ValidationResult Validate(Dictionary<string, object?> p)
@@ -276,6 +285,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 tag.Deadband = Convert.ToDouble(db);
             if (p.TryGetValue("description", out var desc) && desc != null)
                 tag.Description = desc.ToString() ?? "";
+            if (p.TryGetValue("base_value", out var bv) && bv != null)
+                tag.BaseValue = bv.ToString() ?? "";
 
             return CommandResult.Ok(new { tag_name = tag.Name });
         }

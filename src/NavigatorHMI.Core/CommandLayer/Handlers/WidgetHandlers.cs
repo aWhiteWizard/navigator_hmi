@@ -55,12 +55,16 @@ namespace NavigatorHMI.CommandLayer.Handlers
             widget.X = Convert.ToDouble(parameters["x"] ?? 0); widget.Y = Convert.ToDouble(parameters["y"] ?? 0);
             widget.Width = Convert.ToDouble(parameters.GetValueOrDefault("width", 100)); widget.Height = Convert.ToDouble(parameters.GetValueOrDefault("height", 40));
             widget.ObjectName = $"{widgetType}_{screen.Widgets.Count + 1}";
-            // 可选：创建后立即绑定变量（拖拽生成绑定控件用）
+            // 可选：创建后立即绑定变量（拖拽生成绑定控件用）；类型兼容校验
             var boundTag = parameters.GetValueOrDefault("bound_tag")?.ToString() ?? "";
             if (boundTag.Length > 0)
             {
-                if (!project.Tags.Any(t => t.Name == boundTag))
+                var tag = project.Tags.FirstOrDefault(t => t.Name == boundTag);
+                if (tag == null)
                     return CommandResult.Fail("NOT_FOUND", $"变量 \"{boundTag}\" 不存在");
+                var incompat = TagCompatibility.Check(widget, tag);
+                if (incompat != null)
+                    return CommandResult.Fail("INVALID_TYPE", incompat);
                 widget.BoundTag = boundTag;
             }
             screen.Widgets.Add(widget);

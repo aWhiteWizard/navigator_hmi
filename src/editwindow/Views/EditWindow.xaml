@@ -318,7 +318,7 @@
             <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Path:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding ImagePath, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+                <TextBox Grid.Column="1" Text="{Binding ImagePath, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" IsEnabled="{Binding IsValueEditable}" ToolTip="图片路径（绑定变量后由变量基准值/实时值覆盖，不可编辑）"/>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Color:" Style="{StaticResource PropLabel}"/>
@@ -335,7 +335,7 @@
             <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Value:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding NumericValue, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}" ToolTip="设计态预览值（运行时由变量实时值覆盖）"/>
+                <TextBox Grid.Column="1" Text="{Binding NumericValue, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}" IsEnabled="{Binding IsValueEditable}" ToolTip="设计态预览值（绑定变量后由变量基准值/实时值覆盖，不可编辑）"/>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="FontSize:" Style="{StaticResource PropLabel}"/>
@@ -496,7 +496,7 @@
             <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Content:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding IOFieldContent, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+                <TextBox Grid.Column="1" Text="{Binding IOFieldContent, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" IsEnabled="{Binding IsValueEditable}" ToolTip="显示内容（绑定变量后由变量基准值/实时值覆盖，不可编辑）"/>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="ReadOnly:" Style="{StaticResource PropLabel}"/>
@@ -642,7 +642,7 @@
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="图片路径:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding FrameImagePath, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+                <TextBox Grid.Column="1" Text="{Binding FrameImagePath, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" IsEnabled="{Binding IsValueEditable}" ToolTip="背景图片路径（绑定变量后由变量基准值/实时值覆盖，不可编辑）"/>
             </Grid><TextBlock Text="字体" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Font:" Style="{StaticResource PropLabel}"/>
@@ -673,7 +673,7 @@
             <TextBlock Text="参数" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="50"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Value:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding ProgressValue, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}"/>
+                <TextBox Grid.Column="1" Text="{Binding ProgressValue, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}" IsEnabled="{Binding IsValueEditable}" ToolTip="进度值（绑定变量后由变量基准值/实时值覆盖，不可编辑）"/>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="50"/><ColumnDefinition Width="*"/><ColumnDefinition Width="50"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Min:" Style="{StaticResource PropLabel}"/>

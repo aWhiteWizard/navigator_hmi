@@ -186,6 +186,9 @@ namespace NavigatorHMI.Views
             _commDeviceVM.DeviceEditRequested += OnDeviceEditRequested;
             _commDeviceVM.DeviceDeleteRequested += OnDeviceDeleteRequested;
 
+            // 13. 注册设计态变量解析器（绑定控件渲染基准值）
+            TagResolver.CurrentProject = _currentProject;
+
             LoadCanvas(_viewModel.CurrentScreen);
 
             _isProjectDirty = false;
@@ -221,6 +224,7 @@ namespace NavigatorHMI.Views
                     ["scan_interval"] = result.ScanIntervalMs,
                     ["deadband"] = result.Deadband,
                     ["description"] = result.Description,
+                    ["base_value"] = result.BaseValue,
                 });
                 if (!r.Success) MessageBox.Show(r.ErrorMessage ?? "创建变量失败", "变量", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
@@ -235,6 +239,7 @@ namespace NavigatorHMI.Views
                 if (result.ScanIntervalMs != tag.ScanIntervalMs) p["scan_interval"] = result.ScanIntervalMs;
                 if (result.Deadband != tag.Deadband) p["deadband"] = result.Deadband;
                 if (result.Description != tag.Description) p["description"] = result.Description;
+                if (result.BaseValue != tag.BaseValue) p["base_value"] = result.BaseValue;
                 if (p.Count > 1)
                 {
                     var r = _viewModel.CommandService.Execute("update_tag", p);
@@ -515,6 +520,9 @@ namespace NavigatorHMI.Views
                 SelectorHelper.ResizeDragStarted = null;
             if (SelectorHelper.GetCanvasSize == _getCanvasSizeCallback)
                 SelectorHelper.GetCanvasSize = null;
+            // 清理设计态变量解析器静态引用（防窗口关闭后工程驻留内存）
+            if (TagResolver.CurrentProject == _currentProject)
+                TagResolver.CurrentProject = null;
         }
 
         #endregion

@@ -49,6 +49,7 @@ namespace NavigatorHMI.Views
                 UnitBox.Text = existing.Unit;
                 DeadbandBox.Text = existing.Deadband.ToString(System.Globalization.CultureInfo.InvariantCulture);
                 DescriptionBox.Text = existing.Description;
+                BaseValueBox.Text = existing.BaseValue;
                 SelectScanInterval(existing.ScanIntervalMs);
                 SelectSource(existing.Source);
             }
@@ -190,6 +191,13 @@ namespace NavigatorHMI.Views
             if (!double.IsFinite(deadband))
             { ShowError("死区必须是有限数字"); return; }
 
+            // 基准值：数字类型变量要求可解析为数字（ProgressBar/NumericDisplay 设计态显示用）
+            var baseValue = BaseValueBox.Text.Trim();
+            if (baseValue.Length > 0 && dt != TagDataType.STRING
+             && !double.TryParse(baseValue, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out _))
+            { ShowError("数字类型变量的基准值必须是数字（如 25.5 / 1）"); return; }
+
             Result = new Tag
             {
                 Name = name,
@@ -199,6 +207,7 @@ namespace NavigatorHMI.Views
                 ScanIntervalMs = scan,
                 Deadband = deadband,
                 Description = DescriptionBox.Text.Trim(),
+                BaseValue = baseValue,
             };
             DialogResult = true;
         }

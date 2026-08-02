@@ -103,10 +103,10 @@ public static class Program
                                     Opt("radius", "150"), OptMap("start-angle", "start_angle", "0"), OptMap("end-angle", "end_angle", "360")),
 
             // 变量
-            "create-tag"     => Cmd("create_tag", Require("name"), Require("type", "data_type"), Opt("source", ""), Opt("unit"), OptMap("scan-interval", "scan_interval", "100"), Opt("deadband", "0"), Opt("description")),
+            "create-tag"     => Cmd("create_tag", Require("name"), Require("type", "data_type"), Opt("source", ""), Opt("unit"), OptMap("scan-interval", "scan_interval", "100"), Opt("deadband", "0"), Opt("description"), OptMap("base-value", "base_value", "")),
             "update-tag"     => Cmd("update_tag", Require("name"),
                                     OptIfProvided("new-name", "new_name"), OptIfProvided("type", "data_type"), OptIfProvided("source"), OptIfProvided("unit"),
-                                    OptIfProvided("scan-interval", "scan_interval"), OptIfProvided("deadband"), OptIfProvided("description")),
+                                    OptIfProvided("scan-interval", "scan_interval"), OptIfProvided("deadband"), OptIfProvided("description"), OptIfProvided("base-value", "base_value")),
             "delete-tag"     => Cmd("delete_tag", Require("name")),
             "bind-tag"       => Cmd("bind_tag", Require("screen", "screen_name"), Require("widget", "widget_name"), Require("tag", "tag_name")),
 
@@ -313,7 +313,7 @@ public static class Program
             or "event" or "action" or "nic" or "protocol" or "severity" or "direction" or "mode" or "ip" or "device_ip";
         // value 语义由 --key 决定（颜色/文本/路径/数值），静态分类无法覆盖：
         // 归自由文本类仅拦 '..'（imagePath 值含 / 或 \ 是合法的相对/绝对路径）
-        bool isFreeText = key is "description" or "message" or "params" or "model" or "value" or "font-family";
+        bool isFreeText = key is "description" or "message" or "params" or "model" or "value" or "font-family" or "base-value";
 
         if (isPathParam)
         {
@@ -548,8 +548,8 @@ set-property 属性键 (--screen <画面> --widget <控件> --key <键> --value 
   bind-event             --screen <name> --widget <name> --event <type> --action <type> [--params "k1=v1,k2=v2"]
 
 变量命令:
-  create-tag             --name <name> --type <BOOL|INT16|FLOAT|...> [--source <uri>] [--unit <u>] [--scan-interval <ms>]   # source 缺省 = 内部变量
-  update-tag             --name <name> [--new-name <name>] [--type <...>] [--source <uri>] [--unit <u>] [--scan-interval <ms>] [--deadband <n>] [--description <text>]  重命名自动同步控件/报警引用；--source "" 清空为内部变量
+  create-tag             --name <name> --type <BOOL|INT16|FLOAT|...> [--source <uri>] [--unit <u>] [--scan-interval <ms>] [--base-value <n>]   # source 缺省 = 内部变量；base-value = 设计态基准值
+  update-tag             --name <name> [--new-name <name>] [--type <...>] [--source <uri>] [--unit <u>] [--scan-interval <ms>] [--deadband <n>] [--description <text>] [--base-value <n>]  重命名自动同步控件/报警引用；--source "" 清空为内部变量
   delete-tag             --name <name>   被控件/报警引用时拒绝
   bind-tag               --screen <name> --widget <name> --tag <name>
 

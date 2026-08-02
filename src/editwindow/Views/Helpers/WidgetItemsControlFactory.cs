@@ -248,7 +248,7 @@ namespace NavigatorHMI.Views.Helpers
             border.SetBinding(SelectorHelper.IsSelectedProperty, new Binding("IsSelected") { Mode = BindingMode.TwoWay });
             AddInteractionHandlers(border, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU);
             var img = new FrameworkElementFactory(typeof(Image));
-            img.SetBinding(Image.SourceProperty, new Binding("ImagePath"));
+            img.SetBinding(Image.SourceProperty, new Binding("DisplayPath"));   // 绑定变量 → 基准值路径；否则自身 ImagePath
             img.SetValue(Image.StretchProperty, System.Windows.Media.Stretch.Uniform);
             border.AppendChild(img);
             dt.VisualTree = border;
@@ -261,7 +261,7 @@ namespace NavigatorHMI.Views.Helpers
             var dt = new DataTemplate();
             var tb = new FrameworkElementFactory(typeof(TextBlock));
             // 设计态显示 Value 数值（运行时由 BoundTag 变量实时值覆盖）
-            tb.SetBinding(TextBlock.TextProperty, new Binding("Value"));
+            tb.SetBinding(TextBlock.TextProperty, new Binding("DisplayText"));   // 绑定变量 → 基准值；否则自身 Value
             BindTextFormatting(tb, centerAlign: true);
             tb.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
             dt.VisualTree = WrapWithBorder(tb, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU, bindFillBackground: true);   // NumericDisplayTemplate
@@ -342,7 +342,7 @@ namespace NavigatorHMI.Views.Helpers
             border.SetValue(Border.BorderBrushProperty, Brushes.Gray);
             border.SetValue(Border.BorderThicknessProperty, new Thickness(1));
             var tb = new FrameworkElementFactory(typeof(TextBlock));
-            tb.SetBinding(TextBlock.TextProperty, new Binding("Content"));
+            tb.SetBinding(TextBlock.TextProperty, new Binding("DisplayText"));   // 绑定变量 → 基准值；否则自身 Content
             BindTextFormatting(tb);
             tb.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
             tb.SetValue(TextBlock.MarginProperty, new Thickness(2));
@@ -414,7 +414,7 @@ namespace NavigatorHMI.Views.Helpers
             // 背景色 + 背景图片（ImagePath 为空时仅显示背景色与标题框）
             gb.SetBinding(GroupBox.BackgroundProperty, new Binding("FillColor") { Converter = new ColorStringToBrushConverter() });
             var img = new FrameworkElementFactory(typeof(Image));
-            img.SetBinding(Image.SourceProperty, new Binding("ImagePath"));
+            img.SetBinding(Image.SourceProperty, new Binding("DisplayPath"));   // 绑定变量 → 基准值路径；否则自身 ImagePath
             img.SetValue(Image.StretchProperty, System.Windows.Media.Stretch.Fill);
             gb.AppendChild(img);
             gb.SetBinding(SelectorHelper.IsSelectedProperty, new Binding("IsSelected") { Mode = BindingMode.TwoWay });
@@ -428,7 +428,7 @@ namespace NavigatorHMI.Views.Helpers
         {
             var dt = new DataTemplate();
             var pb = new FrameworkElementFactory(typeof(ProgressBar));
-            pb.SetBinding(ProgressBar.ValueProperty, new Binding("Value"));
+            pb.SetBinding(ProgressBar.ValueProperty, new Binding("DisplayProgressValue"));   // 绑定变量 → 基准值；否则自身 Value
             pb.SetBinding(ProgressBar.MinimumProperty, new Binding("Min"));
             pb.SetBinding(ProgressBar.MaximumProperty, new Binding("Max"));
             // 填充 = Foreground（WPF ProgressBar Indicator 默认绑 Foreground）→ PatternFillConverter 生成花纹刷

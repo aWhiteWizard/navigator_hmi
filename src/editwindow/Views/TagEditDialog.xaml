@@ -13,7 +13,7 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
             <Grid.Resources>
                 <Style TargetType="TextBox">
@@ -67,6 +67,9 @@
 
             <TextBlock Grid.Row="7" Grid.Column="0" VerticalAlignment="Center"><Run Text="描述:"/><Run Text="（可选）" Foreground="Gray" FontSize="10"/></TextBlock>
             <TextBox Grid.Row="7" Grid.Column="1" x:Name="DescriptionBox" ToolTip="用户备注（不参与运行时逻辑）"/>
+
+            <TextBlock Grid.Row="8" Grid.Column="0" VerticalAlignment="Center"><Run Text="基准值:"/><Run Text="（可选）" Foreground="Gray" FontSize="10"/></TextBlock>
+            <TextBox Grid.Row="8" Grid.Column="1" x:Name="BaseValueBox" ToolTip="设计态预览值：绑定该变量的控件在设计态显示此值（数字变量填数字，图片变量填路径）"/>
         </Grid>
 
         <TextBlock x:Name="ErrorBox" Foreground="Red" FontSize="12" Margin="0,8,0,0" TextWrapping="Wrap" Visibility="Collapsed"/>
