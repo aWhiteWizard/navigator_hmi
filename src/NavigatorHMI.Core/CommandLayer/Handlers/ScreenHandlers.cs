@@ -28,6 +28,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
         /// <inheritdoc/>
         public ValidationResult Validate(Dictionary<string, object?> parameters)
         {
+            // TODO: 名称 Trim 不对称——create_screen 不 Trim 而 rename_screen 的 GUI 层传 Trim 值，待统一命令层 Trim 规则
             if (!parameters.ContainsKey("name") || string.IsNullOrWhiteSpace(parameters["name"]?.ToString()))
                 return ValidationResult.Fail("缺少必填参数: name");
             return ValidationResult.Ok;
@@ -154,6 +155,9 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 return CommandResult.Fail("PROTECTED", $"画面 \"{name}\" ({screen.Type}) 不可重命名");
             if (project.Screens.Any(s => s.Name == newName && !ReferenceEquals(s, screen)))
                 return CommandResult.Fail("DUPLICATE", $"画面名 \"{newName}\" 已存在");
+            // 同值重命名（未修改直接回车）：短路成功，不触发事件/标脏/树重建（GUI 层已短路，此处防 CLI 直接调用）
+            if (string.Equals(name, newName, StringComparison.Ordinal))
+                return CommandResult.Ok(new { screen_name = newName });
 
             screen.Name = newName;
             return CommandResult.Ok(new { screen_name = newName });

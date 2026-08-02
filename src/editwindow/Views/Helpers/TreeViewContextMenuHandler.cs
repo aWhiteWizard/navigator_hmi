@@ -17,8 +17,10 @@ namespace NavigatorHMI.Views.Helpers
     public class TreeViewContextMenuHandler
     {
         private readonly Popup _treeContextMenu;
+        // TODO: 死字段——删除/重命名走命令层后不再调用，待构造签名清理
         private readonly Action _markProjectDirty;
         private readonly Action? _pushUndoCallback;
+        private readonly NavigatorHMI.CommandLayer.ICommandService _commandService;
 
         /// <summary>当前右键点击的树节点，用于菜单按钮回调时传递操作目标</summary>
         private ScreenItemNode? _rightClickedTreeNode;
@@ -27,11 +29,13 @@ namespace NavigatorHMI.Views.Helpers
         /// 初始化 <see cref="TreeViewContextMenuHandler"/> 实例。
         /// </summary>
         /// <param name="treeContextMenu">XAML 中定义的 TreeContextMenu Popup 控件</param>
+        /// <param name="commandService">CommandService 实例（删除/重命名统一走命令层，供 GUI/CLI/AI 同一入口）</param>
         /// <param name="markProjectDirty">标记工程已修改的回调（通常指向 EditWindow.MarkProjectDirty）</param>
         /// <param name="pushUndoCallback">保存 Undo 快照的回调（可选），在修改数据前调用</param>
-        public TreeViewContextMenuHandler(Popup treeContextMenu, Action markProjectDirty, Action? pushUndoCallback = null)
+        public TreeViewContextMenuHandler(Popup treeContextMenu, NavigatorHMI.CommandLayer.ICommandService commandService, Action markProjectDirty, Action? pushUndoCallback = null)
         {
             _treeContextMenu = treeContextMenu ?? throw new ArgumentNullException(nameof(treeContextMenu));
+            _commandService = commandService ?? throw new ArgumentNullException(nameof(commandService));
             _markProjectDirty = markProjectDirty ?? throw new ArgumentNullException(nameof(markProjectDirty));
             _pushUndoCallback = pushUndoCallback;
         }
@@ -90,11 +94,12 @@ namespace NavigatorHMI.Views.Helpers
             var node = _rightClickedTreeNode;
             if (node == null) return;
 
-            if (node.DeleteCommand.CanExecute(null))
+            // 统一走 Command Layer（GUI/CLI/AI 同一入口）：命令层校验 Template/WorldMap 保护 + 触发树重建/标签刷新
+            var result = _commandService.Execute("delete_screen", new() { ["name"] = node.Screen.Name });
+            if (!result.Success)
             {
-                // 画面级操作不推 Undo 快照（Undo 只能恢复 Widgets 列表，画面删除不可撤销）
-                node.DeleteCommand.Execute(null);
-                _markProjectDirty();
+                // 失败不标脏（成功标脏由 OnCommandExecuted → ProjectDirtyRequested 统一处理），仅提示
+                System.Windows.MessageBox.Show($"删除画面失败: {result.ErrorMessage}", "NavigatorHMI", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
 
             _treeContextMenu.IsOpen = false;
@@ -142,9 +147,22 @@ namespace NavigatorHMI.Views.Helpers
                 var node = tb?.DataContext as ScreenItemNode;
                 if (node != null)
                 {
-                    // 画面名变更不可撤销（Undo 只能恢复 Widgets 列表），不推快照
-                    node.ConfirmRenameCommand.Execute(null);
-                    _markProjectDirty();
+                    // GUI 层短路：未修改直接回车 → 不调用命令层（命令层 Success 仍触发事件/标脏）
+                    // 比较原始值（不 Trim）：仅空格差异交给命令层处理，避免静默吞掉"去空格"改名
+                    if (string.Equals(tb.Text, node.Screen.Name, StringComparison.Ordinal))
+                    {
+                        node.IsEditing = false;
+                        e.Handled = true;
+                        return;
+                    }
+                    // 统一走 Command Layer（重名/受保护由命令层校验），成功后命令层触发树重建
+                    var result = _commandService.Execute("rename_screen", new() { ["name"] = node.Screen.Name, ["new_name"] = tb.Text.Trim() });
+                    if (!result.Success)
+                    {
+                        // 失败不标脏（成功由命令层事件统一标脏），仅提示；树重建未发生，需手动退出编辑模式
+                        node.IsEditing = false;
+                        System.Windows.MessageBox.Show($"重命名画面失败: {result.ErrorMessage}", "NavigatorHMI", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
                 }
                 e.Handled = true;
             }
