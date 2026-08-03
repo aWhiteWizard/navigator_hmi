@@ -94,6 +94,9 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 if (incompat != null) return CommandResult.Fail("INVALID_TYPE", incompat);
             }
             widget!.BoundTag = tagName;
+            // 绑定非空变量后：控件设计态值由变量基准值控制，清除旧值（避免残留旧路径/旧数值）
+            if (tagName.Length > 0)
+                WidgetDesignValue.Clear(widget);
             return CommandResult.Ok(new { bound_tag = tagName });
         }
     }

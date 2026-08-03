@@ -195,6 +195,11 @@ namespace NavigatorHMI.Views
 
             // 13. 注册设计态变量解析器（绑定控件渲染基准值）
             TagResolver.CurrentProject = _currentProject;
+            // 14. 存量迁移：已绑定（BoundTag 或列表 ListRef）的控件清除旧设计态值
+            //     （Image/Frame 仅绑 BoundTag 无 ListRef 时保留 ImagePath——显示仍读它，与 DisplayPath 驱动源一致）
+            foreach (var screen in _currentProject.Screens)
+                foreach (var w in screen.Widgets.Where(WidgetDesignValue.HasBinding))
+                    WidgetDesignValue.Clear(w);
 
             LoadCanvas(_viewModel.CurrentScreen);
 

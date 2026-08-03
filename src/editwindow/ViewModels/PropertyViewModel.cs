@@ -340,6 +340,11 @@ namespace NavigatorHMI.ViewModels
                             case TextListWidget tl: TextListDefaultIndex = tl.DefaultIndex; break;
                         }
                         break;
+                    case "ImagePath":
+                        // CLI/Undo/清值改模型路径 → 面板实时同步（Image/Frame 共用属性名，按类型分支）
+                        if (_selectedWidget is ImageWidget i) ImagePath = i.ImagePath;
+                        else if (_selectedWidget is FrameWidget f) FrameImagePath = f.ImagePath;
+                        break;
                     case nameof(Widget.Y):
                     Y = _selectedWidget.Y;
                     break;
@@ -984,14 +989,14 @@ namespace NavigatorHMI.ViewModels
 
         private string? _imageListRef = "";
         /// <summary>ImageWidget 绑定的图片列表名（null=无）。</summary>
-        public string? ImageListRef { get => _imageListRef; set { if (_imageListRef != value) { _imageListRef = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is ImageWidget img) img.ListRef = value ?? ""; } } }
+        public string? ImageListRef { get => _imageListRef; set { if (_imageListRef != value) { _imageListRef = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is ImageWidget img) { img.ListRef = value ?? ""; if (!string.IsNullOrEmpty(value)) WidgetDesignValue.Clear(img); } } } }   // Clear 在同步路径也执行是有意兜底：CLI 纯模型改 ListRef 也需清路径
         private int _imageDefaultIndex = 0;
         /// <summary>ImageWidget 缺省值（列表项索引，0=第1项；VM 侧同步钳制非负，与模型一致）。</summary>
         public int ImageDefaultIndex { get => _imageDefaultIndex; set { var v = Math.Max(0, value); if (_imageDefaultIndex != v) { _imageDefaultIndex = v; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is ImageWidget img) img.DefaultIndex = v; } } }
 
         private string? _frameListRef = "";
         /// <summary>FrameWidget 绑定的图片列表名（null=无）。</summary>
-        public string? FrameListRef { get => _frameListRef; set { if (_frameListRef != value) { _frameListRef = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is FrameWidget f) f.ListRef = value ?? ""; } } }
+        public string? FrameListRef { get => _frameListRef; set { if (_frameListRef != value) { _frameListRef = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is FrameWidget f) { f.ListRef = value ?? ""; if (!string.IsNullOrEmpty(value)) WidgetDesignValue.Clear(f); } } } }   // Clear 在同步路径也执行是有意兜底：CLI 纯模型改 ListRef 也需清路径
         private int _frameDefaultIndex = 0;
         /// <summary>FrameWidget 缺省值（列表项索引，0=第1项；VM 侧同步钳制非负，与模型一致）。</summary>
         public int FrameDefaultIndex { get => _frameDefaultIndex; set { var v = Math.Max(0, value); if (_frameDefaultIndex != v) { _frameDefaultIndex = v; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is FrameWidget f) f.DefaultIndex = v; } } }
