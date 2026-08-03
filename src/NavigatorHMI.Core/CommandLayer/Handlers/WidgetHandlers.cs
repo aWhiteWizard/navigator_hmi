@@ -11,7 +11,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
             Parameters = new()
             {
                 ["screen_name"] = new() { Type = "string", Required = true },
-                ["widget_type"] = new() { Type = "enum", Required = true, EnumValues = new[] { "button", "text", "rectangle", "label", "image", "numeric", "switch", "line", "circle", "ellipse", "iofield", "checkbox", "textbox", "frame", "progressbar" } },
+                ["widget_type"] = new() { Type = "enum", Required = true, EnumValues = new[] { "button", "text", "rectangle", "label", "image", "numeric", "switch", "line", "circle", "ellipse", "iofield", "checkbox", "textlist", "textbox", "frame", "progressbar" }, Description = "控件类型（textbox 为 textlist 兼容别名）" },
                 ["x"] = new() { Type = "int", Required = true },
                 ["y"] = new() { Type = "int", Required = true },
                 ["width"] = new() { Type = "int", DefaultValue = 100 },
@@ -23,6 +23,11 @@ namespace NavigatorHMI.CommandLayer.Handlers
         {
             if (!parameters.ContainsKey("screen_name") || string.IsNullOrWhiteSpace(parameters["screen_name"]?.ToString())) return ValidationResult.Fail("缺少必填参数: screen_name");
             if (!parameters.ContainsKey("widget_type") || string.IsNullOrWhiteSpace(parameters["widget_type"]?.ToString())) return ValidationResult.Fail("缺少必填参数: widget_type");
+            // 控件类型枚举校验（防未知类型静默走 default 创建 Button——静默失败比报错更危险）
+            var wt = parameters["widget_type"]!.ToString()!;
+            if (wt is not ("button" or "text" or "rectangle" or "label" or "image" or "numeric" or "switch" or "line"
+                or "circle" or "ellipse" or "iofield" or "checkbox" or "textlist" or "textbox" or "frame" or "progressbar"))
+                return ValidationResult.Fail($"未知控件类型: {wt}");
             if (!parameters.ContainsKey("x") || !parameters.ContainsKey("y")) return ValidationResult.Fail("缺少必填参数: x/y");
             // 数值参数校验（防 Convert.ToDouble 裸转崩溃）
             var numCheck = WidgetHelper.ValidateNumericParams(parameters, "x", "y", "width", "height");
@@ -47,7 +52,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 "ellipse" => new EllipseWidget(),
                 "iofield" => new IOFieldWidget(),
                 "checkbox" => new CheckBoxWidget(),
-                "textbox" => new TextBoxWidget(),
+                "textlist" => new TextListWidget(),
+                "textbox" => new TextListWidget(),   // 兼容别名：旧命令 textbox → TextListWidget
                 "frame" => new FrameWidget(),
                 "progressbar" => new ProgressBarWidget(),
                 _ => new ButtonWidget { Text = "Button" }
@@ -139,6 +145,12 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 if (!double.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var num)
                     || !double.IsFinite(num))
                     return CommandResult.Fail("INVALID_VALUE", $"属性 {key} 需要数字，收到: \"{value}\"");
+            }
+            // 索引型 key 整数预校验（defaultIndex 是列表项索引，拒绝小数/非数字，防 int.Parse 崩溃）
+            if (key == "defaultIndex")
+            {
+                if (!int.TryParse(value, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _))
+                    return CommandResult.Fail("INVALID_VALUE", $"属性 {key} 需要整数索引，收到: \"{value}\"");
             }
             // 布尔型 key 统一预校验
             if (key is "isOn" or "isChecked" or "isReadOnly")
@@ -236,17 +248,22 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 case CheckBoxWidget w when key == "fontWeight": w.FontWeight = value; break;
                 case CheckBoxWidget w when key == "fontStyle": w.FontStyle = value; break;
                 case CheckBoxWidget w when key == "textDecoration": w.TextDecoration = value; break;
-                case TextBoxWidget tb when key == "content": tb.Content = value; break;
-                case TextBoxWidget tb when key == "textColor": tb.TextColor = value; break;
-                case TextBoxWidget tb when key == "fillColor": tb.FillColor = value; break;
-                case TextBoxWidget w when key == "fontSize": w.FontSize = double.Parse(value); break;
-                case TextBoxWidget w when key == "fontFamily": w.FontFamily = value; break;
-                case TextBoxWidget w when key == "fontWeight": w.FontWeight = value; break;
-                case TextBoxWidget w when key == "fontStyle": w.FontStyle = value; break;
-                case TextBoxWidget w when key == "textDecoration": w.TextDecoration = value; break;
+                case TextListWidget tl when key == "textColor": tl.TextColor = value; break;
+                case TextListWidget tl when key == "fillColor": tl.FillColor = value; break;
+                case TextListWidget tl when key == "listRef": tl.ListRef = value; break;
+                case TextListWidget tl when key == "defaultIndex": tl.DefaultIndex = int.Parse(value); break;
+                case TextListWidget w when key == "fontSize": w.FontSize = double.Parse(value); break;
+                case TextListWidget w when key == "fontFamily": w.FontFamily = value; break;
+                case TextListWidget w when key == "fontWeight": w.FontWeight = value; break;
+                case TextListWidget w when key == "fontStyle": w.FontStyle = value; break;
+                case TextListWidget w when key == "textDecoration": w.TextDecoration = value; break;
+                case ImageWidget img when key == "listRef": img.ListRef = value; break;
+                case ImageWidget img when key == "defaultIndex": img.DefaultIndex = int.Parse(value); break;
                 case FrameWidget f when key == "title": f.Title = value; break;
                 case FrameWidget f when key == "imagePath": f.ImagePath = value; break;
                 case FrameWidget f when key == "fillColor": f.FillColor = value; break;
+                case FrameWidget f when key == "listRef": f.ListRef = value; break;
+                case FrameWidget f when key == "defaultIndex": f.DefaultIndex = int.Parse(value); break;
                 case FrameWidget w when key == "fontSize": w.FontSize = double.Parse(value); break;
                 case FrameWidget w when key == "fontFamily": w.FontFamily = value; break;
                 case FrameWidget w when key == "fontWeight": w.FontWeight = value; break;

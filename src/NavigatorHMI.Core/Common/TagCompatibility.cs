@@ -5,10 +5,8 @@ namespace NavigatorHMI.Common
     {
         /// <summary>不限类型（文本/交互类控件）。</summary>
         Any,
-        /// <summary>数字类型（NumericDisplay/IOField/ProgressBar）。</summary>
-        Numeric,
-        /// <summary>字符串路径（Image/Frame 背景图）。</summary>
-        StringPath
+        /// <summary>数字类型（NumericDisplay/IOField/ProgressBar + 列表索引控件 Image/Frame/TextList）。</summary>
+        Numeric
     }
 
     /// <summary>
@@ -16,30 +14,25 @@ namespace NavigatorHMI.Common
     /// </summary>
     public static class TagCompatibility
     {
-        /// <summary>数字显示控件（NumericDisplay/IOField/ProgressBar）允许的变量类型。</summary>
+        /// <summary>数值/索引绑定控件允许的变量类型（BOOL/INT16/UINT16/INT32/FLOAT）。</summary>
         public static bool IsNumericCompatible(TagDataType t)
             => t is TagDataType.INT16 or TagDataType.UINT16 or TagDataType.INT32 or TagDataType.FLOAT or TagDataType.BOOL;
-
-        /// <summary>图片路径控件（Image/Frame）允许的变量类型（字符串路径）。</summary>
-        public static bool IsStringPathCompatible(TagDataType t) => t == TagDataType.STRING;
 
         /// <summary>控件类型 → 变量类型要求。新增控件类型显式声明（默认 Any 属已知放宽，非静默漏配）。</summary>
         public static TagRequirement GetRequirement(Widget widget) => widget switch
         {
             NumericDisplayWidget or IOFieldWidget or ProgressBarWidget => TagRequirement.Numeric,
-            ImageWidget or FrameWidget => TagRequirement.StringPath,
+            // 列表消费控件（Image/Frame/TextList）：绑定数值变量 = 显示索引（0=第1项）
+            ImageWidget or FrameWidget or TextListWidget => TagRequirement.Numeric,
             _ => TagRequirement.Any,
         };
 
         /// <summary>校验控件与变量类型兼容（不兼容返回失败信息，null = 兼容）。</summary>
         public static string? Check(Widget widget, Tag tag)
         {
-            var req = GetRequirement(widget);
-            if (req == TagRequirement.Any) return null;
-            bool ok = req == TagRequirement.Numeric ? IsNumericCompatible(tag.DataType) : IsStringPathCompatible(tag.DataType);
-            return ok ? null : (req == TagRequirement.Numeric
-                ? $"变量 \"{tag.Name}\" 类型 {tag.DataType} 不能绑定数值控件（支持 BOOL/INT16/UINT16/INT32/FLOAT）"
-                : $"变量 \"{tag.Name}\" 类型 {tag.DataType} 不能绑定图片控件（支持 STRING）");
+            if (GetRequirement(widget) == TagRequirement.Numeric && !IsNumericCompatible(tag.DataType))
+                return $"变量 \"{tag.Name}\" 类型 {tag.DataType} 不能绑定该控件（索引需 BOOL/INT16/UINT16/INT32/FLOAT）";
+            return null;
         }
     }
 }

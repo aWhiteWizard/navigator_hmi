@@ -318,10 +318,19 @@
             <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropBinding}" Content="{Binding}"/>
             <Separator Margin="4,2"/>
+            <TextBlock Text="图片列表" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="列表:" Style="{StaticResource PropLabel}"/>
+                <ComboBox Grid.Column="1" SelectedItem="{Binding ImageListRef}" ItemsSource="{Binding ImageListOptions}" Style="{StaticResource PropComboBox}" ToolTip="选择图片列表（空 = 不绑定，显示自身路径静态图）"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="缺省值:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding ImageDefaultIndex, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}" ToolTip="未绑定变量/变量值无效时显示的列表项索引（0=第1项）"/>
+            </Grid>
             <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Path:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding ImagePath, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" IsEnabled="{Binding IsValueEditable}" ToolTip="图片路径（绑定变量后由变量基准值/实时值覆盖，不可编辑）"/>
+                <TextBox Grid.Column="1" Text="{Binding ImagePath, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" ToolTip="静态图片路径（绑定列表后不生效）"/>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Color:" Style="{StaticResource PropLabel}"/>
@@ -584,45 +593,51 @@
             </Grid>
 </StackPanel></DataTemplate>
 
-        <!-- TextBoxWidget 属性 -->
-        <DataTemplate x:Key="PropTextBoxWidget"><StackPanel>
+        <!-- TextListWidget 属性（原 TextBoxWidget，改为列表消费显示） -->
+        <DataTemplate x:Key="PropTextListWidget"><StackPanel>
             <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropBinding}" Content="{Binding}"/>
             <Separator Margin="4,2"/>
-            <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
+            <TextBlock Text="列表" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <Label Grid.Column="0" Content="Content:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding TextBoxContent, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
-            </Grid><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="列表:" Style="{StaticResource PropLabel}"/>
+                <ComboBox Grid.Column="1" SelectedItem="{Binding TextListListRef}" ItemsSource="{Binding TextListOptions}" Style="{StaticResource PropComboBox}" ToolTip="选择文本列表（空 = 不绑定，显示空白）"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="缺省值:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding TextListDefaultIndex, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}" ToolTip="未绑定变量/变量值无效时显示的列表项索引（0=第1项）"/>
+            </Grid>
+            <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Color:" Style="{StaticResource PropLabel}"/>
-                <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding TextBoxTextColor, Mode=TwoWay}"/>
+                <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding TextListTextColor, Mode=TwoWay}"/>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="BgColor:" Style="{StaticResource PropLabel}"/>
-                <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding TextBoxFillColor, Mode=TwoWay}"/>
+                <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding TextListFillColor, Mode=TwoWay}"/>
             </Grid>
 <TextBlock Text="字体" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Font:" Style="{StaticResource PropLabel}"/>
-                <ComboBox Grid.Column="1" SelectedValue="{Binding TextBoxFontFamily, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Source" DisplayMemberPath="Source" ItemsSource="{Binding Source={StaticResource SystemFonts}}" Style="{StaticResource PropComboBox}"/>
+                <ComboBox Grid.Column="1" SelectedValue="{Binding TextListFontFamily, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Source" DisplayMemberPath="Source" ItemsSource="{Binding Source={StaticResource SystemFonts}}" Style="{StaticResource PropComboBox}"/>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Size:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding TextBoxFontSize, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}"/>
+                <TextBox Grid.Column="1" Text="{Binding TextListFontSize, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}"/>
                 <Label Grid.Column="2" Content="Bold:" Style="{StaticResource PropLabel}"/>
-                <ComboBox Grid.Column="3" SelectedValue="{Binding TextBoxFontWeight, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" Style="{StaticResource PropComboBox}">
+                <ComboBox Grid.Column="3" SelectedValue="{Binding TextListFontWeight, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" Style="{StaticResource PropComboBox}">
                     <ComboBoxItem Content="Normal"/><ComboBoxItem Content="Bold"/>
                 </ComboBox>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Style:" Style="{StaticResource PropLabel}"/>
-                <ComboBox Grid.Column="1" SelectedValue="{Binding TextBoxFontStyle, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" Style="{StaticResource PropComboBox}">
+                <ComboBox Grid.Column="1" SelectedValue="{Binding TextListFontStyle, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" Style="{StaticResource PropComboBox}">
                     <ComboBoxItem Content="Normal"/><ComboBoxItem Content="Italic"/>
                 </ComboBox>
                 <Label Grid.Column="2" Content="Undr:" Style="{StaticResource PropLabel}"/>
-                <ComboBox Grid.Column="3" SelectedValue="{Binding TextBoxTextDecoration, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" Style="{StaticResource PropComboBox}">
+                <ComboBox Grid.Column="3" SelectedValue="{Binding TextListTextDecoration, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" Style="{StaticResource PropComboBox}">
                     <ComboBoxItem Content="None"/><ComboBoxItem Content="Underline"/>
                 </ComboBox>
             </Grid>
@@ -635,6 +650,15 @@
             <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropBinding}" Content="{Binding}"/>
             <Separator Margin="4,2"/>
+            <TextBlock Text="图片列表" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="列表:" Style="{StaticResource PropLabel}"/>
+                <ComboBox Grid.Column="1" SelectedItem="{Binding FrameListRef}" ItemsSource="{Binding ImageListOptions}" Style="{StaticResource PropComboBox}" ToolTip="选择图片列表（空 = 不绑定，显示自身路径静态背景图）"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="缺省值:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding FrameDefaultIndex, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}" ToolTip="未绑定变量/变量值无效时显示的列表项索引（0=第1项）"/>
+            </Grid>
             <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="50"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Title:" Style="{StaticResource PropLabel}"/>
@@ -646,7 +670,7 @@
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="图片路径:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding FrameImagePath, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" IsEnabled="{Binding IsValueEditable}" ToolTip="背景图片路径（绑定变量后由变量基准值/实时值覆盖，不可编辑）"/>
+                <TextBox Grid.Column="1" Text="{Binding FrameImagePath, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" ToolTip="静态背景图片路径（绑定列表后不生效）"/>
             </Grid><TextBlock Text="字体" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Font:" Style="{StaticResource PropLabel}"/>
@@ -921,7 +945,7 @@
                                         <Button Content="Switch" Tag="Switch" Click="ToggleAddWidgetMode"/>
                                         <Button Content="IOField" Tag="IOField" Click="ToggleAddWidgetMode"/>
                                         <Button Content="CheckBox" Tag="CheckBox" Click="ToggleAddWidgetMode"/>
-                                        <Button Content="TextBox" Tag="TextBox" Click="ToggleAddWidgetMode"/>
+                                        <Button Content="TextList" Tag="TextList" Click="ToggleAddWidgetMode"/>
                                         <Button Content="Frame" Tag="Frame" Click="ToggleAddWidgetMode"/>
                                         <Button Content="ProgressBar" Tag="ProgressBar" Click="ToggleAddWidgetMode"/>
                                     </StackPanel></TabItem>
@@ -1382,7 +1406,7 @@
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="EllipseWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropEllipse}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="IOFieldWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropIOField}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="CheckBoxWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropCheckBox}"/></DataTrigger>
-                                                    <DataTrigger Binding="{Binding SelectedObjectType}" Value="TextBoxWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropTextBoxWidget}"/></DataTrigger>
+                                                    <DataTrigger Binding="{Binding SelectedObjectType}" Value="TextListWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropTextListWidget}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="FrameWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropFrame}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="ProgressBarWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropProgressBar}"/></DataTrigger>
                                                 </Style.Triggers>

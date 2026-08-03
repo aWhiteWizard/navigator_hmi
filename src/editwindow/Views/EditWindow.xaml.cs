@@ -1244,7 +1244,7 @@ namespace NavigatorHMI.Views
                 "Ellipse" => new EllipseWidgetCreator(),
                 "IOField" => new IOFieldWidgetCreator(),
                 "CheckBox" => new CheckBoxWidgetCreator(),
-                "TextBox" => new TextBoxWidgetCreator(),
+                "TextList" => new TextListWidgetCreator(),
                 "Frame" => new FrameWidgetCreator(),
                 "ProgressBar" => new ProgressBarWidgetCreator(),
                 _ => null

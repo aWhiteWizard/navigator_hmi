@@ -125,7 +125,7 @@ namespace NavigatorHMI.Common
 [ProtoInclude(108, typeof(CircleWidget))]
 [ProtoInclude(109, typeof(IOFieldWidget))]
 [ProtoInclude(110, typeof(CheckBoxWidget))]
-[ProtoInclude(111, typeof(TextBoxWidget))]
+[ProtoInclude(111, typeof(TextListWidget))]
 [ProtoInclude(112, typeof(FrameWidget))]
 [ProtoInclude(113, typeof(ProgressBarWidget))]
 [ProtoInclude(114, typeof(EllipseWidget))]
@@ -450,19 +450,15 @@ public class ImageWidget : Widget
     [ProtoMember(5)]
     public int DefaultIndex { get => _defaultIndex; set { var v = Math.Max(0, value); if (_defaultIndex != v) { _defaultIndex = v; OnPropertyChanged(); OnPropertyChanged(nameof(DisplayPath)); } } }
 
-    /// <summary>设计态显示路径：绑定变量 → 变量基准值；否则控件 ImagePath。
-    /// 阶段 2（列表消费）将改为：列表项路径 → 变量基准值 → ImagePath 优先级。</summary>
+    /// <summary>设计态显示路径：绑列表 → 列表第 N 项图片完整路径；否则 ImagePath（相对工程目录解析）。</summary>
     [ProtoIgnore]
     public override string DisplayPath
     {
         get
         {
-            if (!string.IsNullOrEmpty(BoundTag))
-            {
-                var bv = TagResolver.ResolveBaseValue(BoundTag);
-                if (bv.Length > 0) return bv;
-            }
-            return ImagePath;
+            if (!string.IsNullOrEmpty(ListRef))
+                return ListDisplayResolver.ResolveListImagePath(ListRef, BoundTag, DefaultIndex) ?? "";
+            return ListDisplayResolver.ResolveFullPath(ImagePath, ListDisplayResolver.ProjectDir) ?? ImagePath;
         }
     }
 }
@@ -786,17 +782,13 @@ public class CheckBoxWidget : Widget
 }
 
 /// <summary>
-/// 文本框控件。用户输入文本。
+/// 文本列表控件。绑定文本列表（<see cref="ListRef"/>）后按数值变量索引显示对应项；未绑列表显示空白。
+/// 彻底替换原 TextBoxWidget：字段 1(Content) 废弃保留编号不复用，3-9 字体/颜色属性沿用，
+/// 10/11 新增 ListRef/DefaultIndex（protobuf 兼容旧工程反序列化，旧 Content 字段自动忽略）。
 /// </summary>
 [ProtoContract]
-public class TextBoxWidget : Widget
+public class TextListWidget : Widget
 {
-    private string _content = "";
-    /// <summary>文本框内容</summary>
-    [ProtoMember(1)]
-    public string Content { get => _content; set { _content = value; OnPropertyChanged(); } }
-
-
     private string _fontFamily = WidgetFontDefaults.FontFamily;
     /// <summary>字体族（如 "Microsoft YaHei UI" / "Arial"）</summary>
     [ProtoMember(3)]
@@ -831,6 +823,27 @@ public class TextBoxWidget : Widget
     /// <summary>背景色（CSS 格式，默认浅灰；保证控件可见、可选中）</summary>
     [ProtoMember(9)]
     public string FillColor { get => _fillColor; set { _fillColor = value; OnPropertyChanged(); } }
+
+    private string _listRef = "";
+    /// <summary>绑定的文本列表名（空 = 不绑定列表，显示空白）</summary>
+    [ProtoMember(10)]
+    public string ListRef { get => _listRef; set { if (_listRef != value) { _listRef = value; OnPropertyChanged(); OnPropertyChanged(nameof(DisplayText)); } } }
+
+    private int _defaultIndex = 0;
+    /// <summary>缺省值：未绑定变量/变量值无效时显示的列表项索引（0=第1项）</summary>
+    [ProtoMember(11)]
+    public int DefaultIndex { get => _defaultIndex; set { var v = Math.Max(0, value); if (_defaultIndex != v) { _defaultIndex = v; OnPropertyChanged(); OnPropertyChanged(nameof(DisplayText)); } } }
+
+    /// <summary>设计态显示文本：绑列表 → 列表第 N 项文本；未绑 → 空白。</summary>
+    [ProtoIgnore]
+    public override string DisplayText
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(ListRef)) return "";
+            return ListDisplayResolver.ResolveListText(ListRef, BoundTag, DefaultIndex) ?? "";
+        }
+    }
 }
 
 /// <summary>
@@ -889,19 +902,15 @@ public class FrameWidget : Widget
     [ProtoMember(10)]
     public int DefaultIndex { get => _defaultIndex; set { var v = Math.Max(0, value); if (_defaultIndex != v) { _defaultIndex = v; OnPropertyChanged(); OnPropertyChanged(nameof(DisplayPath)); } } }
 
-    /// <summary>设计态显示背景路径：绑定变量 → 变量基准值；否则控件 ImagePath。
-    /// 阶段 2（列表消费）将改为：列表项路径 → 变量基准值 → ImagePath 优先级。</summary>
+    /// <summary>设计态显示背景路径：绑列表 → 列表第 N 项图片完整路径；否则 ImagePath（相对工程目录解析）。</summary>
     [ProtoIgnore]
     public override string DisplayPath
     {
         get
         {
-            if (!string.IsNullOrEmpty(BoundTag))
-            {
-                var bv = TagResolver.ResolveBaseValue(BoundTag);
-                if (bv.Length > 0) return bv;
-            }
-            return ImagePath;
+            if (!string.IsNullOrEmpty(ListRef))
+                return ListDisplayResolver.ResolveListImagePath(ListRef, BoundTag, DefaultIndex) ?? "";
+            return ListDisplayResolver.ResolveFullPath(ImagePath, ListDisplayResolver.ProjectDir) ?? ImagePath;
         }
     }
 }

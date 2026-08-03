@@ -27,7 +27,7 @@ namespace NavigatorHMI.ViewModels
         EllipseWidget,
         IOFieldWidget,
         CheckBoxWidget,
-        TextBoxWidget,
+        TextListWidget,
         FrameWidget,
         ProgressBarWidget
     }
@@ -63,9 +63,10 @@ namespace NavigatorHMI.ViewModels
         /// <summary>变量增删改成功后刷新绑定下拉（防下拉残留已删变量导致静默绑定失败）。</summary>
         private void OnTagCommandExecuted(string cmdName, Dictionary<string, object?> parameters, CommandResult result)
         {
-            if (result.Success && cmdName is "create_tag" or "update_tag" or "delete_tag")
+            if (result.Success && cmdName is "create_tag" or "update_tag" or "delete_tag" or "create_list" or "update_list" or "delete_list")
             {
                 RefreshBindableTags();
+                RefreshListOptions(_selectedWidget);
                 // 选中控件仍有效时，按模型 BoundTag 重同步下拉选中（变量可能被删/重命名；
                 // 同步性质直接赋值，不发 bind_tag 命令——避免 update_tag 改名后的冗余绑定+重复快照）
                 if (_selectedWidget != null)
@@ -246,7 +247,7 @@ namespace NavigatorHMI.ViewModels
                          EllipseWidget => PropertyTargetType.EllipseWidget,
                          IOFieldWidget => PropertyTargetType.IOFieldWidget,
                          CheckBoxWidget => PropertyTargetType.CheckBoxWidget,
-                         TextBoxWidget => PropertyTargetType.TextBoxWidget,
+                         TextListWidget => PropertyTargetType.TextListWidget,
                          FrameWidget => PropertyTargetType.FrameWidget,
                          ProgressBarWidget => PropertyTargetType.ProgressBarWidget,
                          _ => PropertyTargetType.None
@@ -272,7 +273,7 @@ namespace NavigatorHMI.ViewModels
                             case TextWidget txt: TextContent = txt.Content; TextFillColor = txt.FillColor; TextFontSize = txt.FontSize; TextFontWeight = txt.FontWeight; TextFontStyle = txt.FontStyle; TextTextColor = txt.TextColor; TextHAlign = txt.HAlign; TextFontFamily = txt.FontFamily; TextTextDecoration = txt.TextDecoration; break;
                             case RectangleWidget rect: RectFillColor = rect.FillColor; break;
                             case LabelWidget lbl: LabelText = lbl.Text; LabelFontSize = lbl.FontSize; LabelFontWeight = lbl.FontWeight; LabelTextColor = lbl.TextColor; LabelFillColor = lbl.FillColor; LabelFontFamily = lbl.FontFamily; LabelFontStyle = lbl.FontStyle; LabelTextDecoration = lbl.TextDecoration; break;
-                            case ImageWidget img: ImagePath = img.ImagePath; ImageFillColor = img.FillColor; break;
+                            case ImageWidget img: ImagePath = img.ImagePath; ImageFillColor = img.FillColor; ImageListRef = img.ListRef; ImageDefaultIndex = img.DefaultIndex; break;
                             case NumericDisplayWidget nd: NumericFontSize = nd.FontSize; NumericTextColor = nd.TextColor; NumericFillColor = nd.FillColor; NumericValue = nd.Value; NumericFontFamily = nd.FontFamily; NumericFontWeight = nd.FontWeight; NumericFontStyle = nd.FontStyle; NumericTextDecoration = nd.TextDecoration; break;
                             case SwitchWidget sw: SwitchIsOn = sw.IsOn; SwitchOnText = sw.OnText; SwitchOffText = sw.OffText; SwitchFontFamily = sw.FontFamily; SwitchFontSize = sw.FontSize; SwitchFontWeight = sw.FontWeight; SwitchFontStyle = sw.FontStyle; SwitchTextDecoration = sw.TextDecoration; SwitchTextColor = sw.TextColor; SwitchFillColor = sw.FillColor; break;
                             case LineWidget line: LineX2 = line.X2; LineY2 = line.Y2; LineStrokeColor = line.StrokeColor; LineStrokeThickness = line.StrokeThickness; break;
@@ -280,14 +281,16 @@ namespace NavigatorHMI.ViewModels
                             case EllipseWidget el: EllipseFillColor = el.FillColor; EllipseStrokeColor = el.StrokeColor; EllipseStrokeThickness = el.StrokeThickness; break;
                             case IOFieldWidget io: IOFieldContent = io.Content; IOFieldIsReadOnly = io.IsReadOnly; IOFieldFillColor = io.FillColor; IOFieldTextColor = io.TextColor; IOFieldFontFamily = io.FontFamily; IOFieldFontSize = io.FontSize; IOFieldFontWeight = io.FontWeight; IOFieldFontStyle = io.FontStyle; IOFieldTextDecoration = io.TextDecoration; break;
                             case CheckBoxWidget cb: CheckBoxText = cb.Text; CheckBoxIsChecked = cb.IsChecked; CheckBoxFontFamily = cb.FontFamily; CheckBoxFontSize = cb.FontSize; CheckBoxFontWeight = cb.FontWeight; CheckBoxFontStyle = cb.FontStyle; CheckBoxTextDecoration = cb.TextDecoration; CheckBoxTextColor = cb.TextColor; CheckBoxFillColor = cb.FillColor; break;
-                            case TextBoxWidget tbx: TextBoxContent = tbx.Content; TextBoxFontFamily = tbx.FontFamily; TextBoxFontSize = tbx.FontSize; TextBoxFontWeight = tbx.FontWeight; TextBoxFontStyle = tbx.FontStyle; TextBoxTextDecoration = tbx.TextDecoration; TextBoxTextColor = tbx.TextColor; TextBoxFillColor = tbx.FillColor; break;
-                            case FrameWidget f: FrameTitle = f.Title; FrameFillColor = f.FillColor; FrameImagePath = f.ImagePath; FrameFontFamily = f.FontFamily; FrameFontSize = f.FontSize; FrameFontWeight = f.FontWeight; FrameFontStyle = f.FontStyle; FrameTextDecoration = f.TextDecoration; break;
+                            case TextListWidget tl: TextListFontFamily = tl.FontFamily; TextListFontSize = tl.FontSize; TextListFontWeight = tl.FontWeight; TextListFontStyle = tl.FontStyle; TextListTextDecoration = tl.TextDecoration; TextListTextColor = tl.TextColor; TextListFillColor = tl.FillColor; TextListListRef = tl.ListRef; TextListDefaultIndex = tl.DefaultIndex; break;
+                            case FrameWidget f: FrameTitle = f.Title; FrameFillColor = f.FillColor; FrameImagePath = f.ImagePath; FrameFontFamily = f.FontFamily; FrameFontSize = f.FontSize; FrameFontWeight = f.FontWeight; FrameFontStyle = f.FontStyle; FrameTextDecoration = f.TextDecoration; FrameListRef = f.ListRef; FrameDefaultIndex = f.DefaultIndex; break;
                             case ProgressBarWidget pb: ProgressValue = pb.Value; ProgressMin = pb.Min; ProgressMax = pb.Max; ProgressFillColor = pb.FillColor; ProgressFillStyle = pb.FillStyle; break;
                         }
 
                         // 绑定变量（基类通用属性，选中控件时同步下拉 + 刷新变量列表）
                         RefreshBindableTags();
                         BoundTag = Project?.Tags.FirstOrDefault(t => t.Name == value.BoundTag);
+                        // 列表下拉数据源（Image/Frame/TextList 选中时同步）
+                        RefreshListOptions(value);
                         }
                         finally { _syncingFromModel = false; }
                     }
@@ -318,6 +321,24 @@ namespace NavigatorHMI.ViewModels
                         _boundTag = Project?.Tags.FirstOrDefault(t => t.Name == _selectedWidget.BoundTag);
                         OnPropertyChanged(nameof(BoundTag));
                         OnPropertyChanged(nameof(IsValueEditable));
+                        break;
+                    case "ListRef":
+                        // CLI/Undo 改模型列表绑定 → 面板下拉实时同步（不触发命令）
+                        switch (_selectedWidget)
+                        {
+                            case ImageWidget img: ImageListRef = img.ListRef; break;
+                            case FrameWidget f: FrameListRef = f.ListRef; break;
+                            case TextListWidget tl: TextListListRef = tl.ListRef; break;
+                        }
+                        break;
+                    case "DefaultIndex":
+                        // CLI/Undo 改模型缺省值 → 面板实时同步（不触发命令）
+                        switch (_selectedWidget)
+                        {
+                            case ImageWidget img: ImageDefaultIndex = img.DefaultIndex; break;
+                            case FrameWidget f: FrameDefaultIndex = f.DefaultIndex; break;
+                            case TextListWidget tl: TextListDefaultIndex = tl.DefaultIndex; break;
+                        }
                         break;
                     case nameof(Widget.Y):
                     Y = _selectedWidget.Y;
@@ -390,7 +411,7 @@ namespace NavigatorHMI.ViewModels
         public bool IsEllipseWidget => _selectedWidget is EllipseWidget;
         public bool IsIOFieldWidget => _selectedWidget is IOFieldWidget;
         public bool IsCheckBoxWidget => _selectedWidget is CheckBoxWidget;
-        public bool IsTextBoxWidget => _selectedWidget is TextBoxWidget;
+        public bool IsTextListWidget => _selectedWidget is TextListWidget;
         public bool IsFrameWidget => _selectedWidget is FrameWidget;
         public bool IsProgressBarWidget => _selectedWidget is ProgressBarWidget;
          private PropertyTargetType _selectedObjectType;
@@ -732,7 +753,7 @@ namespace NavigatorHMI.ViewModels
             BindableTags.Clear();
             BindableTags.Add(null);   // 无绑定
             if (Project == null) return;
-            // 类型过滤：数值控件只显示数字变量（BOOL/INT16/UINT16/INT32/FLOAT），图片控件只显示 STRING，其他不限
+            // 类型过滤：数值/索引控件只显示数字变量（BOOL/INT16/UINT16/INT32/FLOAT），其他不限
             var req = _selectedWidget != null ? TagCompatibility.GetRequirement(_selectedWidget) : TagRequirement.Any;
             var current = _selectedWidget?.BoundTag ?? "";
             bool currentIncluded = false;
@@ -741,7 +762,6 @@ namespace NavigatorHMI.ViewModels
                 bool ok = req switch
                 {
                     TagRequirement.Numeric => TagCompatibility.IsNumericCompatible(t.DataType),
-                    TagRequirement.StringPath => TagCompatibility.IsStringPathCompatible(t.DataType),
                     _ => true,
                 };
                 if (ok)
@@ -907,29 +927,73 @@ namespace NavigatorHMI.ViewModels
         /// <summary>IOFieldWidget 下划线。</summary>
         public string IOFieldTextDecoration { get => _ioFieldTextDecoration; set { if (_ioFieldTextDecoration != value) { _ioFieldTextDecoration = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is IOFieldWidget w) w.TextDecoration = value; } } }
 
-        private string _textBoxFontFamily = "Microsoft YaHei UI";
-        /// <summary>TextBoxWidget 字体族。</summary>
-        public string TextBoxFontFamily { get => _textBoxFontFamily; set { if (_textBoxFontFamily != value) { _textBoxFontFamily = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is TextBoxWidget w) w.FontFamily = value; } } }
-        private double _textBoxFontSize = 14;
-        /// <summary>TextBoxWidget 字体大小。</summary>
-        public double TextBoxFontSize { get => _textBoxFontSize; set { if (Math.Abs(_textBoxFontSize - value) > 0.001) { _textBoxFontSize = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is TextBoxWidget w) w.FontSize = value; } } }
-        private string _textBoxFontWeight = "Normal";
-        /// <summary>TextBoxWidget 字重。</summary>
-        public string TextBoxFontWeight { get => _textBoxFontWeight; set { if (_textBoxFontWeight != value) { _textBoxFontWeight = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is TextBoxWidget w) w.FontWeight = value; } } }
-        private string _textBoxFontStyle = "Normal";
-        /// <summary>TextBoxWidget 字型。</summary>
-        public string TextBoxFontStyle { get => _textBoxFontStyle; set { if (_textBoxFontStyle != value) { _textBoxFontStyle = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is TextBoxWidget w) w.FontStyle = value; } } }
+        private string _textListFontFamily = "Microsoft YaHei UI";
+        /// <summary>TextListWidget 字体族。</summary>
+        public string TextListFontFamily { get => _textListFontFamily; set { if (_textListFontFamily != value) { _textListFontFamily = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is TextListWidget w) w.FontFamily = value; } } }
+        private double _textListFontSize = 14;
+        /// <summary>TextListWidget 字体大小。</summary>
+        public double TextListFontSize { get => _textListFontSize; set { if (Math.Abs(_textListFontSize - value) > 0.001) { _textListFontSize = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is TextListWidget w) w.FontSize = value; } } }
+        private string _textListFontWeight = "Normal";
+        /// <summary>TextListWidget 字重。</summary>
+        public string TextListFontWeight { get => _textListFontWeight; set { if (_textListFontWeight != value) { _textListFontWeight = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is TextListWidget w) w.FontWeight = value; } } }
+        private string _textListFontStyle = "Normal";
+        /// <summary>TextListWidget 字型。</summary>
+        public string TextListFontStyle { get => _textListFontStyle; set { if (_textListFontStyle != value) { _textListFontStyle = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is TextListWidget w) w.FontStyle = value; } } }
 
-        private string _textBoxTextDecoration = "None";
-        /// <summary>TextBoxWidget 下划线。</summary>
-        public string TextBoxTextDecoration { get => _textBoxTextDecoration; set { if (_textBoxTextDecoration != value) { _textBoxTextDecoration = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is TextBoxWidget w) w.TextDecoration = value; } } }
+        private string _textListTextDecoration = "None";
+        /// <summary>TextListWidget 下划线。</summary>
+        public string TextListTextDecoration { get => _textListTextDecoration; set { if (_textListTextDecoration != value) { _textListTextDecoration = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is TextListWidget w) w.TextDecoration = value; } } }
 
-        private string _textBoxTextColor = "#000000";
-        /// <summary>TextBox 文本色。</summary>
-        public string TextBoxTextColor { get => _textBoxTextColor; set { if (_textBoxTextColor != value) { _textBoxTextColor = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is TextBoxWidget w) w.TextColor = value; } } }
-        private string _textBoxFillColor = "#EEEEEE";
-        /// <summary>TextBox 背景色。</summary>
-        public string TextBoxFillColor { get => _textBoxFillColor; set { if (_textBoxFillColor != value) { _textBoxFillColor = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is TextBoxWidget w) w.FillColor = value; } } }
+        private string _textListTextColor = "#000000";
+        /// <summary>TextList 文本色。</summary>
+        public string TextListTextColor { get => _textListTextColor; set { if (_textListTextColor != value) { _textListTextColor = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is TextListWidget w) w.TextColor = value; } } }
+        private string _textListFillColor = "#EEEEEE";
+        /// <summary>TextList 背景色。</summary>
+        public string TextListFillColor { get => _textListFillColor; set { if (_textListFillColor != value) { _textListFillColor = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is TextListWidget w) w.FillColor = value; } } }
+
+        // ── 列表绑定（Image/Frame/TextList 共用模式：ListRef 下拉 + DefaultIndex 缺省值） ──
+
+        /// <summary>图片列表集合（选中 Image/Frame 时的下拉数据源，首项空串=不绑列表）。</summary>
+        public System.Collections.ObjectModel.ObservableCollection<string> ImageListOptions { get; } = new();
+
+        /// <summary>文本列表集合（选中 TextList 时的下拉数据源，首项空串=不绑列表）。</summary>
+        public System.Collections.ObjectModel.ObservableCollection<string> TextListOptions { get; } = new();
+
+        /// <summary>重建列表下拉（首项空串=不绑列表 + 工程对应类型列表名），选中控件时调用。</summary>
+        private void RefreshListOptions(Widget? w)
+        {
+            ImageListOptions.Clear();
+            ImageListOptions.Add("");
+            TextListOptions.Clear();
+            TextListOptions.Add("");
+            if (Project == null) return;
+            foreach (var l in Project.Lists)
+            {
+                if (l.Type == ListType.Image) ImageListOptions.Add(l.Name);
+                else TextListOptions.Add(l.Name);
+            }
+        }
+
+        private string? _imageListRef = "";
+        /// <summary>ImageWidget 绑定的图片列表名（null=无）。</summary>
+        public string? ImageListRef { get => _imageListRef; set { if (_imageListRef != value) { _imageListRef = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is ImageWidget img) img.ListRef = value ?? ""; } } }
+        private int _imageDefaultIndex = 0;
+        /// <summary>ImageWidget 缺省值（列表项索引，0=第1项；VM 侧同步钳制非负，与模型一致）。</summary>
+        public int ImageDefaultIndex { get => _imageDefaultIndex; set { var v = Math.Max(0, value); if (_imageDefaultIndex != v) { _imageDefaultIndex = v; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is ImageWidget img) img.DefaultIndex = v; } } }
+
+        private string? _frameListRef = "";
+        /// <summary>FrameWidget 绑定的图片列表名（null=无）。</summary>
+        public string? FrameListRef { get => _frameListRef; set { if (_frameListRef != value) { _frameListRef = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is FrameWidget f) f.ListRef = value ?? ""; } } }
+        private int _frameDefaultIndex = 0;
+        /// <summary>FrameWidget 缺省值（列表项索引，0=第1项；VM 侧同步钳制非负，与模型一致）。</summary>
+        public int FrameDefaultIndex { get => _frameDefaultIndex; set { var v = Math.Max(0, value); if (_frameDefaultIndex != v) { _frameDefaultIndex = v; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is FrameWidget f) f.DefaultIndex = v; } } }
+
+        private string? _textListListRef = "";
+        /// <summary>TextListWidget 绑定的文本列表名（null=无）。</summary>
+        public string? TextListListRef { get => _textListListRef; set { if (_textListListRef != value) { _textListListRef = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is TextListWidget tl) tl.ListRef = value ?? ""; } } }
+        private int _textListDefaultIndex = 0;
+        /// <summary>TextListWidget 缺省值（列表项索引，0=第1项；VM 侧同步钳制非负，与模型一致）。</summary>
+        public int TextListDefaultIndex { get => _textListDefaultIndex; set { var v = Math.Max(0, value); if (_textListDefaultIndex != v) { _textListDefaultIndex = v; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is TextListWidget tl) tl.DefaultIndex = v; } } }
 
         private string _buttonTextColor = "#000000";
         /// <summary>Button 文本色。</summary>
@@ -1044,9 +1108,6 @@ namespace NavigatorHMI.ViewModels
         public string CheckBoxText { get => _checkBoxText; set { if (_checkBoxText != value) { _checkBoxText = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is CheckBoxWidget cb) cb.Text = value; } } }
         private bool _checkBoxIsChecked = false;
         public bool CheckBoxIsChecked { get => _checkBoxIsChecked; set { if (_checkBoxIsChecked != value) { _checkBoxIsChecked = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is CheckBoxWidget cb) cb.IsChecked = value; } } }
-
-        private string _textBoxContent = "";
-        public string TextBoxContent { get => _textBoxContent; set { if (_textBoxContent != value) { _textBoxContent = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is TextBoxWidget tbx) tbx.Content = value; } } }
 
         private string _frameTitle = "Group";
         public string FrameTitle { get => _frameTitle; set { if (_frameTitle != value) { _frameTitle = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is FrameWidget f) f.Title = value; } } }

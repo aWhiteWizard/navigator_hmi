@@ -30,7 +30,7 @@ namespace NavigatorHMI.Views.Helpers
         public DataTemplate EllipseTemplate { get; set; } = null!;
         public DataTemplate IOFieldTemplate { get; set; } = null!;
         public DataTemplate CheckBoxTemplate { get; set; } = null!;
-        public DataTemplate TextBoxTemplate { get; set; } = null!;
+        public DataTemplate TextListTemplate { get; set; } = null!;
         public DataTemplate FrameTemplate { get; set; } = null!;
         public DataTemplate ProgressBarTemplate { get; set; } = null!;
         public DataTemplate DefaultTemplate { get; set; } = null!;
@@ -55,7 +55,7 @@ namespace NavigatorHMI.Views.Helpers
                 EllipseWidget => EllipseTemplate,
                 IOFieldWidget => IOFieldTemplate,
                 CheckBoxWidget => CheckBoxTemplate,
-                TextBoxWidget => TextBoxTemplate,
+                TextListWidget => TextListTemplate,
                 FrameWidget => FrameTemplate,
                 ProgressBarWidget => ProgressBarTemplate,
                 RectangleWidget => DefaultTemplate,
@@ -120,7 +120,7 @@ namespace NavigatorHMI.Views.Helpers
                 EllipseTemplate = CreateEllipseTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
                 IOFieldTemplate = CreateIOFieldTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
                 CheckBoxTemplate = CreateCheckBoxTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
-                TextBoxTemplate = CreateTextBoxTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
+                TextListTemplate = CreateTextListTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
                 FrameTemplate = CreateFrameTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
                 ProgressBarTemplate = CreateProgressBarTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
                 DefaultTemplate = CreateRectangleTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler)
@@ -376,30 +376,16 @@ namespace NavigatorHMI.Views.Helpers
             return dt;
         }
 
-        private static DataTemplate CreateTextBoxTemplate(RoutedEventHandler click, MouseButtonEventHandler pmLBD, MouseButtonEventHandler mLBD,
+        private static DataTemplate CreateTextListTemplate(RoutedEventHandler click, MouseButtonEventHandler pmLBD, MouseButtonEventHandler mLBD,
             MouseEventHandler mMove, MouseButtonEventHandler mLBU, MouseButtonEventHandler pmRBD, MouseButtonEventHandler mRBU)
         {
             var dt = new DataTemplate();
-            var tb = new FrameworkElementFactory(typeof(TextBox));
-            tb.SetBinding(TextBox.TextProperty, new Binding("Content"));
-            BindFontControl(tb);
-            tb.SetBinding(TextBox.TextDecorationsProperty, new Binding("TextDecoration") { Converter = new TextDecorationConverter() });
-            tb.SetBinding(TextBox.WidthProperty, new Binding("Width"));
-            tb.SetBinding(TextBox.HeightProperty, new Binding("Height"));
-            // 设计态只读：值通过属性面板写入（Content），画布上不可编辑（保证按下即可拖拽）
-            tb.SetValue(TextBox.IsReadOnlyProperty, true);
-            // 文本色 + 背景色（SafeTextColorConverter：文本色透明/同背景回退黑）
-            var tbFg = new MultiBinding { Converter = new SafeTextColorConverter() };
-            tbFg.Bindings.Add(new Binding("TextColor"));
-            tbFg.Bindings.Add(new Binding("FillColor"));
-            tb.SetBinding(TextBox.ForegroundProperty, tbFg);
-            tb.SetBinding(TextBox.BackgroundProperty, new Binding("FillColor") { Converter = new ColorStringToBrushConverter() });
-            // 覆盖输入光标：组态软件中 TextBox 是显示控件（不需输入），ForceCursor 强制内部元素用普通箭头
-            tb.SetValue(TextBox.CursorProperty, Cursors.Arrow);
-            tb.SetValue(TextBox.ForceCursorProperty, true);
-            tb.SetBinding(SelectorHelper.IsSelectedProperty, new Binding("IsSelected") { Mode = BindingMode.TwoWay });
-            AddInteractionHandlers(tb, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU);
-            dt.VisualTree = tb;
+            var tb = new FrameworkElementFactory(typeof(TextBlock));
+            // 显示列表项文本（绑列表 → 第 N 项；未绑 → 空白），设计态只读
+            tb.SetBinding(TextBlock.TextProperty, new Binding("DisplayText"));
+            BindTextFormatting(tb, centerAlign: true);
+            tb.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+            dt.VisualTree = WrapWithBorder(tb, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU, bindFillBackground: true);   // TextListTemplate
             return dt;
         }
 
