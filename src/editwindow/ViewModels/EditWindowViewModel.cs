@@ -403,14 +403,22 @@ namespace NavigatorHMI.ViewModels
             TreeRoots.Add(mapNode);
             TreeRoots.Add(customRoot);
             TreeRoots.Add(BuildCommunicationRootNode());
+            TreeRoots.Add(BuildListRootNode());
         }
 
-        /// <summary>构建「通信变量」根节点（含「变量」/「通讯」/「列表」子节点，双击在画布位置打开对应 Tab）。</summary>
+        /// <summary>构建「通信变量」根节点（含「变量」/「通讯」子节点，双击在画布位置打开对应 Tab）。</summary>
         private CommunicationRootNode BuildCommunicationRootNode()
         {
             var node = new CommunicationRootNode();
             node.OnVariableManagerSelected += OpenVariableManager;
             node.OnDeviceConfigSelected += OpenCommunication;
+            return node;
+        }
+
+        /// <summary>构建「列表」根节点（与「通信变量」平级，含「文本列表」/「图片列表」子节点，双击打开列表管理对应页）。</summary>
+        private ListRootNode BuildListRootNode()
+        {
+            var node = new ListRootNode();
             node.OnTextListSelected += () => OpenListManager(ListType.Text);
             node.OnImageListSelected += () => OpenListManager(ListType.Image);
             return node;
@@ -473,6 +481,7 @@ namespace NavigatorHMI.ViewModels
             TreeRoots.Add(mapNode);
             TreeRoots.Add(customRoot);
             TreeRoots.Add(BuildCommunicationRootNode());
+            TreeRoots.Add(BuildListRootNode());
 
             // 默认选中全局画面
             CurrentScreen = project.Screens.First(s => s.Type == ScreenType.WorldMap);
