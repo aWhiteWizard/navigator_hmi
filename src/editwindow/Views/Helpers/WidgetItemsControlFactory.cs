@@ -417,7 +417,7 @@ namespace NavigatorHMI.Views.Helpers
         {
             var dt = new DataTemplate();
             var pb = new FrameworkElementFactory(typeof(ProgressBar));
-            pb.SetBinding(ProgressBar.ValueProperty, new Binding("DisplayProgressValue"));   // 绑定变量 → 基准值；否则自身 Value
+            pb.SetBinding(ProgressBar.ValueProperty, new Binding("DisplayProgressValue") { Mode = BindingMode.OneWay });   // 只读计算属性必须 OneWay（ProgressBar.Value 默认 TwoWay）
             pb.SetBinding(ProgressBar.MinimumProperty, new Binding("Min"));
             pb.SetBinding(ProgressBar.MaximumProperty, new Binding("Max"));
             // 填充 = Foreground（WPF ProgressBar Indicator 默认绑 Foreground）→ PatternFillConverter 生成花纹刷

@@ -79,7 +79,6 @@ namespace NavigatorHMI.ViewModels
             }
         }
 
-        /// <summary>当前选中的画面，null 表示无选中。</summary>
         /// <summary>当前选中的多个控件（框选多选模式，仅 MultiSelect 时非空）。</summary>
         public List<Widget> SelectedWidgets { get; } = new();
 
@@ -291,6 +290,8 @@ namespace NavigatorHMI.ViewModels
                         BoundTag = Project?.Tags.FirstOrDefault(t => t.Name == value.BoundTag) ?? NoBindingSentinel;
                         // 列表下拉数据源（Image/Frame/TextList 选中时同步）
                         RefreshListOptions(value);
+                        // 无条件通知（切换选中控件时 setter 可能值相等短路——不得依赖其副作用，见 wpf-interactions §12）
+                        OnPropertyChanged(nameof(IsValueEditable));
                         }
                         finally { _syncingFromModel = false; }
                     }
@@ -498,7 +499,7 @@ namespace NavigatorHMI.ViewModels
             }
         }
 
-        // 第 228-235 行：ScreenTypeText 属性（已有代码）
+        // 图片列表下拉相关（ImageListOptions 等）
         public string ScreenTypeText => _selectedScreen?.Type switch
         {
             ScreenType.Template => "全局画面",
@@ -791,7 +792,22 @@ namespace NavigatorHMI.ViewModels
         }
 
         /// <summary>绑定变量后设计态 value 字段（NumericValue/IOFieldContent/ProgressValue 等）不可编辑（只显示变量值）。</summary>
-        public bool IsValueEditable => string.IsNullOrEmpty(BoundTag?.Name);
+        /// <summary>设计态值字段（NumericValue/IOFieldContent/ImagePath/FrameImagePath/ProgressValue）是否可编辑/显示：
+        /// 绑变量（BoundTag）或绑列表（Image/Frame 的 ListRef）后由变量/列表控制，隐藏不显示。统一读模型（与切换同步路径同源）。</summary>
+        public bool IsValueEditable
+        {
+            get
+            {
+                if (_selectedWidget == null) return true;
+                if (!string.IsNullOrEmpty(_selectedWidget.BoundTag)) return false;
+                return _selectedWidget switch
+                {
+                    ImageWidget img => string.IsNullOrEmpty(img.ListRef),
+                    FrameWidget f => string.IsNullOrEmpty(f.ListRef),
+                    _ => true,
+                };
+            }
+        }
 
         private Tag? _boundTag;
 
@@ -989,14 +1005,14 @@ namespace NavigatorHMI.ViewModels
 
         private string? _imageListRef = "";
         /// <summary>ImageWidget 绑定的图片列表名（null=无）。</summary>
-        public string? ImageListRef { get => _imageListRef; set { if (_imageListRef != value) { _imageListRef = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is ImageWidget img) { img.ListRef = value ?? ""; if (!string.IsNullOrEmpty(value)) WidgetDesignValue.Clear(img); } } } }   // Clear 在同步路径也执行是有意兜底：CLI 纯模型改 ListRef 也需清路径
+        public string? ImageListRef { get => _imageListRef; set { if (_imageListRef != value) { _imageListRef = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsValueEditable)); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is ImageWidget img) { img.ListRef = value ?? ""; if (!string.IsNullOrEmpty(value)) WidgetDesignValue.Clear(img); } } } }   // Clear 在同步路径也执行是有意兜底：CLI 纯模型改 ListRef 也需清路径
         private int _imageDefaultIndex = 0;
         /// <summary>ImageWidget 缺省值（列表项索引，0=第1项；VM 侧同步钳制非负，与模型一致）。</summary>
         public int ImageDefaultIndex { get => _imageDefaultIndex; set { var v = Math.Max(0, value); if (_imageDefaultIndex != v) { _imageDefaultIndex = v; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is ImageWidget img) img.DefaultIndex = v; } } }
 
         private string? _frameListRef = "";
         /// <summary>FrameWidget 绑定的图片列表名（null=无）。</summary>
-        public string? FrameListRef { get => _frameListRef; set { if (_frameListRef != value) { _frameListRef = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is FrameWidget f) { f.ListRef = value ?? ""; if (!string.IsNullOrEmpty(value)) WidgetDesignValue.Clear(f); } } } }   // Clear 在同步路径也执行是有意兜底：CLI 纯模型改 ListRef 也需清路径
+        public string? FrameListRef { get => _frameListRef; set { if (_frameListRef != value) { _frameListRef = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsValueEditable)); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is FrameWidget f) { f.ListRef = value ?? ""; if (!string.IsNullOrEmpty(value)) WidgetDesignValue.Clear(f); } } } }   // Clear 在同步路径也执行是有意兜底：CLI 纯模型改 ListRef 也需清路径
         private int _frameDefaultIndex = 0;
         /// <summary>FrameWidget 缺省值（列表项索引，0=第1项；VM 侧同步钳制非负，与模型一致）。</summary>
         public int FrameDefaultIndex { get => _frameDefaultIndex; set { var v = Math.Max(0, value); if (_frameDefaultIndex != v) { _frameDefaultIndex = v; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is FrameWidget f) f.DefaultIndex = v; } } }
