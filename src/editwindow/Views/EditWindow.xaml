@@ -868,7 +868,7 @@
                                             <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
                                         </HierarchicalDataTemplate>
                                         <HierarchicalDataTemplate DataType="{x:Type vm:ListRootNode}" ItemsSource="{Binding Children}">
-                                            <TextBlock Text="{Binding Name}"/>
+                                            <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
                                         </HierarchicalDataTemplate>
                                         <DataTemplate DataType="{x:Type vm:VariableManagerNode}">
                                             <!-- 与画面节点一致的选中样式（✅ 高亮 + 默认字体颜色） -->
