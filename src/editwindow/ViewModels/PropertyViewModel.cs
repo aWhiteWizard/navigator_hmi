@@ -73,7 +73,7 @@ namespace NavigatorHMI.ViewModels
                 {
                     var tag = Project?.Tags.FirstOrDefault(t => t.Name == _selectedWidget.BoundTag);
                     _syncingFromModel = true;
-                    try { _boundTag = tag; OnPropertyChanged(nameof(BoundTag)); OnPropertyChanged(nameof(IsValueEditable)); }
+                    try { _boundTag = tag ?? NoBindingSentinel; OnPropertyChanged(nameof(BoundTag)); OnPropertyChanged(nameof(IsValueEditable)); }
                     finally { _syncingFromModel = false; }
                 }
             }
@@ -288,7 +288,7 @@ namespace NavigatorHMI.ViewModels
 
                         // 绑定变量（基类通用属性，选中控件时同步下拉 + 刷新变量列表）
                         RefreshBindableTags();
-                        BoundTag = Project?.Tags.FirstOrDefault(t => t.Name == value.BoundTag);
+                        BoundTag = Project?.Tags.FirstOrDefault(t => t.Name == value.BoundTag) ?? NoBindingSentinel;
                         // 列表下拉数据源（Image/Frame/TextList 选中时同步）
                         RefreshListOptions(value);
                         }
@@ -318,7 +318,7 @@ namespace NavigatorHMI.ViewModels
                         break;
                     case nameof(Widget.BoundTag):
                         // CLI/Undo 等外部改模型 BoundTag → 面板实时同步（不触发命令）
-                        _boundTag = Project?.Tags.FirstOrDefault(t => t.Name == _selectedWidget.BoundTag);
+                        _boundTag = Project?.Tags.FirstOrDefault(t => t.Name == _selectedWidget.BoundTag) ?? NoBindingSentinel;
                         OnPropertyChanged(nameof(BoundTag));
                         OnPropertyChanged(nameof(IsValueEditable));
                         break;
@@ -744,14 +744,20 @@ namespace NavigatorHMI.ViewModels
 
         private string _labelText = "";
         #region 绑定变量
-        /// <summary>绑定下拉数据源：第一项 null = 无绑定，其后为工程全部变量。</summary>
-        public System.Collections.ObjectModel.ObservableCollection<Tag?> BindableTags { get; } = new();
 
-        /// <summary>重建绑定下拉（null + 按控件类型过滤的工程变量），选中控件时调用。</summary>
+        /// <summary>「无绑定」哨兵项（非 null，Name=""）。用哨兵替代 null 作下拉首项：
+        /// WPF ComboBox 的 ItemsSource 含 null 项时，点击 null 项可能不触发 SelectedItem 回写
+        /// （null 与"未选中"状态无法区分）→ 解绑无效果。哨兵是真实对象，点击必然触发绑定。</summary>
+        private static readonly Tag NoBindingSentinel = new() { Name = "" };
+
+        /// <summary>绑定下拉数据源：第一项哨兵 = 无绑定，其后为按控件类型过滤的工程变量。</summary>
+        public System.Collections.ObjectModel.ObservableCollection<Tag> BindableTags { get; } = new();
+
+        /// <summary>重建绑定下拉（哨兵 + 按控件类型过滤的工程变量），选中控件时调用。</summary>
         public void RefreshBindableTags()
         {
             BindableTags.Clear();
-            BindableTags.Add(null);   // 无绑定
+            BindableTags.Add(NoBindingSentinel);   // 无绑定哨兵（非 null）
             if (Project == null) return;
             // 类型过滤：数值/索引控件只显示数字变量（BOOL/INT16/UINT16/INT32/FLOAT），其他不限
             var req = _selectedWidget != null ? TagCompatibility.GetRequirement(_selectedWidget) : TagRequirement.Any;
@@ -779,34 +785,36 @@ namespace NavigatorHMI.ViewModels
             }
         }
 
-        /// <summary>绑定变量后设计态 value 字段（NumericValue/IOFieldContent/ImagePath/FrameImagePath/ProgressValue）不可编辑（只显示变量值）。</summary>
-        public bool IsValueEditable => BoundTag == null;
+        /// <summary>绑定变量后设计态 value 字段（NumericValue/IOFieldContent/ProgressValue 等）不可编辑（只显示变量值）。</summary>
+        public bool IsValueEditable => string.IsNullOrEmpty(BoundTag?.Name);
 
         private Tag? _boundTag;
 
-        /// <summary>选中控件绑定的变量（null = 未绑定）；变更走 CommandService.bind_tag（空 tag_name = 解绑）。</summary>
+        /// <summary>选中控件绑定的变量（哨兵 = 未绑定）；变更走 CommandService.bind_tag（空 tag_name = 解绑）。</summary>
         public Tag? BoundTag
         {
             get => _boundTag;
             set
             {
                 if (_boundTag == value) return;
-                _boundTag = value;
+                _boundTag = value ?? NoBindingSentinel;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(IsValueEditable));   // 绑定状态 → 设计态 value 字段可编辑性
                 if (!_syncingFromModel && _selectedWidget != null && CurrentScreen != null && CommandService != null)
                 {
                     BeforeModify?.Invoke();
+                    // 哨兵/空名 → 空 tag_name = 解绑
+                    var tagName = (value == null || string.IsNullOrEmpty(value.Name)) ? "" : value.Name;
                     var result = CommandService.Execute("bind_tag", new Dictionary<string, object?>
                     {
                         ["screen_name"] = CurrentScreen.Name,
                         ["widget_name"] = _selectedWidget.ObjectName,
-                        ["tag_name"] = value?.Name ?? "",
+                        ["tag_name"] = tagName,
                     });
                     // 失败（如变量已被删）：回滚 UI 选中态并提示，防静默不一致
                     if (!result.Success)
                     {
-                        _boundTag = Project?.Tags.FirstOrDefault(t => t.Name == _selectedWidget.BoundTag);
+                        _boundTag = Project?.Tags.FirstOrDefault(t => t.Name == _selectedWidget.BoundTag) ?? NoBindingSentinel;
                         OnPropertyChanged(nameof(BoundTag));
                         OnPropertyChanged(nameof(IsValueEditable));
                         System.Windows.MessageBox.Show(result.ErrorMessage ?? "绑定变量失败", "绑定",
