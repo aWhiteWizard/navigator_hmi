@@ -339,10 +339,6 @@
                 <TextBox Grid.Column="1" Text="{Binding ImageDefaultIndex, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}" ToolTip="未绑定变量/变量值无效时显示的列表项索引（0=第1项）"/>
             </Grid>
             <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
-            <Grid Visibility="{Binding IsValueEditable, Converter={StaticResource BoolToVisibilityConverter}}"><Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <Label Grid.Column="0" Content="Path:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding ImagePath, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" ToolTip="静态图片路径（绑定列表/变量后隐藏，由变量控制）"/>
-            </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Color:" Style="{StaticResource PropLabel}"/>
                 <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding ImageFillColor, Mode=TwoWay}"/>
@@ -356,14 +352,6 @@
             <ContentControl ContentTemplate="{StaticResource PropBinding}" Content="{Binding}"/>
             <Separator Margin="4,2"/>
             <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
-            <Grid Visibility="{Binding IsValueEditable, Converter={StaticResource BoolToVisibilityConverter}}"><Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <Label Grid.Column="0" Content="Value:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding NumericValue, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}" ToolTip="设计态预览值（绑定变量后由变量基准值/实时值覆盖）"/>
-            </Grid>
-            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <Label Grid.Column="0" Content="FontSize:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding NumericFontSize, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}"/>
-            </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Color:" Style="{StaticResource PropLabel}"/>
                 <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding NumericTextColor, Mode=TwoWay}"/>
@@ -517,10 +505,6 @@
             <ContentControl ContentTemplate="{StaticResource PropBinding}" Content="{Binding}"/>
             <Separator Margin="4,2"/>
             <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
-            <Grid Visibility="{Binding IsValueEditable, Converter={StaticResource BoolToVisibilityConverter}}"><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <Label Grid.Column="0" Content="Content:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding IOFieldContent, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" ToolTip="显示内容（绑定变量后由变量基准值/实时值覆盖）"/>
-            </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="ReadOnly:" Style="{StaticResource PropLabel}"/>
                 <CheckBox Grid.Column="1" IsChecked="{Binding IOFieldIsReadOnly}" VerticalAlignment="Center"/>
@@ -707,10 +691,7 @@
                 <Label Grid.Column="0" Content="FillColor:" Style="{StaticResource PropLabel}"/>
                 <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding FrameFillColor, Mode=TwoWay}"/>
             </Grid>
-            <Grid Visibility="{Binding IsValueEditable, Converter={StaticResource BoolToVisibilityConverter}}"><Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <Label Grid.Column="0" Content="图片路径:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding FrameImagePath, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" ToolTip="静态背景图片路径（绑定列表/变量后隐藏，由变量控制）"/>
-            </Grid><TextBlock Text="字体" Style="{StaticResource PropGroupHeader}"/>
+            <TextBlock Text="字体" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="45"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Font:" Style="{StaticResource PropLabel}"/>
                 <ComboBox Grid.Column="1" SelectedValue="{Binding FrameFontFamily, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Source" DisplayMemberPath="Source" ItemsSource="{Binding Source={StaticResource SystemFonts}}" Style="{StaticResource PropComboBox}"/>
@@ -736,12 +717,9 @@
             <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropBinding}" Content="{Binding}"/>
             <Separator Margin="4,2"/>
             <TextBlock Text="参数" Style="{StaticResource PropGroupHeader}"/>
-            <Grid Visibility="{Binding IsValueEditable, Converter={StaticResource BoolToVisibilityConverter}}"><Grid.ColumnDefinitions><ColumnDefinition Width="50"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <Label Grid.Column="0" Content="Value:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding ProgressValue, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}" ToolTip="进度值（绑定变量后由变量基准值/实时值覆盖）"/>
-            </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="50"/><ColumnDefinition Width="*"/><ColumnDefinition Width="50"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Min:" Style="{StaticResource PropLabel}"/>
                 <TextBox Grid.Column="1" Text="{Binding ProgressMin, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}"/>
