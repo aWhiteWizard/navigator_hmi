@@ -314,6 +314,7 @@
             <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropBinding}" Content="{Binding}"/>
             <Separator Margin="4,2"/>
             <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -630,6 +631,7 @@
             <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropBinding}" Content="{Binding}"/>
             <Separator Margin="4,2"/>
             <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="50"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
