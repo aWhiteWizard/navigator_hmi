@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using NavigatorHMI.Common;
 
@@ -608,6 +609,39 @@ namespace NavigatorHMI.Views.Helpers
             return colorBrush;
         }
         public object[] ConvertBack(object value, Type[] targetTypes, object parameter, System.Globalization.CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
+    /// <summary>
+    /// 完整路径 → ImageSource（列表管理面板图片预览用）。
+    /// 仅接受已解析的完整文件路径（ListItemVM.PreviewImagePath 已做存在性校验）；
+    /// StreamSource 读盘后立即释放文件句柄（用户可能随后重命名/删除文件）。加载失败返回 null（占位）。
+    /// 不用 new Uri(path)：含 '#' 的文件名会被解析为 URI fragment 导致加载失败。
+    /// </summary>
+    public class PathToImageSourceConverter : IValueConverter
+    {
+        public object? Convert(object value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
+        {
+            if (value is not string path || path.Length == 0) return null;
+            try
+            {
+                var bmp = new BitmapImage();
+                bmp.BeginInit();
+                bmp.CacheOption = BitmapCacheOption.OnLoad;   // 立即读盘，不占用文件句柄
+                using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+                bmp.StreamSource = fs;
+                bmp.EndInit();
+                bmp.Freeze();
+                return bmp;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
+            {
+                // 文件损坏/非图片格式/无权限 → 降级返回 null，由 XAML 占位兜底（列表项仍可编辑路径）
+                return null;
+            }
+        }
+
+        public object? ConvertBack(object value, Type targetType, object? parameter, System.Globalization.CultureInfo culture)
             => throw new NotImplementedException();
     }
 }

@@ -6,6 +6,7 @@
         xmlns:ctrl="clr-namespace:NavigatorHMI.Views"
         xmlns:local="clr-namespace:NavigatorHMI"
         xmlns:vm="clr-namespace:NavigatorHMI.ViewModels"
+        xmlns:h="clr-namespace:NavigatorHMI.Views.Helpers"
         xmlns:avalon="https://github.com/Dirkster99/AvalonDock"
         mc:Ignorable="d"
         WindowState="Maximized"
@@ -23,6 +24,7 @@
             </DrawingGroup></DrawingBrush.Drawing>
         </DrawingBrush>
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        <h:PathToImageSourceConverter x:Key="PathToImageConverter"/>
 
         <!-- 属性面板样式 -->
         <Style x:Key="PropGroupHeader" TargetType="TextBlock">
@@ -1286,7 +1288,7 @@
                                                         <DataGrid Grid.Row="1" ItemsSource="{Binding ImageItems}" SelectedItem="{Binding SelectedImageItem}"
                                                                   AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="False"
                                                                   HeadersVisibility="Column" SelectionMode="Single" GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12"
-                                                                  RowHeight="26">
+                                                                  RowHeight="38">
                                                             <DataGrid.RowStyle>
                                                                 <Style TargetType="DataGridRow">
                                                                     <Style.Triggers>
@@ -1298,7 +1300,27 @@
                                                                 </Style>
                                                             </DataGrid.RowStyle>
                                                             <DataGrid.Columns>
-                                                                <DataGridTextColumn Header="序号" Binding="{Binding Number}" Width="50" IsReadOnly="True"/>
+                                                                <DataGridTextColumn Header="序号" Binding="{Binding Number}" Width="40" IsReadOnly="True"/>
+                                                                <DataGridTemplateColumn Header="预览" Width="64">
+                                                                    <DataGridTemplateColumn.CellTemplate>
+                                                                        <DataTemplate>
+                                                                            <Border BorderBrush="LightGray" BorderThickness="1" Background="#F5F5F5" Width="52" Height="32" Margin="2,0"
+                                                                                    VerticalAlignment="Center" HorizontalAlignment="Center" CornerRadius="2">
+                                                                                <Grid>
+                                                                                    <Image Source="{Binding PreviewImagePath, Converter={StaticResource PathToImageConverter}}" Stretch="Uniform" Margin="2"/>
+                                                                                    <TextBlock Text="无图" Foreground="Gray" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
+                                                                                        <TextBlock.Style><Style TargetType="TextBlock">
+                                                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                                                            <Style.Triggers><DataTrigger Binding="{Binding PreviewImagePath}" Value="{x:Null}">
+                                                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                                                            </DataTrigger></Style.Triggers>
+                                                                                        </Style></TextBlock.Style>
+                                                                                    </TextBlock>
+                                                                                </Grid>
+                                                                            </Border>
+                                                                        </DataTemplate>
+                                                                    </DataGridTemplateColumn.CellTemplate>
+                                                                </DataGridTemplateColumn>
                                                                 <DataGridTemplateColumn Header="图片路径" Width="*">
                                                                     <DataGridTemplateColumn.CellTemplate>
                                                                         <DataTemplate>

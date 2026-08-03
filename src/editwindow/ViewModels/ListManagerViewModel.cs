@@ -47,6 +47,7 @@ namespace NavigatorHMI.ViewModels
                 _owner.Items[_index] = cleaned;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(PathValid));
+                OnPropertyChanged(nameof(PreviewImagePath));
                 _onValueChanged?.Invoke();
             }
         }
@@ -57,8 +58,26 @@ namespace NavigatorHMI.ViewModels
         /// <summary>图片路径是否有效（文件存在；空项视为有效占位）。目录动态读取：工程未保存返回 true 不校验。</summary>
         public bool PathValid => !_isImage || CheckImagePath(_owner.Items[_index], _projectDirProvider());
 
-        /// <summary>回车确认后重新校验路径（刷新标红状态）。</summary>
-        public void NotifyPathRecheck() => OnPropertyChanged(nameof(PathValid));
+        /// <summary>回车确认后重新校验路径（刷新标红状态与预览）。</summary>
+        public void NotifyPathRecheck()
+        {
+            OnPropertyChanged(nameof(PathValid));
+            OnPropertyChanged(nameof(PreviewImagePath));
+        }
+
+        /// <summary>
+        /// 预览图片完整路径（相对工程目录解析；空项/目录未定/文件不存在 → null）。
+        /// 供列表管理面板「预览」列绑定（PathToImageSourceConverter 加载）。
+        /// </summary>
+        public string? PreviewImagePath
+        {
+            get
+            {
+                if (!_isImage) return null;
+                var full = ResolveImageFullPath(_owner.Items[_index], _projectDirProvider());
+                return full != null && File.Exists(full) ? full : null;
+            }
+        }
 
         /// <summary>去除首尾空格及成对的双/单引号（支持 "path" / 'path'）。</summary>
         public static string StripQuotes(string s)
@@ -69,14 +88,20 @@ namespace NavigatorHMI.ViewModels
             return t;
         }
 
-        /// <summary>图片路径有效性：相对工程目录解析后文件存在（绝对路径直接校验）。工程未保存（目录为空）时不校验。</summary>
-        public static bool CheckImagePath(string raw, string projectDir)
+        /// <summary>图片路径解析：去引号 → 相对工程目录解析为完整路径（未保存/空项返回 null）。</summary>
+        public static string? ResolveImageFullPath(string raw, string projectDir)
         {
             var p = StripQuotes(raw);
-            if (p.Length == 0) return true;   // 空项允许（占位/待填）
-            if (string.IsNullOrEmpty(projectDir)) return true;   // 工程未保存：无从解析，不误标红（保存后重新校验）
-            var full = Path.IsPathRooted(p) ? p : Path.Combine(projectDir, p);
-            return File.Exists(full);
+            if (p.Length == 0) return null;
+            if (string.IsNullOrEmpty(projectDir)) return null;   // 工程未保存：无从解析
+            return Path.IsPathRooted(p) ? p : Path.Combine(projectDir, p);
+        }
+
+        /// <summary>图片路径有效性：解析后文件存在（空项/未保存视为有效——不误标红）。</summary>
+        public static bool CheckImagePath(string raw, string projectDir)
+        {
+            var full = ResolveImageFullPath(raw, projectDir);
+            return full == null || File.Exists(full);   // 空项/未保存 → 有效占位；有路径 → 文件必须存在
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
