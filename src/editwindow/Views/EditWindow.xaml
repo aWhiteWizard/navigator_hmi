@@ -210,9 +210,9 @@
             <ContentControl ContentTemplate="{StaticResource PropBinding}" Content="{Binding}"/>
             <Separator Margin="4,2"/>
             <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
-            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+            <Grid Visibility="{Binding IsValueEditable, Converter={StaticResource BoolToVisibilityConverter}}"><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Content:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding TextContent, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+                <TextBox Grid.Column="1" Text="{Binding TextContent, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" ToolTip="静态文本（绑定变量后由变量值覆盖，隐藏）"/>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Color:" Style="{StaticResource PropLabel}"/>
@@ -265,7 +265,6 @@
             <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
-            <ContentControl ContentTemplate="{StaticResource PropBinding}" Content="{Binding}"/>
             <Separator Margin="4,2"/>
             <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>

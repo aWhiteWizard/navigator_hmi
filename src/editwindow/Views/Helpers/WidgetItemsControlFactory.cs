@@ -193,7 +193,7 @@ namespace NavigatorHMI.Views.Helpers
         {
             var dt = new DataTemplate();
             var tb = new FrameworkElementFactory(typeof(TextBlock));
-            tb.SetBinding(TextBlock.TextProperty, new Binding("Content"));
+            tb.SetBinding(TextBlock.TextProperty, new Binding("DisplayText"));   // 绑定变量 → 基准值；否则自身 Content
             BindTextFormatting(tb);
             tb.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
             dt.VisualTree = WrapWithBorder(tb, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU, bindFillBackground: true);   // TextContentTemplate

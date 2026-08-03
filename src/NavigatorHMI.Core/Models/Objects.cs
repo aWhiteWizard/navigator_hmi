@@ -304,7 +304,7 @@ public class TextWidget : Widget
     public string Content
     {
         get => _content;
-        set { _content = value; OnPropertyChanged(); }
+        set { if (_content != value) { _content = value; OnPropertyChanged(); OnPropertyChanged(nameof(DisplayText)); } }
     }
 
     private string _fillColor = "#EEEEEE";
@@ -346,6 +346,21 @@ public class TextWidget : Widget
     /// <summary>下划线：None / Underline</summary>
     [ProtoMember(9)]
     public string TextDecoration { get => _textDecoration; set { _textDecoration = value; OnPropertyChanged(); } }
+
+    /// <summary>设计态显示文本：绑定变量 → 变量基准值；否则控件 Content（静态文本）。</summary>
+    [ProtoIgnore]
+    public override string DisplayText
+    {
+        get
+        {
+            if (!string.IsNullOrEmpty(BoundTag))
+            {
+                var bv = TagResolver.ResolveBaseValue(BoundTag);
+                if (bv.Length > 0) return bv;
+            }
+            return Content;
+        }
+    }
 }
 
 /// <summary>

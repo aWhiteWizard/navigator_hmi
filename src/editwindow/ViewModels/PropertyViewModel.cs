@@ -73,7 +73,7 @@ namespace NavigatorHMI.ViewModels
                 {
                     var tag = Project?.Tags.FirstOrDefault(t => t.Name == _selectedWidget.BoundTag);
                     _syncingFromModel = true;
-                    try { _boundTag = tag ?? NoBindingSentinel; OnPropertyChanged(nameof(BoundTag)); }
+                    try { _boundTag = tag ?? NoBindingSentinel; OnPropertyChanged(nameof(BoundTag)); OnPropertyChanged(nameof(IsValueEditable)); }
                     finally { _syncingFromModel = false; }
                 }
             }
@@ -290,6 +290,8 @@ namespace NavigatorHMI.ViewModels
                         BoundTag = Project?.Tags.FirstOrDefault(t => t.Name == value.BoundTag) ?? NoBindingSentinel;
                         // 列表下拉数据源（Image/Frame/TextList 选中时同步）
                         RefreshListOptions(value);
+                        // 无条件通知（切换选中控件时 setter 可能值相等短路——不得依赖其副作用）
+                        OnPropertyChanged(nameof(IsValueEditable));
                         }
                         finally { _syncingFromModel = false; }
                     }
@@ -319,6 +321,7 @@ namespace NavigatorHMI.ViewModels
                         // CLI/Undo 等外部改模型 BoundTag → 面板实时同步（不触发命令）
                         _boundTag = Project?.Tags.FirstOrDefault(t => t.Name == _selectedWidget.BoundTag) ?? NoBindingSentinel;
                         OnPropertyChanged(nameof(BoundTag));
+                        OnPropertyChanged(nameof(IsValueEditable));
                        
                         break;
                     case "ListRef":
@@ -763,7 +766,7 @@ namespace NavigatorHMI.ViewModels
             BindableTags.Clear();
             BindableTags.Add(NoBindingSentinel);   // 无绑定哨兵（非 null）
             if (Project == null) return;
-            // 类型过滤：数值/索引控件只显示数字变量（BOOL/INT16/UINT16/INT32/FLOAT），其他不限
+            // 类型过滤：数值/索引控件只显示数字变量，文本控件只显示 STRING，None（Label）不显示任何变量，其他不限
             var req = _selectedWidget != null ? TagCompatibility.GetRequirement(_selectedWidget) : TagRequirement.Any;
             var current = _selectedWidget?.BoundTag ?? "";
             bool currentIncluded = false;
@@ -772,6 +775,8 @@ namespace NavigatorHMI.ViewModels
                 bool ok = req switch
                 {
                     TagRequirement.Numeric => TagCompatibility.IsNumericCompatible(t.DataType),
+                    TagRequirement.StringPath => TagCompatibility.IsStringPathCompatible(t.DataType),
+                    TagRequirement.None => false,   // 禁止绑定：无变量可选
                     _ => true,
                 };
                 if (ok)
@@ -791,7 +796,13 @@ namespace NavigatorHMI.ViewModels
 
         private Tag? _boundTag;
 
-        /// <summary>选中控件绑定的变量（哨兵 = 未绑定）；变更走 CommandService.bind_tag（空 tag_name = 解绑）。</summary>
+        /// <summary>是否已绑定变量（哨兵 Name 为空视为未绑定——BoundTag 用非 null 哨兵归一，禁引用判空）。</summary>
+        public bool IsBound => BoundTag != null && !string.IsNullOrEmpty(BoundTag.Name);
+
+        /// <summary>设计态值字段（TextWidget.Content）是否可编辑/显示：绑定变量后由变量控制，隐藏。</summary>
+        public bool IsValueEditable => !IsBound;
+
+        /// <summary>选中控件绑定的变量（NoBindingSentinel 哨兵 = 未绑定）；变更走 CommandService.bind_tag（空 tag_name = 解绑）。</summary>
         public Tag? BoundTag
         {
             get => _boundTag;
@@ -800,6 +811,7 @@ namespace NavigatorHMI.ViewModels
                 if (_boundTag == value) return;
                 _boundTag = value ?? NoBindingSentinel;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(IsValueEditable));   // 绑定状态 → TextWidget.Content 可编辑性
                 if (!_syncingFromModel && _selectedWidget != null && CurrentScreen != null && CommandService != null)
                 {
                     BeforeModify?.Invoke();
@@ -816,6 +828,7 @@ namespace NavigatorHMI.ViewModels
                     {
                         _boundTag = Project?.Tags.FirstOrDefault(t => t.Name == _selectedWidget.BoundTag) ?? NoBindingSentinel;
                         OnPropertyChanged(nameof(BoundTag));
+                        OnPropertyChanged(nameof(IsValueEditable));
                        
                         System.Windows.MessageBox.Show(result.ErrorMessage ?? "绑定变量失败", "绑定",
                             System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
