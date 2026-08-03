@@ -110,6 +110,11 @@ public static class Program
             "delete-tag"     => Cmd("delete_tag", Require("name")),
             "bind-tag"       => Cmd("bind_tag", Require("screen", "screen_name"), Require("widget", "widget_name"), Require("tag", "tag_name")),
 
+            // 列表
+            "create-list"    => Cmd("create_list", Require("name"), Require("type"), Opt("items", "")),
+            "update-list"    => Cmd("update_list", Require("name"), OptIfProvided("new-name", "new_name"), OptIfProvided("items")),
+            "delete-list"    => Cmd("delete_list", Require("name")),
+
             // 剪贴板
             "copy-widget"    => Cmd("copy_widget", Require("screen", "screen_name"), Require("widget", "widget_name")),
             "paste-widget"   => Cmd("paste_widget", Require("screen", "screen_name"), Opt("x", ""), Opt("y", "")),
@@ -313,7 +318,8 @@ public static class Program
             or "event" or "action" or "nic" or "protocol" or "severity" or "direction" or "mode" or "ip" or "device_ip";
         // value 语义由 --key 决定（颜色/文本/路径/数值），静态分类无法覆盖：
         // 归自由文本类仅拦 '..'（imagePath 值含 / 或 \ 是合法的相对/绝对路径）
-        bool isFreeText = key is "description" or "message" or "params" or "model" or "value" or "font-family" or "base-value";
+        // items：| 分隔的预设值集合（图片列表含路径），归自由文本仅拦 '..' 防路径遍历穿透工程
+        bool isFreeText = key is "description" or "message" or "params" or "model" or "value" or "font-family" or "base-value" or "items";
 
         if (isPathParam)
         {

@@ -132,5 +132,9 @@ namespace NavigatorHMI.Common
         /// <summary>设备启动后默认显示的画面名称。空字符串表示使用第一个画面。</summary>
         [ProtoMember(15)]
         public string StartScreen { get; set; } = "";
+
+        /// <summary>工程中所有列表定义（文本列表/图片列表，控件按数值变量索引显示对应项）</summary>
+        [ProtoMember(16)]
+        public List<ListDef> Lists { get; set; } = new();
     }
 }

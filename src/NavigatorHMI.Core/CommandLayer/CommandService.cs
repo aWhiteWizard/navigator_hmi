@@ -84,6 +84,11 @@ namespace NavigatorHMI.CommandLayer
                 ["delete_tag"]      = new DeleteTagHandler(),
                 ["bind_tag"]        = new BindTagHandler(),
 
+                // ── 列表操作 ──
+                ["create_list"]     = new CreateListHandler(),
+                ["update_list"]     = new UpdateListHandler(),
+                ["delete_list"]     = new DeleteListHandler(),
+
                 // ── 报警操作 ──
                 ["create_alarm"]    = new CreateAlarmHandler(),
 

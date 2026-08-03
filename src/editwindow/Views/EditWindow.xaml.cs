@@ -99,6 +99,10 @@ namespace NavigatorHMI.Views
         private readonly CommunicationDeviceViewModel _commDeviceVM;
         /// <summary>通讯配置 ViewModel（供 XAML 绑定）。</summary>
         public CommunicationDeviceViewModel CommDeviceVM => _commDeviceVM;
+        // 列表管理面板
+        private readonly ListManagerViewModel _listManagerVM;
+        /// <summary>列表管理 ViewModel（供 XAML 绑定）。</summary>
+        public ListManagerViewModel ListManagerVM => _listManagerVM;
         #endregion
 
         #region 构造函数 & 初始化
@@ -185,6 +189,9 @@ namespace NavigatorHMI.Views
             _commDeviceVM = new CommunicationDeviceViewModel(_currentProject, _viewModel.CommandService);
             _commDeviceVM.DeviceEditRequested += OnDeviceEditRequested;
             _commDeviceVM.DeviceDeleteRequested += OnDeviceDeleteRequested;
+
+            // 12.5 初始化列表管理面板（新建/删除/重命名/编辑项走 CommandService）
+            _listManagerVM = new ListManagerViewModel(_currentProject, _viewModel.CommandService);
 
             // 13. 注册设计态变量解析器（绑定控件渲染基准值）
             TagResolver.CurrentProject = _currentProject;
@@ -459,6 +466,52 @@ namespace NavigatorHMI.Views
         {
             _viewModel.CloseCommunicationTab();
             e.Handled = true;
+        }
+
+        /// <summary>点击「列表」Tab：切到列表管理视图（保持当前子页，与画面/变量/通讯互斥切换）。</summary>
+        private void ListManagerTab_Click(object sender, MouseButtonEventArgs e)
+        {
+            _viewModel.ActivateListManager(_viewModel.ListManagerListType);
+            e.Handled = true;
+        }
+
+        /// <summary>关闭「列表」Tab（当前激活时切回当前画面）。</summary>
+        private void ListManagerTabClose_Click(object sender, MouseButtonEventArgs e)
+        {
+            _viewModel.CloseListManagerTab();
+            e.Handled = true;
+        }
+
+        /// <summary>图片路径输入框回车确认：结束编辑并刷新行校验（路径不存在行标红）。</summary>
+        private void ImagePathBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                var box = sender as TextBox;
+                if (box != null)
+                {
+                    box.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+                    var vm = box.DataContext as ListItemVM;
+                    if (vm != null)
+                    {
+                        vm.NotifyPathRecheck();
+                        DataGrid? grid = FindVisualParent<DataGrid>(box);
+                        if (grid != null) grid.CommitEdit(DataGridEditingUnit.Row, true);
+                    }
+                }
+                e.Handled = true;
+            }
+        }
+
+        /// <summary>沿视觉树上溯查找指定类型父元素（图片路径回车确认定位 DataGrid 用）。</summary>
+        private static T? FindVisualParent<T>(DependencyObject? source) where T : DependencyObject
+        {
+            while (source != null)
+            {
+                if (source is T t) return t;
+                source = VisualTreeHelper.GetParent(source);
+            }
+            return null;
         }
 
         /// <summary>
@@ -1400,6 +1453,7 @@ namespace NavigatorHMI.Views
             ProjectFileService.Save(project, filePath);
             _isProjectDirty = false;
             this.Title = project.ProjectFilePath;
+            _listManagerVM.RecheckImagePaths();   // 工程目录刚生效 → 重算图片路径标红状态
         }
 
         #endregion
@@ -1984,6 +2038,7 @@ namespace NavigatorHMI.Views
                 _viewModel.CommandService.ReplaceProject(_currentProject);
                 _isProjectDirty = false;
                 Title = $"NavigatorHMI - {dlg.FileName}";
+                _listManagerVM.RecheckImagePaths();   // 另存后工程目录可能变更 → 重算图片路径标红状态
             }
         }
         private void DeleteSelectedWidget_Click(object sender, RoutedEventArgs e)
@@ -2247,7 +2302,8 @@ namespace NavigatorHMI.Views
                 bool isNameParam = key is "name" or "screen" or "widget" or "widgets" or "tag" or "key" or "new-name" or "event" or "action" or "nic" or "protocol" or "severity" or "direction" or "mode" or "ip" or "device_ip";
                 // value 语义由 --key 决定（颜色/文本/路径/数值），静态分类无法覆盖：
                 // 归自由文本类仅拦 '..'（imagePath 值含 / 或 \ 是合法的相对/绝对路径）
-                bool isFreeText = key is "description" or "message" or "params" or "model" or "value" or "font-family";
+                // ⚠️ 白名单须与 Program.cs SanitizeParam 逐 key 同步（cli-param-sanitize §5/§6）：新增自由文本 key 时两端同改
+                bool isFreeText = key is "description" or "message" or "params" or "model" or "value" or "font-family" or "base-value" or "items";
 
                 if (isPathParam)
                 {

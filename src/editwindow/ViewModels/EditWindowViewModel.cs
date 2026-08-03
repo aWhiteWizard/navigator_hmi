@@ -162,11 +162,97 @@ namespace NavigatorHMI.ViewModels
             RefreshTreeCurrentStatus();
         }
 
-        /// <summary>激活画面：退出变量管理器/通讯视图并切换画面（即使 CurrentScreen 未变也生效）。</summary>
+        // ═══════════════════════════════════════════
+        // 列表管理 Tab（文本列表/图片列表，与变量/通讯/画面互斥切换）
+        // ═══════════════════════════════════════════
+
+        private bool _listManagerTabOpen;
+
+        /// <summary>列表管理 Tab 是否打开（打开才在标签栏显示）。</summary>
+        public bool ListManagerTabOpen
+        {
+            get => _listManagerTabOpen;
+            set { if (_listManagerTabOpen != value) { _listManagerTabOpen = value; OnPropertyChanged(); } }
+        }
+
+        private bool _listManagerActive;
+
+        /// <summary>当前内容是否为列表管理（true=显示列表管理，false=其他）。</summary>
+        public bool ListManagerActive
+        {
+            get => _listManagerActive;
+            set { if (_listManagerActive != value) { _listManagerActive = value; OnPropertyChanged(); } }
+        }
+
+        private ListType _listManagerListType = ListType.Text;
+
+        /// <summary>列表管理当前激活子页（Text=文本列表页，Image=图片列表页）。</summary>
+        public ListType ListManagerListType
+        {
+            get => _listManagerListType;
+            set { if (_listManagerListType != value) { _listManagerListType = value; OnPropertyChanged(); } }
+        }
+
+        private int _listManagerSelectedIndex = 0;
+
+        /// <summary>列表管理 TabControl 页索引（0=文本列表，1=图片列表）。与 ListManagerListType 单向同步：
+        /// 树双击/激活设置索引 → TabControl 跟随；用户手动切页回写 → 树高亮同步。</summary>
+        public int ListManagerSelectedIndex
+        {
+            get => _listManagerSelectedIndex;
+            set
+            {
+                if (_listManagerSelectedIndex == value) return;
+                _listManagerSelectedIndex = value;
+                OnPropertyChanged();
+                var type = value == 1 ? ListType.Image : ListType.Text;
+                if (_listManagerListType != type)
+                {
+                    _listManagerListType = type;
+                    OnPropertyChanged(nameof(ListManagerListType));
+                }
+                RefreshTreeCurrentStatus();
+            }
+        }
+
+        /// <summary>打开列表管理：显示 Tab 并切到对应子页（树高亮同步到「文本/图片列表」节点，与变量/通讯互斥）。</summary>
+        public void OpenListManager(ListType listType)
+        {
+            ListManagerTabOpen = true;
+            ListManagerActive = true;
+            ListManagerListType = listType;
+            ListManagerSelectedIndex = listType == ListType.Image ? 1 : 0;
+            VariableManagerActive = false;
+            CommunicationActive = false;
+            RefreshTreeCurrentStatus();
+        }
+
+        /// <summary>激活列表管理视图（Tab 已打开时点击标签栏切换子页）。</summary>
+        public void ActivateListManager(ListType listType)
+        {
+            if (!ListManagerTabOpen) ListManagerTabOpen = true;
+            ListManagerActive = true;
+            ListManagerListType = listType;
+            ListManagerSelectedIndex = listType == ListType.Image ? 1 : 0;
+            VariableManagerActive = false;
+            CommunicationActive = false;
+            RefreshTreeCurrentStatus();
+        }
+
+        /// <summary>关闭列表管理 Tab（若当前激活则切回当前画面，树高亮恢复画面节点）。</summary>
+        public void CloseListManagerTab()
+        {
+            if (ListManagerActive) ListManagerActive = false;
+            ListManagerTabOpen = false;
+            RefreshTreeCurrentStatus();
+        }
+
+        /// <summary>激活画面：退出变量管理器/通讯/列表管理视图并切换画面（即使 CurrentScreen 未变也生效）。</summary>
         public void ActivateScreen(Screen screen)
         {
             VariableManagerActive = false;
             CommunicationActive = false;
+            ListManagerActive = false;
             CurrentScreen = screen;   // 可能短路（值未变），短路时树高亮靠下方 RefreshTreeCurrentStatus 兜底
             RefreshTreeCurrentStatus();
         }
@@ -183,9 +269,10 @@ namespace NavigatorHMI.ViewModels
                 _currentScreen = value;
                 OnPropertyChanged();
 
-                // 切到画面时自动退出变量管理器/通讯视图（标签栏高亮同步）
+                // 切到画面时自动退出变量管理器/通讯/列表管理视图（标签栏高亮同步）
                 VariableManagerActive = false;
                 CommunicationActive = false;
+                ListManagerActive = false;
 
                 // 打开画面 → 自动加入标签集合（打开才显示标签）
                 EnsureScreenOpen(value);
@@ -208,15 +295,15 @@ namespace NavigatorHMI.ViewModels
         {
             foreach (var root in TreeRoots)
             {
-                UpdateNodeRecursive(root, CurrentScreen, VariableManagerActive, CommunicationActive);
+                UpdateNodeRecursive(root, CurrentScreen, VariableManagerActive, CommunicationActive, ListManagerActive, ListManagerListType);
             }
         }
 
-        private static void UpdateNodeRecursive(ProjectTreeViewModel node, Screen currentScreen, bool variableManagerActive, bool communicationActive)
+        private static void UpdateNodeRecursive(ProjectTreeViewModel node, Screen currentScreen, bool variableManagerActive, bool communicationActive, bool listManagerActive, ListType listManagerListType)
         {
             if (node is ScreenItemNode screenNode)
             {
-                screenNode.IsCurrent = !variableManagerActive && !communicationActive && (screenNode.Screen == currentScreen);
+                screenNode.IsCurrent = !variableManagerActive && !communicationActive && !listManagerActive && (screenNode.Screen == currentScreen);
             }
             else if (node is VariableManagerNode vmNode)
             {
@@ -226,9 +313,17 @@ namespace NavigatorHMI.ViewModels
             {
                 deviceNode.IsCurrent = communicationActive;
             }
+            else if (node is TextListRootNode tlNode)
+            {
+                tlNode.IsCurrent = listManagerActive && listManagerListType == ListType.Text;
+            }
+            else if (node is ImageListRootNode ilNode)
+            {
+                ilNode.IsCurrent = listManagerActive && listManagerListType == ListType.Image;
+            }
             foreach (var child in node.Children)
             {
-                UpdateNodeRecursive(child, currentScreen, variableManagerActive, communicationActive);
+                UpdateNodeRecursive(child, currentScreen, variableManagerActive, communicationActive, listManagerActive, listManagerListType);
             }
         }
 
@@ -310,12 +405,14 @@ namespace NavigatorHMI.ViewModels
             TreeRoots.Add(BuildCommunicationRootNode());
         }
 
-        /// <summary>构建「通信变量」根节点（含「变量」/「通讯」子节点，双击在画布位置打开对应 Tab）。</summary>
+        /// <summary>构建「通信变量」根节点（含「变量」/「通讯」/「列表」子节点，双击在画布位置打开对应 Tab）。</summary>
         private CommunicationRootNode BuildCommunicationRootNode()
         {
             var node = new CommunicationRootNode();
             node.OnVariableManagerSelected += OpenVariableManager;
             node.OnDeviceConfigSelected += OpenCommunication;
+            node.OnTextListSelected += () => OpenListManager(ListType.Text);
+            node.OnImageListSelected += () => OpenListManager(ListType.Image);
             return node;
         }
         // 撤销操作执行后触发，用于通知 View 层标记工程已修改

@@ -865,6 +865,9 @@
                                         <HierarchicalDataTemplate DataType="{x:Type vm:CommunicationRootNode}" ItemsSource="{Binding Children}">
                                             <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
                                         </HierarchicalDataTemplate>
+                                        <HierarchicalDataTemplate DataType="{x:Type vm:ListRootNode}" ItemsSource="{Binding Children}">
+                                            <TextBlock Text="{Binding Name}"/>
+                                        </HierarchicalDataTemplate>
                                         <DataTemplate DataType="{x:Type vm:VariableManagerNode}">
                                             <!-- 与画面节点一致的选中样式（✅ 高亮 + 默认字体颜色） -->
                                             <StackPanel Orientation="Horizontal">
@@ -873,6 +876,20 @@
                                             </StackPanel>
                                         </DataTemplate>
                                         <DataTemplate DataType="{x:Type vm:DeviceConfigNode}">
+                                            <!-- 与画面节点一致的选中样式（✅ 高亮 + 默认字体颜色） -->
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="✅" Visibility="{Binding IsCurrent, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,4,0" FontSize="12"/>
+                                                <TextBlock Text="{Binding Name}"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                        <DataTemplate DataType="{x:Type vm:TextListRootNode}">
+                                            <!-- 与画面节点一致的选中样式（✅ 高亮 + 默认字体颜色） -->
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="✅" Visibility="{Binding IsCurrent, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,4,0" FontSize="12"/>
+                                                <TextBlock Text="{Binding Name}"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                        <DataTemplate DataType="{x:Type vm:ImageListRootNode}">
                                             <!-- 与画面节点一致的选中样式（✅ 高亮 + 默认字体颜色） -->
                                             <StackPanel Orientation="Horizontal">
                                                 <TextBlock Text="✅" Visibility="{Binding IsCurrent, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,4,0" FontSize="12"/>
@@ -967,6 +984,28 @@
                                                            Cursor="Hand" MouseLeftButtonDown="CommTabClose_Click"/>
                                             </StackPanel>
                                         </Border>
+                                        <!-- 列表管理 Tab（由「通信变量→列表→文本/图片列表」树节点双击打开，打开才显示，激活高亮） -->
+                                        <Border x:Name="ListManagerTab" BorderThickness="1" CornerRadius="3" Padding="6,3" Margin="0,0,4,0"
+                                                Cursor="Hand" MouseLeftButtonDown="ListManagerTab_Click"
+                                                Visibility="{Binding ListManagerTabOpen, Converter={StaticResource BoolToVisibilityConverter}}">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="#E0E0E0"/>
+                                                    <Setter Property="BorderBrush" Value="#B0B0B0"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding ListManagerActive}" Value="True">
+                                                            <Setter Property="Background" Value="#0078D4"/>
+                                                            <Setter Property="BorderBrush" Value="#0078D4"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="列表" FontSize="12" VerticalAlignment="Center"/>
+                                                <TextBlock Text=" ✕" FontSize="10" Foreground="#888888" VerticalAlignment="Center" Margin="4,0,0,0"
+                                                           Cursor="Hand" MouseLeftButtonDown="ListManagerTabClose_Click"/>
+                                            </StackPanel>
+                                        </Border>
                                         <ItemsControl ItemsSource="{Binding OpenScreens}">
                                         <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
@@ -982,12 +1021,13 @@
                                                     </StackPanel>
                                                 </Border>
                                                 <DataTemplate.Triggers>
-                                                    <!-- 当前编辑页高亮；变量管理器/通讯激活时画面 Tab 不高亮（高亮互斥，避免双蓝） -->
+                                                    <!-- 当前编辑页高亮；变量管理器/通讯/列表激活时画面 Tab 不高亮（高亮互斥，避免双蓝） -->
                                                     <MultiDataTrigger>
                                                         <MultiDataTrigger.Conditions>
                                                             <Condition Binding="{Binding IsCurrent}" Value="True"/>
                                                             <Condition Binding="{Binding DataContext.VariableManagerActive, RelativeSource={RelativeSource AncestorType=Window}}" Value="False"/>
                                                             <Condition Binding="{Binding DataContext.CommunicationActive, RelativeSource={RelativeSource AncestorType=Window}}" Value="False"/>
+                                                            <Condition Binding="{Binding DataContext.ListManagerActive, RelativeSource={RelativeSource AncestorType=Window}}" Value="False"/>
                                                         </MultiDataTrigger.Conditions>
                                                         <Setter TargetName="TabBorder" Property="Background" Value="#0078D4"/>
                                                         <Setter TargetName="TabBorder" Property="BorderBrush" Value="#0078D4"/>
@@ -1041,11 +1081,12 @@
                                         <Style TargetType="Border">
                                             <Setter Property="Visibility" Value="Visible"/>
                                             <Style.Triggers>
-                                                <!-- 变量管理器/通讯激活时隐藏画布（同一位置切换） -->
+                                                <!-- 变量管理器/通讯/列表激活时隐藏画布（同一位置切换） -->
                                                 <MultiDataTrigger>
                                                     <MultiDataTrigger.Conditions>
                                                         <Condition Binding="{Binding VariableManagerActive}" Value="False"/>
                                                         <Condition Binding="{Binding CommunicationActive}" Value="False"/>
+                                                        <Condition Binding="{Binding ListManagerActive}" Value="False"/>
                                                     </MultiDataTrigger.Conditions>
                                                     <Setter Property="Visibility" Value="Visible"/>
                                                 </MultiDataTrigger>
@@ -1053,6 +1094,9 @@
                                                     <Setter Property="Visibility" Value="Collapsed"/>
                                                 </DataTrigger>
                                                 <DataTrigger Binding="{Binding CommunicationActive}" Value="True">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding ListManagerActive}" Value="True">
                                                     <Setter Property="Visibility" Value="Collapsed"/>
                                                 </DataTrigger>
                                             </Style.Triggers>
@@ -1161,6 +1205,123 @@
                                             </ContextMenu>
                                         </DataGrid.ContextMenu>
                                     </DataGrid>
+                                </Grid>
+                                <!-- 列表管理内容（Tab 激活时显示，与画布同一位置切换；Visibility 从 Window.DataContext 取防 DataContext 覆盖） -->
+                                <Grid Grid.Row="1" Margin="3" DataContext="{Binding ListManagerVM, RelativeSource={RelativeSource AncestorType=Window}}"
+                                      Visibility="{Binding DataContext.ListManagerActive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
+                                    <TabControl SelectedIndex="{Binding DataContext.ListManagerSelectedIndex, RelativeSource={RelativeSource AncestorType=Window}}">
+                                        <!-- 文本列表页 -->
+                                        <TabItem Header="文本列表">
+                                            <Grid Margin="2">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="*"/>
+                                                </Grid.RowDefinitions>
+                                                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
+                                                    <TextBox Text="{Binding NewTextListName, UpdateSourceTrigger=PropertyChanged}" Width="120" Height="26" VerticalContentAlignment="Center" FontSize="12" ToolTip="新列表名称"/>
+                                                    <Button Content="＋ 新建列表" Command="{Binding NewTextListCommand}" Width="90" Height="26" Margin="4,0,0,0" ToolTip="创建文本列表（预设值可在右侧编辑）"/>
+                                                    <Button Content="🗑 删除列表" Command="{Binding DeleteTextListCommand}" Width="90" Height="26" Margin="4,0,0,0" ToolTip="删除选中列表（被控件引用时拒绝）"/>
+                                                </StackPanel>
+                                                <Grid Grid.Row="1">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="160"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <ListBox Grid.Column="0" Margin="0,0,4,0" ItemsSource="{Binding TextLists}" SelectedItem="{Binding SelectedTextList}" DisplayMemberPath="Name" FontSize="12"/>
+                                                    <Grid Grid.Column="1">
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="Auto"/>
+                                                            <RowDefinition Height="*"/>
+                                                            <RowDefinition Height="Auto"/>
+                                                        </Grid.RowDefinitions>
+                                                        <DockPanel Grid.Row="0" Margin="0,0,0,4">
+                                                            <TextBlock DockPanel.Dock="Left" Text="列表名:" VerticalAlignment="Center" FontSize="12" Margin="0,0,4,0"/>
+                                                            <TextBox Text="{Binding TextListName, UpdateSourceTrigger=LostFocus}" FontSize="12" VerticalContentAlignment="Center" ToolTip="重命名列表（失焦提交，级联同步控件引用）"/>
+                                                        </DockPanel>
+                                                        <DataGrid Grid.Row="1" ItemsSource="{Binding TextItems}" SelectedItem="{Binding SelectedTextItem}"
+                                                                  AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="False"
+                                                                  HeadersVisibility="Column" SelectionMode="Single" GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12"
+                                                                  RowHeight="26">
+                                                            <DataGrid.Columns>
+                                                                <DataGridTextColumn Header="序号" Binding="{Binding Number}" Width="50" IsReadOnly="True"/>
+                                                                <DataGridTextColumn Header="值" Binding="{Binding Value, UpdateSourceTrigger=LostFocus}" Width="*"/>
+                                                            </DataGrid.Columns>
+                                                        </DataGrid>
+                                                        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,4,0,0">
+                                                            <Button Content="＋ 添加项" Command="{Binding AddTextItemCommand}" Width="80" Height="26" Margin="0,0,4,0"/>
+                                                            <Button Content="－ 删除项" Command="{Binding RemoveTextItemCommand}" Width="80" Height="26"/>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Grid>
+                                            </Grid>
+                                        </TabItem>
+                                        <!-- 图片列表页 -->
+                                        <TabItem Header="图片列表">
+                                            <Grid Margin="2">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="*"/>
+                                                </Grid.RowDefinitions>
+                                                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
+                                                    <TextBox Text="{Binding NewImageListName, UpdateSourceTrigger=PropertyChanged}" Width="120" Height="26" VerticalContentAlignment="Center" FontSize="12" ToolTip="新列表名称"/>
+                                                    <Button Content="＋ 新建列表" Command="{Binding NewImageListCommand}" Width="90" Height="26" Margin="4,0,0,0" ToolTip="创建图片列表（图片路径按回车确认，不存在标红）"/>
+                                                    <Button Content="🗑 删除列表" Command="{Binding DeleteImageListCommand}" Width="90" Height="26" Margin="4,0,0,0" ToolTip="删除选中列表（被控件引用时拒绝）"/>
+                                                </StackPanel>
+                                                <Grid Grid.Row="1">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="160"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <ListBox Grid.Column="0" Margin="0,0,4,0" ItemsSource="{Binding ImageLists}" SelectedItem="{Binding SelectedImageList}" DisplayMemberPath="Name" FontSize="12"/>
+                                                    <Grid Grid.Column="1">
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="Auto"/>
+                                                            <RowDefinition Height="*"/>
+                                                            <RowDefinition Height="Auto"/>
+                                                        </Grid.RowDefinitions>
+                                                        <DockPanel Grid.Row="0" Margin="0,0,0,4">
+                                                            <TextBlock DockPanel.Dock="Left" Text="列表名:" VerticalAlignment="Center" FontSize="12" Margin="0,0,4,0"/>
+                                                            <TextBox Text="{Binding ImageListName, UpdateSourceTrigger=LostFocus}" FontSize="12" VerticalContentAlignment="Center" ToolTip="重命名列表（失焦提交，级联同步控件引用）"/>
+                                                        </DockPanel>
+                                                        <DataGrid Grid.Row="1" ItemsSource="{Binding ImageItems}" SelectedItem="{Binding SelectedImageItem}"
+                                                                  AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="False"
+                                                                  HeadersVisibility="Column" SelectionMode="Single" GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12"
+                                                                  RowHeight="26">
+                                                            <DataGrid.RowStyle>
+                                                                <Style TargetType="DataGridRow">
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding PathValid}" Value="False">
+                                                                            <Setter Property="Background" Value="#FFE0E0"/>
+                                                                            <Setter Property="ToolTip" Value="图片文件不存在（相对工程目录）"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </DataGrid.RowStyle>
+                                                            <DataGrid.Columns>
+                                                                <DataGridTextColumn Header="序号" Binding="{Binding Number}" Width="50" IsReadOnly="True"/>
+                                                                <DataGridTemplateColumn Header="图片路径" Width="*">
+                                                                    <DataGridTemplateColumn.CellTemplate>
+                                                                        <DataTemplate>
+                                                                            <TextBlock Text="{Binding Value}" VerticalAlignment="Center" Margin="4,0"/>
+                                                                        </DataTemplate>
+                                                                    </DataGridTemplateColumn.CellTemplate>
+                                                                    <DataGridTemplateColumn.CellEditingTemplate>
+                                                                        <DataTemplate>
+                                                                            <TextBox Text="{Binding Value, UpdateSourceTrigger=LostFocus}" KeyDown="ImagePathBox_KeyDown" ToolTip="相对工程目录的图片路径，回车确认；支持 &quot;path&quot; / 'path' 引号"/>
+                                                                        </DataTemplate>
+                                                                    </DataGridTemplateColumn.CellEditingTemplate>
+                                                                </DataGridTemplateColumn>
+                                                            </DataGrid.Columns>
+                                                        </DataGrid>
+                                                        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,4,0,0">
+                                                            <Button Content="＋ 添加项" Command="{Binding AddImageItemCommand}" Width="80" Height="26" Margin="0,0,4,0"/>
+                                                            <Button Content="－ 删除项" Command="{Binding RemoveImageItemCommand}" Width="80" Height="26"/>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Grid>
+                                            </Grid>
+                                        </TabItem>
+                                    </TabControl>
                                 </Grid>
                             </Grid></avalon:LayoutDocument>
                         </avalon:LayoutDocumentPane>

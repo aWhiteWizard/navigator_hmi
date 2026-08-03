@@ -14,6 +14,9 @@ namespace NavigatorHMI.Common
   update-tag --name <name> [--new-name <name>] [--type FLOAT] [--source <uri>] [--unit °C] [--scan-interval 100] [--deadband 0] [--description ...] [--base-value ...]  更新变量（--source "" 清空为内部变量）
   delete-tag --name <name>                           删除变量（被引用时拒绝）
   bind-tag --screen <name> --widget <name> --tag <name>  绑定变量到控件
+  create-list --name <name> --type Text --items 'a|b|c'  创建列表（Text/Image；items 用 | 分隔，图片列表为图片路径）
+  update-list --name <name> [--new-name <name>] [--items 'a|b|c']  更新列表（重命名级联同步控件引用）
+  delete-list --name <name>                           删除列表（被控件引用时拒绝）
   create-alarm --name <name> --tag <name> --type High --threshold 80  创建报警
   copy-widget --screen <name> --widget <name>   复制控件
   paste-widget --screen <name>                   粘贴控件

@@ -440,7 +440,18 @@ public class ImageWidget : Widget
     [ProtoMember(3)]
     public string FillColor { get => _fillColor; set { _fillColor = value; OnPropertyChanged(); } }
 
-    /// <summary>设计态显示路径：绑定变量 → 变量基准值；否则控件 ImagePath。</summary>
+    private string _listRef = "";
+    /// <summary>绑定的图片列表名（空 = 不绑定列表，显示自身 ImagePath 静态图）</summary>
+    [ProtoMember(4)]
+    public string ListRef { get => _listRef; set { if (_listRef != value) { _listRef = value; OnPropertyChanged(); OnPropertyChanged(nameof(DisplayPath)); } } }
+
+    private int _defaultIndex = 0;
+    /// <summary>缺省值：未绑定变量/变量值无效时显示的列表项索引（0=第1项）</summary>
+    [ProtoMember(5)]
+    public int DefaultIndex { get => _defaultIndex; set { var v = Math.Max(0, value); if (_defaultIndex != v) { _defaultIndex = v; OnPropertyChanged(); OnPropertyChanged(nameof(DisplayPath)); } } }
+
+    /// <summary>设计态显示路径：绑定变量 → 变量基准值；否则控件 ImagePath。
+    /// 阶段 2（列表消费）将改为：列表项路径 → 变量基准值 → ImagePath 优先级。</summary>
     [ProtoIgnore]
     public override string DisplayPath
     {
@@ -868,7 +879,18 @@ public class FrameWidget : Widget
     [ProtoMember(8)]
     public string TextDecoration { get => _textDecoration; set { _textDecoration = value; OnPropertyChanged(); } }
 
-    /// <summary>设计态显示背景路径：绑定变量 → 变量基准值；否则控件 ImagePath。</summary>
+    private string _listRef = "";
+    /// <summary>绑定的图片列表名（空 = 不绑定列表，显示自身 ImagePath 静态背景图）</summary>
+    [ProtoMember(9)]
+    public string ListRef { get => _listRef; set { if (_listRef != value) { _listRef = value; OnPropertyChanged(); OnPropertyChanged(nameof(DisplayPath)); } } }
+
+    private int _defaultIndex = 0;
+    /// <summary>缺省值：未绑定变量/变量值无效时显示的列表项索引（0=第1项）</summary>
+    [ProtoMember(10)]
+    public int DefaultIndex { get => _defaultIndex; set { var v = Math.Max(0, value); if (_defaultIndex != v) { _defaultIndex = v; OnPropertyChanged(); OnPropertyChanged(nameof(DisplayPath)); } } }
+
+    /// <summary>设计态显示背景路径：绑定变量 → 变量基准值；否则控件 ImagePath。
+    /// 阶段 2（列表消费）将改为：列表项路径 → 变量基准值 → ImagePath 优先级。</summary>
     [ProtoIgnore]
     public override string DisplayPath
     {
