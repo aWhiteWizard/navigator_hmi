@@ -94,6 +94,7 @@ namespace NavigatorHMI.ViewModels
             VariableManagerTabOpen = true;
             VariableManagerActive = true;
             CommunicationActive = false;
+            ListManagerActive = false;
             RefreshTreeCurrentStatus();
         }
 
@@ -103,6 +104,7 @@ namespace NavigatorHMI.ViewModels
             if (!VariableManagerTabOpen) VariableManagerTabOpen = true;
             VariableManagerActive = true;
             CommunicationActive = false;
+            ListManagerActive = false;
             RefreshTreeCurrentStatus();
         }
 
@@ -142,6 +144,7 @@ namespace NavigatorHMI.ViewModels
             CommunicationTabOpen = true;
             CommunicationActive = true;
             VariableManagerActive = false;
+            ListManagerActive = false;
             RefreshTreeCurrentStatus();
         }
 
@@ -151,6 +154,7 @@ namespace NavigatorHMI.ViewModels
             if (!CommunicationTabOpen) CommunicationTabOpen = true;
             CommunicationActive = true;
             VariableManagerActive = false;
+            ListManagerActive = false;
             RefreshTreeCurrentStatus();
         }
 

@@ -1123,7 +1123,9 @@
                                         <Style TargetType="Border">
                                             <Setter Property="Visibility" Value="Visible"/>
                                             <Style.Triggers>
-                                                <!-- 变量管理器/通讯/列表激活时隐藏画布（同一位置切换） -->
+                                                <!-- 变量管理器/通讯/列表激活时隐藏画布（同一位置切换）
+                                                     用 Hidden 而非 Collapsed：不销毁画布大量控件的布局树，切页/切回更快；
+                                                     Hidden 不渲染且不参与命中测试，变量/通讯/列表 Grid 在 Z 序上正常显示 -->
                                                 <MultiDataTrigger>
                                                     <MultiDataTrigger.Conditions>
                                                         <Condition Binding="{Binding VariableManagerActive}" Value="False"/>
@@ -1133,13 +1135,13 @@
                                                     <Setter Property="Visibility" Value="Visible"/>
                                                 </MultiDataTrigger>
                                                 <DataTrigger Binding="{Binding VariableManagerActive}" Value="True">
-                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Setter Property="Visibility" Value="Hidden"/>
                                                 </DataTrigger>
                                                 <DataTrigger Binding="{Binding CommunicationActive}" Value="True">
-                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Setter Property="Visibility" Value="Hidden"/>
                                                 </DataTrigger>
                                                 <DataTrigger Binding="{Binding ListManagerActive}" Value="True">
-                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                    <Setter Property="Visibility" Value="Hidden"/>
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
