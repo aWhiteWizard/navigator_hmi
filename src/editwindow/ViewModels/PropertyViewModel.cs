@@ -214,6 +214,9 @@ namespace NavigatorHMI.ViewModels
             {
                 if (_selectedWidget != value)
                 {
+                    // 选中控件切换：抑制同步/失配回写窗口——RefreshBindableTags 的 Clear+Add 使 ComboBox
+                    // SelectedItem 失配回写 null 可能延迟到 Dispatcher 块外，BoundTag setter 会发 bind_tag 空解绑
+                    BeginSuppressBindTagCommands();
                     // 取消订阅旧 widget 的 PropertyChanged
                     if (_selectedWidget != null)
                         _selectedWidget.PropertyChanged -= OnSelectedWidgetPropertyChanged;
@@ -799,6 +802,18 @@ namespace NavigatorHMI.ViewModels
 
         private Tag? _boundTag;
 
+        /// <summary>选中控件切换时的同步/失配回写抑制标志（ComboBox ItemsSource 更新导致的 SelectedItem 回写可能延迟到 _syncingFromModel 块外）。</summary>
+        private bool _suppressBindTagCommands;
+
+        /// <summary>开启回写抑制窗口：置位后在 Dispatcher 后台优先级延迟清除（覆盖 ComboBox 失配回写的布局批次）。</summary>
+        private void BeginSuppressBindTagCommands()
+        {
+            _suppressBindTagCommands = true;
+            System.Windows.Application.Current?.Dispatcher.BeginInvoke(
+                System.Windows.Threading.DispatcherPriority.Background,
+                new Action(() => _suppressBindTagCommands = false));
+        }
+
         /// <summary>是否已绑定变量（哨兵 Name 为空视为未绑定——BoundTag 用非 null 哨兵归一，禁引用判空）。</summary>
         public bool IsBound => BoundTag != null && !string.IsNullOrEmpty(BoundTag.Name);
 
@@ -824,6 +839,10 @@ namespace NavigatorHMI.ViewModels
                     // 且 null/哨兵回写可能真解绑——目标名与模型当前 BoundTag 一致时直接跳过
                     // （用户主动解绑/改绑的目标名 ≠ 模型值，不受影响）
                     if (tagName == (_selectedWidget.BoundTag ?? "")) return;
+                    // 选中切换的失配回写窗口：ComboBox 回写 null/哨兵（≠模型值）也被抑制——
+                    // 窗口极短（Dispatcher 后台延迟清除），用户无法在此窗口内完成真实下拉选择
+                    if (_suppressBindTagCommands) return;
+                    System.Diagnostics.Trace.WriteLine($"[PropertyVM] bind_tag 命令: tag='{tagName}' model='{_selectedWidget.BoundTag}' widget='{_selectedWidget.ObjectName}'");
                     BeforeModify?.Invoke();
                     var result = CommandService.Execute("bind_tag", new Dictionary<string, object?>
                     {
