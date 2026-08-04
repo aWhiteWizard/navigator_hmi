@@ -699,7 +699,7 @@ namespace NavigatorHMI.Views
         /// <summary>
         /// 属性面板数字输入框 Enter 键确认：移动焦点到下一元素（触发 LostFocus 应用绑定值）。
         /// </summary>
-        private void PropNumberBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        private void PropField_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
             if (e.Key == System.Windows.Input.Key.Enter)
             {
