@@ -1194,7 +1194,9 @@
                                                   HeadersVisibility="Column" IsReadOnly="True" MouseDoubleClick="TagGrid_DoubleClick"
                                                   PreviewMouseLeftButtonDown="TagGrid_PreviewMouseLeftButtonDown" PreviewMouseMove="TagGrid_PreviewMouseMove" PreviewMouseLeftButtonUp="TagGrid_PreviewMouseLeftButtonUp"
                                                   SelectionMode="Extended" SelectionUnit="FullRow" GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12"
-                                                  RowHeight="26">
+                                                  RowHeight="26" EnableRowVirtualization="True" EnableColumnVirtualization="True"
+                                                  VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
+                                                  ScrollViewer.CanContentScroll="True">
                                             <DataGrid.Columns>
                                                 <DataGridTextColumn Header="名称" Binding="{Binding Name}" Width="*"/>
                                                 <DataGridTextColumn Header="类型" Binding="{Binding DataType}" Width="55"/>
