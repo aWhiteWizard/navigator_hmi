@@ -363,6 +363,7 @@ namespace NavigatorHMI.Views
             if (_tagMarqueeStart != null)
             {
                 RebuildRowRects();   // 框选启动时刷新行位置缓存（滚动后最新，框选高频不再强制布局）
+                TagGrid.Focus();     // 激活 DataGrid（未激活时选中行模板触发器用浅灰≈背景，高亮不可见；激活后选中蓝）
                 TagGrid.CaptureMouse();   // 拖出松开也能收到 Up，防 Marquee 残留
             }
         }
