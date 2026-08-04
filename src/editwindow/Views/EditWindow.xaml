@@ -1196,7 +1196,7 @@
                                                   HeadersVisibility="Column" IsReadOnly="True" MouseDoubleClick="TagGrid_DoubleClick"
                                                   PreviewMouseLeftButtonDown="TagGrid_PreviewMouseLeftButtonDown" PreviewMouseMove="TagGrid_PreviewMouseMove" PreviewMouseLeftButtonUp="TagGrid_PreviewMouseLeftButtonUp"
                                                   SelectionMode="Extended" SelectionUnit="FullRow" GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12"
-                                                  RowHeight="26" EnableRowVirtualization="True" EnableColumnVirtualization="True"
+                                                  RowHeight="26" EnableRowVirtualization="True"
                                                   VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
                                                   ScrollViewer.CanContentScroll="True">
                                             <DataGrid.Columns>
