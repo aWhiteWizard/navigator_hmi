@@ -1364,7 +1364,11 @@
                                                                 <DataGridTemplateColumn Header="图片路径" Width="*">
                                                                     <DataGridTemplateColumn.CellTemplate>
                                                                         <DataTemplate>
-                                                                            <TextBlock Text="{Binding Value}" VerticalAlignment="Center" Margin="4,0"/>
+                                                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                                <TextBlock Text="{Binding Value}" VerticalAlignment="Center" Margin="4,0" ToolTip="图片路径（相对工程目录，回车确认）"/>
+                                                                                <!-- 路径选择器：点选图片文件 → 转相对路径存值 -->
+                                                                                <Button Content="📁" Width="26" Height="22" Margin="4,0,0,0" Click="ImageListBrowse_Click" Focusable="False" ToolTip="选择图片文件"/>
+                                                                            </StackPanel>
                                                                         </DataTemplate>
                                                                     </DataGridTemplateColumn.CellTemplate>
                                                                     <DataGridTemplateColumn.CellEditingTemplate>

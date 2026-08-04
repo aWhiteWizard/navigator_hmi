@@ -508,6 +508,34 @@ namespace NavigatorHMI.Views
             }
         }
 
+        /// <summary>图片列表路径选择器：点选图片文件 → 转相对路径存值（与手动输入语义一致，自动刷新校验/预览）。</summary>
+        private void ImageListBrowse_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not FrameworkElement fe || fe.DataContext is not ListItemVM item) return;
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "选择图片",
+                Filter = "图片文件|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.svg;*.ico|所有文件|*.*",
+            };
+            if (dlg.ShowDialog() != true) return;
+            // 工程已保存且图片在工程目录内 → 存相对路径（与手动输入一致）；否则存绝对路径
+            var store = dlg.FileName;
+            var projectDir = System.IO.Path.GetDirectoryName(_currentProject.ProjectFilePath);
+            if (!string.IsNullOrEmpty(projectDir))
+            {
+                try
+                {
+                    var rel = System.IO.Path.GetRelativePath(projectDir, System.IO.Path.GetFullPath(dlg.FileName));
+                    if (!rel.StartsWith("..")) store = rel;
+                }
+                catch (ArgumentException) { /* 路径跨盘等：保留绝对路径 */ }
+            }
+            store = store.Replace('\\', '/');   // 统一正斜杠（setter 层已下沉，此处幂等冗余）
+            item.Value = store;
+            item.NotifyPathRecheck();
+        }
+
+
         /// <summary>沿视觉树上溯查找指定类型父元素（图片路径回车确认定位 DataGrid 用）。</summary>
         private static T? FindVisualParent<T>(DependencyObject? source) where T : DependencyObject
         {

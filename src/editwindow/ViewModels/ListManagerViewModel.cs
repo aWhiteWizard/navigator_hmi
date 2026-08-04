@@ -36,13 +36,13 @@ namespace NavigatorHMI.ViewModels
         /// <summary>显示序号（1-based，列表内容按 1234 排布）。</summary>
         public int Number => _index + 1;
 
-        /// <summary>预设值（图片路径存储为去引号后的干净路径）。</summary>
+        /// <summary>预设值（图片路径：去引号 + 统一正斜杠——双通道（手动输入/选择器）在 setter 层单源规范化，设备端 Linux 兼容）。</summary>
         public string Value
         {
             get => _owner.Items[_index];
             set
             {
-                var cleaned = _isImage ? StripQuotes(value) : value;
+                var cleaned = _isImage ? StripQuotes(value).Replace('\\', '/') : value;
                 if (_owner.Items[_index] == cleaned) return;
                 _owner.Items[_index] = cleaned;
                 OnPropertyChanged();
