@@ -1198,7 +1198,8 @@
                                                   SelectionMode="Extended" SelectionUnit="FullRow" GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12"
                                                   RowHeight="26" EnableRowVirtualization="True"
                                                   VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
-                                                  ScrollViewer.CanContentScroll="True">
+                                                  ScrollViewer.CanContentScroll="True"
+                                                  SizeChanged="TagGrid_SizeChanged">
                                             <DataGrid.Columns>
                                                 <DataGridTextColumn Header="名称" Binding="{Binding Name}" Width="*"/>
                                                 <DataGridTextColumn Header="类型" Binding="{Binding DataType}" Width="55"/>

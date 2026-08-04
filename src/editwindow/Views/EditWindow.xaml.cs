@@ -361,7 +361,10 @@ namespace NavigatorHMI.Views
                 ? null
                 : e.GetPosition(TagGrid);
             if (_tagMarqueeStart != null)
+            {
+                RebuildRowRects();   // 框选启动时刷新行位置缓存（滚动后最新，框选高频不再强制布局）
                 TagGrid.CaptureMouse();   // 拖出松开也能收到 Up，防 Marquee 残留
+            }
         }
 
         /// <summary>按住变量行拖动超过阈值 → 开始拖拽（数据：当前选中集合 List&lt;Tag&gt;；多选一起拖）。</summary>
@@ -403,18 +406,49 @@ namespace NavigatorHMI.Views
             if (TagGrid.IsMouseCaptured) TagGrid.ReleaseMouseCapture();
         }
 
-        /// <summary>按矩形选中与其相交的变量行（DataGrid 行坐标换算到 TagGrid 局部坐标）。</summary>
-        private void SelectRowsInRect(Rect rect)
+        /// <summary>框选行位置缓存（相对 TagGrid 坐标）：避免框选 MouseMove 高频 TransformToAncestor 强制布局（主线程忙 → 选中高亮延迟）。</summary>
+        private List<Rect>? _tagRowRects;
+
+        private void TagGrid_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            TagGrid.SelectedItems.Clear();
+            // 守卫：新旧尺寸相同（初始布局连发/无变化）跳过重建
+            if (e.NewSize != e.PreviousSize) RebuildRowRects();
+        }
+
+        /// <summary>重建行位置缓存（Items 数量或视口尺寸变化时；框选启动时确保最新）。</summary>
+        private void RebuildRowRects()
+        {
+            _tagRowRects = new List<Rect>();
             for (int i = 0; i < TagGrid.Items.Count; i++)
             {
-                if (TagGrid.ItemContainerGenerator.ContainerFromIndex(i) is not DataGridRow row) continue;
+                if (TagGrid.ItemContainerGenerator.ContainerFromIndex(i) is not DataGridRow row)
+                {
+                    _tagRowRects.Add(Rect.Empty);   // 未生成容器（虚拟化）：跳过命中
+                    continue;
+                }
                 var topLeft = row.TransformToAncestor(TagGrid).Transform(new Point(0, 0));
-                var rowRect = new Rect(topLeft.X, topLeft.Y, row.ActualWidth, row.ActualHeight);
-                if (rowRect.IntersectsWith(rect))
-                    TagGrid.SelectedItems.Add(row.DataContext);
+                _tagRowRects.Add(new Rect(topLeft.X, topLeft.Y, row.ActualWidth, row.ActualHeight));
             }
+        }
+
+        /// <summary>按矩形选中与其相交的变量行（用缓存行矩形，框选高频不强制布局；命中集差分更新避免每帧 SelectionChanged）。</summary>
+        private void SelectRowsInRect(Rect rect)
+        {
+            if (_tagRowRects == null || _tagRowRects.Count != TagGrid.Items.Count)
+                RebuildRowRects();
+            // 计算命中集
+            var hit = new List<object>();
+            for (int i = 0; i < _tagRowRects!.Count && i < TagGrid.Items.Count; i++)
+            {
+                var rowRect = _tagRowRects[i];
+                if (rowRect.IsEmpty || !rowRect.IntersectsWith(rect)) continue;
+                if (TagGrid.Items[i] is Tag t) hit.Add(t);
+            }
+            // 差分更新：选中集合与命中集相同则跳过（避免每帧 Clear/Add 触发 SelectionChanged 与绑定刷新）
+            if (TagGrid.SelectedItems.Count == hit.Count && hit.All(TagGrid.SelectedItems.Contains))
+                return;
+            TagGrid.SelectedItems.Clear();
+            foreach (var t in hit) TagGrid.SelectedItems.Add(t);
         }
 
         /// <summary>沿视觉树上溯查找指定类型 DataContext（DataGridRow/TreeViewItem 通用）。</summary>
