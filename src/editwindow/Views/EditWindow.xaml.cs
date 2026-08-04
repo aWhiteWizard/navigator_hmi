@@ -2387,7 +2387,7 @@ namespace NavigatorHMI.Views
                 "compile" or "b" => _viewModel.CommandService.Execute("compile", new()),
                 "save" => _viewModel.CommandService.Execute("save_project", new()),
                 "create-tag" or "ct" => _viewModel.CommandService.Execute("create_tag",
-                    new() { ["name"] = opts.GetValueOrDefault("name", ""), ["data_type"] = opts.GetValueOrDefault("type", "FLOAT"), ["source"] = opts.GetValueOrDefault("source", ""), ["unit"] = opts.GetValueOrDefault("unit", ""), ["scan_interval"] = opts.GetValueOrDefault("scan-interval", "100"), ["deadband"] = opts.GetValueOrDefault("deadband", "0"), ["description"] = opts.GetValueOrDefault("description", "") }),
+                    new() { ["name"] = opts.GetValueOrDefault("name", ""), ["data_type"] = opts.GetValueOrDefault("type", "FLOAT"), ["source"] = opts.GetValueOrDefault("source", ""), ["unit"] = opts.GetValueOrDefault("unit", ""), ["scan_interval"] = opts.GetValueOrDefault("scan-interval", "100"), ["deadband"] = opts.GetValueOrDefault("deadband", "0"), ["description"] = opts.GetValueOrDefault("description", ""), ["base_value"] = opts.GetValueOrDefault("base-value", "") }),
                 "align" => _viewModel.CommandService.Execute("align_widgets",
                     new() { ["screen_name"] = opts.GetValueOrDefault("screen", ""), ["widgets"] = opts.GetValueOrDefault("widgets", ""), ["direction"] = opts.GetValueOrDefault("direction", "") }),
                 "array" => _viewModel.CommandService.Execute("array_layout",
