@@ -817,9 +817,14 @@ namespace NavigatorHMI.ViewModels
                 OnPropertyChanged(nameof(IsValueEditable));   // 绑定状态 → TextWidget.Content 可编辑性
                 if (!_syncingFromModel && _selectedWidget != null && CurrentScreen != null && CommandService != null)
                 {
-                    BeforeModify?.Invoke();
                     // 哨兵/空名 → 空 tag_name = 解绑
                     var tagName = (value == null || string.IsNullOrEmpty(value.Name)) ? "" : value.Name;
+                    // 防同步回写走命令：选中控件时属性面板 ComboBox 初始化/时序可能回传模型同值，
+                    // 若走 bind_tag 命令会触发命令副作用（WidgetDesignValue.Clear 清设计态值/重绑开销），
+                    // 且 null/哨兵回写可能真解绑——目标名与模型当前 BoundTag 一致时直接跳过
+                    // （用户主动解绑/改绑的目标名 ≠ 模型值，不受影响）
+                    if (tagName == (_selectedWidget.BoundTag ?? "")) return;
+                    BeforeModify?.Invoke();
                     var result = CommandService.Execute("bind_tag", new Dictionary<string, object?>
                     {
                         ["screen_name"] = CurrentScreen.Name,
