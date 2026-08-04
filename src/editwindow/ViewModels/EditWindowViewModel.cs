@@ -331,11 +331,20 @@ namespace NavigatorHMI.ViewModels
         // 新增：同一画面内数据变化时（如添加/删除控件）触发刷新
         public event Action RefreshCanvasRequested;
 
+        /// <summary>批量命令抑制中间全量重建（批量拖拽等场景：调用方循环后统一刷新一次，防 N 次重建卡顿）。</summary>
+        public bool SuppressRefresh { get; set; }
+
         /// <summary>CommandService 执行命令成功后，智能刷新 UI。</summary>
         private void OnCommandExecuted(string cmdName, Dictionary<string, object?> parameters, CommandResult result)
         {
             // bind_tag 只影响运行时绑定，设计态无视觉/树/标签变化：跳过全量重建（防属性面板选中丢失），仅标脏
             if (cmdName == "bind_tag")
+            {
+                ProjectDirtyRequested?.Invoke();
+                return;
+            }
+            // 批量抑制（如批量拖拽生成多控件）：跳过重建只标脏，调用方结束统一刷新一次
+            if (SuppressRefresh)
             {
                 ProjectDirtyRequested?.Invoke();
                 return;
@@ -448,6 +457,13 @@ namespace NavigatorHMI.ViewModels
             {
                 _undoManager.PushSnapshot(CurrentScreen);
             }
+        }
+
+        /// <summary>弹出最近一个撤销快照（命令失败时调用——防空快照污染撤销栈）。</summary>
+        public void PopUndoSnapshot()
+        {
+            if (CurrentScreen != null)
+                _undoManager.PopLastSnapshot(CurrentScreen);
         }
 
         public EditWindowViewModel(HMIProject project)

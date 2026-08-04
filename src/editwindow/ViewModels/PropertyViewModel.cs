@@ -524,6 +524,9 @@ namespace NavigatorHMI.ViewModels
         public double CanvasWidth { get; set; } = double.MaxValue;
         /// <summary>用户修改模型前的回调（EditWindow 注入 → 撤销快照；选中同步初始化不触发）。</summary>
         public Action? BeforeModify { get; set; }
+
+        /// <summary>命令失败回调（EditWindow 注入 → PopUndoSnapshot，弹出已推但未生效的空快照）。</summary>
+        public Action? OnModifyFailed { get; set; }
         /// <summary>选中控件/画面时同步 VM 属性的标志（该过程不触发 BeforeModify，防误 Push 快照）。</summary>
         private bool _syncingFromModel;
         /// <summary>画布尺寸（由 EditWindow.LoadCanvas 注入）。</summary>
@@ -829,7 +832,7 @@ namespace NavigatorHMI.ViewModels
                         _boundTag = Project?.Tags.FirstOrDefault(t => t.Name == _selectedWidget.BoundTag) ?? NoBindingSentinel;
                         OnPropertyChanged(nameof(BoundTag));
                         OnPropertyChanged(nameof(IsValueEditable));
-                       
+                        OnModifyFailed?.Invoke();   // 弹出已推但未生效的空撤销快照
                         System.Windows.MessageBox.Show(result.ErrorMessage ?? "绑定变量失败", "绑定",
                             System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
                     }

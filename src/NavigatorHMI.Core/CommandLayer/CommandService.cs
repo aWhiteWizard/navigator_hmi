@@ -113,6 +113,8 @@ namespace NavigatorHMI.CommandLayer
         {
             lock (_lock)
             {
+            try
+            {
             if (!_handlers.TryGetValue(commandName, out var handler))
                 return CommandResult.Fail("UNKNOWN_COMMAND", $"未知命令: {commandName}");
 
@@ -127,8 +129,26 @@ namespace NavigatorHMI.CommandLayer
             // 骨架模式：connect 成功后先置连接状态（否则 RequiresConnection 命令永远 NOT_CONNECTED；
             // 且须在 CommandExecuted 事件触发前置位，订阅者刷新连接状态 UI 时读到最新值）
             if (result.Success && commandName == "connect") IsConnected = true;
-            if (result.Success) CommandExecuted?.Invoke(commandName, parameters, result);
+            if (result.Success) SafeInvokeCommandExecuted(commandName, parameters, result);
             return result;
+            }
+            catch (Exception ex)
+            {
+                // 防御：handler/校验/事件订阅者异常不崩溃（AI Agent 直调入口暴露面）；
+                // 注：handler 中途抛异常时模型可能半更新——约定 handler 先验证后修改的原子性纪律
+                System.Diagnostics.Trace.WriteLine($"[CommandService] {commandName} 异常: {ex}");
+                return CommandResult.Fail("COMMAND_CRASH", $"命令 {commandName} 执行异常: {ex.Message}");
+            }
+            }
+        }
+
+        /// <summary>触发 CommandExecuted 事件并隔离订阅者异常（单个订阅者抛错不连累其他/崩溃）。</summary>
+        private void SafeInvokeCommandExecuted(string name, Dictionary<string, object?> p, CommandResult r)
+        {
+            foreach (var d in CommandExecuted?.GetInvocationList() ?? Array.Empty<Delegate>())
+            {
+                try { ((Action<string, Dictionary<string, object?>, CommandResult>)d)(name, p, r); }
+                catch (Exception ex) { System.Diagnostics.Trace.WriteLine($"[CommandService] CommandExecuted 订阅者异常: {ex}"); }
             }
         }
 

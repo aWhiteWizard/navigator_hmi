@@ -1188,28 +1188,33 @@
                                         <TextBlock DockPanel.Dock="Left" Text="搜索:" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="12"/>
                                         <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" FontSize="12" VerticalContentAlignment="Center"/>
                                     </DockPanel>
-                                    <DataGrid Grid.Row="2" x:Name="TagGrid" ItemsSource="{Binding Tags}" SelectedItem="{Binding SelectedTag}"
-                                              AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="True"
-                                              HeadersVisibility="Column" IsReadOnly="True" MouseDoubleClick="TagGrid_DoubleClick"
-                                              PreviewMouseLeftButtonDown="TagGrid_PreviewMouseLeftButtonDown" PreviewMouseMove="TagGrid_PreviewMouseMove"
-                                              SelectionMode="Single" GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12"
-                                              RowHeight="26">
-                                        <DataGrid.Columns>
-                                            <DataGridTextColumn Header="名称" Binding="{Binding Name}" Width="*"/>
-                                            <DataGridTextColumn Header="类型" Binding="{Binding DataType}" Width="55"/>
-                                            <DataGridTextColumn Header="来源" Binding="{Binding Source}" Width="*"/>
-                                            <DataGridTextColumn Header="单位" Binding="{Binding Unit}" Width="42"/>
-                                            <DataGridTextColumn Header="周期" Binding="{Binding ScanIntervalMs}" Width="48"/>
-                                        </DataGrid.Columns>
-                                        <DataGrid.ContextMenu>
-                                            <ContextMenu>
-                                                <MenuItem Header="＋ 新建变量" Command="{Binding NewTagCommand}"/>
-                                                <MenuItem Header="✏ 编辑变量" Command="{Binding EditTagCommand}"/>
-                                                <Separator/>
-                                                <MenuItem Header="🗑 删除变量" Command="{Binding DeleteTagCommand}"/>
-                                            </ContextMenu>
-                                        </DataGrid.ContextMenu>
-                                    </DataGrid>
+                                    <Grid Grid.Row="2">
+                                        <DataGrid x:Name="TagGrid" ItemsSource="{Binding Tags}" SelectedItem="{Binding SelectedTag}"
+                                                  AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="True"
+                                                  HeadersVisibility="Column" IsReadOnly="True" MouseDoubleClick="TagGrid_DoubleClick"
+                                                  PreviewMouseLeftButtonDown="TagGrid_PreviewMouseLeftButtonDown" PreviewMouseMove="TagGrid_PreviewMouseMove" PreviewMouseLeftButtonUp="TagGrid_PreviewMouseLeftButtonUp"
+                                                  SelectionMode="Extended" SelectionUnit="FullRow" GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12"
+                                                  RowHeight="26">
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="名称" Binding="{Binding Name}" Width="*"/>
+                                                <DataGridTextColumn Header="类型" Binding="{Binding DataType}" Width="55"/>
+                                                <DataGridTextColumn Header="来源" Binding="{Binding Source}" Width="*"/>
+                                                <DataGridTextColumn Header="单位" Binding="{Binding Unit}" Width="42"/>
+                                                <DataGridTextColumn Header="周期" Binding="{Binding ScanIntervalMs}" Width="48"/>
+                                            </DataGrid.Columns>
+                                            <DataGrid.ContextMenu>
+                                                <ContextMenu>
+                                                    <MenuItem Header="＋ 新建变量" Command="{Binding NewTagCommand}"/>
+                                                    <MenuItem Header="✏ 编辑变量" Command="{Binding EditTagCommand}"/>
+                                                    <Separator/>
+                                                    <MenuItem Header="🗑 删除变量" Command="{Binding DeleteTagCommand}"/>
+                                                </ContextMenu>
+                                            </DataGrid.ContextMenu>
+                                        </DataGrid>
+                                        <!-- 框选覆盖层（变量多选：空白处拖动框选；IsHitTestVisible=False 不挡 DataGrid 交互） -->
+                                        <Rectangle x:Name="TagGridMarquee" Fill="#330078D4" Stroke="#0078D4" StrokeThickness="1"
+                                                   Visibility="Collapsed" IsHitTestVisible="False" Panel.ZIndex="10"/>
+                                    </Grid>
                                 </Grid>
                                 <!-- 通讯配置内容（Tab 激活时显示，与画布同一位置切换；Visibility 从 Window.DataContext 取防 DataContext 覆盖） -->
                                 <Grid Grid.Row="1" Margin="3" DataContext="{Binding CommDeviceVM, RelativeSource={RelativeSource AncestorType=Window}}"

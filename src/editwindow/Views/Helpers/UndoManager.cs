@@ -30,6 +30,17 @@ namespace NavigatorHMI.Views.Helpers
             _version++;
         }
 
+        /// <summary>弹出最近一个撤销快照（命令失败时调用——BeforeModify 已推但模型未变，防空快照污染撤销栈）。</summary>
+        public void PopLastSnapshot(Screen screen)
+        {
+            if (screen == null) return;
+            if (_undoStacks.TryGetValue(screen, out var stack) && stack.Count > 0)
+            {
+                stack.Pop();
+                _version++;   // 任何栈变更推进版本（保持快照事件计数不变量，Push/Undo/Redo/Pop 一致）
+            }
+        }
+
         /// <summary>撤销。</summary>
         public List<Widget>? Undo(Screen screen)
         {

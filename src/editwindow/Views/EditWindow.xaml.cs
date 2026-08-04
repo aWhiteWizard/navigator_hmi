@@ -172,6 +172,8 @@ namespace NavigatorHMI.Views
             _propertyViewModel.CommandService = _viewModel.CommandService;
             // 属性面板修改前 Push 撤销快照（属性修改可撤销；选中同步初始化不触发）
             _propertyViewModel.BeforeModify = () => _viewModel.PushUndoSnapshot();
+            // 绑定失败 → 弹出已推但未生效的空撤销快照（防空快照污染撤销栈）
+            _propertyViewModel.OnModifyFailed = () => _viewModel.PopUndoSnapshot();
             // 缩放手柄：拖拽开始 Push 撤销快照 + 画布尺寸提供器（缩放钳制）
             _resizeDragStartedCallback = () => _viewModel.PushUndoSnapshot();
             _getCanvasSizeCallback = () => new Size(_propertyViewModel.CanvasWidth, _propertyViewModel.CanvasHeight);
@@ -333,24 +335,75 @@ namespace NavigatorHMI.Views
         #region 变量拖拽（变量行 → 标签页/树节点切画面 → 画布生成绑定 IO Field）
         /// <summary>拖拽起点（TagGrid_PreviewMouseMove 判定阈值用）。</summary>
         private Point _tagDragStart;
+        /// <summary>框选起点（空白处按下时为 null；非 null = 框选进行中）。</summary>
+        private Point? _tagMarqueeStart;
         /// <summary>悬停切换画面节流时间戳（DragOver 高频触发，200ms 内不重复切换）。</summary>
         private DateTime _lastDragSwitchTime = DateTime.MinValue;
 
         private void TagGrid_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             _tagDragStart = e.GetPosition(null);
+            var src = e.OriginalSource as DependencyObject;
+            // 列头（排序）/滚动条/行上按下 → 不进入框选（保持拖拽/排序/滚动正常）；仅数据区空白按下框选
+            _tagMarqueeStart = (FindDataContext<Tag>(src) is Tag
+                             || FindVisualParent<System.Windows.Controls.Primitives.DataGridColumnHeader>(src) != null
+                             || FindVisualParent<System.Windows.Controls.Primitives.ScrollBar>(src) != null)
+                ? null
+                : e.GetPosition(TagGrid);
+            if (_tagMarqueeStart != null)
+                TagGrid.CaptureMouse();   // 拖出松开也能收到 Up，防 Marquee 残留
         }
 
-        /// <summary>按住变量行拖动超过阈值 → 开始拖拽（数据：Tag 对象）。</summary>
+        /// <summary>按住变量行拖动超过阈值 → 开始拖拽（数据：当前选中集合 List&lt;Tag&gt;；多选一起拖）。</summary>
         private void TagGrid_PreviewMouseMove(object sender, MouseEventArgs e)
         {
             if (e.LeftButton != MouseButtonState.Pressed) return;
+            // 框选模式：空白处拖动 → 画框 + 实时选中相交行
+            if (_tagMarqueeStart is { } ms)
+            {
+                var cur = e.GetPosition(TagGrid);
+                var rect = new Rect(ms, cur);
+                rect = new Rect(Math.Min(ms.X, cur.X), Math.Min(ms.Y, cur.Y), Math.Abs(cur.X - ms.X), Math.Abs(cur.Y - ms.Y));
+                TagGridMarquee.Visibility = Visibility.Visible;
+                // 父容器是 Grid：Canvas.SetLeft/Top 无效，必须用 Margin 定位（Grid 布局读 Margin）
+                TagGridMarquee.Margin = new Thickness(rect.X, rect.Y, 0, 0);
+                TagGridMarquee.Width = rect.Width;
+                TagGridMarquee.Height = rect.Height;
+                SelectRowsInRect(rect);
+                e.Handled = true;
+                return;
+            }
             var pos = e.GetPosition(null);
             if (Math.Abs(pos.X - _tagDragStart.X) < SystemParameters.MinimumHorizontalDragDistance
              && Math.Abs(pos.Y - _tagDragStart.Y) < SystemParameters.MinimumVerticalDragDistance)
                 return;
             if (FindDataContext<Tag>(e.OriginalSource as DependencyObject) is not Tag tag) return;
-            DragDrop.DoDragDrop((DependencyObject)sender, new DataObject("NavigatorHMI.Tag", tag), DragDropEffects.Copy);
+            // 拖拽携带当前选中集合（含当前行；无多选时为单行）
+            var tags = TagGrid.SelectedItems.Cast<Tag>().ToList();
+            if (!tags.Contains(tag)) tags.Add(tag);
+            DragDrop.DoDragDrop((DependencyObject)sender, new DataObject("NavigatorHMI.TagList", tags), DragDropEffects.Copy);
+        }
+
+        /// <summary>框选结束：隐藏覆盖层并清状态（保持选中结果）。</summary>
+        private void TagGrid_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            TagGridMarquee.Visibility = Visibility.Collapsed;
+            _tagMarqueeStart = null;
+            if (TagGrid.IsMouseCaptured) TagGrid.ReleaseMouseCapture();
+        }
+
+        /// <summary>按矩形选中与其相交的变量行（DataGrid 行坐标换算到 TagGrid 局部坐标）。</summary>
+        private void SelectRowsInRect(Rect rect)
+        {
+            TagGrid.SelectedItems.Clear();
+            for (int i = 0; i < TagGrid.Items.Count; i++)
+            {
+                if (TagGrid.ItemContainerGenerator.ContainerFromIndex(i) is not DataGridRow row) continue;
+                var topLeft = row.TransformToAncestor(TagGrid).Transform(new Point(0, 0));
+                var rowRect = new Rect(topLeft.X, topLeft.Y, row.ActualWidth, row.ActualHeight);
+                if (rowRect.IntersectsWith(rect))
+                    TagGrid.SelectedItems.Add(row.DataContext);
+            }
         }
 
         /// <summary>沿视觉树上溯查找指定类型 DataContext（DataGridRow/TreeViewItem 通用）。</summary>
@@ -364,11 +417,13 @@ namespace NavigatorHMI.Views
             return null;
         }
 
-        /// <summary>拖拽的是否为变量（统一判定）。</summary>
-        private static bool IsTagDrag(DragEventArgs e, out Tag? tag)
+        /// <summary>拖拽的是否为变量（统一判定；数据为选中集合 List&lt;Tag&gt;）。</summary>
+        private static bool IsTagDrag(DragEventArgs e, out List<Tag> tags)
         {
-            tag = e.Data.GetDataPresent("NavigatorHMI.Tag") ? e.Data.GetData("NavigatorHMI.Tag") as Tag : null;
-            return tag != null;
+            tags = e.Data.GetDataPresent("NavigatorHMI.TagList")
+                && e.Data.GetData("NavigatorHMI.TagList") is List<Tag> list
+                ? list : new List<Tag>();
+            return tags.Count > 0;
         }
 
         /// <summary>标签页悬停/放下 → 自动切换画面（200ms 节流防 DragOver 高频来回切换）。</summary>
@@ -437,7 +492,7 @@ namespace NavigatorHMI.Views
         /// <summary>画布放下 → 生成绑定该变量的 IO Field（add_widget + bound_tag 一步落库）。</summary>
         private void Canvas_Drop(object sender, DragEventArgs e)
         {
-            if (!IsTagDrag(e, out var tag) || tag == null) return;
+            if (!IsTagDrag(e, out var tags)) return;
             if (_viewModel.CurrentScreen == null) return;
             // GetPosition(DrawingCanvas) 经 LayoutTransform 逆变换已返回逻辑坐标，禁再次除缩放（双重除 bug）
             var pos = e.GetPosition(DrawingCanvas);
@@ -445,16 +500,33 @@ namespace NavigatorHMI.Views
             pos.X = Math.Clamp(pos.X, 0, Math.Max(0, _viewModel.CurrentScreen.Width - 100));
             pos.Y = Math.Clamp(pos.Y, 0, Math.Max(0, _viewModel.CurrentScreen.Height - 30));
             _viewModel.PushUndoSnapshot();
-            var r = _viewModel.CommandService.Execute("add_widget", new Dictionary<string, object?>
+            // 批量：每个变量生成一个绑定 IO Field（纵向错开 35px，底部钳制）
+            // 抑制中间全量重建（N 个变量 = 1 次刷新而非 N 次），结束统一刷新一次
+            int success = 0;
+            _viewModel.SuppressRefresh = true;
+            try
             {
-                ["screen_name"] = _viewModel.CurrentScreen.Name,
-                ["widget_type"] = "iofield",
-                ["x"] = (int)pos.X, ["y"] = (int)pos.Y,
-                ["width"] = 100, ["height"] = 30,
-                ["bound_tag"] = tag.Name,
-            });
-            if (!r.Success)
-                MessageBox.Show(r.ErrorMessage ?? "生成绑定控件失败", "拖拽绑定", MessageBoxButton.OK, MessageBoxImage.Warning);
+                for (int i = 0; i < tags.Count; i++)
+                {
+                    var y = Math.Min((int)pos.Y + i * 35, Math.Max(0, _viewModel.CurrentScreen.Height - 30));
+                    var r = _viewModel.CommandService.Execute("add_widget", new Dictionary<string, object?>
+                    {
+                        ["screen_name"] = _viewModel.CurrentScreen.Name,
+                        ["widget_type"] = "iofield",
+                        ["x"] = (int)pos.X, ["y"] = y,
+                        ["width"] = 100, ["height"] = 30,
+                        ["bound_tag"] = tags[i].Name,
+                    });
+                    if (r.Success) success++;
+                    else
+                        MessageBox.Show($"变量 \"{tags[i].Name}\": {r.ErrorMessage}", "拖拽绑定", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+            finally { _viewModel.SuppressRefresh = false; }
+            if (success > 0)
+                _viewModel.NotifyCanvasRefreshNeeded();   // 统一刷新一次
+            else
+                _viewModel.PopUndoSnapshot();   // 全部失败：弹出已推但未生效的空快照（与 OnModifyFailed 语义一致）
             e.Handled = true;
         }
         #endregion
