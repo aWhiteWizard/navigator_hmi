@@ -23,6 +23,8 @@
                 <GeometryDrawing Geometry="M2.5,2.5 A0.5,0.5 0 1,1 2.5,2.4" Brush="Black"/>
             </DrawingGroup></DrawingBrush.Drawing>
         </DrawingBrush>
+        <!-- 选中蓝（统一资源：画布框选 Marquee + 变量管理器行选中共用，防多处置色漂移） -->
+        <SolidColorBrush x:Key="SelectionBlueBrush" Color="Blue"/>
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
         <h:PathToImageSourceConverter x:Key="PathToImageConverter"/>
 
@@ -1152,7 +1154,7 @@
                                                 Background="{StaticResource DotGridBrush}" Width="{Binding DeviceWidth}" Height="{Binding DeviceHeight}"
                                                 Focusable="True" MouseDown="Canvas_MouseDown">
                                             <!-- 框选矩形 -->
-                                            <Rectangle x:Name="MarqueeRect" Stroke="Blue" StrokeThickness="2" Fill="#300000FF"
+                                            <Rectangle x:Name="MarqueeRect" Stroke="{StaticResource SelectionBlueBrush}" StrokeThickness="2" Fill="#300000FF"
                                                        Visibility="Collapsed" IsHitTestVisible="False" Panel.ZIndex="1001"/>
                                             <!-- 两点式绘制预览（Line/Circle/Ellipse/Rectangle） -->
                                             <Path x:Name="DrawPreviewShape" Stroke="#1E90FF" StrokeThickness="1.5" Fill="#301E90FF"
@@ -1200,6 +1202,18 @@
                                                   VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
                                                   ScrollViewer.CanContentScroll="True"
                                                   SizeChanged="TagGrid_SizeChanged">
+                                            <DataGrid.RowStyle>
+                                                <!-- 强制选中样式：不依赖 DataGrid 激活状态（未激活时默认用 InactiveSelectionHighlightBrush 浅灰≈背景，
+                                                     用户反馈框选后高亮不可见；显式固定蓝色选中，激活/未激活一致） -->
+                                                <Style TargetType="DataGridRow">
+                                                    <Style.Triggers>
+                                                        <Trigger Property="IsSelected" Value="True">
+                                                            <Setter Property="Background" Value="{StaticResource SelectionBlueBrush}"/>
+                                                            <Setter Property="Foreground" Value="White"/>
+                                                        </Trigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </DataGrid.RowStyle>
                                             <DataGrid.Columns>
                                                 <DataGridTextColumn Header="名称" Binding="{Binding Name}" Width="*"/>
                                                 <DataGridTextColumn Header="类型" Binding="{Binding DataType}" Width="55"/>
@@ -1218,7 +1232,7 @@
                                         </DataGrid>
                                         <!-- 框选覆盖层（变量多选：空白处拖动框选；外包 Canvas 保证 SetLeft/Top 权威定位，颜色与画布框选一致） -->
                                         <Canvas IsHitTestVisible="False" Panel.ZIndex="10">
-                                            <Rectangle x:Name="TagGridMarquee" Stroke="Blue" StrokeThickness="2" Fill="#300000FF"
+                                            <Rectangle x:Name="TagGridMarquee" Stroke="{StaticResource SelectionBlueBrush}" StrokeThickness="2" Fill="#300000FF"
                                                        Visibility="Collapsed" IsHitTestVisible="False"/>
                                         </Canvas>
                                     </Grid>
