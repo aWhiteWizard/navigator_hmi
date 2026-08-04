@@ -365,8 +365,9 @@ namespace NavigatorHMI.Views
                 var rect = new Rect(ms, cur);
                 rect = new Rect(Math.Min(ms.X, cur.X), Math.Min(ms.Y, cur.Y), Math.Abs(cur.X - ms.X), Math.Abs(cur.Y - ms.Y));
                 TagGridMarquee.Visibility = Visibility.Visible;
-                // 父容器是 Grid：Canvas.SetLeft/Top 无效，必须用 Margin 定位（Grid 布局读 Margin）
-                TagGridMarquee.Margin = new Thickness(rect.X, rect.Y, 0, 0);
+                // 外包 Canvas：SetLeft/Top 权威定位（相对 Canvas 原点 = TagGrid 原点，与 GetPosition(TagGrid) 同源）
+                Canvas.SetLeft(TagGridMarquee, rect.X);
+                Canvas.SetTop(TagGridMarquee, rect.Y);
                 TagGridMarquee.Width = rect.Width;
                 TagGridMarquee.Height = rect.Height;
                 SelectRowsInRect(rect);

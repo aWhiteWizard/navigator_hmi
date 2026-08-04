@@ -1211,9 +1211,11 @@
                                                 </ContextMenu>
                                             </DataGrid.ContextMenu>
                                         </DataGrid>
-                                        <!-- 框选覆盖层（变量多选：空白处拖动框选；IsHitTestVisible=False 不挡 DataGrid 交互） -->
-                                        <Rectangle x:Name="TagGridMarquee" Fill="#330078D4" Stroke="#0078D4" StrokeThickness="1"
-                                                   Visibility="Collapsed" IsHitTestVisible="False" Panel.ZIndex="10"/>
+                                        <!-- 框选覆盖层（变量多选：空白处拖动框选；外包 Canvas 保证 SetLeft/Top 权威定位，颜色与画布框选一致） -->
+                                        <Canvas IsHitTestVisible="False" Panel.ZIndex="10">
+                                            <Rectangle x:Name="TagGridMarquee" Stroke="Blue" StrokeThickness="2" Fill="#300000FF"
+                                                       Visibility="Collapsed" IsHitTestVisible="False"/>
+                                        </Canvas>
                                     </Grid>
                                 </Grid>
                                 <!-- 通讯配置内容（Tab 激活时显示，与画布同一位置切换；Visibility 从 Window.DataContext 取防 DataContext 覆盖） -->
