@@ -309,6 +309,11 @@ namespace NavigatorHMI.ViewModels
         {
             var list = type == ListType.Text ? SelectedTextList : SelectedImageList;
             if (list == null) return;
+            // 删除确认（与变量/设备删除一致；被控件引用的列表由 delete_list 命令拒绝）
+            var confirm = System.Windows.MessageBox.Show(
+                $"确定删除列表 \"{list.Name}\" 吗？\n删除后不可恢复（被控件引用的列表会被拒绝删除）。", "删除列表",
+                System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Question);
+            if (confirm != System.Windows.MessageBoxResult.Yes) return;
             var result = CommandService.Execute("delete_list", new Dictionary<string, object?> { ["name"] = list.Name });
             if (!result.Success)
             {
