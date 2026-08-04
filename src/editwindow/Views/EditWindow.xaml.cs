@@ -344,6 +344,16 @@ namespace NavigatorHMI.Views
         {
             _tagDragStart = e.GetPosition(null);
             var src = e.OriginalSource as DependencyObject;
+            // 多选状态下按住已选中行：拦截 DataGrid 单击单选重置（WPF 多选时单击已选中项会重置为单选），
+            // 保持多选供拖拽——用户需求：框选后按住不放 = 拖动多个变量。
+            // 排除 Ctrl/Shift 修饰键：修饰键点击交还 DataGrid 标准行为（Ctrl 取消多选 / Shift 区间选择）
+            if (TagGrid.SelectedItems.Count > 1
+             && (Keyboard.Modifiers & (ModifierKeys.Control | ModifierKeys.Shift)) == 0
+             && FindDataContext<Tag>(src) is Tag pressedTag
+             && TagGrid.SelectedItems.Contains(pressedTag))
+            {
+                e.Handled = true;
+            }
             // 列头（排序）/滚动条/行上按下 → 不进入框选（保持拖拽/排序/滚动正常）；仅数据区空白按下框选
             _tagMarqueeStart = (FindDataContext<Tag>(src) is Tag
                              || FindVisualParent<System.Windows.Controls.Primitives.DataGridColumnHeader>(src) != null
