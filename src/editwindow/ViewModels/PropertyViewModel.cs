@@ -537,10 +537,16 @@ namespace NavigatorHMI.ViewModels
                     if (!_syncingFromModel)
                     {
                         // 工程级配置（非画面 Widgets），不推撤销快照；先写模型再标脏（标脏不依赖刷新链路），最后刷新虚影层
-                        if (Project?.WorldMap != null) Project.WorldMap.ShowGlobalOverlay = value;
-                        DirtyRequested?.Invoke();
+                        // 懒创建 WorldMapConfig：新建/历史工程均未初始化 HMIProject.WorldMap（全项目无实例化点），
+                        // 首次勾选时创建并持久化，否则勾选仅停留在 UI 临时状态，重开属性栏即丢失
+                        if (Project != null)
+                        {
+                            Project.WorldMap ??= new WorldMapConfig();
+                            Project.WorldMap.ShowGlobalOverlay = value;
+                        }
+                        DirtyRequested?.Invoke();   // 标脏回调约定不抛异常（MarkProjectDirty 仅改标题），保持 try 外保证必达
                         try { OverlayChanged?.Invoke(); }   // 虚影刷新失败不阻断工程标脏（防关闭静默丢失）
-                        catch { /* 刷新异常仅影响虚影层显示，标脏已发生 */ }
+                        catch (Exception) { /* 刷新异常仅影响虚影层显示，标脏已发生 */ }
                     }
                 }
             }
