@@ -163,7 +163,13 @@
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="类型:" Style="{StaticResource PropLabel}"/>
                 <TextBlock Grid.Column="1" Text="{Binding ScreenTypeText}" VerticalAlignment="Center" Margin="4,0" FontSize="11"/>
-        </Grid></StackPanel></DataTemplate>
+            </Grid>
+            <TextBlock Text="全局叠加" Style="{StaticResource PropGroupHeader}" Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}"/>
+            <Grid Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}"><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="显示全局:" Style="{StaticResource PropLabel}"/>
+                <CheckBox Grid.Column="1" IsChecked="{Binding WorldMapShowGlobalOverlay}" VerticalAlignment="Center" ToolTip="勾选后世界地图上叠加显示全局画面内容（设备端运行时同步生效）"/>
+            </Grid>
+        </StackPanel></DataTemplate>
         <DataTemplate x:Key="PropButton"><StackPanel>
             <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>

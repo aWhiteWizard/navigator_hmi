@@ -174,6 +174,10 @@ namespace NavigatorHMI.Views
             _propertyViewModel.BeforeModify = () => _viewModel.PushUndoSnapshot();
             // 绑定失败 → 弹出已推但未生效的空撤销快照（防空快照污染撤销栈）
             _propertyViewModel.OnModifyFailed = () => _viewModel.PopUndoSnapshot();
+            // 世界地图「全局叠加」勾选变化 → 局部刷新虚影层（不动主层与选中，LoadCanvas 含 ClearAllSelection 副作用不可全量重载）
+            _propertyViewModel.OverlayChanged = () => RefreshGlobalGhost();
+            // 勾选写 WorldMapConfig（POCO 不在脏订阅范围）→ 显式标脏（防关闭静默丢失）
+            _propertyViewModel.DirtyRequested = MarkProjectDirty;
             // 缩放手柄：拖拽开始 Push 撤销快照 + 画布尺寸提供器（缩放钳制）
             _resizeDragStartedCallback = () => _viewModel.PushUndoSnapshot();
             _getCanvasSizeCallback = () => new Size(_propertyViewModel.CanvasWidth, _propertyViewModel.CanvasHeight);
@@ -753,7 +757,9 @@ namespace NavigatorHMI.Views
 
         private void EnsureItemsControlInCanvas()
         {
-            var existingItemsControl = DrawingCanvas.Children.OfType<ItemsControl>().FirstOrDefault();
+            // 按 Name 定位主层 ItemsControl（虚影层同样为 ItemsControl，不能靠 OfType 唯一假设）
+            var existingItemsControl = DrawingCanvas.Children.OfType<ItemsControl>()
+                .FirstOrDefault(c => c.Name == "MyItemsControl");
             if (existingItemsControl == null)
             {
                 if (_viewModel?.CurrentScreen != null)
@@ -761,6 +767,68 @@ namespace NavigatorHMI.Views
                     LoadCanvas(_viewModel.CurrentScreen);
                 }
             }
+        }
+
+        /// <summary>虚影层 ItemsControl 的 Name（局部刷新/定位用，与主层 "MyItemsControl" 区分）。</summary>
+        private const string GlobalGhostName = "GlobalGhostItemsControl";
+
+        /// <summary>当前画面是否应叠加全局虚影层：Custom 强制；WorldMap 按属性勾选；Template 自身不叠加；全局画面为空/不存在不叠加。</summary>
+        private bool ShouldShowGlobalGhost(Screen screen)
+        {
+            if (screen == null || screen.Type == ScreenType.Template) return false;
+            var vm = this.DataContext as EditWindowViewModel;
+            var globalScreen = vm?.CurrentProject?.Screens.FirstOrDefault(s => s.IsGlobal);
+            if (globalScreen == null || ReferenceEquals(globalScreen, screen) || globalScreen.Widgets.Count == 0) return false;
+            return screen.Type == ScreenType.Custom
+                || (screen.Type == ScreenType.WorldMap && vm?.CurrentProject?.WorldMap?.ShowGlobalOverlay == true);
+        }
+
+        /// <summary>
+        /// 创建全局画面虚影层（叠加在当前画面上方）。半透明 + 整体不参与命中测试（鼠标穿透，
+        /// 不可选中/编辑），与设备端运行时叠加显示行为一致。调用前应已删除旧虚影层。
+        /// </summary>
+        private void AddGlobalGhost(Screen screen)
+        {
+            var vm = this.DataContext as EditWindowViewModel;
+            var globalScreen = vm?.CurrentProject?.Screens.FirstOrDefault(s => s.IsGlobal);
+            if (!ShouldShowGlobalGhost(screen)) return;
+
+            // 跨画面选中残留防护：全局控件选中态不带到其它画面——否则虚影层元素（模板 TwoWay 绑
+            // IsSelected）会挂上 ResizeAdorner，而 Adorner 渲染于窗口装饰层，不受 IsHitTestVisible
+            // 约束，可被拖拽修改全局控件尺寸。切画面时显式清空全局控件选中态。
+            foreach (var w in globalScreen!.Widgets) w.IsSelected = false;
+
+            var ghostItems = WidgetItemsControlFactory.Create(
+                globalScreen,
+                null!,
+                _dragBehavior.OnPreviewMouseLeftButtonDown,
+                _dragBehavior.OnMouseLeftButtonDown,
+                _dragBehavior.OnMouseMove,
+                _dragBehavior.OnMouseLeftButtonUp,
+                _dragBehavior.OnPreviewMouseRightButtonDown,
+                _dragBehavior.OnMouseRightButtonUp);
+            ghostItems.Name = GlobalGhostName;
+            ghostItems.ItemsSource = globalScreen.Widgets;
+            ghostItems.Width = globalScreen.Width > 0 ? globalScreen.Width : (vm?.DeviceWidth ?? 800);
+            ghostItems.Height = globalScreen.Height > 0 ? globalScreen.Height : (vm?.DeviceHeight ?? 600);
+            // 虚影：半透明 + 整体不参与命中测试（鼠标穿透，不可选中/编辑）
+            ghostItems.Opacity = 0.35;
+            ghostItems.IsHitTestVisible = false;
+            ghostItems.Focusable = false;
+            DrawingCanvas.Children.Add(ghostItems);
+            Canvas.SetLeft(ghostItems, 0);
+            Canvas.SetTop(ghostItems, 0);
+            Panel.SetZIndex(ghostItems, 0);   // 当前画面控件(-1)之上、选中框/预览层(1001+)之下
+        }
+
+        /// <summary>局部刷新虚影层（世界地图「全局叠加」勾选变化时调用）：删旧重建，不动主层与选中。</summary>
+        private void RefreshGlobalGhost()
+        {
+            var old = DrawingCanvas.Children.OfType<ItemsControl>()
+                .FirstOrDefault(c => c.Name == GlobalGhostName);
+            if (old != null) DrawingCanvas.Children.Remove(old);
+            var screen = _viewModel?.CurrentScreen;
+            if (screen != null) AddGlobalGhost(screen);
         }
 
         /// <summary>当前已订阅脏标记的 Screen（防止重复订阅/泄漏）。</summary>
@@ -929,6 +997,9 @@ namespace NavigatorHMI.Views
             Canvas.SetLeft(itemsControl, 0);
             Canvas.SetTop(itemsControl, 0);
             Panel.SetZIndex(itemsControl, -1);
+
+            // ── 全局画面虚影层（Custom 强制叠加；WorldMap 按属性勾选；Template 自身不叠加）──
+            AddGlobalGhost(screen);
 
             var rootGrid = (System.Windows.Controls.Grid)this.Content;
 

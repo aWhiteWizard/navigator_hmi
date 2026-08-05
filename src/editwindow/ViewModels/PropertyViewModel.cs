@@ -189,6 +189,7 @@ namespace NavigatorHMI.ViewModels
                         ScreenName = value.Name;
                         ScreenWidth = value.Width;
                         ScreenHeight = value.Height;
+                        WorldMapShowGlobalOverlay = value.Type == ScreenType.WorldMap && Project?.WorldMap?.ShowGlobalOverlay == true;
                         }
                         finally { _syncingFromModel = false; }
                     }
@@ -200,6 +201,7 @@ namespace NavigatorHMI.ViewModels
                     OnPropertyChanged(nameof(IsButtonWidget));
                     OnPropertyChanged(nameof(IsTextWidget));
                     OnPropertyChanged(nameof(IsRectangleWidget));
+                    OnPropertyChanged(nameof(IsWorldMapScreen));
                      SelectedObjectType = value != null ? PropertyTargetType.Screen : PropertyTargetType.None;
                      OnPropertyChanged(nameof(SelectedObjectType));
                 }
@@ -520,6 +522,38 @@ namespace NavigatorHMI.ViewModels
             ScreenType.Custom => false,
             _ => true
         };
+
+        private bool _worldMapShowGlobalOverlay;
+        /// <summary>世界地图画面是否叠加显示全局画面控件（持久化到 WorldMapConfig.ShowGlobalOverlay，仅 WorldMap 画面可编辑）。</summary>
+        public bool WorldMapShowGlobalOverlay
+        {
+            get => _worldMapShowGlobalOverlay;
+            set
+            {
+                if (_worldMapShowGlobalOverlay != value)
+                {
+                    _worldMapShowGlobalOverlay = value;
+                    OnPropertyChanged();
+                    if (!_syncingFromModel)
+                    {
+                        // 工程级配置（非画面 Widgets），不推撤销快照；先写模型再标脏（标脏不依赖刷新链路），最后刷新虚影层
+                        if (Project?.WorldMap != null) Project.WorldMap.ShowGlobalOverlay = value;
+                        DirtyRequested?.Invoke();
+                        try { OverlayChanged?.Invoke(); }   // 虚影刷新失败不阻断工程标脏（防关闭静默丢失）
+                        catch { /* 刷新异常仅影响虚影层显示，标脏已发生 */ }
+                    }
+                }
+            }
+        }
+
+        /// <summary>当前选中是否为世界地图画面（属性面板据此显示「全局叠加」勾选入口）。</summary>
+        public bool IsWorldMapScreen => _selectedScreen?.Type == ScreenType.WorldMap;
+
+        /// <summary>全局叠加配置变化回调（EditWindow 注入 → 局部刷新虚影层，不动主层与选中）。</summary>
+        public Action? OverlayChanged { get; set; }
+
+        /// <summary>工程标脏回调（EditWindow 注入 → MarkProjectDirty；WorldMapConfig 是 POCO 不在订阅范围，勾选必须显式标脏防关闭静默丢失）。</summary>
+        public Action? DirtyRequested { get; set; }
 
         // ── 控件绑定的属性字段 ──
 
