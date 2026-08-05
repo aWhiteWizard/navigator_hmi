@@ -777,11 +777,18 @@ namespace NavigatorHMI.Views
         {
             if (screen == null || screen.Type == ScreenType.Template) return false;
             var vm = this.DataContext as EditWindowViewModel;
-            var globalScreen = vm?.CurrentProject?.Screens.FirstOrDefault(s => s.IsGlobal);
+            var globalScreen = FindGlobalScreen(vm);
             if (globalScreen == null || ReferenceEquals(globalScreen, screen) || globalScreen.Widgets.Count == 0) return false;
             return screen.Type == ScreenType.Custom
                 || (screen.Type == ScreenType.WorldMap && vm?.CurrentProject?.WorldMap?.ShowGlobalOverlay == true);
         }
+
+        /// <summary>
+        /// 定位全局画面：优先 Type == Template（与全项目识别方式一致，项目树/删除保护/CLI 均用 Type），
+        /// IsGlobal 兜底兼容历史工程（ProtoBuf bool 默认 false，旧工程/CLI 创建的 Template 可能未置 IsGlobal）。
+        /// </summary>
+        private static Screen? FindGlobalScreen(EditWindowViewModel? vm)
+            => vm?.CurrentProject?.Screens.FirstOrDefault(s => s.Type == ScreenType.Template || s.IsGlobal);
 
         /// <summary>
         /// 创建全局画面虚影层（叠加在当前画面上方）。半透明 + 整体不参与命中测试（鼠标穿透，
@@ -790,7 +797,7 @@ namespace NavigatorHMI.Views
         private void AddGlobalGhost(Screen screen)
         {
             var vm = this.DataContext as EditWindowViewModel;
-            var globalScreen = vm?.CurrentProject?.Screens.FirstOrDefault(s => s.IsGlobal);
+            var globalScreen = FindGlobalScreen(vm);
             if (!ShouldShowGlobalGhost(screen)) return;
 
             // 跨画面选中残留防护：全局控件选中态不带到其它画面——否则虚影层元素（模板 TwoWay 绑
