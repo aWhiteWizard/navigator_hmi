@@ -179,8 +179,16 @@ namespace NavigatorHMI.CommandLayer.Handlers
             int rows = Math.Max(1, GetInt(parameters, "rows", 2));
             double sx = GetDbl(parameters, "spacing_x", 120);
             double sy = GetDbl(parameters, "spacing_y", 80);
-            double cx = GetDbl(parameters, "center_x", 0);
-            double cy = GetDbl(parameters, "center_y", 0);
+            // 圆心缺省 = 画面中心（AI compact schema 不传 center_x/y 时用画面几何中心，符合"画面正中心为圆心"直觉；
+            // 显式传 0 则尊重用户指定——用 ContainsKey 区分"未提供"与"显式 0"）
+            double maxW0 = screen.Width > 0 ? screen.Width : project.DeviceWidth;
+            double maxH0 = screen.Height > 0 ? screen.Height : project.DeviceHeight;
+            double cx = parameters.ContainsKey("center_x") && parameters["center_x"] != null
+                ? GetDbl(parameters, "center_x", 0)
+                : maxW0 / 2.0;
+            double cy = parameters.ContainsKey("center_y") && parameters["center_y"] != null
+                ? GetDbl(parameters, "center_y", 0)
+                : maxH0 / 2.0;
             double radius = GetDbl(parameters, "radius", 150);
             double startAngle = GetDbl(parameters, "start_angle", 0);
             double endAngle = GetDbl(parameters, "end_angle", 360);

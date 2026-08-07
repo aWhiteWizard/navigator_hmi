@@ -12,7 +12,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
             if (items is List<string> list) return new List<string>(list);
             if (items is string s)
             {
-                var parts = s.Split('|', StringSplitOptions.TrimEntries);
+                // 兼容多种分隔符（AI 模型可能用 | / ; / 逗号 / 换行 / 全角分号；Windows 路径不含这些字符，拆分安全）
+                var parts = s.Split(new[] { '|', ';', ',', '，', '\n', '\r', '；' }, StringSplitOptions.TrimEntries);
                 return parts.Where(p => p.Length > 0).ToList();
             }
             if (items is System.Collections.IEnumerable en && items is not string)
@@ -35,19 +36,23 @@ namespace NavigatorHMI.CommandLayer.Handlers
             {
                 ["name"] = new() { Type = "string", Required = true, Description = "列表名（工程内唯一）" },
                 ["type"] = new() { Type = "enum", Required = true, EnumValues = new[] { "Text", "Image" }, Description = "列表类型" },
-                ["items"] = new() { Type = "string", DefaultValue = "", Description = "预设值列表，用 | 分隔（图片列表为图片路径）" },
+                // Required：AI compact schema 才保留 items（建列表必须指定项；图片列表为 | 分隔的图片路径）
+                ["items"] = new() { Type = "string", Required = true, Description = "列表项，用 | 分隔（图片列表为图片路径）" },
             }
         };
         public ValidationResult Validate(Dictionary<string, object?> p)
         {
             if (!p.ContainsKey("name") || string.IsNullOrWhiteSpace(p["name"]?.ToString())) return ValidationResult.Fail("缺少必填参数: name");
             if (!p.ContainsKey("type") || string.IsNullOrWhiteSpace(p["type"]?.ToString())) return ValidationResult.Fail("缺少必填参数: type");
+            // 刻意不强制 items（与 Definition Required 不一致是有意的）：GUI 先建空列表后加项的工作流依赖；
+            // Required 仅作用于 AI compact schema（模型必须传 items），Validate 兼容 GUI 空列表
             return ValidationResult.Ok;
         }
         public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
         {
             var name = p["name"]!.ToString()!.Trim();
-            if (project.Lists.Any(l => l.Name == name)) return CommandResult.Fail("DUPLICATE", $"列表 \"{name}\" 已存在");
+            if (project.Lists.Any(l => l.Name == name))
+                return CommandResult.Fail("DUPLICATE", $"列表 \"{name}\" 已存在（可直接使用，或 update-list 修改其内容）");
             if (!Enum.TryParse<ListType>(p["type"]!.ToString(), ignoreCase: true, out var type))
                 return CommandResult.Fail("INVALID_PARAM", $"未知列表类型: {p["type"]}（Text/Image）");
             var items = ListItemsParser.Parse(p.GetValueOrDefault("items")) ?? new List<string>();

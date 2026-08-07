@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -231,6 +231,7 @@ namespace NavigatorHMI.ViewModels
             Name = "通信变量";
             Children.Add(new VariableManagerNode(this));
             Children.Add(new DeviceConfigNode(this));
+            Children.Add(new AlarmConfigNode(this));
         }
 
         /// <summary>「变量」子节点被选中时触发（上层打开变量管理器 Tab）。</summary>
@@ -244,6 +245,12 @@ namespace NavigatorHMI.ViewModels
 
         /// <summary>供子节点调用的内部入口。</summary>
         internal void NotifyDeviceConfigSelected() => OnDeviceConfigSelected?.Invoke();
+
+        /// <summary>「报警」子节点被选中时触发（上层打开报警配置 Tab）。</summary>
+        public event Action? OnAlarmConfigSelected;
+
+        /// <summary>供子节点调用的内部入口。</summary>
+        internal void NotifyAlarmConfigSelected() => OnAlarmConfigSelected?.Invoke();
     }
 
     /// <summary>「列表」根节点（与「通信变量」平级）：展开显示「文本列表」「图片列表」，双击子节点打开列表管理面板对应页。</summary>
@@ -318,6 +325,19 @@ namespace NavigatorHMI.ViewModels
             _parent = parent;
             Name = "通讯";
             DoubleClickCommand = new RelayCommand(() => _parent.NotifyDeviceConfigSelected());
+        }
+    }
+
+    /// <summary>「报警」叶子节点：双击打开报警配置（画布 Tab）。</summary>
+    public class AlarmConfigNode : ProjectTreeViewModel
+    {
+        private readonly CommunicationRootNode _parent;
+
+        public AlarmConfigNode(CommunicationRootNode parent)
+        {
+            _parent = parent;
+            Name = "报警";
+            DoubleClickCommand = new RelayCommand(() => _parent.NotifyAlarmConfigSelected());
         }
     }
 }

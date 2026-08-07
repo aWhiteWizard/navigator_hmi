@@ -63,17 +63,24 @@ namespace NavigatorHMI.ViewModels
         /// <summary>变量增删改成功后刷新绑定下拉（防下拉残留已删变量导致静默绑定失败）。</summary>
         private void OnTagCommandExecuted(string cmdName, Dictionary<string, object?> parameters, CommandResult result)
         {
+            // AI 后台线程触发时跨线程改 ObservableCollection 会被吞 → 封送回 UI 线程（与 EditWindowViewModel 同模式）
+            if (!System.Windows.Application.Current.Dispatcher.CheckAccess())
+            {
+                System.Windows.Application.Current.Dispatcher.BeginInvoke(
+                    new Action(() => OnTagCommandExecuted(cmdName, parameters, result)));
+                return;
+            }
             if (result.Success && cmdName is "create_tag" or "update_tag" or "delete_tag" or "create_list" or "update_list" or "delete_list")
             {
+                BeginSuppressBindTagCommands();   // 变量下拉 Clear 重建瞬态回写 null/哨兵会真解绑——窗口期拦截
                 RefreshBindableTags();
                 RefreshListOptions(_selectedWidget);
                 // 选中控件仍有效时，按模型 BoundTag 重同步下拉选中（变量可能被删/重命名；
                 // 同步性质直接赋值，不发 bind_tag 命令——避免 update_tag 改名后的冗余绑定+重复快照）
                 if (_selectedWidget != null)
                 {
-                    var tag = Project?.Tags.FirstOrDefault(t => t.Name == _selectedWidget.BoundTag);
                     _syncingFromModel = true;
-                    try { _boundTag = tag ?? NoBindingSentinel; OnPropertyChanged(nameof(BoundTag)); OnPropertyChanged(nameof(IsValueEditable)); }
+                    try { _boundTag = ResolveBoundTarget(_selectedWidget.BoundTag); OnPropertyChanged(nameof(BoundTag)); OnPropertyChanged(nameof(IsValueEditable)); }
                     finally { _syncingFromModel = false; }
                 }
             }
@@ -292,7 +299,7 @@ namespace NavigatorHMI.ViewModels
 
                         // 绑定变量（基类通用属性，选中控件时同步下拉 + 刷新变量列表）
                         RefreshBindableTags();
-                        BoundTag = Project?.Tags.FirstOrDefault(t => t.Name == value.BoundTag) ?? NoBindingSentinel;
+                        BoundTag = ResolveBoundTarget(value.BoundTag);
                         // 列表下拉数据源（Image/Frame/TextList 选中时同步）
                         RefreshListOptions(value);
                         // 无条件通知（切换选中控件时 setter 可能值相等短路——不得依赖其副作用）
@@ -313,6 +320,14 @@ namespace NavigatorHMI.ViewModels
         {
             if (sender != _selectedWidget) return;
 
+            // AI 后台线程（update_list 级联改控件 ListRef）触发时跨线程改 ObservableCollection 会被吞 → 封送回 UI 线程（与 OnTagCommandExecuted 同模式）
+            if (!System.Windows.Application.Current.Dispatcher.CheckAccess())
+            {
+                System.Windows.Application.Current.Dispatcher.BeginInvoke(
+                    new Action(() => OnSelectedWidgetPropertyChanged(sender, e)));
+                return;
+            }
+
             // 模型→VM 反向同步（拖拽/缩放每帧触发）：不触发 BeforeModify，防每帧 Push 撤销快照
             _syncingFromModel = true;
             try
@@ -324,18 +339,28 @@ namespace NavigatorHMI.ViewModels
                         break;
                     case nameof(Widget.BoundTag):
                         // CLI/Undo 等外部改模型 BoundTag → 面板实时同步（不触发命令）
-                        _boundTag = Project?.Tags.FirstOrDefault(t => t.Name == _selectedWidget.BoundTag) ?? NoBindingSentinel;
+                        _boundTag = ResolveBoundTarget(_selectedWidget.BoundTag);
                         OnPropertyChanged(nameof(BoundTag));
                         OnPropertyChanged(nameof(IsValueEditable));
                        
                         break;
                     case "ListRef":
-                        // CLI/Undo 改模型列表绑定 → 面板下拉实时同步（不触发命令）
+                        // CLI/Undo 改模型列表绑定 → 面板下拉实时同步（不触发命令）；
+                        // 同步后补 Options 占位：外部命令（set_property）改绑的列表名可能不在对应类型 Options（如 Text 类型列表绑 Image 控件）→ 防 SelectedItem 失配显示空
                         switch (_selectedWidget)
                         {
-                            case ImageWidget img: ImageListRef = img.ListRef; break;
-                            case FrameWidget f: FrameListRef = f.ListRef; break;
-                            case TextListWidget tl: TextListListRef = tl.ListRef; break;
+                            case ImageWidget img:
+                                ImageListRef = img.ListRef;
+                                if (!string.IsNullOrEmpty(img.ListRef) && !ImageListOptions.Contains(img.ListRef)) ImageListOptions.Add(img.ListRef);
+                                break;
+                            case FrameWidget f:
+                                FrameListRef = f.ListRef;
+                                if (!string.IsNullOrEmpty(f.ListRef) && !ImageListOptions.Contains(f.ListRef)) ImageListOptions.Add(f.ListRef);
+                                break;
+                            case TextListWidget tl:
+                                TextListListRef = tl.ListRef;
+                                if (!string.IsNullOrEmpty(tl.ListRef) && !TextListOptions.Contains(tl.ListRef)) TextListOptions.Add(tl.ListRef);
+                                break;
                         }
                         break;
                     case "DefaultIndex":
@@ -837,13 +862,37 @@ namespace NavigatorHMI.ViewModels
             {
                 var cur = Project.Tags.FirstOrDefault(t => t.Name == current);
                 if (cur != null) BindableTags.Add(cur);
+                else
+                    BindableTags.Add(new Tag { Name = $"(缺失变量: {current})" });   // 变量不存在（历史/外部工程）：占位可见，防下拉空白静默
             }
+        }
+
+        /// <summary>解析绑定目标：变量存在→Tag；变量缺失（历史/外部工程）→缺失占位项；无绑定→哨兵。
+        /// 防 SelectedItem 失配导致下拉空白/误显「无绑定」（wpf-combobox-style §3 场景 C/D）。</summary>
+        private Tag? ResolveBoundTarget(string? boundTag)
+        {
+            if (string.IsNullOrEmpty(boundTag)) return NoBindingSentinel;
+            var t = Project?.Tags.FirstOrDefault(x => x.Name == boundTag);
+            if (t != null) return t;
+            return BindableTags.FirstOrDefault(x => x.Name == $"(缺失变量: {boundTag})") ?? NoBindingSentinel;
         }
 
         private Tag? _boundTag;
 
         /// <summary>选中控件切换时的同步/失配回写抑制标志（ComboBox ItemsSource 更新导致的 SelectedItem 回写可能延迟到 _syncingFromModel 块外）。</summary>
         private bool _suppressBindTagCommands;
+
+        /// <summary>列表下拉失配回写抑制窗口（ListRef 三 setter 共用）：RefreshListOptions 增量同步移除占位项时
+        /// ComboBox SelectedItem 失配回写 ""（哨兵）会真解绑——窗口期拦截；与 BoundTag 同款模式。</summary>
+        private bool _suppressListRefWrites;
+
+        private void BeginSuppressListRefWrites()
+        {
+            _suppressListRefWrites = true;
+            System.Windows.Application.Current?.Dispatcher.BeginInvoke(
+                System.Windows.Threading.DispatcherPriority.Background,
+                new Action(() => _suppressListRefWrites = false));
+        }
 
         /// <summary>开启回写抑制窗口：置位后在 Dispatcher 后台优先级延迟清除（覆盖 ComboBox 失配回写的布局批次）。</summary>
         private void BeginSuppressBindTagCommands()
@@ -893,7 +942,7 @@ namespace NavigatorHMI.ViewModels
                     // 失败（如变量已被删）：回滚 UI 选中态并提示，防静默不一致
                     if (!result.Success)
                     {
-                        _boundTag = Project?.Tags.FirstOrDefault(t => t.Name == _selectedWidget.BoundTag) ?? NoBindingSentinel;
+                        _boundTag = ResolveBoundTarget(_selectedWidget.BoundTag);
                         OnPropertyChanged(nameof(BoundTag));
                         OnPropertyChanged(nameof(IsValueEditable));
                         OnModifyFailed?.Invoke();   // 弹出已推但未生效的空撤销快照
@@ -1047,38 +1096,122 @@ namespace NavigatorHMI.ViewModels
         /// <summary>文本列表集合（选中 TextList 时的下拉数据源，首项空串=不绑列表）。</summary>
         public System.Collections.ObjectModel.ObservableCollection<string> TextListOptions { get; } = new();
 
-        /// <summary>重建列表下拉（首项空串=不绑列表 + 工程对应类型列表名），选中控件时调用。</summary>
+        /// <summary>重建列表下拉（首项空串=不绑列表 + 工程对应类型列表名 + 选中控件已绑定列表占位），选中控件时调用。
+        /// 用增量同步（不 Clear 重建）——Clear+Add 重建会丢 ComboBox 选中且 null 短路后无法自动恢复（ListManager 同款坑）。</summary>
         private void RefreshListOptions(Widget? w)
         {
-            ImageListOptions.Clear();
-            ImageListOptions.Add("");
-            TextListOptions.Clear();
-            TextListOptions.Add("");
-            if (Project == null) return;
-            foreach (var l in Project.Lists)
+            BeginSuppressListRefWrites();   // 增量同步移除占位项时 ComboBox 失配回写 """ 会真解绑——窗口期拦截
+            var imgNames = Project?.Lists.Where(l => l.Type == ListType.Image).Select(l => l.Name) ?? Enumerable.Empty<string>();
+            var textNames = Project?.Lists.Where(l => l.Type != ListType.Image).Select(l => l.Name) ?? Enumerable.Empty<string>();
+            SyncOptions(ImageListOptions, imgNames);
+            SyncOptions(TextListOptions, textNames);
+            // 占位：选中控件已绑定的列表名（即使类型不符/列表已删）加入对应 Options，
+            // 防 ComboBox SelectedItem 失配导致属性面板显示空（AI/CLI 建的列表 type 可能与控件期望不符，但功能正常）
+            switch (w)
             {
-                if (l.Type == ListType.Image) ImageListOptions.Add(l.Name);
-                else TextListOptions.Add(l.Name);
+                case ImageWidget img when !string.IsNullOrEmpty(img.ListRef) && !ImageListOptions.Contains(img.ListRef):
+                    ImageListOptions.Add(img.ListRef); break;
+                case FrameWidget f when !string.IsNullOrEmpty(f.ListRef) && !ImageListOptions.Contains(f.ListRef):
+                    ImageListOptions.Add(f.ListRef); break;
+                case TextListWidget tl when !string.IsNullOrEmpty(tl.ListRef) && !TextListOptions.Contains(tl.ListRef):
+                    TextListOptions.Add(tl.ListRef); break;
+            }
+        }
+
+        /// <summary>增量同步选项集合：首项 "" 恒保持，后续按名称尾部增删/对齐——不 Clear 重建，保 ComboBox 选中（wpf-combobox-style 集合重建陷阱）。</summary>
+        private static void SyncOptions(System.Collections.ObjectModel.ObservableCollection<string> options, IEnumerable<string> names)
+        {
+            if (options.Count == 0 || options[0] != "") options.Insert(0, "");   // 哨兵首项
+            var keep = new HashSet<string>(names);
+            for (int i = options.Count - 1; i >= 1; i--)
+                if (!keep.Contains(options[i])) options.RemoveAt(i);
+            var pos = 1;
+            foreach (var n in names)
+            {
+                while (pos < options.Count && options[pos] != n) pos++;
+                if (pos == options.Count && !options.Contains(n)) options.Add(n);   // 去重兜底（防乱序输入重复添加）
+                pos++;
             }
         }
 
         private string? _imageListRef = "";
         /// <summary>ImageWidget 绑定的图片列表名（null=无）。</summary>
-        public string? ImageListRef { get => _imageListRef; set { if (_imageListRef != value) { _imageListRef = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is ImageWidget img) { img.ListRef = value ?? ""; if (!string.IsNullOrEmpty(value)) WidgetDesignValue.Clear(img); } } } }   // Clear 在同步路径也执行是有意兜底：CLI 纯模型改 ListRef 也需清路径
+        public string? ImageListRef
+        {
+            get => _imageListRef;
+            set
+            {
+                // null = 切换选中控件时 RefreshListOptions 重建下拉的瞬态（ComboBox SelectedItem 在空选项时变 null）——忽略防误解绑；
+                // "" = 用户显式选「（无绑定）」解绑，保留
+                if (value == null) return;
+                if (_imageListRef != value)
+                {
+                    _imageListRef = value;
+                    OnPropertyChanged();
+                    if (_selectedWidget is ImageWidget img)
+                    {
+                        if (_suppressListRefWrites) return;   // 失配回写窗口拦截（防哨兵 "" 真解绑）
+                        if (value == img.ListRef) return;     // 模型同值跳过（防同步回写副作用）
+                        if (!_syncingFromModel) BeforeModify?.Invoke();   // 检查全过才推快照（防失配回写推空撤销快照污染 Undo 栈）
+                        img.ListRef = value;
+                        if (!string.IsNullOrEmpty(value)) WidgetDesignValue.Clear(img);
+                    }
+                }
+            }
+        }
         private int _imageDefaultIndex = 0;
         /// <summary>ImageWidget 缺省值（列表项索引，0=第1项；VM 侧同步钳制非负，与模型一致）。</summary>
         public int ImageDefaultIndex { get => _imageDefaultIndex; set { var v = Math.Max(0, value); if (_imageDefaultIndex != v) { _imageDefaultIndex = v; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is ImageWidget img) img.DefaultIndex = v; } } }
 
         private string? _frameListRef = "";
         /// <summary>FrameWidget 绑定的图片列表名（null=无）。</summary>
-        public string? FrameListRef { get => _frameListRef; set { if (_frameListRef != value) { _frameListRef = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is FrameWidget f) { f.ListRef = value ?? ""; if (!string.IsNullOrEmpty(value)) WidgetDesignValue.Clear(f); } } } }   // Clear 在同步路径也执行是有意兜底：CLI 纯模型改 ListRef 也需清路径
+        public string? FrameListRef
+        {
+            get => _frameListRef;
+            set
+            {
+                if (value == null) return;   // RefreshListOptions 重建瞬态，忽略防误解绑（同 ImageListRef）
+                if (_frameListRef != value)
+                {
+                    _frameListRef = value;
+                    OnPropertyChanged();
+                    if (_selectedWidget is FrameWidget f)
+                    {
+                        if (_suppressListRefWrites) return;   // 失配回写窗口拦截（防哨兵 "" 真解绑）
+                        if (value == f.ListRef) return;       // 模型同值跳过
+                        if (!_syncingFromModel) BeforeModify?.Invoke();
+                        f.ListRef = value;
+                        if (!string.IsNullOrEmpty(value)) WidgetDesignValue.Clear(f);
+                    }
+                }
+            }
+        }
         private int _frameDefaultIndex = 0;
         /// <summary>FrameWidget 缺省值（列表项索引，0=第1项；VM 侧同步钳制非负，与模型一致）。</summary>
         public int FrameDefaultIndex { get => _frameDefaultIndex; set { var v = Math.Max(0, value); if (_frameDefaultIndex != v) { _frameDefaultIndex = v; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is FrameWidget f) f.DefaultIndex = v; } } }
 
         private string? _textListListRef = "";
         /// <summary>TextListWidget 绑定的文本列表名（null=无）。</summary>
-        public string? TextListListRef { get => _textListListRef; set { if (_textListListRef != value) { _textListListRef = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is TextListWidget tl) tl.ListRef = value ?? ""; } } }
+        public string? TextListListRef
+        {
+            get => _textListListRef;
+            set
+            {
+                if (value == null) return;   // RefreshListOptions 重建瞬态，忽略防误解绑（同 ImageListRef）
+                if (_textListListRef != value)
+                {
+                    _textListListRef = value;
+                    OnPropertyChanged();
+                    if (_selectedWidget is TextListWidget tl)
+                    {
+                        if (_suppressListRefWrites) return;   // 失配回写窗口拦截（防哨兵 "" 真解绑）
+                        if (value == tl.ListRef) return;      // 模型同值跳过
+                        if (!_syncingFromModel) BeforeModify?.Invoke();
+                        tl.ListRef = value;
+                    }
+                }
+            }
+        }
         private int _textListDefaultIndex = 0;
         /// <summary>TextListWidget 缺省值（列表项索引，0=第1项；VM 侧同步钳制非负，与模型一致）。</summary>
         public int TextListDefaultIndex { get => _textListDefaultIndex; set { var v = Math.Max(0, value); if (_textListDefaultIndex != v) { _textListDefaultIndex = v; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is TextListWidget tl) tl.DefaultIndex = v; } } }

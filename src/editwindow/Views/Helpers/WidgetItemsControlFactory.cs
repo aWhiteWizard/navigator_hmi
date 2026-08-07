@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -205,7 +205,7 @@ namespace NavigatorHMI.Views.Helpers
         {
             var dt = new DataTemplate();
             var tb = new FrameworkElementFactory(typeof(TextBlock));
-            tb.SetBinding(TextBlock.TextProperty, new Binding("Text"));
+            tb.SetBinding(TextBlock.TextProperty, new Binding("DisplayText"));   // Label 绑定变量后显示基准值（DisplayText 回退 Text，零回归）
             BindTextFormatting(tb);
             tb.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
             dt.VisualTree = WrapWithBorder(tb, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU, bindFillBackground: true);   // LabelTemplate（仅 LabelWidget 使用）
@@ -279,7 +279,7 @@ namespace NavigatorHMI.Views.Helpers
             // Content 用 TextBlock：显示 OnText/OffText（按 IsOn 切换）+ 字体完整渲染
             var content = new FrameworkElementFactory(typeof(TextBlock));
             var sw = new MultiBinding { Converter = new SwitchTextConverter() };
-            sw.Bindings.Add(new Binding("IsOn"));
+            sw.Bindings.Add(new Binding("DisplayIsOn"));   // 绑定变量 → 基准值状态；否则自身 IsOn
             sw.Bindings.Add(new Binding("OnText"));
             sw.Bindings.Add(new Binding("OffText"));
             content.SetBinding(TextBlock.TextProperty, sw);
@@ -367,7 +367,7 @@ namespace NavigatorHMI.Views.Helpers
             cb.AppendChild(content);
             // 背景色（用户可设 BgColor）
             cb.SetBinding(CheckBox.BackgroundProperty, new Binding("FillColor") { Converter = new ColorStringToBrushConverter() });
-            cb.SetBinding(CheckBox.IsCheckedProperty, new Binding("IsChecked"));
+            cb.SetBinding(CheckBox.IsCheckedProperty, new Binding("DisplayIsChecked"));   // 绑定变量 → 基准值勾选状态；否则自身 IsChecked
             cb.SetBinding(CheckBox.WidthProperty, new Binding("Width"));
             cb.SetBinding(CheckBox.HeightProperty, new Binding("Height"));
             cb.SetBinding(SelectorHelper.IsSelectedProperty, new Binding("IsSelected") { Mode = BindingMode.TwoWay });
@@ -467,6 +467,15 @@ namespace NavigatorHMI.Views.Helpers
             => throw new NotImplementedException();
     }
 
+    /// <summary>布尔取反转换器（IsEnabled = !IsAiThinking 等反向绑定用）。</summary>
+    public class InverseBoolConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            => value is bool b ? !b : value;
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            => value is bool b ? !b : value;
+    }
+
     /// <summary>始终返回 0 的转换器（用于 Line 的 X1/Y1 起点归零）。</summary>
     public class ZeroConverter : IValueConverter
     {
@@ -524,7 +533,7 @@ namespace NavigatorHMI.Views.Helpers
             => throw new NotImplementedException();
     }
 
-    /// <summary>Switch 显示文本：IsOn → OnText/OffText（MultiBinding）。</summary>
+    /// <summary>Switch 显示文本：DisplayIsOn → OnText/OffText（MultiBinding；绑定变量时状态取基准值判定）。</summary>
     public class SwitchTextConverter : IMultiValueConverter
     {
         public object Convert(object[] values, Type targetType, object parameter, System.Globalization.CultureInfo culture)

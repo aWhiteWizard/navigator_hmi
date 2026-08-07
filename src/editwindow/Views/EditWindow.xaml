@@ -26,7 +26,12 @@
         <!-- 选中蓝（统一资源：画布框选 Marquee + 变量管理器行选中共用，防多处置色漂移） -->
         <SolidColorBrush x:Key="SelectionBlueBrush" Color="Blue"/>
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        <h:InverseBoolConverter x:Key="InverseBoolConverter"/>
         <h:PathToImageSourceConverter x:Key="PathToImageConverter"/>
+        <!-- AI 消息右键菜单：拖选复制选中段，未选中复制整条（AiMsgCopy_Click 判定） -->
+        <ContextMenu x:Key="AiMessageContextMenu">
+            <MenuItem Header="复制" Click="AiMsgCopy_Click"/>
+        </ContextMenu>
 
         <!-- 属性面板样式 -->
         <Style x:Key="PropGroupHeader" TargetType="TextBlock">
@@ -91,7 +96,8 @@
             <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="变量:" Style="{StaticResource PropLabel}"/>
-                <ComboBox Grid.Column="1" SelectedItem="{Binding BoundTag}" ItemsSource="{Binding BindableTags}" Style="{StaticResource PropComboBox}"
+                <Grid Grid.Column="1">
+                <ComboBox SelectedItem="{Binding BoundTag}" ItemsSource="{Binding BindableTags}" Style="{StaticResource PropComboBox}"
                           ToolTip="绑定变量后，控件显示该变量的实时值（选「（无绑定）」解除）">
                     <ComboBox.ItemTemplate>
                         <DataTemplate>
@@ -107,6 +113,22 @@
                         </DataTemplate>
                     </ComboBox.ItemTemplate>
                 </ComboBox>
+                    <TextBlock Text="（无绑定）" IsHitTestVisible="False" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="#777777" FontSize="11">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding BoundTag}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding BoundTag.Name}" Value="">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
             </Grid>
         </StackPanel></DataTemplate>
 
@@ -325,7 +347,8 @@
             <TextBlock Text="图片列表" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="列表:" Style="{StaticResource PropLabel}"/>
-                <ComboBox Grid.Column="1" SelectedItem="{Binding ImageListRef}" ItemsSource="{Binding ImageListOptions}" Style="{StaticResource PropComboBox}" ToolTip="选择图片列表（选「（无绑定）」解除，显示自身路径静态图）">
+                <Grid Grid.Column="1">
+                <ComboBox SelectedItem="{Binding ImageListRef}" ItemsSource="{Binding ImageListOptions}" Style="{StaticResource PropComboBox}" ToolTip="选择图片列表（选「（无绑定）」解除，显示自身路径静态图）">
                     <ComboBox.ItemTemplate>
                         <DataTemplate>
                             <!-- ⚠️ 不能设本地 Text（优先级高于 Style 触发器，会压制 DataTrigger 的「（无绑定）」） -->
@@ -340,6 +363,22 @@
                         </DataTemplate>
                     </ComboBox.ItemTemplate>
                 </ComboBox>
+                    <TextBlock Text="（无绑定）" IsHitTestVisible="False" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="#777777" FontSize="11">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ImageListRef}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding ImageListRef}" Value="">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="缺省值:" Style="{StaticResource PropLabel}"/>
@@ -605,7 +644,8 @@
             <TextBlock Text="列表" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="列表:" Style="{StaticResource PropLabel}"/>
-                <ComboBox Grid.Column="1" SelectedItem="{Binding TextListListRef}" ItemsSource="{Binding TextListOptions}" Style="{StaticResource PropComboBox}" ToolTip="选择文本列表（选「（无绑定）」解除，显示空白）">
+                <Grid Grid.Column="1">
+                <ComboBox SelectedItem="{Binding TextListListRef}" ItemsSource="{Binding TextListOptions}" Style="{StaticResource PropComboBox}" ToolTip="选择文本列表（选「（无绑定）」解除，显示空白）">
                     <ComboBox.ItemTemplate>
                         <DataTemplate>
                             <!-- ⚠️ 不能设本地 Text（优先级高于 Style 触发器，会压制 DataTrigger 的「（无绑定）」） -->
@@ -620,6 +660,22 @@
                         </DataTemplate>
                     </ComboBox.ItemTemplate>
                 </ComboBox>
+                    <TextBlock Text="（无绑定）" IsHitTestVisible="False" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="#777777" FontSize="11">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding TextListListRef}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding TextListListRef}" Value="">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="缺省值:" Style="{StaticResource PropLabel}"/>
@@ -669,7 +725,8 @@
             <TextBlock Text="图片列表" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="列表:" Style="{StaticResource PropLabel}"/>
-                <ComboBox Grid.Column="1" SelectedItem="{Binding FrameListRef}" ItemsSource="{Binding ImageListOptions}" Style="{StaticResource PropComboBox}" ToolTip="选择图片列表（选「（无绑定）」解除，显示自身路径静态背景图）">
+                <Grid Grid.Column="1">
+                <ComboBox SelectedItem="{Binding FrameListRef}" ItemsSource="{Binding ImageListOptions}" Style="{StaticResource PropComboBox}" ToolTip="选择图片列表（选「（无绑定）」解除，显示自身路径静态背景图）">
                     <ComboBox.ItemTemplate>
                         <DataTemplate>
                             <!-- ⚠️ 不能设本地 Text（优先级高于 Style 触发器，会压制 DataTrigger 的「（无绑定）」） -->
@@ -684,6 +741,22 @@
                         </DataTemplate>
                     </ComboBox.ItemTemplate>
                 </ComboBox>
+                    <TextBlock Text="（无绑定）" IsHitTestVisible="False" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="#777777" FontSize="11">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding FrameListRef}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding FrameListRef}" Value="">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="缺省值:" Style="{StaticResource PropLabel}"/>
@@ -770,6 +843,7 @@
             </MenuItem>
             <MenuItem Header="设置">
                 <MenuItem Header="默认字体..." Click="FontDefaults_Click"/>
+                <MenuItem Header="AI 助手设置..." Click="AiSettings_Click"/>
             </MenuItem>
             <MenuItem Header="视图">
                 <MenuItem Header="文件工具" IsCheckable="True" IsChecked="True"
@@ -932,6 +1006,13 @@
                                                 <TextBlock Text="{Binding Name}"/>
                                             </StackPanel>
                                         </DataTemplate>
+                                        <DataTemplate DataType="{x:Type vm:AlarmConfigNode}">
+                                            <!-- 与画面节点一致的选中样式（✅ 高亮 + 默认字体颜色） -->
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="✅" Visibility="{Binding IsCurrent, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,4,0" FontSize="12"/>
+                                                <TextBlock Text="{Binding Name}"/>
+                                            </StackPanel>
+                                        </DataTemplate>
                                         <DataTemplate DataType="{x:Type vm:TextListRootNode}">
                                             <!-- 与画面节点一致的选中样式（✅ 高亮 + 默认字体颜色） -->
                                             <StackPanel Orientation="Horizontal">
@@ -1034,6 +1115,28 @@
                                                            Cursor="Hand" MouseLeftButtonDown="CommTabClose_Click"/>
                                             </StackPanel>
                                         </Border>
+                                        <!-- 报警配置 Tab（由「通信变量→报警」树节点双击打开，打开才显示，激活高亮） -->
+                                        <Border x:Name="AlarmTab" BorderThickness="1" CornerRadius="3" Padding="6,3" Margin="0,0,4,0"
+                                                Cursor="Hand" MouseLeftButtonDown="AlarmTab_Click"
+                                                Visibility="{Binding AlarmTabOpen, Converter={StaticResource BoolToVisibilityConverter}}">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="#E0E0E0"/>
+                                                    <Setter Property="BorderBrush" Value="#B0B0B0"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding AlarmActive}" Value="True">
+                                                            <Setter Property="Background" Value="#0078D4"/>
+                                                            <Setter Property="BorderBrush" Value="#0078D4"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="报警" FontSize="12" VerticalAlignment="Center"/>
+                                                <TextBlock Text=" ✕" FontSize="10" Foreground="#888888" VerticalAlignment="Center" Margin="4,0,0,0"
+                                                           Cursor="Hand" MouseLeftButtonDown="AlarmTabClose_Click"/>
+                                            </StackPanel>
+                                        </Border>
                                         <!-- 列表管理 Tab（由「通信变量→列表→文本/图片列表」树节点双击打开，打开才显示，激活高亮） -->
                                         <Border x:Name="ListManagerTab" BorderThickness="1" CornerRadius="3" Padding="6,3" Margin="0,0,4,0"
                                                 Cursor="Hand" MouseLeftButtonDown="ListManagerTab_Click"
@@ -1078,6 +1181,7 @@
                                                             <Condition Binding="{Binding DataContext.VariableManagerActive, RelativeSource={RelativeSource AncestorType=Window}}" Value="False"/>
                                                             <Condition Binding="{Binding DataContext.CommunicationActive, RelativeSource={RelativeSource AncestorType=Window}}" Value="False"/>
                                                             <Condition Binding="{Binding DataContext.ListManagerActive, RelativeSource={RelativeSource AncestorType=Window}}" Value="False"/>
+                                                            <Condition Binding="{Binding DataContext.AlarmActive, RelativeSource={RelativeSource AncestorType=Window}}" Value="False"/>
                                                         </MultiDataTrigger.Conditions>
                                                         <Setter TargetName="TabBorder" Property="Background" Value="#0078D4"/>
                                                         <Setter TargetName="TabBorder" Property="BorderBrush" Value="#0078D4"/>
@@ -1131,7 +1235,7 @@
                                         <Style TargetType="Border">
                                             <Setter Property="Visibility" Value="Visible"/>
                                             <Style.Triggers>
-                                                <!-- 变量管理器/通讯/列表激活时隐藏画布（同一位置切换）
+                                                <!-- 变量管理器/通讯/列表/报警激活时隐藏画布（同一位置切换）
                                                      用 Hidden 而非 Collapsed：不销毁画布大量控件的布局树，切页/切回更快；
                                                      Hidden 不渲染且不参与命中测试，变量/通讯/列表 Grid 在 Z 序上正常显示 -->
                                                 <MultiDataTrigger>
@@ -1139,6 +1243,7 @@
                                                         <Condition Binding="{Binding VariableManagerActive}" Value="False"/>
                                                         <Condition Binding="{Binding CommunicationActive}" Value="False"/>
                                                         <Condition Binding="{Binding ListManagerActive}" Value="False"/>
+                                                        <Condition Binding="{Binding AlarmActive}" Value="False"/>
                                                     </MultiDataTrigger.Conditions>
                                                     <Setter Property="Visibility" Value="Visible"/>
                                                 </MultiDataTrigger>
@@ -1149,6 +1254,9 @@
                                                     <Setter Property="Visibility" Value="Hidden"/>
                                                 </DataTrigger>
                                                 <DataTrigger Binding="{Binding ListManagerActive}" Value="True">
+                                                    <Setter Property="Visibility" Value="Hidden"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding AlarmActive}" Value="True">
                                                     <Setter Property="Visibility" Value="Hidden"/>
                                                 </DataTrigger>
                                             </Style.Triggers>
@@ -1226,6 +1334,7 @@
                                                 <DataGridTextColumn Header="来源" Binding="{Binding Source}" Width="*"/>
                                                 <DataGridTextColumn Header="单位" Binding="{Binding Unit}" Width="42"/>
                                                 <DataGridTextColumn Header="周期" Binding="{Binding ScanIntervalMs}" Width="48"/>
+                                                <DataGridTextColumn Header="基准值" Binding="{Binding BaseValue}" Width="*" MinWidth="120"/>
                                             </DataGrid.Columns>
                                             <DataGrid.ContextMenu>
                                                 <ContextMenu>
@@ -1276,6 +1385,45 @@
                                                 <MenuItem Header="✏ 编辑设备" Command="{Binding EditDeviceCommand}"/>
                                                 <Separator/>
                                                 <MenuItem Header="🗑 删除设备" Command="{Binding DeleteDeviceCommand}"/>
+                                            </ContextMenu>
+                                        </DataGrid.ContextMenu>
+                                    </DataGrid>
+                                </Grid>
+                                <!-- 报警配置内容（Tab 激活时显示，与画布同一位置切换；Visibility 从 Window.DataContext 取防 DataContext 覆盖） -->
+                                <Grid Grid.Row="1" Margin="3" DataContext="{Binding AlarmVM, RelativeSource={RelativeSource AncestorType=Window}}"
+                                      Visibility="{Binding DataContext.AlarmActive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
+                                        <Button Content="＋ 新建报警" Command="{Binding NewAlarmCommand}" Width="90" Height="26" Margin="0,0,4,0" ToolTip="新建报警规则"/>
+                                        <Button Content="✏ 编辑" Command="{Binding EditAlarmCommand}" Width="60" Height="26" Margin="0,0,4,0" ToolTip="编辑选中报警（或双击行）"/>
+                                        <Button Content="🗑 删除" Command="{Binding DeleteAlarmCommand}" Width="60" Height="26" ToolTip="删除选中报警"/>
+                                    </StackPanel>
+                                    <DockPanel Grid.Row="1" Margin="0,0,0,4">
+                                        <TextBlock DockPanel.Dock="Left" Text="搜索:" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="12"/>
+                                        <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" FontSize="12" VerticalContentAlignment="Center"/>
+                                    </DockPanel>
+                                    <DataGrid Grid.Row="2" ItemsSource="{Binding Alarms}" SelectedItem="{Binding SelectedAlarm}"
+                                              AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="True"
+                                              HeadersVisibility="Column" IsReadOnly="True" MouseDoubleClick="AlarmGrid_DoubleClick"
+                                              SelectionMode="Single" GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12"
+                                              RowHeight="26">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="名称" Binding="{Binding Name}" Width="*"/>
+                                            <DataGridTextColumn Header="变量" Binding="{Binding TagName}" Width="*"/>
+                                            <DataGridTextColumn Header="类型" Binding="{Binding Type}" Width="90"/>
+                                            <DataGridTextColumn Header="阈值" Binding="{Binding Threshold, StringFormat={}{0:0.###}}" Width="70"/>
+                                            <DataGridTextColumn Header="等级" Binding="{Binding Level}" Width="80"/>
+                                        </DataGrid.Columns>
+                                        <DataGrid.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="＋ 新建报警" Command="{Binding NewAlarmCommand}"/>
+                                                <MenuItem Header="✏ 编辑报警" Command="{Binding EditAlarmCommand}"/>
+                                                <Separator/>
+                                                <MenuItem Header="🗑 删除报警" Command="{Binding DeleteAlarmCommand}"/>
                                             </ContextMenu>
                                         </DataGrid.ContextMenu>
                                     </DataGrid>
@@ -1490,10 +1638,176 @@
                                 </Grid>
                             </Grid>
                         </avalon:LayoutAnchorable>
-                    </avalon:LayoutAnchorablePane>
+                                            </avalon:LayoutAnchorablePane>
                 </avalon:LayoutPanel>
             </avalon:LayoutRoot>
         </avalon:DockingManager>
+
+        <!-- ═══ AI 助手：悬浮按钮 + 右侧侧边栏（本地 LLM Function Calling）═══ -->
+        <Button Grid.RowSpan="99" Width="46" Height="46" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                Margin="0,0,16,26" Command="{Binding ToggleAiPanelCommand}" ToolTip="AI 助手（拖动可移动位置）"
+                Background="#2D2D30" Foreground="White" BorderThickness="0" Cursor="Hand"
+                PreviewMouseLeftButtonDown="AiFab_MouseDown" PreviewMouseMove="AiFab_MouseMove" PreviewMouseLeftButtonUp="AiFab_MouseUp">
+            <Button.Template>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" CornerRadius="23" Background="{TemplateBinding Background}" BorderBrush="#555" BorderThickness="1">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Bd" Property="Background" Value="#3E3E42"/></Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Button.Template>
+            <TextBlock Text="AI" FontWeight="Bold" FontSize="16"/>
+        </Button>
+
+        <Grid Grid.RowSpan="99" Width="380" HorizontalAlignment="Right" Margin="0,0,0,0"
+              Visibility="{Binding IsAiPanelOpen, Converter={StaticResource BoolToVisibilityConverter}}">
+            <Border Background="#FAFAFA" BorderBrush="#DDDDDD" BorderThickness="1,0,0,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="36"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <!-- 顶栏：标题 + 新建会话 + 关闭 -->
+                    <Grid Grid.Row="0" Background="#2D2D30">
+                        <TextBlock Text="AI 助手" Foreground="White" FontWeight="Bold" FontSize="13" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,4,4">
+                            <Button Content="＋ 新会话" Height="26" Padding="8,0" Margin="0,0,4,0"
+                                    Background="#3E3E42" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                    Command="{Binding AiNewSessionCommand}" ToolTip="清空历史，开始新会话"/>
+                            <Button Content="✕" Width="28" Height="26" Margin="0,0,4,0"
+                                    Background="Transparent" Foreground="White" BorderThickness="0" Cursor="Hand"
+                                    Command="{Binding ToggleAiPanelCommand}"/>
+                        </StackPanel>
+                    </Grid>
+                    <!-- 对话列表（气泡风格；消息为只读 TextBox：可拖选复制，未选中右键复制整条） -->
+                    <ListBox x:Name="AiMessagesList" Grid.Row="1" ItemsSource="{Binding AiMessages}" Background="White" BorderThickness="0"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto" HorizontalContentAlignment="Stretch">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="Focusable" Value="False"/>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Margin="10,6">
+                                    <TextBlock FontWeight="Bold" FontSize="11" Foreground="#888888" Margin="0,0,0,2">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Text" Value="系统"/>
+                                                <Setter Property="Foreground" Value="#E67E22"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Role}" Value="user"><Setter Property="Text" Value="你"/><Setter Property="Foreground" Value="#2D7DD2"/></DataTrigger>
+                                                    <DataTrigger Binding="{Binding Role}" Value="ai"><Setter Property="Text" Value="AI"/><Setter Property="Foreground" Value="#7B1FA2"/></DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <Border CornerRadius="6" Padding="8,5" MaxWidth="330" HorizontalAlignment="Left">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Background" Value="#F0F0F0"/>
+                                                <Setter Property="HorizontalAlignment" Value="Left"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Role}" Value="user">
+                                                        <Setter Property="Background" Value="#D6E8FB"/>
+                                                        <Setter Property="HorizontalAlignment" Value="Right"/>
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding Role}" Value="status">
+                                                        <Setter Property="Background" Value="#FFF3E0"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <TextBox Text="{Binding Content}" Tag="{Binding Content}"
+                                                 IsReadOnly="True" BorderThickness="0" Background="Transparent"
+                                                 TextWrapping="Wrap" FontSize="13" MinWidth="40"
+                                                 Foreground="#222222" Padding="2,2" VerticalContentAlignment="Center"
+                                                 VerticalScrollBarVisibility="Disabled" HorizontalScrollBarVisibility="Disabled"
+                                                 IsInactiveSelectionHighlightEnabled="True" SelectionBrush="#7FB2E5"
+                                                 ContextMenu="{StaticResource AiMessageContextMenu}">
+                                            <TextBox.Style>
+                                                <Style TargetType="TextBox">
+                                                    <Setter Property="Foreground" Value="#222222"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Role}" Value="status">
+                                                            <Setter Property="Foreground" Value="#E67E22"/>
+                                                            <Setter Property="FontStyle" Value="Italic"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBox.Style>
+                                        </TextBox>
+                                    </Border>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    <!-- 输入区 -->
+                    <Grid Grid.Row="2" Margin="10,8,10,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="AiInputBox" Grid.Column="0" Text="{Binding AiInput, UpdateSourceTrigger=PropertyChanged}"
+                                 AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="90" VerticalScrollBarVisibility="Auto"
+                                 FontSize="13" MinHeight="28" VerticalAlignment="Bottom" IsEnabled="{Binding IsAiThinking, Converter={StaticResource InverseBoolConverter}}"
+                                 KeyDown="AiInput_KeyDown" ToolTip="输入自然语言指令；Enter 发送，Shift+Enter 换行"/>
+                        <Button Grid.Column="1" Content="发送" Width="56" Margin="6,0,0,0" VerticalAlignment="Bottom"
+                                Command="{Binding AiSendCommand}" Background="#2D7DD2" Foreground="White" BorderThickness="0"
+                                Padding="0,6" Cursor="Hand"/>
+                    </Grid>
+                    <!-- 会话设置（发送栏下方；API Key 已移至「设置 → AI 助手设置…」窗口，密文存储） -->
+                    <Border Grid.Row="3" Background="#F0F0F0" BorderBrush="#DDDDDD" BorderThickness="0,1,0,0" Padding="10,8">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="74"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="模型" VerticalAlignment="Center" Foreground="#555555" FontSize="12"/>
+                                <ComboBox Grid.Column="1" ItemsSource="{Binding AiModels}" SelectedItem="{Binding SelectedAiModel}"
+                                          DisplayMemberPath="Label" Height="26" FontSize="12"/>
+                            </Grid>
+                            <Grid Margin="0,0,0,6" Visibility="{Binding IsLocalAiModel, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="74"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="模型路径" VerticalAlignment="Center" Foreground="#555555" FontSize="12"/>
+                                <TextBox Grid.Column="1" Text="{Binding AiLocalModelPath, UpdateSourceTrigger=LostFocus}" Height="26"
+                                         FontSize="12" VerticalContentAlignment="Center"
+                                         ToolTip="本地 GGUF 文件路径；留空自动查找仓库 models/ 目录"/>
+                                <Button Grid.Column="2" Content="浏览…" Height="26" Margin="6,0,0,0" Padding="8,0"
+                                        Click="AiBrowseModel_Click" Background="#2D2D30" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                            </Grid>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="74"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="12"/>
+                                    <ColumnDefinition Width="74"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="推理深度" VerticalAlignment="Center" Foreground="#555555" FontSize="12"/>
+                                <ComboBox Grid.Column="1" ItemsSource="{Binding AiDepths}" SelectedItem="{Binding SelectedAiDepth}"
+                                          DisplayMemberPath="Label" Height="26" FontSize="12" ToolTip="单次指令最大模型调用轮次：快速 2 / 均衡 4 / 深度 8"/>
+                                <TextBlock Grid.Column="2" Text="" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="3" Text="上下文" VerticalAlignment="Center" Foreground="#555555" FontSize="12"/>
+                                <ComboBox Grid.Column="4" ItemsSource="{Binding AiContexts}" SelectedItem="{Binding SelectedAiContext}"
+                                          DisplayMemberPath="Label" Height="26" FontSize="12" ToolTip="会话历史保留轮数：短 4 / 中 10 / 长 20"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
 
     </Grid>
 </Window>

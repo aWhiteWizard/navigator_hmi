@@ -17,7 +17,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 ["scan_interval"] = new() { Type = "int", DefaultValue = 100, Description = "采集周期 ms" },
                 ["deadband"] = new() { Type = "double", DefaultValue = 0, Description = "变化死区" },
                 ["description"] = new() { Type = "string", DefaultValue = "", Description = "描述" },
-                ["base_value"] = new() { Type = "string", DefaultValue = "", Description = "基准值（设计态预览）" },
+                ["base_value"] = new() { Type = "string", DefaultValue = "", Description = "基准值（设计态预览）", KeepInCompact = true },
             }
         };
         public ValidationResult Validate(Dictionary<string, object?> p)
@@ -52,7 +52,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 Source = p.GetValueOrDefault("source")?.ToString() ?? "",
                 Unit = p.GetValueOrDefault("unit")?.ToString() ?? "",
                 ScanIntervalMs = Convert.ToInt32(p.GetValueOrDefault("scan_interval", 100)),
-                Deadband = Convert.ToDouble(p.GetValueOrDefault("deadband", 0)),
+                Deadband = Convert.ToDouble(p.GetValueOrDefault("deadband", 0), System.Globalization.CultureInfo.InvariantCulture),
                 Description = p.GetValueOrDefault("description")?.ToString() ?? "",
                 BaseValue = p.GetValueOrDefault("base_value")?.ToString() ?? "",
             });
@@ -70,7 +70,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
             {
                 ["screen_name"] = new() { Type = "string", Required = true },
                 ["widget_name"] = new() { Type = "string", Required = true },
-                ["tag_name"] = new() { Type = "string", DefaultValue = "", Description = "变量名，空 = 解除绑定" },
+                // Required：AI compact schema 才保留 tag_name（绑定必须能指定变量）；空串 = 解绑（不设 DefaultValue，避免与 Required 矛盾诱导模型省略）
+                ["tag_name"] = new() { Type = "string", Required = true, Description = "变量名，空 = 解除绑定" },
             }
         };
         public ValidationResult Validate(Dictionary<string, object?> p)
@@ -78,11 +79,17 @@ namespace NavigatorHMI.CommandLayer.Handlers
             if (!p.ContainsKey("screen_name") || string.IsNullOrWhiteSpace(p["screen_name"]?.ToString())
              || !p.ContainsKey("widget_name") || string.IsNullOrWhiteSpace(p["widget_name"]?.ToString()))
                 return ValidationResult.Fail("缺少必填参数: screen_name/widget_name");
+            // tag_name 键必须存在（AI 忘传会静默解绑；解绑必须显式传空串）
+            if (!p.ContainsKey("tag_name"))
+                return ValidationResult.Fail("缺少必填参数: tag_name（绑定必须指定变量名；解绑请传空串）");
             return ValidationResult.Ok;
         }
         public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
         {
-            var tagName = p.GetValueOrDefault("tag_name")?.ToString() ?? "";
+            // 键缺失（未提供）→ 报错防静默解绑；显式空串 = 解绑
+            if (!p.ContainsKey("tag_name"))
+                return CommandResult.Fail("INVALID_PARAM", "缺少必填参数: tag_name（绑定必须指定变量名；解绑请传空串）");
+            var tagName = p["tag_name"]?.ToString() ?? "";
             var (_, widget, err) = WidgetHelper.FindWidget(project, p);
             if (err != null) return err;
             if (tagName.Length > 0)
@@ -133,16 +140,25 @@ namespace NavigatorHMI.CommandLayer.Handlers
             if (p.TryGetValue("threshold", out t) && t != null && double.TryParse(t.ToString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var tv2)
              && !double.IsFinite(tv2))
                 return ValidationResult.Fail("threshold 必须是有限数字");
-            if (p.TryGetValue("deadband", out var d) && d != null && !string.IsNullOrWhiteSpace(d.ToString())
-             && !double.TryParse(d.ToString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var dv))
-                return ValidationResult.Fail("deadband 必须是数字");
-            if (p.TryGetValue("deadband", out d) && d != null && !string.IsNullOrWhiteSpace(d.ToString())
-             && double.TryParse(d.ToString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var dv2)
-             && !double.IsFinite(dv2))
-                return ValidationResult.Fail("deadband 必须是有限数字");
-            if (p.TryGetValue("delay_ms", out var dm) && dm != null && !string.IsNullOrWhiteSpace(dm.ToString())
-             && !int.TryParse(dm.ToString(), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _))
-                return ValidationResult.Fail("delay_ms 必须是整数");
+            if (p.TryGetValue("deadband", out var d) && d != null)
+            {
+                var deadbandStr = d.ToString();
+                if (string.IsNullOrWhiteSpace(deadbandStr))
+                    return ValidationResult.Fail("deadband 必须是数字");
+                if (!double.TryParse(deadbandStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var dv))
+                    return ValidationResult.Fail("deadband 必须是数字");
+                if (!double.IsFinite(dv))
+                    return ValidationResult.Fail("deadband 必须是有限数字");
+            }
+            if (p.TryGetValue("delay_ms", out var dm) && dm != null)
+            {
+                var delayStr = dm.ToString();
+                if (string.IsNullOrWhiteSpace(delayStr))
+                    return ValidationResult.Fail("delay_ms 必须是整数");
+                if (!int.TryParse(delayStr, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var dvc))
+                    return ValidationResult.Fail("delay_ms 必须是整数");
+                if (dvc < 0) return ValidationResult.Fail("delay_ms 不能为负");
+            }
             return ValidationResult.Ok;
         }
         public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
@@ -160,15 +176,143 @@ namespace NavigatorHMI.CommandLayer.Handlers
             project.Alarms.Add(new AlarmRule
             {
                 Name = name, TagName = tagName, Type = at,
-                Threshold = Convert.ToDouble(p["threshold"] ?? 0),
-                Deadband = Convert.ToDouble(p.GetValueOrDefault("deadband", 0)),
-                DelayMs = Convert.ToInt32(p.GetValueOrDefault("delay_ms", 0)),
+                Threshold = Convert.ToDouble(p["threshold"] ?? 0, System.Globalization.CultureInfo.InvariantCulture),
+                Deadband = Convert.ToDouble(p.GetValueOrDefault("deadband", 0), System.Globalization.CultureInfo.InvariantCulture),
+                DelayMs = Convert.ToInt32(p.GetValueOrDefault("delay_ms", 0), System.Globalization.CultureInfo.InvariantCulture),
                 Level = sv,
                 Message = p.GetValueOrDefault("message")?.ToString() ?? "",
             });
             return CommandResult.Ok(new { alarm_name = name });
         }
     }
+    /// <summary>更新报警规则。仅更新提供的字段；重命名时校验唯一性（报警名无外部引用，直接改名）。</summary>
+    public class UpdateAlarmHandler : ICommandHandler
+    {
+        public CommandDefinition Definition => new()
+        {
+            Name = "update_alarm", Description = "更新报警规则",
+            Parameters = new()
+            {
+                ["name"] = new() { Type = "string", Required = true, Description = "原报警名称" },
+                ["new_name"] = new() { Type = "string", Description = "新报警名称（重命名）" },
+                ["tag_name"] = new() { Type = "string", Description = "关联变量名（必须已存在）" },
+                ["type"] = new() { Type = "enum", EnumValues = new[] { "High", "Low", "RateChange", "Deviation" }, Description = "报警类型" },
+                ["threshold"] = new() { Type = "double", Description = "阈值" },
+                ["deadband"] = new() { Type = "double", Description = "回差" },
+                ["delay_ms"] = new() { Type = "int", Description = "延迟 ms" },
+                ["severity"] = new() { Type = "enum", EnumValues = new[] { "Emergency", "Important", "Warning", "Info" }, Description = "严重等级" },
+                ["message"] = new() { Type = "string", Description = "报警描述；显式空串 = 清空" },
+            }
+        };
+        public ValidationResult Validate(Dictionary<string, object?> p)
+        {
+            if (!p.ContainsKey("name") || string.IsNullOrWhiteSpace(p["name"]?.ToString()))
+                return ValidationResult.Fail("缺少必填参数: name");
+            // 数值参数预校验（与 create_alarm 一致：TryParse + IsFinite 拦截 NaN/Infinity/非法字符串）
+            foreach (var key in new[] { "threshold", "deadband" })
+            {
+                if (p.TryGetValue(key, out var v) && v != null && !string.IsNullOrWhiteSpace(v.ToString())
+                 && !double.TryParse(v.ToString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var dv))
+                    return ValidationResult.Fail($"{key} 必须是数字");
+                if (p.TryGetValue(key, out v) && v != null && !string.IsNullOrWhiteSpace(v.ToString())
+                 && double.TryParse(v.ToString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var dv2)
+                 && !double.IsFinite(dv2))
+                    return ValidationResult.Fail($"{key} 必须是有限数字");
+            }
+            if (p.TryGetValue("delay_ms", out var dm) && dm != null && !string.IsNullOrWhiteSpace(dm.ToString()))
+            {
+                if (!int.TryParse(dm.ToString(), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var dv))
+                    return ValidationResult.Fail("delay_ms 必须是整数");
+                if (dv < 0) return ValidationResult.Fail("delay_ms 不能为负");
+            }
+            return ValidationResult.Ok;
+        }
+        public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
+        {
+            var name = p["name"]!.ToString()!;
+            var alarm = project.Alarms.FirstOrDefault(a => a.Name == name);
+            if (alarm == null) return CommandResult.Fail("NOT_FOUND", $"报警 \"{name}\" 不存在");
+
+            // ⚠️ 先验证后修改（强原子性）：全部存在性/枚举校验前置，任何字段落库前失败不产生半更新
+            string? newName = null;
+            if (p.TryGetValue("new_name", out var nn) && nn != null)
+            {
+                var trimmed = nn.ToString()!.Trim();
+                if (trimmed.Length > 0 && trimmed != name)
+                {
+                    if (project.Alarms.Any(a => a.Name == trimmed))
+                        return CommandResult.Fail("DUPLICATE", $"报警 \"{trimmed}\" 已存在");
+                    newName = trimmed;
+                }
+            }
+
+            string? tagName = null;
+            if (p.TryGetValue("tag_name", out var tn) && tn != null && !string.IsNullOrWhiteSpace(tn.ToString()))
+            {
+                tagName = tn.ToString()!.Trim();
+                if (!project.Tags.Any(t => t.Name == tagName))
+                    return CommandResult.Fail("NOT_FOUND", $"变量 \"{tagName}\" 不存在，请先 create-tag");
+            }
+
+            if (p.TryGetValue("type", out var ty) && ty != null && !string.IsNullOrWhiteSpace(ty.ToString())
+             && !Enum.TryParse<AlarmType>(ty.ToString(), ignoreCase: true, out _))
+                return CommandResult.Fail("INVALID_PARAM", $"未知报警类型: {ty}");
+
+            if (p.TryGetValue("severity", out var sv) && sv != null && !string.IsNullOrWhiteSpace(sv.ToString())
+             && !Enum.TryParse<Severity>(sv.ToString(), ignoreCase: true, out _))
+                return CommandResult.Fail("INVALID_PARAM", $"未知等级: {sv}");
+
+            // 全部校验通过 → 统一落库
+            if (newName != null) alarm.Name = newName;
+            if (tagName != null) alarm.TagName = tagName;
+            if (p.TryGetValue("type", out ty) && ty != null && !string.IsNullOrWhiteSpace(ty.ToString())
+             && Enum.TryParse<AlarmType>(ty.ToString(), ignoreCase: true, out var at))
+                alarm.Type = at;
+            if (p.TryGetValue("threshold", out var th) && th != null && !string.IsNullOrWhiteSpace(th.ToString()))
+                alarm.Threshold = Convert.ToDouble(th, System.Globalization.CultureInfo.InvariantCulture);
+            if (p.TryGetValue("deadband", out var db) && db != null && !string.IsNullOrWhiteSpace(db.ToString()))
+                alarm.Deadband = Convert.ToDouble(db, System.Globalization.CultureInfo.InvariantCulture);
+            if (p.TryGetValue("delay_ms", out var dm) && dm != null && !string.IsNullOrWhiteSpace(dm.ToString()))
+                alarm.DelayMs = Convert.ToInt32(dm, System.Globalization.CultureInfo.InvariantCulture);
+            if (p.TryGetValue("severity", out sv) && sv != null && !string.IsNullOrWhiteSpace(sv.ToString())
+             && Enum.TryParse<Severity>(sv.ToString(), ignoreCase: true, out var sv2))
+                alarm.Level = sv2;
+
+            // message 显式提供即写入（含空串 = 清空描述）
+            if (p.TryGetValue("message", out var msg) && msg != null)
+                alarm.Message = msg.ToString() ?? "";
+
+            return CommandResult.Ok(new { alarm_name = alarm.Name });
+        }
+    }
+
+    /// <summary>删除报警规则。报警不被人引用（反向：变量被报警引用由 delete_tag 保护），直接删除。</summary>
+    public class DeleteAlarmHandler : ICommandHandler
+    {
+        public CommandDefinition Definition => new()
+        {
+            Name = "delete_alarm", Description = "删除报警规则",
+            Parameters = new()
+            {
+                ["name"] = new() { Type = "string", Required = true, Description = "报警名称" },
+            }
+        };
+        public ValidationResult Validate(Dictionary<string, object?> p)
+        {
+            if (!p.ContainsKey("name") || string.IsNullOrWhiteSpace(p["name"]?.ToString()))
+                return ValidationResult.Fail("缺少必填参数: name");
+            return ValidationResult.Ok;
+        }
+        public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
+        {
+            var name = p["name"]!.ToString()!;
+            var alarm = project.Alarms.FirstOrDefault(a => a.Name == name);
+            if (alarm == null) return CommandResult.Fail("NOT_FOUND", $"报警 \"{name}\" 不存在");
+            project.Alarms.Remove(alarm);
+            return CommandResult.Ok(new { alarm_name = name });
+        }
+    }
+
     /// <summary>删除变量。若被控件或报警引用则拒绝删除（引用保护，防止绑定悬空）。</summary>
     public class DeleteTagHandler : ICommandHandler
     {
@@ -229,7 +373,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 ["scan_interval"] = new() { Type = "int", Description = "采集周期 ms" },
                 ["deadband"] = new() { Type = "double", Description = "变化死区" },
                 ["description"] = new() { Type = "string", Description = "描述" },
-                ["base_value"] = new() { Type = "string", Description = "基准值（设计态预览）" },
+                ["base_value"] = new() { Type = "string", Description = "基准值（设计态预览）", KeepInCompact = true },
             }
         };
         public ValidationResult Validate(Dictionary<string, object?> p)

@@ -201,8 +201,22 @@ public abstract class Widget : INotifyPropertyChanged
                 OnPropertyChanged(nameof(DisplayText));
                 OnPropertyChanged(nameof(DisplayPath));
                 OnPropertyChanged(nameof(DisplayProgressValue));
+                OnPropertyChanged("DisplayIsOn");      // Switch 子类：绑定变更刷新开关显示状态
+                OnPropertyChanged("DisplayIsChecked");   // CheckBox 子类：绑定变更刷新勾选状态
             }
         }
+    }
+
+    /// <summary>解析变量基准值 → 布尔显示状态（"1"/"true"/非零数字 → true；"0"/"false"/其他 → false）。</summary>
+    protected static bool ResolveBoolValue(string baseValue)
+    {
+        if (baseValue.Equals("1", StringComparison.OrdinalIgnoreCase)
+         || baseValue.Equals("true", StringComparison.OrdinalIgnoreCase)) return true;
+        if (baseValue.Equals("0", StringComparison.OrdinalIgnoreCase)
+         || baseValue.Equals("false", StringComparison.OrdinalIgnoreCase)) return false;
+        if (double.TryParse(baseValue, System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture, out var num)) return num != 0;
+        return false;
     }
 
     /// <summary>设计态显示文本：绑定变量 → 变量基准值；否则控件自身值。子类 override。</summary>
@@ -382,7 +396,8 @@ public class RectangleWidget : Widget
 
 /// <summary>
 /// 标签控件。静态文本标签，支持字体大小/颜色/对齐方式。
-/// 不绑定变量，仅用于静态标注。
+/// 设计态支持绑定变量：BoundTag 指向存在变量时显示基准值（DisplayText），否则回退自身文本——
+/// 供历史/外部工程（变量已删）保留原样显示。
 /// </summary>
 [ProtoContract]
 public class LabelWidget : Widget
@@ -390,7 +405,7 @@ public class LabelWidget : Widget
     private string _text = "Label";
     /// <summary>显示文本</summary>
     [ProtoMember(1)]
-    public string Text { get => _text; set { _text = value; OnPropertyChanged(); } }
+    public string Text { get => _text; set { if (_text == value) return; _text = value; OnPropertyChanged(); OnPropertyChanged(nameof(DisplayText)); } }
 
     private double _fontSize = WidgetFontDefaults.FontSize;
     /// <summary>字体大小（像素）</summary>
@@ -431,6 +446,21 @@ public class LabelWidget : Widget
     /// <summary>下划线：None / Underline</summary>
     [ProtoMember(9)]
     public string TextDecoration { get => _textDecoration; set { _textDecoration = value; OnPropertyChanged(); } }
+
+    /// <summary>设计态显示文本：绑定变量 → 变量基准值；否则自身文本（与 Text/IOField 同语义）。</summary>
+    [ProtoIgnore]
+    public override string DisplayText
+    {
+        get
+        {
+            if (!string.IsNullOrEmpty(BoundTag))
+            {
+                var bv = TagResolver.ResolveBaseValue(BoundTag);
+                if (bv.Length > 0) return bv;
+            }
+            return Text;
+        }
+    }
 }
 
 /// <summary>
@@ -553,7 +583,23 @@ public class SwitchWidget : Widget
     private bool _isOn = false;
     /// <summary>当前开关状态（true=ON，false=OFF）</summary>
     [ProtoMember(1)]
-    public bool IsOn { get => _isOn; set { _isOn = value; OnPropertyChanged(); } }
+    public bool IsOn { get => _isOn; set { _isOn = value; OnPropertyChanged(); OnPropertyChanged("DisplayIsOn"); } }
+
+    /// <summary>设计态显示状态：绑定变量 → 基准值布尔判定；否则自身 IsOn。
+    /// 仅 getter（SwitchTemplate 为 OneWay MultiBinding，点击不写回；IsOn 由属性面板修改）。</summary>
+    [ProtoIgnore]
+    public bool DisplayIsOn
+    {
+        get
+        {
+            if (!string.IsNullOrEmpty(BoundTag))
+            {
+                var bv = TagResolver.ResolveBaseValue(BoundTag);
+                if (bv.Length > 0) return ResolveBoolValue(bv);
+            }
+            return IsOn;
+        }
+    }
 
     private string _onText = "ON";
     /// <summary>ON 状态显示的文本</summary>
@@ -753,12 +799,29 @@ public class CheckBoxWidget : Widget
     private bool _isChecked = false;
     /// <summary>选中状态</summary>
     [ProtoMember(1)]
-    public bool IsChecked { get => _isChecked; set { _isChecked = value; OnPropertyChanged(); } }
+    public bool IsChecked { get => _isChecked; set { _isChecked = value; OnPropertyChanged(); OnPropertyChanged("DisplayIsChecked"); } }
+
+    /// <summary>设计态勾选状态：绑定变量 → 基准值布尔判定；否则自身 IsChecked。
+    /// setter 透传 IsChecked（TwoWay 绑定写回路径：设计态点击画布切换勾选仍落模型；绑定变量时 get 优先基准值，点击不覆盖显示）。</summary>
+    [ProtoIgnore]
+    public bool DisplayIsChecked
+    {
+        get
+        {
+            if (!string.IsNullOrEmpty(BoundTag))
+            {
+                var bv = TagResolver.ResolveBaseValue(BoundTag);
+                if (bv.Length > 0) return ResolveBoolValue(bv);
+            }
+            return IsChecked;
+        }
+        set => IsChecked = value;   // IsChecked setter 已通知 DisplayIsChecked（含 TwoWay 写回路径）
+    }
 
     private string _text = "CheckBox";
     /// <summary>复选框旁显示的文本标签</summary>
     [ProtoMember(2)]
-    public string Text { get => _text; set { _text = value; OnPropertyChanged(); } }
+    public string Text { get => _text; set { if (_text == value) return; _text = value; OnPropertyChanged(); OnPropertyChanged(nameof(DisplayText)); } }
 
     private string _fontFamily = WidgetFontDefaults.FontFamily;
     /// <summary>字体族（如 "Microsoft YaHei UI" / "Arial"）</summary>

@@ -20,6 +20,9 @@ namespace NavigatorHMI.CommandLayer
 
         /// <summary>当 Type 为 enum 时的可选值列表</summary>
         public string[]? EnumValues { get; set; }
+
+        /// <summary>AI compact schema 也保留（非必填参数默认省略，功能关键的可选参数设此标志暴露给模型）</summary>
+        public bool KeepInCompact { get; set; } = false;
     }
 
     /// <summary>

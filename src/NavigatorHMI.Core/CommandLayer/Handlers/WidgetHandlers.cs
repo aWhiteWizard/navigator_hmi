@@ -12,8 +12,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
             {
                 ["screen_name"] = new() { Type = "string", Required = true },
                 ["widget_type"] = new() { Type = "enum", Required = true, EnumValues = new[] { "button", "text", "rectangle", "label", "image", "numeric", "switch", "line", "circle", "ellipse", "iofield", "checkbox", "textlist", "textbox", "frame", "progressbar" }, Description = "控件类型（textbox 为 textlist 兼容别名）" },
-                ["x"] = new() { Type = "int", Required = true },
-                ["y"] = new() { Type = "int", Required = true },
+                ["x"] = new() { Type = "int", DefaultValue = 100 },
+                ["y"] = new() { Type = "int", DefaultValue = 100 },
                 ["width"] = new() { Type = "int", DefaultValue = 100 },
                 ["height"] = new() { Type = "int", DefaultValue = 40 },
                 ["bound_tag"] = new() { Type = "string", DefaultValue = "", Description = "绑定变量（可选，创建后立即绑定）" },
@@ -28,7 +28,10 @@ namespace NavigatorHMI.CommandLayer.Handlers
             if (wt is not ("button" or "text" or "rectangle" or "label" or "image" or "numeric" or "switch" or "line"
                 or "circle" or "ellipse" or "iofield" or "checkbox" or "textlist" or "textbox" or "frame" or "progressbar"))
                 return ValidationResult.Fail($"未知控件类型: {wt}");
-            if (!parameters.ContainsKey("x") || !parameters.ContainsKey("y")) return ValidationResult.Fail("缺少必填参数: x/y");
+            if (!parameters.ContainsKey("x") || string.IsNullOrWhiteSpace(parameters["x"]?.ToString()))
+                parameters["x"] = 100;   // 未提供默认 (100,100) 放置（AI/CLI 场景省参）
+            if (!parameters.ContainsKey("y") || string.IsNullOrWhiteSpace(parameters["y"]?.ToString()))
+                parameters["y"] = 100;
             // 数值参数校验（防 Convert.ToDouble 裸转崩溃）
             var numCheck = WidgetHelper.ValidateNumericParams(parameters, "x", "y", "width", "height");
             if (!numCheck.IsValid) return numCheck;
@@ -124,7 +127,27 @@ namespace NavigatorHMI.CommandLayer.Handlers
         public CommandDefinition Definition => new()
         {
             Name = "set_property", Description = "修改控件属性",
-            Parameters = WidgetHelper.ScreenWidgetParams("key", "value")
+            Parameters = new()
+            {
+                ["screen_name"] = new() { Type = "string", Required = true },
+                ["widget_name"] = new() { Type = "string", Required = true },
+                // 枚举：模型可见全部合法属性名（compact 保留 enum），避免猜错（如 imageList → 应为 listRef）
+                ["key"] = new()
+                {
+                    Type = "enum", Required = true,
+                    EnumValues = new[]
+                    {
+                        "text", "content", "title", "imagePath", "listRef", "defaultIndex",
+                        "fontSize", "fontFamily", "fontWeight", "fontStyle", "textDecoration",
+                        "textColor", "fillColor", "strokeColor", "strokeThickness",
+                        "hAlign", "stretchMode", "fillStyle",
+                        "isOn", "onText", "offText", "isChecked", "isReadOnly",
+                        "value", "min", "max", "x2", "y2",
+                    },
+                    Description = "属性名（按控件类型生效，见 SetPropertyHandler）",
+                },
+                ["value"] = new() { Type = "string", Required = true, Description = "属性值（文本/数字/颜色/#RRGGBB/true/false）" },
+            }
         };
         public ValidationResult Validate(Dictionary<string, object?> p)
         {
@@ -138,6 +161,11 @@ namespace NavigatorHMI.CommandLayer.Handlers
             var (_, widget, err) = WidgetHelper.FindWidget(project, p);
             if (err != null) return err;
             var key = p["key"]!.ToString()!; var value = p["value"]!.ToString()!;
+
+            // listRef 绑定前校验列表存在（防绑定幽灵列表：create_list 未建成/列表名错 → 渲染端列表不生效）
+            if (key == "listRef" && !string.IsNullOrWhiteSpace(value)
+                && !project.Lists.Any(l => l.Name == value))
+                return CommandResult.Fail("NOT_FOUND", $"列表 \"{value}\" 不存在，请先 create-list 创建（或检查列表名是否与已有列表一致）");
 
             // 数值型 key 统一预校验（防 double.Parse 裸转抛 FormatException 崩溃）
             if (key is "fontSize" or "strokeThickness" or "value" or "min" or "max" or "x2" or "y2")

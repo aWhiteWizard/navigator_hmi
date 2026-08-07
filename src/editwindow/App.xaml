@@ -1,8 +1,9 @@
-﻿<Application x:Class="NavigatorHMI.App"
+<Application x:Class="NavigatorHMI.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:NavigatorHMI">
     <Application.Resources>
-         
+        <!-- 注意：本工程 App.xaml 未被编译为 BAML（App.g.cs 无 InitializeComponent），
+             此处的资源不会生效；converter 等资源请注册到各窗口的 Window.Resources -->
     </Application.Resources>
 </Application>

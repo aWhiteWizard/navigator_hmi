@@ -99,6 +99,7 @@ namespace NavigatorHMI.Views
             catch (Exception ex) when (ex is JsonException or InvalidOperationException or FormatException)
             {
                 // 旧数据 JSON 损坏/字段类型不符（如数字 port 存成字符串）：保留默认参数，允许用户重新填写
+                System.Diagnostics.Trace.WriteLine($"[DeviceEditDialog] PrefillConnectionInfo 解析失败: {ex.Message}");
             }
         }
 

@@ -69,6 +69,13 @@ namespace NavigatorHMI.ViewModels
 
         private void OnCommandExecuted(string cmdName, Dictionary<string, object?> parameters, CommandResult result)
         {
+            // AI 后台线程触发时跨线程改 ObservableCollection 会被吞 → 封送回 UI 线程
+            if (!System.Windows.Application.Current.Dispatcher.CheckAccess())
+            {
+                System.Windows.Application.Current.Dispatcher.BeginInvoke(
+                    new Action(() => OnCommandExecuted(cmdName, parameters, result)));
+                return;
+            }
             if (result.Success && cmdName is "create_tag" or "update_tag" or "delete_tag")
                 Refresh();
         }
@@ -85,11 +92,12 @@ namespace NavigatorHMI.ViewModels
                     t.Name.Contains(kw, StringComparison.OrdinalIgnoreCase)
                  || t.Source.Contains(kw, StringComparison.OrdinalIgnoreCase)
                  || t.Description.Contains(kw, StringComparison.OrdinalIgnoreCase));
-            foreach (var tag in query)
+            var filtered = query.ToList();   // 快照：过滤一次；避免 query.Contains 惰性重枚举（O(n²)）
+            foreach (var tag in filtered)
                 Tags.Add(tag);
             // 选中恢复（按名称匹配；变量被删或过滤掉时 SelectedTag 置空）
             SelectedTag = keepName != null
-                ? Project.Tags.FirstOrDefault(t => t.Name == keepName && query.Contains(t))
+                ? filtered.FirstOrDefault(t => t.Name == keepName)
                 : null;
             OnPropertyChanged(nameof(TagCount));
         }

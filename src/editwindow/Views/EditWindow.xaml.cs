@@ -9,6 +9,7 @@ using NavigatorHMI.Views.Helpers.Creators;
 using ProtoBuf;
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
@@ -99,6 +100,11 @@ namespace NavigatorHMI.Views
         private readonly CommunicationDeviceViewModel _commDeviceVM;
         /// <summary>通讯配置 ViewModel（供 XAML 绑定）。</summary>
         public CommunicationDeviceViewModel CommDeviceVM => _commDeviceVM;
+
+        // 报警配置面板
+        private readonly AlarmManagerViewModel _alarmVM;
+        /// <summary>报警配置 ViewModel（供 XAML 绑定）。</summary>
+        public AlarmManagerViewModel AlarmVM => _alarmVM;
         // 列表管理面板
         private readonly ListManagerViewModel _listManagerVM;
         /// <summary>列表管理 ViewModel（供 XAML 绑定）。</summary>
@@ -159,6 +165,7 @@ namespace NavigatorHMI.Views
             // 7. 在 Loaded 事件中初始化 UI
             this.Loaded += EditWindow_Loaded;
             this.Closed += EditWindow_Closed;
+            _viewModel.AiMessages.CollectionChanged += AiMessages_CollectionChanged;   // AI 消息自动滚动到底
 
             // 8. 订阅 ViewModel 事件
             _viewModel.CanvasReloadRequested += LoadCanvas;
@@ -196,6 +203,11 @@ namespace NavigatorHMI.Views
             _commDeviceVM.DeviceEditRequested += OnDeviceEditRequested;
             _commDeviceVM.DeviceDeleteRequested += OnDeviceDeleteRequested;
 
+            // 12.6 初始化报警配置面板（新建/编辑/删除走 CommandService）
+            _alarmVM = new AlarmManagerViewModel(_currentProject, _viewModel.CommandService);
+            _alarmVM.AlarmEditRequested += OnAlarmEditRequested;
+            _alarmVM.AlarmDeleteRequested += OnAlarmDeleteRequested;
+
             // 12.5 初始化列表管理面板（新建/删除/重命名/编辑项走 CommandService）
             _listManagerVM = new ListManagerViewModel(_currentProject, _viewModel.CommandService);
 
@@ -211,6 +223,7 @@ namespace NavigatorHMI.Views
 
             _isProjectDirty = false;
             this.CheckBinding();
+
 
             // 全局点击监听：点击 Popup 外部时关闭菜单（三个菜单统一处理）
             this.PreviewMouseLeftButtonDown += (s, e) =>
@@ -333,6 +346,67 @@ namespace NavigatorHMI.Views
         {
             if (_commDeviceVM.SelectedDevice != null)
                 _commDeviceVM.EditDeviceCommand.Execute(null);
+        }
+        #endregion
+
+        #region 报警配置
+        /// <summary>报警新建/编辑：对话框收集 → CommandService 落库（GUI/CLI/AI 同一路径）。</summary>
+        private void OnAlarmEditRequested(AlarmRule? alarm)
+        {
+            var dlg = new AlarmEditDialog(alarm, _currentProject) { Owner = this };
+            if (dlg.ShowDialog() != true) return;
+            var result = dlg.Result;
+            if (alarm == null)
+            {
+                var r = _viewModel.CommandService.Execute("create_alarm", new Dictionary<string, object?>
+                {
+                    ["name"] = result.Name,
+                    ["tag_name"] = result.TagName,
+                    ["type"] = result.Type.ToString(),
+                    ["threshold"] = result.Threshold,
+                    ["deadband"] = result.Deadband,
+                    ["delay_ms"] = result.DelayMs,
+                    ["severity"] = result.Level.ToString(),
+                    ["message"] = result.Message,
+                });
+                if (!r.Success) MessageBox.Show(r.ErrorMessage ?? "创建报警失败", "报警", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            else
+            {
+                // 只提交变化的字段（避免空操作）
+                var p = new Dictionary<string, object?> { ["name"] = alarm.Name };
+                if (result.Name != alarm.Name) p["new_name"] = result.Name;
+                if (result.TagName != alarm.TagName) p["tag_name"] = result.TagName;
+                if (result.Type != alarm.Type) p["type"] = result.Type.ToString();
+                if (result.Threshold != alarm.Threshold) p["threshold"] = result.Threshold;
+                if (result.Deadband != alarm.Deadband) p["deadband"] = result.Deadband;
+                if (result.DelayMs != alarm.DelayMs) p["delay_ms"] = result.DelayMs;
+                if (result.Level != alarm.Level) p["severity"] = result.Level.ToString();
+                if (result.Message != alarm.Message) p["message"] = result.Message;
+                if (p.Count > 1)
+                {
+                    var r = _viewModel.CommandService.Execute("update_alarm", p);
+                    if (!r.Success) MessageBox.Show(r.ErrorMessage ?? "更新报警失败", "报警", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+        }
+
+        /// <summary>报警删除：确认 → CommandService（delete_alarm 无引用限制，直接删除）。</summary>
+        private void OnAlarmDeleteRequested(AlarmRule alarm)
+        {
+            var confirm = MessageBox.Show($"确定删除报警 \"{alarm.Name}\" 吗？", "删除报警",
+                MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (confirm != MessageBoxResult.Yes) return;
+            var r = _viewModel.CommandService.Execute("delete_alarm", new Dictionary<string, object?> { ["name"] = alarm.Name });
+            if (!r.Success)
+                MessageBox.Show(r.ErrorMessage ?? "删除失败", "报警", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+
+        /// <summary>双击报警行 → 编辑。</summary>
+        private void AlarmGrid_DoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (_alarmVM.SelectedAlarm != null)
+                _alarmVM.EditAlarmCommand.Execute(null);
         }
         #endregion
 
@@ -609,6 +683,21 @@ namespace NavigatorHMI.Views
             e.Handled = true;
         }
 
+
+        /// <summary>点击「报警」Tab：切到报警配置视图（与画面/变量/通讯/列表互斥切换）。</summary>
+        private void AlarmTab_Click(object sender, MouseButtonEventArgs e)
+        {
+            _viewModel.ActivateAlarm();
+            e.Handled = true;
+        }
+
+        /// <summary>关闭「报警」Tab（当前激活时切回当前画面）。</summary>
+        private void AlarmTabClose_Click(object sender, MouseButtonEventArgs e)
+        {
+            _viewModel.CloseAlarmTab();
+            e.Handled = true;
+        }
+
         /// <summary>图片路径输入框回车确认：结束编辑并刷新行校验（路径不存在行标红）。</summary>
         private void ImagePathBox_KeyDown(object sender, KeyEventArgs e)
         {
@@ -731,6 +820,8 @@ namespace NavigatorHMI.Views
             // 清理设计态变量解析器静态引用（防窗口关闭后工程驻留内存）
             if (TagResolver.CurrentProject == _currentProject)
                 TagResolver.CurrentProject = null;
+            _viewModel.AiMessages.CollectionChanged -= AiMessages_CollectionChanged;   // 退订自动滚动（防关闭后无效回调）
+            _viewModel.Dispose();   // 释放 AI 后端（CloudLLMBackend 的 HttpClient/Authorization）
         }
 
         #endregion
@@ -2300,12 +2391,12 @@ namespace NavigatorHMI.Views
 
         #region CLI 控制台
         /// <summary>
-        /// 点击 CLI 面板任意处（输出区/分隔条/提示符/空白）自动聚焦输入框并显示光标。
+        /// 点击 CLI 面板（分隔条/提示符/空白）自动聚焦输入框并显示光标；点击输出区不聚焦——
+        /// 输出区保持可交互（鼠标拖选/Ctrl+A 全选/右键菜单复制），聚焦输入框会抢走输出区选区。
         /// 用 Dispatcher.BeginInvoke 延后到冒泡阶段完成后执行——WPF TextBox 在冒泡 OnMouseDown
         /// 会把焦点抢回自身（输出区只读 TextBox），延后聚焦保证最终焦点在输入框。
-        /// 短路条件基于点击目标视觉链归属（点击输入框内部才跳过），不依赖当前焦点状态——
+        /// 短路条件基于点击目标视觉链归属（输入框/输出区内部都跳过），不依赖当前焦点状态——
         /// 否则"输入框已聚焦 + 点击输出区"时焦点会被输出区抢走且不回（高频组合）。
-        /// 输出区文本仍可鼠标拖选（选中不依赖键盘焦点）；失焦后 Ctrl+C 作用于输入框，输出文本复制仅剩鼠标方式。
         /// </summary>
         private void CliPanel_PreviewMouseDown(object sender, MouseButtonEventArgs e)
         {
@@ -2314,6 +2405,8 @@ namespace NavigatorHMI.Views
             if (e.ChangedButton != MouseButton.Left) return;
             // 点击目标是否在输入框内部（TextBoxView/滚动条 Thumb 等）→ 不重复聚焦
             if (IsDescendantOfCliInput(e.OriginalSource as DependencyObject)) return;
+            // 点击输出区/其滚动条 → 不聚焦输入框（保持输出文本可拖选/右键复制/Ctrl+A 全选）
+            if (IsDescendantOfCliOutput(e.OriginalSource as DependencyObject)) return;
             // 延后到事件冒泡完成后：让输出区 TextBox 的默认 Focus 先执行，再强制聚焦输入框
             Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
             {
@@ -2321,6 +2414,18 @@ namespace NavigatorHMI.Views
                 CliInput.Focus();
                 CliInput.CaretIndex = CliInput.Text.Length;  // 光标移到末尾
             }));
+        }
+
+        /// <summary>沿视觉树向上查找点击目标是否属于 CliOutput 子树（输出区不参与聚焦，保留文本选择/复制能力）。</summary>
+        private bool IsDescendantOfCliOutput(DependencyObject? node)
+        {
+            while (node != null)
+            {
+                // 滚动条 Thumb 视觉链止于 ScrollViewer（模板元素不经过内容 TextBox），须同时检查 Scroller 本身
+                if (ReferenceEquals(node, CliOutput) || ReferenceEquals(node, CliOutputScroller)) return true;
+                node = System.Windows.Media.VisualTreeHelper.GetParent(node);
+            }
+            return false;
         }
 
         /// <summary>沿视觉树向上查找点击目标是否属于 CliInput 子树。</summary>
@@ -2337,6 +2442,120 @@ namespace NavigatorHMI.Views
         /// <summary>
         /// CLI 输入框回车事件：执行命令并显示结果。
         /// </summary>
+        private bool _aiFabDragging;
+        private Point _aiFabMouseDownPos;
+        private Thickness _aiFabDownMargin;
+
+        /// <summary>AI 悬浮按钮：按下记录起点并捕获鼠标（不立即移动；拖动/点击在 Move/Up 判定）。</summary>
+        private void AiFab_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is not System.Windows.Controls.Button btn) return;
+            _aiFabDragging = false;
+            _aiFabMouseDownPos = e.GetPosition(this);
+            _aiFabDownMargin = btn.Margin;
+            btn.CaptureMouse();
+            e.Handled = true;
+        }
+
+        private void AiFab_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (sender is not System.Windows.Controls.Button btn || !btn.IsMouseCaptured) return;
+            var pos = e.GetPosition(this);
+            var dx = pos.X - _aiFabMouseDownPos.X;
+            var dy = pos.Y - _aiFabMouseDownPos.Y;
+            if (!_aiFabDragging && (Math.Abs(dx) > 5 || Math.Abs(dy) > 5))
+            {
+                // 超过阈值进入拖动：从右下角定位切到自由定位，基准=按下点（防跳变）
+                _aiFabDragging = true;
+                btn.HorizontalAlignment = HorizontalAlignment.Left;
+                btn.VerticalAlignment = VerticalAlignment.Top;
+                btn.Margin = new Thickness(_aiFabMouseDownPos.X - btn.ActualWidth / 2, _aiFabMouseDownPos.Y - btn.ActualHeight / 2, 0, 0);
+                _aiFabDownMargin = btn.Margin;
+            }
+            if (_aiFabDragging)
+            {
+                btn.Margin = new Thickness(_aiFabDownMargin.Left + dx, _aiFabDownMargin.Top + dy, 0, 0);
+            }
+            e.Handled = true;
+        }
+
+        private void AiFab_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is not System.Windows.Controls.Button btn) return;
+            var pos = e.GetPosition(this);
+            var moved = Math.Abs(pos.X - _aiFabMouseDownPos.X) + Math.Abs(pos.Y - _aiFabMouseDownPos.Y);
+            var wasDragging = _aiFabDragging;
+            _aiFabDragging = false;
+            btn.ReleaseMouseCapture();
+            // 位移小于阈值视为点击：手动触发开关面板（Preview 阶段 Handled 抑制了 ButtonBase Click）
+            if (!wasDragging && moved < 10 && _viewModel.ToggleAiPanelCommand.CanExecute(null))
+                _viewModel.ToggleAiPanelCommand.Execute(null);
+            e.Handled = true;
+        }
+
+        private void AiInput_KeyDown(object sender, KeyEventArgs e)
+        {
+            // Enter 发送，Shift+Enter 换行（与聊天工具一致）
+            if (e.Key == Key.Enter && !(Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)))
+            {
+                e.Handled = true;
+                if (_viewModel.AiSendCommand.CanExecute(null))
+                    _viewModel.AiSendCommand.Execute(null);
+            }
+        }
+
+        /// <summary>AI 消息新增时自动滚动到底部（长会话不丢失新消息视野）。</summary>
+        private void AiMessages_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (e.Action != NotifyCollectionChangedAction.Add || AiMessagesList == null) return;
+            AiMessagesList.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (AiMessagesList.Items.Count > 0)
+                    AiMessagesList.ScrollIntoView(AiMessagesList.Items[AiMessagesList.Items.Count - 1]);
+            }));
+        }
+
+        /// <summary>菜单「设置 → AI 助手设置…」：打开 API Key 配置窗口（DPAPI 密文存储），保存后刷新 ViewModel。</summary>
+        private void AiSettings_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new AiSettingsWindow { Owner = this };
+            if (dlg.ShowDialog() == true)
+                _viewModel.ReloadAiKeyFromStore();
+        }
+
+        /// <summary>AI 消息右键「复制」：拖选了文字则复制选中段，否则复制整条消息。</summary>
+        private void AiMsgCopy_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not MenuItem mi || mi.Parent is not ContextMenu cm) return;
+            if (cm.PlacementTarget is System.Windows.Controls.TextBox tb)
+            {
+                try
+                {
+                    if (tb.SelectionLength > 0)
+                        System.Windows.Clipboard.SetText(tb.SelectedText);
+                    else if (tb.Tag is string full)
+                        System.Windows.Clipboard.SetText(full);
+                }
+                catch (Exception) { /* 剪贴板被其他进程短暂锁定时静默，不阻断 UI */ }
+            }
+        }
+
+        /// <summary>AI 设置区「浏览…」：选择本地 GGUF 模型文件。</summary>
+        private void AiBrowseModel_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "选择本地模型（.gguf）",
+                Filter = "GGUF 模型 (*.gguf)|*.gguf|所有文件 (*.*)|*.*",
+                CheckFileExists = true,
+            };
+            if (dlg.ShowDialog() == true)
+            {
+                _viewModel.AiLocalModelPath = dlg.FileName;
+                _viewModel.RebuildAiAgentPublic();   // 路径变更立即重建（下次发送生效）
+            }
+        }
+
         private void CliInput_KeyDown(object sender, KeyEventArgs e)
         {
             // 命令历史：↑/↓ 切换
@@ -2489,8 +2708,43 @@ namespace NavigatorHMI.Views
                     new() { ["device_ip"] = opts.GetValueOrDefault("ip", ""), ["file_path"] = opts.GetValueOrDefault("file", "") }),
                 "create-alarm" => _viewModel.CommandService.Execute("create_alarm",
                     new() { ["name"] = opts.GetValueOrDefault("name", ""), ["tag_name"] = opts.GetValueOrDefault("tag", ""), ["type"] = opts.GetValueOrDefault("type", ""), ["threshold"] = opts.GetValueOrDefault("threshold", ""), ["deadband"] = opts.GetValueOrDefault("deadband", "0"), ["delay_ms"] = opts.GetValueOrDefault("delay", "0"), ["severity"] = opts.GetValueOrDefault("severity", "Warning"), ["message"] = opts.GetValueOrDefault("message", "") }),
+                "update-alarm" => UpdateAlarm(opts),
+                "delete-alarm" => _viewModel.CommandService.Execute("delete_alarm", new() { ["name"] = opts.GetValueOrDefault("name", "") }),
+                "create-list" => _viewModel.CommandService.Execute("create_list",
+                    new() { ["name"] = opts.GetValueOrDefault("name", ""), ["type"] = opts.GetValueOrDefault("type", ""), ["items"] = opts.GetValueOrDefault("items", "") }),
+                "update-tag" => UpdateTag(opts),
                 _ => ExecuteDefaultCommand(command, opts)
             };
+        }
+
+        /// <summary>GUI CLI update-alarm：OptIfProvided 语义（未提供的字段不进字典保留现值；message 显式提供才传，含空串 = 清空描述）。</summary>
+        private CommandResult UpdateAlarm(Dictionary<string, string> opts)
+        {
+            var p = new Dictionary<string, object?> { ["name"] = opts.GetValueOrDefault("name", "") };
+            if (opts.TryGetValue("new-name", out var nn) && nn.Length > 0) p["new_name"] = nn;
+            if (opts.TryGetValue("tag", out var tag) && tag.Length > 0) p["tag_name"] = tag;
+            if (opts.TryGetValue("type", out var type) && type.Length > 0) p["type"] = type;
+            if (opts.TryGetValue("threshold", out var th) && th.Length > 0) p["threshold"] = th;
+            if (opts.TryGetValue("deadband", out var db) && db.Length > 0) p["deadband"] = db;
+            if (opts.TryGetValue("delay", out var dl) && dl.Length > 0) p["delay_ms"] = dl;
+            if (opts.TryGetValue("severity", out var sv) && sv.Length > 0) p["severity"] = sv;
+            if (opts.TryGetValue("message", out var msg)) p["message"] = msg;
+            return _viewModel.CommandService.Execute("update_alarm", p);
+        }
+
+        /// <summary>GUI CLI update-tag：type→data_type 显式映射（防 MapCliKey 全局 type→widget_type 误转，cli-param-sanitize §6）；OptIfProvided 语义，未提供字段保留现值。</summary>
+        private CommandResult UpdateTag(Dictionary<string, string> opts)
+        {
+            var p = new Dictionary<string, object?> { ["name"] = opts.GetValueOrDefault("name", "") };
+            if (opts.TryGetValue("new-name", out var nn) && nn.Length > 0) p["new_name"] = nn;
+            if (opts.TryGetValue("type", out var ty) && ty.Length > 0) p["data_type"] = ty;
+            if (opts.TryGetValue("source", out var src)) p["source"] = src;
+            if (opts.TryGetValue("unit", out var un)) p["unit"] = un;
+            if (opts.TryGetValue("scan-interval", out var si) && si.Length > 0) p["scan_interval"] = si;
+            if (opts.TryGetValue("deadband", out var db) && db.Length > 0) p["deadband"] = db;
+            if (opts.TryGetValue("description", out var desc)) p["description"] = desc;
+            if (opts.TryGetValue("base-value", out var bv)) p["base_value"] = bv;
+            return _viewModel.CommandService.Execute("update_tag", p);
         }
 
         private static string MapCliKey(string key) => key switch
@@ -2503,6 +2757,9 @@ namespace NavigatorHMI.Views
             "center-x" => "center_x", "center-y" => "center_y",
             "start-angle" => "start_angle", "end-angle" => "end_angle",
             "scan-interval" => "scan_interval",
+            "new-name" => "new_name",
+            "base-value" => "base_value",
+            "connection" => "connection_info",
             _ => key
         };
 

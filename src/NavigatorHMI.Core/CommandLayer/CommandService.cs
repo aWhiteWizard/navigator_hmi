@@ -91,6 +91,8 @@ namespace NavigatorHMI.CommandLayer
 
                 // ── 报警操作 ──
                 ["create_alarm"]    = new CreateAlarmHandler(),
+                ["update_alarm"]    = new UpdateAlarmHandler(),
+                ["delete_alarm"]    = new DeleteAlarmHandler(),
 
                 // ── 设备操作 ──
                 ["configure_device"] = new ConfigureDeviceHandler(),

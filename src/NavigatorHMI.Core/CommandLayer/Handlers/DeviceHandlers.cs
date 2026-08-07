@@ -2,6 +2,57 @@ using NavigatorHMI.Common;
 
 namespace NavigatorHMI.CommandLayer.Handlers
 {
+    /// <summary>校验 connection_info JSON 语法 + 协议必填字段（ModbusTCP 校验 ip 格式）。成功返回 null，失败返回错误消息。</summary>
+    internal static class DeviceConnectionInfoValidator
+    {
+        public static string? Validate(ProtocolType protocol, string json)
+        {
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(json);
+                var root = doc.RootElement;
+                // 顶层必须是 JSON 对象：TryGetProperty 在非对象根（数组/标量/null）上抛 InvalidOperationException 而非返回 false
+                if (root.ValueKind != System.Text.Json.JsonValueKind.Object)
+                    return "connection_info 顶层必须是 JSON 对象";
+                switch (protocol)
+                {
+                    case ProtocolType.ModbusRTU:
+                        if (!root.TryGetProperty("port", out var port) || port.ValueKind != System.Text.Json.JsonValueKind.String)
+                            return "ModbusRTU 必须包含字符串 port 字段（串口路径）";
+                        if (!root.TryGetProperty("baud", out var baud) || baud.ValueKind != System.Text.Json.JsonValueKind.Number
+                         || baud.GetInt32() <= 0)
+                            return "ModbusRTU 必须包含正整数 baud 字段";
+                        if (!root.TryGetProperty("slaveId", out var sid) || sid.ValueKind != System.Text.Json.JsonValueKind.Number
+                         || sid.GetInt32() is < 1 or > 247)
+                            return "ModbusRTU slaveId 必须是 1-247 的整数";
+                        break;
+                    case ProtocolType.ModbusTCP:
+                        if (!root.TryGetProperty("ip", out var ip) || ip.ValueKind != System.Text.Json.JsonValueKind.String
+                         || !System.Net.IPAddress.TryParse(ip.GetString(), out var ipAddr)
+                         || ipAddr.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
+                            return "ModbusTCP 必须包含合法 IPv4 地址（如 192.168.1.10）";
+                        if (!root.TryGetProperty("port", out var tport) || tport.ValueKind != System.Text.Json.JsonValueKind.Number
+                         || tport.GetInt32() is < 1 or > 65535)
+                            return "ModbusTCP port 必须是 1-65535 的整数";
+                        if (!root.TryGetProperty("slaveId", out var tsid) || tsid.ValueKind != System.Text.Json.JsonValueKind.Number
+                         || tsid.GetInt32() is < 1 or > 247)
+                            return "ModbusTCP slaveId 必须是 1-247 的整数";
+                        break;
+                    case ProtocolType.MQTT:
+                        if (!root.TryGetProperty("broker", out var br) || br.ValueKind != System.Text.Json.JsonValueKind.String)
+                            return "MQTT 必须包含字符串 broker 字段";
+                        break;
+                }
+                return null;
+            }
+            catch (Exception ex) when (ex is System.Text.Json.JsonException or System.InvalidOperationException or System.FormatException)
+            {
+                // FormatException：GetInt32 遇超 Int32 范围/小数（如 99999999999、9600.5）——统一归为参数非法，勿逃逸成 COMMAND_CRASH
+                return "connection_info 不是合法 JSON: " + ex.Message;
+            }
+        }
+    }
+
     /// <summary>配置设备通信参数。</summary>
     public class ConfigureDeviceHandler : ICommandHandler
     {
@@ -29,9 +80,13 @@ namespace NavigatorHMI.CommandLayer.Handlers
             if (!Enum.TryParse<ProtocolType>(p["protocol"]!.ToString(), ignoreCase: true, out var pt)
              || !Enum.IsDefined(pt))
                 return CommandResult.Fail("INVALID_PARAM", $"未知协议: {p["protocol"]}");
+            // 参数校验前置（JSON 语法/协议字段先于查重：错误消息更精准）
+            var ci = p["connection_info"]!.ToString()!;
+            var ciError = DeviceConnectionInfoValidator.Validate(pt, ci);
+            if (ciError != null) return CommandResult.Fail("INVALID_PARAM", ciError);
             if (project.Devices.Any(d => d.Name == name))
                 return CommandResult.Fail("DUPLICATE", $"设备 \"{name}\" 已存在");
-            project.Devices.Add(new DeviceConfig { Name = name, Protocol = pt, ConnectionInfo = p["connection_info"]!.ToString()! });
+            project.Devices.Add(new DeviceConfig { Name = name, Protocol = pt, ConnectionInfo = ci });
             return CommandResult.Ok(new { device_name = name });
         }
     }
@@ -154,22 +209,34 @@ namespace NavigatorHMI.CommandLayer.Handlers
             var device = project.Devices.FirstOrDefault(d => d.Name == name);
             if (device == null) return CommandResult.Fail("NOT_FOUND", $"设备 \"{name}\" 不存在");
 
+            // 先全量校验后统一应用（防部分更新：任一步失败不改模型——CommandService 原子性纪律）
+            string? newName = null;
             if (p.TryGetValue("new_name", out var nn) && nn != null && !string.IsNullOrWhiteSpace(nn.ToString()) && nn.ToString() != name)
             {
-                var newName = nn.ToString()!;
+                newName = nn.ToString()!;
                 if (project.Devices.Any(d => d.Name == newName))
                     return CommandResult.Fail("DUPLICATE", $"设备 \"{newName}\" 已存在");
-                device.Name = newName;
             }
+            ProtocolType? newProto = null;
             if (p.TryGetValue("protocol", out var pt) && pt != null && !string.IsNullOrWhiteSpace(pt.ToString()))
             {
                 if (!Enum.TryParse<ProtocolType>(pt.ToString(), ignoreCase: true, out var proto)
                  || !Enum.IsDefined(proto))
                     return CommandResult.Fail("INVALID_PARAM", $"未知协议: {pt}");
-                device.Protocol = proto;
+                newProto = proto;
             }
             if (p.TryGetValue("connection_info", out var ci) && ci != null && !string.IsNullOrWhiteSpace(ci.ToString()))
-                device.ConnectionInfo = ci.ToString()!;
+            {
+                // 校验用目标协议（本次更新后）：newProto 优先，未提供用设备现值
+                var targetProto = newProto ?? device.Protocol;
+                var ciError = DeviceConnectionInfoValidator.Validate(targetProto, ci.ToString()!);
+                if (ciError != null) return CommandResult.Fail("INVALID_PARAM", ciError);
+            }
+            // 全部校验通过，统一应用
+            if (newName != null) device.Name = newName;
+            if (newProto != null) device.Protocol = newProto.Value;
+            if (p.TryGetValue("connection_info", out var ci2) && ci2 != null && !string.IsNullOrWhiteSpace(ci2.ToString()))
+                device.ConnectionInfo = ci2.ToString()!;
 
             return CommandResult.Ok(new { device_name = device.Name });
         }

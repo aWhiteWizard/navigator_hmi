@@ -1,4 +1,6 @@
+using System.IO;
 using System.Text.Json;
+using NavigatorHMI.AiAgent;
 using NavigatorHMI.CommandLayer;
 using NavigatorHMI.Common;
 
@@ -13,6 +15,7 @@ public static class Program
     private static string? _projectPath;
     private static bool _jsonOutput;
     private static string _command = "";
+    private static readonly List<string> _promptArgs = new();   // ai 命令的裸文本指令（无需 --prompt）
     private static readonly Dictionary<string, string> _opts = new(StringComparer.OrdinalIgnoreCase);
     /// <summary>无值参数标记（--key 后无值）：仅记录键、不进 _opts（纯语义记录，无读取点——
     /// 有效性由"无值参数不写入 _opts → TryGetValue 天然失败"保证），避免哨兵字符串与合法值域碰撞。</summary>
@@ -31,6 +34,7 @@ public static class Program
         _flagOpts.Clear();
         _projectPath = null;
         _command = "";
+        _promptArgs.Clear();
         _jsonOutput = false;
 
         if (args.Length == 0) { ShowHelp(); return 0; }
@@ -49,7 +53,7 @@ public static class Program
             else if (a.StartsWith("--"))
                 { if (i + 1 < args.Length && !args[i + 1].StartsWith("--")) _opts[a[2..]] = args[++i]; else _flagOpts.Add(a[2..]); }
             else if (!a.StartsWith("-"))
-                { _command = a; }
+                { if (_command.Length == 0) _command = a; else _promptArgs.Add(a); }
             i++;
         }
 
@@ -127,6 +131,9 @@ public static class Program
 
             // 报警
             "create-alarm"   => Cmd("create_alarm", Require("name"), Require("tag", "tag_name"), Require("type"), Require("threshold"), Opt("deadband", "0"), OptMap("delay", "delay_ms", "0"), Opt("severity", "Warning"), Opt("message")),
+            "update-alarm"   => Cmd("update_alarm", Require("name"), OptIfProvided("new-name", "new_name"), OptIfProvided("tag", "tag_name"), OptIfProvided("type"), OptIfProvided("threshold"), OptIfProvided("deadband"), OptIfProvided("delay", "delay_ms"), OptIfProvided("severity"), OptIfProvided("message")),
+            "delete-alarm"   => Cmd("delete_alarm", Require("name")),
+
 
             // 设备
             "configure-device" => Cmd("configure_device", Require("name"), Require("protocol"), Require("connection", "connection_info")),
@@ -136,6 +143,9 @@ public static class Program
             "scan"            => Cmd("scan_devices", Opt("nic", "eth0")),
             "deploy-project"  => Cmd("deploy_project", Require("ip", "device_ip"), OptMap("file", "file_path", "")),
             "deploy-firmware" => Cmd("deploy_firmware", Require("ip", "device_ip"), OptMap("file", "file_path", "")),
+
+            // AI Agent（本地 LLM Function Calling）
+            "ai"              => AiCommand(),
 
             _ => UnknownCommand()
         };
@@ -237,6 +247,66 @@ public static class Program
         });
         if (exitCode == 0) AutoSave(project);
         return exitCode;
+    }
+
+    /// <summary>AI Agent：规则映射（默认，离线）或 LLM Function Calling（cloud=DeepSeek / local=本地 Qwen）。</summary>
+    private static int AiCommand()
+    {
+        var prompt = _opts.ContainsKey("prompt") ? RequireVal("prompt") : string.Join(" ", _promptArgs);
+        if (string.IsNullOrWhiteSpace(prompt))
+        {
+            PrintError("缺少指令：navihmi ai \"创建画面 温度监控\" 或 --prompt <指令>");
+            return 1;
+        }
+        var (service, project) = LoadProject();
+        var mode = OptVal("mode", "rule").ToLowerInvariant();
+        string result;
+        try
+        {
+            switch (mode)
+            {
+                case "cloud":
+                case "local":
+                {
+                    using NavigatorHMI.AiAgent.ILLMBackend backend = mode == "local"
+                        ? CreateLocalBackend()
+                        : new NavigatorHMI.AiAgent.CloudLLMBackend();
+                    if (!backend.IsAvailable)
+                    {
+                        PrintError(mode == "local"
+                            ? "本地模型不可用：请设置 NAVIGATOR_HMI_MODEL 或放置模型到 models/ 目录"
+                            : "云端 API 未配置：请设置环境变量 DEEPSEEK_API（DeepSeek key）");
+                        return 1;
+                    }
+                    var agent = new NavigatorHMI.AiAgent.AIAgent(service, backend);
+                    result = agent.ChatAsync(prompt).GetAwaiter().GetResult();
+                    break;
+                }
+                default:   // rule：规则关键词映射（离线、确定性）
+                    result = new NavigatorHMI.AiAgent.RuleAgent(service).Process(prompt);
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            PrintError($"AI 执行失败: {ex.Message}");
+            return 1;
+        }
+        Console.WriteLine($"[AI] {prompt}");
+        Console.WriteLine(result);
+        AutoSave(project);
+        return 0;
+    }
+
+    private static NavigatorHMI.AiAgent.LocalLLMBackend CreateLocalBackend()
+    {
+        var modelPath = OptVal("model", NavigatorHMI.AiAgent.LocalLLMBackend.DefaultModelPath);
+        var backend = new NavigatorHMI.AiAgent.LocalLLMBackend(modelPath);
+        if (!backend.IsAvailable)
+            throw new InvalidOperationException($"模型文件不存在: {modelPath}\n请先下载 Qwen2.5-7B-Instruct GGUF（q4_k_m，约 4.4GB）");
+        if (!backend.Load())
+            throw new InvalidOperationException($"模型加载失败: {backend.LoadError}");
+        return backend;
     }
 
     private static int Execute(CommandService service, string name, Dictionary<string, object?> p)
@@ -484,7 +554,7 @@ public static class Program
   布局: align, array
   事件: bind-event
   变量: create-tag, update-tag, delete-tag, bind-tag
-  报警: create-alarm
+  报警: create-alarm, update-alarm, delete-alarm
   设备: configure-device, update-device, delete-device, connect, scan, deploy-project, deploy-firmware
 
 set-property 属性键 (--screen <画面> --widget <控件> --key <键> --value <值>):
@@ -555,7 +625,7 @@ set-property 属性键 (--screen <画面> --widget <控件> --key <键> --value 
 
 变量命令:
   create-tag             --name <name> --type <BOOL|INT16|FLOAT|...> [--source <uri>] [--unit <u>] [--scan-interval <ms>] [--base-value <n>]   # source 缺省 = 内部变量；base-value = 设计态基准值
-  update-tag             --name <name> [--new-name <name>] [--type <...>] [--source <uri>] [--unit <u>] [--scan-interval <ms>] [--deadband <n>] [--description <text>] [--base-value <n>]  重命名自动同步控件/报警引用；--source "" 清空为内部变量
+  update-tag             --name <name> [--new-name <name>] [--type <...>] [--source <uri>] [--unit <u>] [--scan-interval <ms>] [--deadband <n>] [--description <text>] [--base-value <n>]  重命名自动同步控件/报警引用；--source "" 清空为内部变量；--unit "" / --description "" 清空
   delete-tag             --name <name>   被控件/报警引用时拒绝
   bind-tag               --screen <name> --widget <name> --tag <name>
 
@@ -568,6 +638,8 @@ set-property 属性键 (--screen <画面> --widget <控件> --key <键> --value 
 
 报警命令:
   create-alarm           --name <name> --tag <name> --type <High|Low|...> --threshold <n> [--severity Warning]
+  update-alarm           --name <name> [--new-name <name>] [--tag <name>] [--type <...>] [--threshold <n>] [--deadband <n>] [--delay <ms>] [--severity <...>] [--message <text>]
+  delete-alarm           --name <name>
 
 设备命令:
   configure-device       --name <name> --protocol <ModbusRTU|ModbusTCP|MQTT> --connection <json>
@@ -577,6 +649,9 @@ set-property 属性键 (--screen <画面> --widget <控件> --key <键> --value 
   scan                   [--nic eth0]
   deploy-project         --ip <addr> [--file <path>]
   deploy-firmware        --ip <addr> [--file <path>]
+
+AI 命令:
+  ai                     <指令> 或 --prompt <指令> [--mode rule|cloud|local]  规则映射默认（离线）；cloud=DeepSeek API FC；local=本地模型 FC
 
 示例:
   navihmi create-project --name "产线监控" --path "./"
