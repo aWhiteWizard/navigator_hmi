@@ -455,7 +455,7 @@ internal static class BaseValueValidator
         var s = raw.Trim();
         var ok = dt switch
         {
-            TagDataType.FLOAT => double.TryParse(s, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _),
+            TagDataType.FLOAT => double.TryParse(s, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var d) && double.IsFinite(d),   // IsFinite：拦 NaN/Infinity（对齐工程文件数值校验纪律）
             TagDataType.INT16 => short.TryParse(s, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _),
             TagDataType.UINT16 => ushort.TryParse(s, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _),
             TagDataType.INT32 => int.TryParse(s, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _),

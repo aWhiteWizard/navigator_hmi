@@ -73,10 +73,19 @@ namespace NavigatorHMI.AiAgent
         /// <summary>执行命令：GUI 场景经 Dispatcher 封送到 UI 线程（handler 直接改 ObservableCollection，WPF CollectionView 线程亲和）；CLI 无 WPF 直接执行。</summary>
         private CommandResult ExecuteCommand(string name, Dictionary<string, object?> args)
         {
+            // 操作清单记录提前：BLOCKED 拒绝、CLI 直接执行都计入（清单是 GUI 展示，但记录逻辑统一）
             if (BlacklistCommands.Contains(name))
-                return CommandResult.Fail("BLOCKED", $"操作 \"{name}\" 已在 AI 黑名单中，AI 不能执行；请手动操作。");   // 提醒用户，不执行
+            {
+                var blocked = CommandResult.Fail("BLOCKED", $"操作 \"{name}\" 已在 AI 黑名单中，AI 不能执行；请手动操作。");
+                _lastOperations.Add(new AiOperation(name, SummarizeArgs(args), false));
+                return blocked;
+            }
             if (_commandDispatcher == null)
-                return _commands.Execute(name, args);
+            {
+                var direct = _commands.Execute(name, args);
+                _lastOperations.Add(new AiOperation(name, SummarizeArgs(args), direct.Success));
+                return direct;
+            }
             CommandResult result = CommandResult.Fail("COMMAND_CRASH", "命令未执行");
             try
             {
