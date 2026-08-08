@@ -39,8 +39,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
             {
                 ["screen_name"] = new() { Type = "string", Required = true },
                 ["widget_name"] = new() { Type = "string", Required = true },
-                ["event"] = new() { Type = "enum", Required = true, EnumValues = new[] { "onClick", "onPress", "onRelease", "onValueChange", "onScreenLoad", "onScreenUnload", "onTimer" } },
-                ["action"] = new() { Type = "enum", Required = true, EnumValues = new[] { "tag_write", "screen_switch", "set_property", "run_command", "show_popup", "send_notification" } },
+                ["event"] = new() { Type = "enum", Required = true, EnumValues = EventBindingCommon.AllEventTypes },
+                ["action"] = new() { Type = "enum", Required = true, EnumValues = EventBindingCommon.AllActionTypes },
                 ["params"] = new() { Type = "dict", Required = false },
             }
         };

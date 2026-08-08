@@ -70,6 +70,9 @@ namespace NavigatorHMI.CommandLayer
 
                 // ── 事件绑定 ──
                 ["bind_event"]      = new BindEventHandler(),
+                ["add_event"]       = new AddEventHandler(),
+                ["remove_event"]    = new RemoveEventHandler(),
+                ["update_event"]    = new UpdateEventHandler(),
 
                 // ── 剪贴板 ──
                 ["copy_widget"]     = new CopyWidgetHandler(),
@@ -159,5 +162,10 @@ namespace NavigatorHMI.CommandLayer
         /// </summary>
         public List<CommandDefinition> GetAvailableCommands()
             => _handlers.Values.Select(h => h.Definition).ToList();
+
+        public List<string> GetScreenNames()
+        {
+            lock (_lock) { return _project.Screens.Select(s => s.Name).ToList(); }
+        }
     }
 }

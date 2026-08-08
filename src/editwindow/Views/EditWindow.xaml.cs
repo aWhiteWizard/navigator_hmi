@@ -201,7 +201,6 @@ namespace NavigatorHMI.Views
             // 12. 初始化通讯配置面板（新建/编辑/删除走 CommandService）
             _commDeviceVM = new CommunicationDeviceViewModel(_currentProject, _viewModel.CommandService);
             _commDeviceVM.DeviceEditRequested += OnDeviceEditRequested;
-            _commDeviceVM.DeviceDeleteRequested += OnDeviceDeleteRequested;
 
             // 12.6 初始化报警配置面板（新建/编辑/删除走 CommandService）
             _alarmVM = new AlarmManagerViewModel(_currentProject, _viewModel.CommandService);
@@ -307,6 +306,41 @@ namespace NavigatorHMI.Views
             if (e.Key == Key.Delete) { ImageListDelete_Click(sender, null); e.Handled = true; }
             else if (e.Key == Key.A && Keyboard.Modifiers == ModifierKeys.Control) { ImageListBox.SelectAll(); e.Handled = true; }
         }
+        /// <summary>设备表格快捷键：Delete 删除选中、Ctrl+A 全选。</summary>
+        private void DeviceGrid_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Delete) { DeviceDelete_Click(sender, null); e.Handled = true; }
+            else if (e.Key == Key.A && Keyboard.Modifiers == ModifierKeys.Control) { DeviceGrid.SelectAll(); e.Handled = true; }
+        }
+        /// <summary>打开事件配置对话框（属性面板事件栏 [配置…] 按钮）。</summary>
+        private void OpenEventConfig_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement fe && fe.Tag is EventType evt
+                && PropertyVM.SelectedWidget is Widget w)
+            {
+                var dlg = new EventConfigDialog(_currentProject, w, evt, _viewModel.CommandService) { Owner = this };
+                dlg.ShowDialog();
+                PropertyVM.RefreshEventBar(w);   // 配置后刷新事件栏状态
+            }
+        }
+        /// <summary>批量删除选中设备（删除按钮 + 右键；多选时全部删除）。</summary>
+        private void DeviceDelete_Click(object sender, RoutedEventArgs e)
+        {
+            var selected = DeviceGrid.SelectedItems.Cast<DeviceConfig>().ToList();
+            if (selected.Count == 0) return;
+            var names = string.Join("、", selected.Select(d => $"\"{d.Name}\""));
+            var confirm = MessageBox.Show($"确定删除设备 {names} 吗？", "删除设备",
+                MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (confirm != MessageBoxResult.Yes) return;
+            var failed = new List<string>();
+            foreach (var dev in selected)
+            {
+                var r = _viewModel.CommandService.Execute("delete_device", new Dictionary<string, object?> { ["name"] = dev.Name });
+                if (!r.Success) failed.Add($"{dev.Name}: {r.ErrorMessage}");
+            }
+            if (failed.Count > 0)
+                MessageBox.Show("部分删除失败：\n" + string.Join("\n", failed), "设备", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
         /// <summary>批量删除选中变量（删除按钮 + 右键菜单；多选时全部删除，被引用项拒绝并提示）。</summary>
         private void TagDelete_Click(object sender, RoutedEventArgs e)
         {
@@ -374,17 +408,6 @@ namespace NavigatorHMI.Views
                     if (!r.Success) MessageBox.Show(r.ErrorMessage ?? "更新设备失败", "通讯", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
             }
-        }
-
-        /// <summary>设备删除：确认 → CommandService。</summary>
-        private void OnDeviceDeleteRequested(DeviceConfig device)
-        {
-            var confirm = MessageBox.Show($"确定删除设备 \"{device.Name}\" 吗？", "删除设备",
-                MessageBoxButton.YesNo, MessageBoxImage.Question);
-            if (confirm != MessageBoxResult.Yes) return;
-            var r = _viewModel.CommandService.Execute("delete_device", new Dictionary<string, object?> { ["name"] = device.Name });
-            if (!r.Success)
-                MessageBox.Show(r.ErrorMessage ?? "删除失败", "通讯", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
 
         /// <summary>双击设备行 → 编辑。</summary>
@@ -457,6 +480,35 @@ namespace NavigatorHMI.Views
                 MessageBox.Show("部分删除失败：\n" + string.Join("\n", failed), "报警", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
 
+        /// <summary>批量删除选中文本列表项（删除按钮/Delete 键；多选时全部删除）。</summary>
+        private void TextItemsDelete_Click(object sender, RoutedEventArgs e)
+        {
+            var selected = TextItemsGrid.SelectedItems.Cast<ListItemVM>().ToList();
+            if (selected.Count > 0) _listManagerVM.RemoveItems(ListType.Text, selected);
+        }
+
+        /// <summary>批量删除选中图片列表项（删除按钮/Delete 键；多选时全部删除）。</summary>
+        private void ImageItemsDelete_Click(object sender, RoutedEventArgs e)
+        {
+            var selected = ImageItemsGrid.SelectedItems.Cast<ListItemVM>().ToList();
+            if (selected.Count > 0) _listManagerVM.RemoveItems(ListType.Image, selected);
+        }
+
+        /// <summary>文本列表项快捷键：Delete 删除选中、Ctrl+A 全选。</summary>
+        private void TextItemsGrid_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.OriginalSource is System.Windows.Controls.TextBox) return;   // 单元格编辑态：Delete 交给文本编辑，防整行误删
+            if (e.Key == Key.Delete) { TextItemsDelete_Click(sender, null); e.Handled = true; }
+            else if (e.Key == Key.A && Keyboard.Modifiers == ModifierKeys.Control) { TextItemsGrid.SelectAll(); e.Handled = true; }
+        }
+
+        /// <summary>图片列表项快捷键：Delete 删除选中、Ctrl+A 全选。</summary>
+        private void ImageItemsGrid_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.OriginalSource is System.Windows.Controls.TextBox) return;   // 单元格编辑态：Delete 交给文本编辑，防整行误删
+            if (e.Key == Key.Delete) { ImageItemsDelete_Click(sender, null); e.Handled = true; }
+            else if (e.Key == Key.A && Keyboard.Modifiers == ModifierKeys.Control) { ImageItemsGrid.SelectAll(); e.Handled = true; }
+        }
         /// <summary>批量删除选中文本列表（删除按钮；多选时全部删除）。</summary>
         private void TextListDelete_Click(object sender, RoutedEventArgs e)
         {
@@ -1476,6 +1528,18 @@ namespace NavigatorHMI.Views
         /// - Delete 键：删除当前选中的 Widget
         /// - ESC 键：关闭属性窗口
         /// </summary>
+        /// <summary>键盘焦点是否在管理器表格/列表内（DataGrid/ListBox）——是则 Ctrl+A/Delete 交给控件级 handler（表格多选/删除），窗口级画布快捷键不拦截。</summary>
+        private static bool IsFocusInManagerControl()
+        {
+            var f = System.Windows.Input.Keyboard.FocusedElement as System.Windows.DependencyObject;
+            while (f != null)
+            {
+                if (f is System.Windows.Controls.DataGrid or System.Windows.Controls.ListBox) return true;
+                f = System.Windows.Media.VisualTreeHelper.GetParent(f);
+            }
+            return false;
+        }
+
         private void EditWindow_PreviewKeyDown(object sender, KeyEventArgs e)
         {
             // 焦点在文本框/输入框内时不拦截（避免干扰 TreeView 重命名、属性输入、CLI 输入）
@@ -1485,22 +1549,22 @@ namespace NavigatorHMI.Views
             var shift = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
             var none = Keyboard.Modifiers == ModifierKeys.None;
 
-            // ── 全选 ──
-            if (ctrl && !shift && e.Key == Key.A)
+            // ── 全选 ──（焦点在管理器表格/列表内时交给控件级 handler：表格 Ctrl+A 全选行）
+            if (ctrl && !shift && e.Key == Key.A && !IsFocusInManagerControl())
             {
                 SelectAllWidgets();
                 e.Handled = true;
                 return;
             }
-            // ── 复制 ──
-            if (ctrl && !shift && e.Key == Key.C)
+            // ── 复制 ──（表格内放行默认复制/不拦截）
+            if (ctrl && !shift && e.Key == Key.C && !IsFocusInManagerControl())
             {
                 CopyWidgets();
                 e.Handled = true;
                 return;
             }
-            // ── 剪切 ──
-            if (ctrl && !shift && e.Key == Key.X)
+            // ── 剪切 ──（表格内放行）
+            if (ctrl && !shift && e.Key == Key.X && !IsFocusInManagerControl())
             {
                 if (_viewModel.CurrentScreen?.Widgets.Any(w => w.IsSelected) == true)
                 {
@@ -1510,8 +1574,8 @@ namespace NavigatorHMI.Views
                 e.Handled = true;
                 return;
             }
-            // ── 粘贴（无右键菜单位置时用当前位置）──
-            if (ctrl && !shift && e.Key == Key.V)
+            // ── 粘贴（无右键菜单位置时用当前位置；表格内放行）──
+            if (ctrl && !shift && e.Key == Key.V && !IsFocusInManagerControl())
             {
                 if (_clipboard.Count > 0)
                     PasteWidgetsAtCurrent();
@@ -1529,7 +1593,7 @@ namespace NavigatorHMI.Views
                 return;
             }
 
-            if (e.Key == Key.Delete && none)
+            if (e.Key == Key.Delete && none && !IsFocusInManagerControl())
             {
                 _widgetContextMenuHandler.DeleteSelectedWidget();
                 e.Handled = true;
@@ -1631,7 +1695,6 @@ namespace NavigatorHMI.Views
             _currentWidgetCreator = tag switch
             {
                 "Button" => new ButtonWidgetCreator(),
-                "Text" => new TextWidgetCreator(),
                 "Rectangle" => new RectangleWidgetCreator(),
                 "Label" => new LabelWidgetCreator(),
                 "Image" => new ImageWidgetCreator(),
@@ -1645,6 +1708,7 @@ namespace NavigatorHMI.Views
                 "TextList" => new TextListWidgetCreator(),
                 "Frame" => new FrameWidgetCreator(),
                 "ProgressBar" => new ProgressBarWidgetCreator(),
+                "DateTime" => new DateTimeWidgetCreator(),
                 _ => null
             };
 

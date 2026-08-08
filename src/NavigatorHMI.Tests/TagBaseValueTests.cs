@@ -46,5 +46,17 @@ namespace NavigatorHMI.Tests
             var r = svc.Execute("create_tag", new Dictionary<string, object?> { ["name"] = "T", ["data_type"] = "FLOAT", ["base_value"] = "" });
             Assert.True(r.Success);
         }
+
+        [Fact]
+        public void DATETIME_合法与非法base_value()
+        {
+            var project = new HMIProject();
+            var svc = new CommandService(project);
+            var ok = svc.Execute("create_tag", new Dictionary<string, object?> { ["name"] = "T1", ["data_type"] = "DATETIME", ["base_value"] = "2026-08-08 12:30:00" });
+            Assert.True(ok.Success);
+            var bad = svc.Execute("create_tag", new Dictionary<string, object?> { ["name"] = "T2", ["data_type"] = "DATETIME", ["base_value"] = "abc" });
+            Assert.False(bad.Success);
+            Assert.Equal("INVALID_PARAM", bad.ErrorCode);
+        }
     }
 }

@@ -196,6 +196,9 @@ namespace NavigatorHMI.Common
                     dto.Type = NavihmiWidgetType.ProgressBar; dto.Value = pb.Value;
                     dto.Min = pb.Min; dto.Max = pb.Max; dto.FillStyle = pb.FillStyle; dto.FillColor = pb.FillColor;
                     break;
+                case DateTimeWidget dt:
+                    dto.Type = NavihmiWidgetType.DateTime; dto.DtText = dt.Text; dto.DtFormat = dt.Format;
+                    break;
                 default:
                     throw new InvalidOperationException($"未映射的控件类型: {w.GetType().Name}（新增控件需同步 navihmi.proto 与 NavihmiDto）");
             }

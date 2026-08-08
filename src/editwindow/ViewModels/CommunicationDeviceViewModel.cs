@@ -43,12 +43,8 @@ namespace NavigatorHMI.ViewModels
         /// <summary>请求打开新建/编辑对话框（View 层处理，传 DeviceConfig: null=新建, 非null=编辑）。</summary>
         public event Action<DeviceConfig?>? DeviceEditRequested;
 
-        /// <summary>请求打开删除确认对话框（View 层处理）。</summary>
-        public event Action<DeviceConfig>? DeviceDeleteRequested;
-
         public ICommand NewDeviceCommand { get; }
         public ICommand EditDeviceCommand { get; }
-        public ICommand DeleteDeviceCommand { get; }
 
         public CommunicationDeviceViewModel(HMIProject project, CommandService commandService)
         {
@@ -56,7 +52,6 @@ namespace NavigatorHMI.ViewModels
             CommandService = commandService;
             NewDeviceCommand = new RelayCommand(() => DeviceEditRequested?.Invoke(null));
             EditDeviceCommand = new RelayCommand(() => { if (SelectedDevice != null) DeviceEditRequested?.Invoke(SelectedDevice); });
-            DeleteDeviceCommand = new RelayCommand(() => { if (SelectedDevice != null) DeviceDeleteRequested?.Invoke(SelectedDevice); });
 
             // 外部命令（CLI/AI）改动 Devices 后自动同步列表
             CommandService.CommandExecuted += OnCommandExecuted;

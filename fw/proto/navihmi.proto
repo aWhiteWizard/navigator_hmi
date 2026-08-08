@@ -1,0 +1,255 @@
+syntax = "proto3";
+package navihmi;
+option optimize_for = LITE_RUNTIME;
+
+// ═══════════════════════════════════════════════════════════════════
+// NavigatorHMI 工程编译产物契约（.navihmi）
+// 两端共享：PC 组态软件 ProjectGenerator 输出本格式；FW 端 protoc 生成解析。
+// 字段号与 PC 端 NavihmiDto（protobuf-net）严格对齐，修改需两端同步。
+// ═══════════════════════════════════════════════════════════════════
+
+// ── 枚举（值与 C# 端一致，全部从 0 开始） ──
+
+enum ScreenType {
+  SCREEN_TEMPLATE = 0;   // 全局画面（固定，叠加所有画面顶层）
+  SCREEN_WORLD_MAP = 1;  // 世界地图（固定）
+  SCREEN_CUSTOM = 2;     // 自定义画面
+}
+
+enum NavPosition {
+  NAV_TOP = 0;
+  NAV_BOTTOM = 1;
+}
+
+enum TagDataType {
+  TAG_BOOL = 0;
+  TAG_INT16 = 1;
+  TAG_UINT16 = 2;
+  TAG_INT32 = 3;
+  TAG_FLOAT = 4;
+  TAG_STRING = 5;
+  TAG_DATETIME = 6;
+}
+
+enum AlarmType {
+  ALARM_HIGH = 0;
+  ALARM_LOW = 1;
+  ALARM_RATE_CHANGE = 2;
+  ALARM_DEVIATION = 3;
+}
+
+enum Severity {
+  SEV_EMERGENCY = 0;
+  SEV_IMPORTANT = 1;
+  SEV_WARNING = 2;
+  SEV_INFO = 3;
+}
+
+enum ListType {
+  LIST_TEXT = 0;
+  LIST_IMAGE = 1;
+}
+
+enum ProtocolType {
+  PROTO_MODBUS_RTU = 0;
+  PROTO_MODBUS_TCP = 1;
+  PROTO_MQTT = 2;
+}
+
+enum WidgetType {
+  W_BUTTON = 0;
+  W_TEXT = 1;
+  W_LABEL = 2;
+  W_RECTANGLE = 3;
+  W_IMAGE = 4;
+  W_NUMERIC_DISPLAY = 5;
+  W_SWITCH = 6;
+  W_LINE = 7;
+  W_CIRCLE = 8;
+  W_ELLIPSE = 9;
+  W_IO_FIELD = 10;
+  W_CHECKBOX = 11;
+  W_TEXT_LIST = 12;
+  W_FRAME = 13;
+  W_PROGRESS_BAR = 14;
+  W_DATETIME = 15;
+}
+
+enum EventType {
+  EV_ON_CLICK = 0;
+  EV_ON_PRESS = 1;
+  EV_ON_RELEASE = 2;
+  EV_ON_VALUE_CHANGE = 3;
+  EV_ON_ALARM_TRIGGER = 4;
+  EV_ON_ALARM_ACK = 5;
+  EV_ON_ALARM_CLEAR = 6;
+  EV_ON_SCREEN_LOAD = 7;
+  EV_ON_SCREEN_UNLOAD = 8;
+  EV_ON_TIMER = 9;
+  EV_ON_SYSTEM_START = 10;
+  EV_ON_SYSTEM_SHUTDOWN = 11;
+  EV_ON_INPUT = 12;
+  EV_ON_ON = 13;
+  EV_ON_OFF = 14;
+}
+
+enum ActionType {
+  ACT_TAG_WRITE = 0;
+  ACT_SCREEN_SWITCH = 1;
+  ACT_SET_PROPERTY = 2;
+  ACT_RUN_COMMAND = 3;
+  ACT_SHOW_POPUP = 4;
+  ACT_SEND_NOTIFICATION = 5;
+  ACT_SCREEN_PREV = 6;
+  ACT_SCREEN_NEXT = 7;
+  ACT_TAG_ADD = 8;
+  ACT_TAG_SUBTRACT = 9;
+  ACT_TAG_TOGGLE = 10;
+  ACT_SET_BIT = 11;
+  ACT_RESET_BIT = 12;
+  ACT_SET_DATETIME = 13;
+  ACT_GET_DATETIME = 14;
+  ACT_ACKNOWLEDGE_ALARM = 15;
+}
+
+// ── 消息 ──
+
+message HMIProject {
+  string name = 1;
+  int64 create_time = 2;      // Unix 秒（C# DateTime → Unix）
+  int64 last_modified_time = 3;
+  string version = 4;
+  repeated Screen screens = 5;
+  string project_file_path = 6;
+  int32 device_width = 7;
+  int32 device_height = 8;
+  repeated Tag tags = 9;
+  repeated AlarmRule alarms = 10;
+  repeated DeviceConfig devices = 11;
+  WorldMapConfig world_map = 12;
+  bool show_navigation_bar = 13;
+  NavPosition navigation_position = 14;
+  string start_screen = 15;
+  repeated ListDef lists = 16;
+  int32 format_version = 17;  // 契约版本（当前=1；FW 端解析后校验，不匹配拒绝加载）
+}
+
+message Screen {
+  string name = 1;
+  double width = 2;
+  double height = 3;
+  ScreenType type = 4;
+  repeated Widget widgets = 5;
+  bool is_global = 6;
+  bool show_in_nav = 7;
+  int32 nav_order = 8;
+}
+
+// 扁平 Widget：基类字段（1-7）+ 类型判别（8）+ 各类型字段（9+，未用字段保持默认值）
+message Widget {
+  // 基类
+  double x = 1;
+  double y = 2;
+  double width = 3;
+  double height = 4;
+  string object_name = 5;
+  string bound_tag = 6;
+  repeated WidgetEvent events = 7;
+  // 类型判别
+  WidgetType type = 8;
+  // 文本类（Button/Label/CheckBox/Text/IOField）
+  string text = 9;           // Button/Label/CheckBox 文本
+  string content = 10;       // Text/IOField 内容
+  string h_align = 11;       // Label/Text 水平对齐 Left/Center/Right
+  // 字体
+  string font_family = 12;
+  double font_size = 13;
+  string font_weight = 14;
+  string font_style = 15;
+  string text_decoration = 16;
+  // 颜色
+  string text_color = 17;
+  string fill_color = 18;
+  string stroke_color = 19;
+  double stroke_thickness = 20;
+  // 图片（Image/Frame）
+  string image_path = 21;
+  string stretch_mode = 22;
+  // 列表绑定（Image/Frame/TextList）
+  string list_ref = 23;
+  int32 default_index = 24;
+  // 数值（NumericDisplay/ProgressBar）
+  double value = 25;
+  double min = 26;           // ProgressBar
+  double max = 27;           // ProgressBar
+  string fill_style = 28;    // ProgressBar 填充样式 Solid/斜线/方格
+  // 开关（Switch/CheckBox/IOField）
+  bool is_on = 29;           // Switch
+  string on_text = 30;       // Switch
+  string off_text = 31;      // Switch
+  bool is_checked = 32;      // CheckBox
+  bool is_read_only = 33;    // IOField
+  // 线
+  double x2 = 34;            // Line
+  double y2 = 35;            // Line
+  // Frame
+  string title = 36;         // Frame 标题
+  // 日期时间（DateTime）
+  string dt_text = 37;       // DateTime 显示文本
+  string dt_format = 38;     // DateTime 格式
+}
+
+message WidgetEvent {
+  EventType type = 1;
+  string condition = 2;      // 可选触发条件表达式（如 "value > 80"），空 = 无条件触发
+  repeated EventAction actions = 3;
+}
+
+message EventAction {
+  ActionType type = 1;
+  map<string, string> parameters = 2;
+}
+
+message Tag {
+  string name = 1;
+  TagDataType data_type = 2;
+  string unit = 3;
+  string source = 4;         // modbus:// 或 mqtt://，空 = 内部变量
+  int32 scan_interval_ms = 5;
+  double deadband = 6;
+  string description = 7;
+  string base_value = 8;     // 设计态基准值
+}
+
+message AlarmRule {
+  string name = 1;
+  string tag_name = 2;
+  AlarmType type = 3;
+  double threshold = 4;
+  double deadband = 5;       // 回差（避免抖动）
+  int32 delay_ms = 6;        // 防抖延迟
+  Severity level = 7;
+  string message = 8;
+}
+
+message ListDef {
+  string name = 1;
+  ListType type = 2;
+  repeated string items = 3;
+}
+
+message DeviceConfig {
+  string name = 1;
+  ProtocolType protocol = 2;
+  string connection_info = 3;  // JSON：ModbusRTU{port,baud,slaveId}/ModbusTCP{ip,port,slaveId}/MQTT{broker,clientId}
+}
+
+message WorldMapConfig {
+  double lat_min = 1;
+  double lat_max = 2;
+  double lng_min = 3;
+  double lng_max = 4;
+  string tile_source = 5;      // 离线/在线瓦片源
+  int32 zoom_level = 6;
+  bool show_global_overlay = 7;
+}

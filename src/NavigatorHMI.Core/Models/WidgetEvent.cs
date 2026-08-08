@@ -30,7 +30,13 @@ namespace NavigatorHMI.Common
         /// <summary>设备启动完成后触发</summary>
         onSystemStart,
         /// <summary>设备关机前触发</summary>
-        onSystemShutdown
+        onSystemShutdown,
+        /// <summary>输入完成（IOField 输入框）</summary>
+        onInput,
+        /// <summary>开关打开（Switch）</summary>
+        onOn,
+        /// <summary>开关关闭（Switch）</summary>
+        onOff
     }
 
     /// <summary>
@@ -49,7 +55,27 @@ namespace NavigatorHMI.Common
         /// <summary>弹出对话框/详情面板</summary>
         show_popup,
         /// <summary>推送通知到 MQTT</summary>
-        send_notification
+        send_notification,
+        /// <summary>上一个画面（运行时导航栈回退）</summary>
+        screen_prev,
+        /// <summary>下一个画面（运行时导航栈前进）</summary>
+        screen_next,
+        /// <summary>变量值增加</summary>
+        tag_add,
+        /// <summary>变量值减少</summary>
+        tag_subtract,
+        /// <summary>BOOL 变量翻转</summary>
+        tag_toggle,
+        /// <summary>BOOL 变量置位</summary>
+        set_bit,
+        /// <summary>BOOL 变量复位</summary>
+        reset_bit,
+        /// <summary>设置日期时间</summary>
+        set_datetime,
+        /// <summary>读取日期时间</summary>
+        get_datetime,
+        /// <summary>确认报警</summary>
+        acknowledge_alarm
     }
 
     /// <summary>

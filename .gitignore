@@ -29,3 +29,6 @@ bin/
 models/
 *.gguf
 *.nupkg
+
+# CLI 校验测试临时工程
+校验测试*.hmiproj

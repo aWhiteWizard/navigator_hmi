@@ -372,6 +372,20 @@ namespace NavigatorHMI.ViewModels
             if (type == ListType.Text) RebuildTextItems(); else RebuildImageItems();
         }
 
+
+        /// <summary>批量删除选中列表项（多选删除按钮/Delete 键；按 Number 降序删防序号错位）。</summary>
+        public void RemoveItems(ListType type, IReadOnlyList<ListItemVM> items)
+        {
+            var list = type == ListType.Text ? SelectedTextList : SelectedImageList;
+            if (list == null || items.Count == 0) return;
+            foreach (var item in items.OrderByDescending(i => i.Number))
+            {
+                if (item.Number >= 1 && item.Number <= list.Items.Count)
+                    list.Items.RemoveAt(item.Number - 1);
+            }
+            CommitItems(list);
+            if (type == ListType.Text) RebuildTextItems(); else RebuildImageItems();
+        }
         // ═══ 列表名重命名（级联同步控件 ListRef） ═══
 
         private bool _syncingName;

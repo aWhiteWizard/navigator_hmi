@@ -1,4 +1,5 @@
 using System;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -29,7 +30,8 @@ namespace NavigatorHMI.ViewModels
         CheckBoxWidget,
         TextListWidget,
         FrameWidget,
-        ProgressBarWidget
+        ProgressBarWidget,
+        DateTimeWidget
     }
 
     /// <summary>
@@ -37,6 +39,30 @@ namespace NavigatorHMI.ViewModels
     /// </summary>
     public class PropertyViewModel : INotifyPropertyChanged
     {
+        /// <summary>事件栏：当前选中控件可用事件行（DESIGN-EVENTS.md §4）。</summary>
+        public ObservableCollection<EventRowVM> EventRows { get; } = new();
+        private bool _eventBarVisible;
+        public bool EventBarVisible
+        {
+            get => _eventBarVisible;
+            set { _eventBarVisible = value; OnPropertyChanged(); }
+        }
+
+        /// <summary>刷新事件栏（选中控件时调用）：按控件类型映射可用事件 + 已配置函数数。</summary>
+        public void RefreshEventBar(Widget? w)
+        {
+            EventRows.Clear();
+            if (w == null) { EventBarVisible = false; return; }
+            var typeName = w.GetType().Name;
+            EventBarVisible = EventMapping.SupportsEvents(typeName);
+            if (!EventBarVisible) return;
+            foreach (var evt in EventMapping.GetEvents(typeName))
+            {
+                var existing = w.Events.FirstOrDefault(e => e.Type == evt);
+                EventRows.Add(new EventRowVM(evt) { ActionCount = existing?.Actions.Count ?? 0 });
+            }
+            OnPropertyChanged(nameof(EventRows));
+        }
         private Widget? _selectedWidget;
         private Screen? _selectedScreen;
         private Screen? _currentScreen;  // 当前编辑的画面，用于 ObjectName 重复检测
@@ -243,6 +269,7 @@ namespace NavigatorHMI.ViewModels
                     OnPropertyChanged(nameof(IsWidgetSelected));
                     OnPropertyChanged(nameof(IsScreenSelected));
                     OnPropertyChanged(nameof(WidgetTypeName));
+                    RefreshEventBar(value);
 
                      SelectedObjectType = value switch
                      {
@@ -261,6 +288,7 @@ namespace NavigatorHMI.ViewModels
                          TextListWidget => PropertyTargetType.TextListWidget,
                          FrameWidget => PropertyTargetType.FrameWidget,
                          ProgressBarWidget => PropertyTargetType.ProgressBarWidget,
+                         DateTimeWidget => PropertyTargetType.DateTimeWidget,
                          _ => PropertyTargetType.None
                      };
                      OnPropertyChanged(nameof(SelectedObjectType));
@@ -295,6 +323,7 @@ namespace NavigatorHMI.ViewModels
                             case TextListWidget tl: TextListFontFamily = tl.FontFamily; TextListFontSize = tl.FontSize; TextListFontWeight = tl.FontWeight; TextListFontStyle = tl.FontStyle; TextListTextDecoration = tl.TextDecoration; TextListTextColor = tl.TextColor; TextListFillColor = tl.FillColor; TextListListRef = tl.ListRef; TextListDefaultIndex = tl.DefaultIndex; break;
                             case FrameWidget f: FrameTitle = f.Title; FrameFillColor = f.FillColor; FrameImagePath = f.ImagePath; FrameFontFamily = f.FontFamily; FrameFontSize = f.FontSize; FrameFontWeight = f.FontWeight; FrameFontStyle = f.FontStyle; FrameTextDecoration = f.TextDecoration; FrameListRef = f.ListRef; FrameDefaultIndex = f.DefaultIndex; break;
                             case ProgressBarWidget pb: ProgressValue = pb.Value; ProgressMin = pb.Min; ProgressMax = pb.Max; ProgressFillColor = pb.FillColor; ProgressFillStyle = pb.FillStyle; break;
+                case DateTimeWidget dt: DateTimeText = dt.Text; DateTimeFormat = dt.Format; break;
                         }
 
                         // 绑定变量（基类通用属性，选中控件时同步下拉 + 刷新变量列表）
@@ -451,6 +480,7 @@ namespace NavigatorHMI.ViewModels
         public bool IsTextListWidget => _selectedWidget is TextListWidget;
         public bool IsFrameWidget => _selectedWidget is FrameWidget;
         public bool IsProgressBarWidget => _selectedWidget is ProgressBarWidget;
+        public bool IsDateTimeWidget => _selectedWidget is DateTimeWidget;
          private PropertyTargetType _selectedObjectType;
          /// <summary>当前选中对象的类型，供 XAML DataTemplate 切换使用。</summary>
          public PropertyTargetType SelectedObjectType
@@ -1349,6 +1379,11 @@ namespace NavigatorHMI.ViewModels
         private string _progressFillStyle = "Solid";
         /// <summary>ProgressBar 填充样式（Solid/Diagonal/Grid）。</summary>
         public string ProgressFillStyle { get => _progressFillStyle; set { if (_progressFillStyle != value) { _progressFillStyle = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is ProgressBarWidget pb) pb.FillStyle = value; } } }
+
+        private string _dateTimeText = "2026-01-01 00:00:00";
+        public string DateTimeText { get => _dateTimeText; set { if (_dateTimeText != value) { _dateTimeText = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is DateTimeWidget dt) dt.Text = value; } } }
+        private string _dateTimeFormat = "yyyy-MM-dd HH:mm:ss";
+        public string DateTimeFormat { get => _dateTimeFormat; set { if (_dateTimeFormat != value) { _dateTimeFormat = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is DateTimeWidget dt) dt.Format = value; } } }
 
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string? name = null)

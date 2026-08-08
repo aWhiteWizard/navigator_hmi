@@ -39,12 +39,12 @@ namespace NavigatorHMI.AiAgent
             (@"^\s*(?:添加|增加|加|放|放置)(?:一个)?(?<type>直线|线段)\s*$", "add_widget", new() { ["type"] = "widget_type" }, new() { ["screen_name"] = "全局画面" }),
             (@"^\s*(?:添加|增加|加|放|放置)(?:一个)?(?<type>框架|frame)\s*$", "add_widget", new() { ["type"] = "widget_type" }, new() { ["screen_name"] = "全局画面" }),
             (@"^\s*(?:添加|增加|加|放|放置)(?:一个)?(?<type>IO域|IO)\s*$", "add_widget", new() { ["type"] = "widget_type" }, new() { ["screen_name"] = "全局画面" }),
-            (@"^\s*(?:在|到)?(?<screen>.+?)(?:上|里)?(?:添加|增加|加|放|放置)(?:一个)?(?<type>按钮|按键|文本|文字|标签|数值显示|数字显示|进度条|开关|复选框|图片|列表|矩形|圆形|椭圆|直线|框架|IO域|IO|输入框|输入)\s*$",
+            (@"^\s*(?:在|到)?(?<screen>.+?)(?:上|里|中|画面)?(?<center>中心)?(?:添加|增加|加|放|放置)(?:一个)?(?<type>按钮|按键|文本|文字|标签|数值显示|数字显示|进度条|开关|复选框|图片|列表|矩形|圆形|椭圆|直线|框架|IO域|IO|输入框|输入)\s*$",
                 "add_widget", new() { ["screen"] = "screen_name", ["type"] = "widget_type" }, null),
             (@"^\s*(?:删除|移除)控件(?<widget>.+?)\s*$", "delete_widget", new() { ["widget"] = "widget_name" }, new() { ["screen_name"] = "全局画面" }),
 
             // ── 变量 ──
-            (@"^\s*(?:创建|新建|增加|添加)变量[:：]?(?<name>.+?)(?:\s+(?:类型|type)\s*[:：]?\s*(?<data_type>BOOL|INT16|UINT16|INT32|FLOAT|STRING))?\s*$",
+            (@"^\s*(?:创建|新建|增加|添加)变量[:：]?(?<name>.+?)(?:\s+(?:类型|type)\s*[:：]?\s*(?<data_type>BOOL|INT16|UINT16|INT32|FLOAT|STRING|DATETIME|日期时间))?\s*$",
                 "create_tag", Map("name", "data_type"), new() { ["data_type"] = "FLOAT" }),   // 未指定类型默认 FLOAT（组匹配时覆盖）
             (@"^\s*(?:删除|移除)变量[:：]?(?<name>.+?)\s*$", "delete_tag", Map("name"), null),
             (@"^\s*把?(?<widget>.+?)绑定(?:到)?变量[:：]?(?<tag>.+?)\s*$", "bind_tag", new() { ["widget"] = "widget_name", ["tag"] = "tag_name" }, new() { ["screen_name"] = "全局画面" }),
@@ -87,11 +87,22 @@ namespace NavigatorHMI.AiAgent
                     if (m.Groups[kv.Key].Success && m.Groups[kv.Key].Length > 0)
                         args[kv.Value] = Normalize(kv.Value, m.Groups[kv.Key].Value.Trim());
                 }
-                // add_widget 必填 x/y：无坐标时默认 (100,100) 放置
+                // add_widget 必填 x/y：无坐标时默认 (100,100) 放置；模板命中「中心」后缀 → center=true（画面中心，忽略 x/y）
                 if (t.Command == "add_widget")
                 {
                     args.TryAdd("x", "100");
                     args.TryAdd("y", "100");
+                    if (m.Groups["center"].Success)
+                    {
+                        // 歧义消解：画面名含「中心」优先（如「数据中心」→ 画面名而非中心位置），否则视为中心位置
+                        var screenName = args.TryGetValue("screen_name", out var s) ? s?.ToString() ?? "" : "";
+                        var screens = _commands.GetScreenNames();
+                        if (!screens.Contains(screenName, StringComparer.OrdinalIgnoreCase)
+                            && screens.Contains(screenName + "中心", StringComparer.OrdinalIgnoreCase))
+                            args["screen_name"] = screenName + "中心";
+                        else
+                            args["center"] = "true";
+                    }
                 }
 
                 var result = _commands.Execute(t.Command, args);
@@ -117,6 +128,7 @@ namespace NavigatorHMI.AiAgent
             ["复选框"] = "checkbox", ["勾选框"] = "checkbox",
             ["图片"] = "image", ["图像"] = "image",
             ["列表"] = "textlist", ["文本列表"] = "textlist",
+            ["日期时间"] = "datetime", ["时间"] = "datetime",
             ["矩形"] = "rectangle", ["方块"] = "rectangle",
             ["圆形"] = "circle", ["圆"] = "circle",
             ["椭圆"] = "ellipse",
@@ -127,7 +139,8 @@ namespace NavigatorHMI.AiAgent
 
         private static object? Normalize(string paramName, string value)
         {
-            if (paramName is "type" or "widget_type" && TypeAliases.TryGetValue(value, out var mapped)) return mapped;
+            // type/widget_type：控件类型别名；data_type：变量类型别名（日期时间→DATETIME 等）
+            if ((paramName is "type" or "widget_type" or "data_type") && TypeAliases.TryGetValue(value, out var mapped)) return mapped;
             if (paramName == "threshold" && double.TryParse(value, out var d)) return d;
             return value;
         }

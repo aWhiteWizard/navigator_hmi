@@ -33,6 +33,7 @@ namespace NavigatorHMI.Views.Helpers
         public DataTemplate TextListTemplate { get; set; } = null!;
         public DataTemplate FrameTemplate { get; set; } = null!;
         public DataTemplate ProgressBarTemplate { get; set; } = null!;
+        public DataTemplate DateTimeTemplate { get; set; } = null!;
         public DataTemplate DefaultTemplate { get; set; } = null!;
 
         /// <summary>
@@ -58,6 +59,7 @@ namespace NavigatorHMI.Views.Helpers
                 TextListWidget => TextListTemplate,
                 FrameWidget => FrameTemplate,
                 ProgressBarWidget => ProgressBarTemplate,
+                DateTimeWidget => DateTimeTemplate,
                 RectangleWidget => DefaultTemplate,
                 _ => DefaultTemplate
             };
@@ -123,6 +125,7 @@ namespace NavigatorHMI.Views.Helpers
                 TextListTemplate = CreateTextListTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
                 FrameTemplate = CreateFrameTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
                 ProgressBarTemplate = CreateProgressBarTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
+                DateTimeTemplate = CreateDateTimeTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
                 DefaultTemplate = CreateRectangleTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler)
             };
 
@@ -433,6 +436,19 @@ namespace NavigatorHMI.Views.Helpers
             return dt;
         }
 
+        /// <summary>C13 日期时间控件渲染：TextBlock 显示 Text（边框包裹）。</summary>
+        private static DataTemplate CreateDateTimeTemplate(RoutedEventHandler click, MouseButtonEventHandler pmLBD, MouseButtonEventHandler mLBD,
+            MouseEventHandler mMove, MouseButtonEventHandler mLBU, MouseButtonEventHandler pmRBD, MouseButtonEventHandler mRBU)
+        {
+            var dt = new DataTemplate();
+            var tb = new FrameworkElementFactory(typeof(TextBlock));
+            tb.SetBinding(TextBlock.TextProperty, new Binding("Text"));
+            tb.SetBinding(TextBlock.ForegroundProperty, new Binding("ForeColor") { Converter = new ColorStringToBrushConverter() });
+            tb.SetValue(TextBlock.VerticalAlignmentProperty, System.Windows.VerticalAlignment.Center);
+            tb.SetValue(TextBlock.HorizontalAlignmentProperty, System.Windows.HorizontalAlignment.Center);
+            dt.VisualTree = WrapWithBorder(tb, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU);
+            return dt;
+        }
         private static DataTemplate CreateRectangleTemplate(RoutedEventHandler click, MouseButtonEventHandler pmLBD, MouseButtonEventHandler mLBD,
             MouseEventHandler mMove, MouseButtonEventHandler mLBU, MouseButtonEventHandler pmRBD, MouseButtonEventHandler mRBU)
         {

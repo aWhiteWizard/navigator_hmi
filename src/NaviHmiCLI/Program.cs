@@ -83,7 +83,7 @@ public static class Program
             "paste-screen"   => Cmd("paste_screen", Opt("name", "")),
 
             // 控件
-            "add-widget"     => Cmd("add_widget", Require("screen", "screen_name"), OptMap("type", "widget_type", "button"), Require("x"), Require("y"), Opt("width", "100"), Opt("height", "40")),
+            "add-widget"     => Cmd("add_widget", Require("screen", "screen_name"), OptMap("type", "widget_type", "button"), Opt("x", "100"), Opt("y", "100"), Opt("width", "100"), Opt("height", "40"), Opt("center", "false")),
             "move-widget"    => Cmd("move_widget", Require("screen", "screen_name"), Require("widget", "widget_name"), Require("x"), Require("y")),
             "resize-widget"  => Cmd("resize_widget", Require("screen", "screen_name"), Require("widget", "widget_name"), Require("width"), Require("height")),
             "delete-widget"  => Cmd("delete_widget", Require("screen", "screen_name"), Require("widget", "widget_name")),
@@ -97,6 +97,9 @@ public static class Program
 
             // 事件
             "bind-event"     => BindEvent(),
+            "add-event"      => AddEvent(),
+            "remove-event"   => RemoveEvent(),
+            "update-event"   => UpdateEvent(),
 
             // 布局
             "align"          => Cmd("align_widgets", Require("screen", "screen_name"), Require("widgets"), Require("direction")),
@@ -243,6 +246,69 @@ public static class Program
             ["widget_name"] = RequireVal("widget"),
             ["event"] = RequireVal("event"),
             ["action"] = RequireVal("action"),
+            ["params"] = paramDict,
+        });
+        if (exitCode == 0) AutoSave(project);
+        return exitCode;
+    }
+
+    /// <summary>add_event：为控件事件追加动作（params 逗号分隔 key=value；同事件累积）。</summary>
+    private static int AddEvent()
+    {
+        var (service, project) = LoadProject();
+        var raw = OptVal("params", "");
+        var paramDict = new Dictionary<string, string>();
+        if (!string.IsNullOrWhiteSpace(raw))
+            foreach (var kv in raw.Split(',', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var parts = kv.Split('=', 2);
+                if (parts.Length == 2) paramDict[parts[0].Trim()] = parts[1].Trim();
+            }
+        var exitCode = Execute(service, "add_event", new()
+        {
+            ["screen_name"] = RequireVal("screen"),
+            ["widget_name"] = RequireVal("widget"),
+            ["event_type"] = RequireVal("event"),
+            ["action_type"] = RequireVal("action"),
+            ["params"] = paramDict,
+        });
+        if (exitCode == 0) AutoSave(project);
+        return exitCode;
+    }
+
+    /// <summary>remove_event：移除控件事件（--action 指定仅移除该动作；否则整个事件）。</summary>
+    private static int RemoveEvent()
+    {
+        var (service, project) = LoadProject();
+        var exitCode = Execute(service, "remove_event", new()
+        {
+            ["screen_name"] = RequireVal("screen"),
+            ["widget_name"] = RequireVal("widget"),
+            ["event_type"] = RequireVal("event"),
+            ["action_type"] = OptVal("action", ""),
+        });
+        if (exitCode == 0) AutoSave(project);
+        return exitCode;
+    }
+
+    /// <summary>update_event：更新事件下动作的参数（params 完整替换）。</summary>
+    private static int UpdateEvent()
+    {
+        var (service, project) = LoadProject();
+        var raw = OptVal("params", "");
+        var paramDict = new Dictionary<string, string>();
+        if (!string.IsNullOrWhiteSpace(raw))
+            foreach (var kv in raw.Split(',', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var parts = kv.Split('=', 2);
+                if (parts.Length == 2) paramDict[parts[0].Trim()] = parts[1].Trim();
+            }
+        var exitCode = Execute(service, "update_event", new()
+        {
+            ["screen_name"] = RequireVal("screen"),
+            ["widget_name"] = RequireVal("widget"),
+            ["event_type"] = RequireVal("event"),
+            ["action_type"] = RequireVal("action"),
             ["params"] = paramDict,
         });
         if (exitCode == 0) AutoSave(project);

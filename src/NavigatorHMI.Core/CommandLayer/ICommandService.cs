@@ -19,5 +19,11 @@ namespace NavigatorHMI.CommandLayer
         /// </summary>
         /// <returns>命令定义列表</returns>
         List<CommandDefinition> GetAvailableCommands();
+
+        /// <summary>
+        /// 获取当前工程全部画面名称（供规则引擎做画面名歧义消解，如"中心"后缀 vs 画面名含"中心"）。
+        /// </summary>
+        /// <returns>画面名称列表</returns>
+        List<string> GetScreenNames();
     }
 }

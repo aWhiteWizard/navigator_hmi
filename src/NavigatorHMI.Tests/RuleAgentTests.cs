@@ -180,5 +180,51 @@ namespace NavigatorHMI.Tests
             var r = a.Process("今天天气怎么样");
             Assert.Contains("未识别", r);
         }
+
+        // ── C6/C7 画面别名 + 中心意图 ──
+        [Fact]
+        public void 在世界地图中放置按钮_识别画面别名()
+        {
+            var (a, p) = Create();
+            p.Screens.Add(new Screen { Name = "世界地图", Width = 800, Height = 480, Type = ScreenType.Custom });
+            var r = a.Process("在世界地图中放置一个按钮");
+            Assert.Contains("✓", r);
+            var screen = p.Screens.First(s => s.Name == "世界地图");
+            Assert.Single(screen.Widgets);
+        }
+
+        [Fact]
+        public void 在温度监控画面放数值显示_去画面后缀()
+        {
+            var (a, p) = Create();
+            p.Screens.Add(new Screen { Name = "温度监控", Width = 800, Height = 480, Type = ScreenType.Custom });
+            var r = a.Process("在温度监控画面放一个数值显示");
+            Assert.Contains("✓", r);
+            Assert.Single(p.Screens.First(s => s.Name == "温度监控").Widgets);
+        }
+
+        [Fact]
+        public void 在世界地图中心放开关_置于画面中心()
+        {
+            var (a, p) = Create();
+            p.Screens.Add(new Screen { Name = "世界地图", Width = 800, Height = 480, Type = ScreenType.Custom });
+            var r = a.Process("在世界地图中心放一个开关");
+            Assert.Contains("✓", r);
+            var w = p.Screens.First(s => s.Name == "世界地图").Widgets.Single();
+            Assert.Equal(350, w.X);   // (800-100)/2
+            Assert.Equal(220, w.Y);   // (480-40)/2
+        }
+
+        [Fact]
+        public void 画面名含中心_不误触发中心放置()
+        {
+            var (a, p) = Create();
+            p.Screens.Add(new Screen { Name = "数据中心", Width = 800, Height = 480, Type = ScreenType.Custom });
+            var r = a.Process("在数据中心放一个按钮");
+            Assert.Contains("✓", r);
+            var w = p.Screens.First(s => s.Name == "数据中心").Widgets.Single();
+            Assert.Equal(100, w.X);   // 非中心：保持默认 (100,100)
+            Assert.Equal(100, w.Y);
+        }
     }
 }

@@ -816,6 +816,23 @@
                     <ComboBoxItem Content="Solid"/><ComboBoxItem Content="Diagonal"/><ComboBoxItem Content="Grid"/>
                 </ComboBox>
             </Grid></StackPanel></DataTemplate>
+    <!-- C13 日期时间控件属性 -->
+    <DataTemplate x:Key="PropDateTime"><StackPanel>
+            <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropBinding}" Content="{Binding}"/>
+            <Separator Margin="4,2"/>
+            <TextBlock Text="参数" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="显示文本:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding DateTimeText, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" KeyDown="PropField_KeyDown"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="格式:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding DateTimeFormat, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" KeyDown="PropField_KeyDown" ToolTip="DateTime 格式，如 yyyy-MM-dd HH:mm:ss"/>
+            </Grid>
+        </StackPanel></DataTemplate>
     </Window.Resources>
 
     <Window.CommandBindings><CommandBinding Command="Save" Executed="SaveCurrentProject_Click"/><CommandBinding Command="Help" Executed="Help_Click"/></Window.CommandBindings>
@@ -1040,8 +1057,7 @@
                                     <TabItem Header="一般控件"><StackPanel Orientation="Vertical">
                                         <Button Content="Label" Tag="Label" Click="ToggleAddWidgetMode"/>
                                         <Button x:Name="AddButtonModeBtn" Content="Button" Tag="Button" Click="ToggleAddWidgetMode"/>
-                                        <Button Content="Text" Tag="Text" Click="ToggleAddWidgetMode"/>
-                                        <Button Content="Rectangle" Tag="Rectangle" Click="ToggleAddWidgetMode"/>
+                                                                                <Button Content="Rectangle" Tag="Rectangle" Click="ToggleAddWidgetMode"/>
                                         <Button Content="Line" Tag="Line" Click="ToggleAddWidgetMode"/>
                                         <Button Content="Circle" Tag="Circle" Click="ToggleAddWidgetMode"/>
                                         <Button Content="Ellipse" Tag="Ellipse" Click="ToggleAddWidgetMode"/>
@@ -1053,6 +1069,7 @@
                                         <Button Content="TextList" Tag="TextList" Click="ToggleAddWidgetMode"/>
                                         <Button Content="Frame" Tag="Frame" Click="ToggleAddWidgetMode"/>
                                         <Button Content="ProgressBar" Tag="ProgressBar" Click="ToggleAddWidgetMode"/>
+                                            <Button Content="DateTime" Tag="DateTime" Click="ToggleAddWidgetMode"/>
                                     </StackPanel></TabItem>
                                     <TabItem Header="窗口控件"><StackPanel Orientation="Vertical">
                                         <Button Content="User View"/><Button Content="Alarm View"/><Button Content="Robot List"/>
@@ -1363,15 +1380,15 @@
                                     <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
                                         <Button Content="＋ 新建设备" Command="{Binding NewDeviceCommand}" Width="90" Height="26" Margin="0,0,4,0" ToolTip="新建设备通信配置"/>
                                         <Button Content="✏ 编辑" Command="{Binding EditDeviceCommand}" Width="60" Height="26" Margin="0,0,4,0" ToolTip="编辑选中设备（或双击行）"/>
-                                        <Button Content="🗑 删除" Command="{Binding DeleteDeviceCommand}" Width="60" Height="26" ToolTip="删除选中设备"/>
+                                        <Button Content="🗑 删除" Width="60" Height="26" Click="DeviceDelete_Click" ToolTip="删除选中设备（多选可批量）"/>
                                     </StackPanel>
                                     <DockPanel Grid.Row="1" Margin="0,0,0,4">
                                         <TextBlock DockPanel.Dock="Left" Text="搜索:" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="12"/>
                                         <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" FontSize="12" VerticalContentAlignment="Center"/>
                                     </DockPanel>
-                                    <DataGrid Grid.Row="2" ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}"
+                                    <DataGrid x:Name="DeviceGrid" Grid.Row="2" ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}"
                                               AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="True"
-                                              HeadersVisibility="Column" IsReadOnly="True" MouseDoubleClick="DeviceGrid_DoubleClick"
+                                              HeadersVisibility="Column" IsReadOnly="True" MouseDoubleClick="DeviceGrid_DoubleClick" PreviewKeyDown="DeviceGrid_KeyDown"
                                               SelectionMode="Extended" GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12"
                                               RowHeight="26">
                                         <DataGrid.Columns>
@@ -1384,7 +1401,7 @@
                                                 <MenuItem Header="＋ 新建设备" Command="{Binding NewDeviceCommand}"/>
                                                 <MenuItem Header="✏ 编辑设备" Command="{Binding EditDeviceCommand}"/>
                                                 <Separator/>
-                                                <MenuItem Header="🗑 删除设备" Command="{Binding DeleteDeviceCommand}"/>
+                                                <MenuItem Header="🗑 删除选中项" Click="DeviceDelete_Click"/>
                                             </ContextMenu>
                                         </DataGrid.ContextMenu>
                                     </DataGrid>
@@ -1460,7 +1477,7 @@
                                                             <TextBlock DockPanel.Dock="Left" Text="列表名:" VerticalAlignment="Center" FontSize="12" Margin="0,0,4,0"/>
                                                             <TextBox Text="{Binding TextListName, UpdateSourceTrigger=LostFocus}" FontSize="12" VerticalContentAlignment="Center" KeyDown="PropField_KeyDown" ToolTip="重命名列表（失焦或回车提交，级联同步控件引用）"/>
                                                         </DockPanel>
-                                                        <DataGrid Grid.Row="1" ItemsSource="{Binding TextItems}" SelectedItem="{Binding SelectedTextItem}"
+                                                        <DataGrid x:Name="TextItemsGrid" Grid.Row="1" ItemsSource="{Binding TextItems}" SelectedItem="{Binding SelectedTextItem}" PreviewKeyDown="TextItemsGrid_KeyDown"
                                                                   AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="False"
                                                                   HeadersVisibility="Column" SelectionMode="Extended" GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12"
                                                                   RowHeight="26">
@@ -1471,7 +1488,7 @@
                                                         </DataGrid>
                                                         <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,4,0,0">
                                                             <Button Content="＋ 添加项" Command="{Binding AddTextItemCommand}" Width="80" Height="26" Margin="0,0,4,0"/>
-                                                            <Button Content="－ 删除项" Command="{Binding RemoveTextItemCommand}" Width="80" Height="26"/>
+                                                            <Button Content="－ 删除项" Width="80" Height="26" Click="TextItemsDelete_Click" ToolTip="删除选中项（多选可批量）"/>
                                                         </StackPanel>
                                                     </Grid>
                                                 </Grid>
@@ -1505,7 +1522,7 @@
                                                             <TextBlock DockPanel.Dock="Left" Text="列表名:" VerticalAlignment="Center" FontSize="12" Margin="0,0,4,0"/>
                                                             <TextBox Text="{Binding ImageListName, UpdateSourceTrigger=LostFocus}" FontSize="12" VerticalContentAlignment="Center" KeyDown="PropField_KeyDown" ToolTip="重命名列表（失焦或回车提交，级联同步控件引用）"/>
                                                         </DockPanel>
-                                                        <DataGrid Grid.Row="1" ItemsSource="{Binding ImageItems}" SelectedItem="{Binding SelectedImageItem}"
+                                                        <DataGrid x:Name="ImageItemsGrid" Grid.Row="1" ItemsSource="{Binding ImageItems}" SelectedItem="{Binding SelectedImageItem}" PreviewKeyDown="ImageItemsGrid_KeyDown"
                                                                   AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="False"
                                                                   HeadersVisibility="Column" SelectionMode="Extended" GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12"
                                                                   RowHeight="38">
@@ -1561,7 +1578,7 @@
                                                         </DataGrid>
                                                         <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,4,0,0">
                                                             <Button Content="＋ 添加项" Command="{Binding AddImageItemCommand}" Width="80" Height="26" Margin="0,0,4,0"/>
-                                                            <Button Content="－ 删除项" Command="{Binding RemoveImageItemCommand}" Width="80" Height="26"/>
+                                                            <Button Content="－ 删除项" Width="80" Height="26" Click="ImageItemsDelete_Click" ToolTip="删除选中项（多选可批量）"/>
                                                         </StackPanel>
                                                     </Grid>
                                                 </Grid>
@@ -1609,8 +1626,33 @@
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="TextListWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropTextListWidget}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="FrameWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropFrame}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="ProgressBarWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropProgressBar}"/></DataTrigger>
+                                                    <DataTrigger Binding="{Binding SelectedObjectType}" Value="DateTimeWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropDateTime}"/></DataTrigger>
                                                 </Style.Triggers>
                                             </Style></ContentControl.Style></ContentControl>
+                                            <!-- 事件栏（DESIGN-EVENTS.md §4：选中控件且支持事件时显示可用事件 + 配置入口） -->
+                                            <StackPanel Visibility="{Binding EventBarVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+                                                <Separator Margin="4,2"/>
+                                                <TextBlock Text="事件" FontWeight="Bold" FontSize="13" Margin="4,2"/>
+                                                <TextBlock Text="（图形类/进度条/标签不支持事件）" FontSize="10" Foreground="Gray" Margin="4,0,4,2"/>
+                                                <ItemsControl ItemsSource="{Binding EventRows}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Grid Margin="4,2">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                    <ColumnDefinition Width="Auto"/>
+                                                                </Grid.ColumnDefinitions>
+                                                                <StackPanel>
+                                                                    <TextBlock Text="{Binding DisplayName}" FontSize="12" VerticalAlignment="Center"/>
+                                                                    <TextBlock Text="{Binding Status}" FontSize="10" Foreground="Gray"/>
+                                                                </StackPanel>
+                                                                <Button Grid.Column="1" Content="配置…" FontSize="11" Padding="8,2"
+                                                                        VerticalAlignment="Center" Click="OpenEventConfig_Click" Tag="{Binding Type}"/>
+                                                            </Grid>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
                                         </StackPanel>
                                     </ScrollViewer>
                                 </Grid>
@@ -1759,11 +1801,12 @@
                                  FontSize="13" MinHeight="28" VerticalAlignment="Bottom" IsEnabled="{Binding IsAiThinking, Converter={StaticResource InverseBoolConverter}}"
                                  KeyDown="AiInput_KeyDown" ToolTip="输入自然语言指令；Enter 发送，Shift+Enter 换行"/>
                         <Button Grid.Column="1" Width="56" Margin="6,0,0,0" VerticalAlignment="Bottom"
-                                Command="{Binding AiSendOrCancelCommand}" Background="#2D7DD2" Foreground="White" BorderThickness="0"
+                                Command="{Binding AiSendOrCancelCommand}" Foreground="White" BorderThickness="0"
                                 Padding="0,6" Cursor="Hand">
                             <Button.Style>
                                 <Style TargetType="Button">
                                     <Setter Property="Content" Value="发送"/>
+                                    <Setter Property="Background" Value="#2D7DD2"/>
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsAiThinking}" Value="True">
                                             <Setter Property="Content" Value="停止"/>

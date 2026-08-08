@@ -460,6 +460,7 @@ internal static class BaseValueValidator
             TagDataType.UINT16 => ushort.TryParse(s, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _),
             TagDataType.INT32 => int.TryParse(s, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _),
             TagDataType.BOOL => bool.TryParse(s, out _) || s is "1" or "0",
+            TagDataType.DATETIME => DateTime.TryParse(s, out _),   // 任意有效日期时间（yyyy-MM-dd HH:mm:ss 等）
             _ => true,   // STRING 等任意文本
         };
         return ok ? null : $"base_value 不是合法的 {dt} 数值: '{raw}'";

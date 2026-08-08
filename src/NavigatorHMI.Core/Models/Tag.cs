@@ -16,7 +16,9 @@ namespace NavigatorHMI.Common
         /// <summary>32 位浮点数</summary>
         FLOAT,
         /// <summary>字符串（MQTT 消息体）</summary>
-        STRING
+        STRING,
+        /// <summary>日期时间（显示/编辑控件用；格式 yyyy-MM-dd HH:mm:ss）</summary>
+        DATETIME
     }
 
     /// <summary>
