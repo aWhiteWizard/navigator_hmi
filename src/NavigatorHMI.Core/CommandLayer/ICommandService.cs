@@ -25,5 +25,8 @@ namespace NavigatorHMI.CommandLayer
         /// </summary>
         /// <returns>画面名称列表</returns>
         List<string> GetScreenNames();
+
+        /// <summary>E11 当前画面名（运行时：GUI 画面切换维护；current_screen 命令与 AI prompt 读取）。</summary>
+        string? CurrentScreenName { get; set; }
     }
 }

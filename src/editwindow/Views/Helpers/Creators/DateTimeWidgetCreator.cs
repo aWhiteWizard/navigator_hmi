@@ -4,7 +4,7 @@ using System.Windows;
 
 namespace NavigatorHMI.Views.Helpers.Creators
 {
-    /// <summary>C13 日期时间控件创建器：默认 180x28，名称 日期时间N。</summary>
+    /// <summary>C13/D8 日期时间控件创建器：默认 220x28，名称 日期时间N。</summary>
     public class DateTimeWidgetCreator : IWidgetCreator
     {
         public Widget Create(Point position, Screen screen)
@@ -18,7 +18,7 @@ namespace NavigatorHMI.Views.Helpers.Creators
             return new DateTimeWidget
             {
                 X = position.X - 90, Y = position.Y - 14,
-                Width = 180, Height = 28,
+                Width = 220, Height = 28,   // D8：默认宽度 220
                 ObjectName = $"日期时间{maxNum + 1}"
             };
         }

@@ -26,6 +26,7 @@ namespace NavigatorHMI.ViewModels
             [EventType.onInput] = "输入完成",
             [EventType.onOn] = "开关打开",
             [EventType.onOff] = "开关关闭",
+            [EventType.onProgressComplete] = "进度完成（100%）",
         };
 
         /// <summary>动作类型中文名（对话框函数列表显示）。</summary>
@@ -47,9 +48,10 @@ namespace NavigatorHMI.ViewModels
             [ActionType.set_datetime] = "设置日期时间",
             [ActionType.get_datetime] = "读取日期时间",
             [ActionType.acknowledge_alarm] = "确认报警",
+            [ActionType.set_system_time] = "修改系统时间",
         };
 
-        /// <summary>控件类型（Type 名）→ 可用事件列表（DESIGN §2；图形类/进度条/Label 无事件）。</summary>
+        /// <summary>控件类型（Type 名）→ 可用事件列表（DESIGN §2；图形类/Label 无事件；进度条 onProgressComplete）。</summary>
         private static readonly Dictionary<string, EventType[]> Map = new()
         {
             ["ButtonWidget"] = new[] { EventType.onClick, EventType.onPress, EventType.onRelease },
@@ -60,6 +62,7 @@ namespace NavigatorHMI.ViewModels
             ["IOFieldWidget"] = new[] { EventType.onClick, EventType.onPress, EventType.onInput, EventType.onValueChange, EventType.onRelease },
             ["CheckBoxWidget"] = new[] { EventType.onClick, EventType.onValueChange, EventType.onRelease },
             ["TextListWidget"] = new[] { EventType.onClick, EventType.onPress, EventType.onValueChange, EventType.onRelease },
+            ["ProgressBarWidget"] = new[] { EventType.onProgressComplete },
         };
 
         /// <summary>控件类型是否支持事件（属性面板事件栏可见性）。</summary>

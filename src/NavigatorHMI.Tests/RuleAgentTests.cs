@@ -16,6 +16,17 @@ namespace NavigatorHMI.Tests
             return (new RuleAgent(svc), project);
         }
 
+        private static string? GetScreenName(object data) => data.GetType().GetProperty("screen_name")?.GetValue(data)?.ToString();
+
+        /// <summary>E11：直接返回 (CommandService, HMIProject, 首画面)（current_screen 命令 / CurrentScreenName 消解测试用）。</summary>
+        internal static (CommandService svc, HMIProject project, Screen screen) CreateSvc()
+        {
+            var project = new HMIProject();
+            project.Screens.Add(new Screen { Name = "全局画面", Width = 800, Height = 480, Type = ScreenType.Custom });
+            var svc = new CommandService(project);
+            return (svc, project, project.Screens[0]);
+        }
+
         // ── 画面 ──
         [Fact]
         public void 创建画面()
@@ -235,6 +246,39 @@ namespace NavigatorHMI.Tests
             Assert.Contains("✓", r);
             var screen = p.Screens.First(s => s.Name == "全局画面");
             Assert.Single(screen.Widgets);   // 落到全局画面（而非 NOT_FOUND）
+        }
+
+        // ═══ E11：current_screen 命令 + RuleAgent「当前画面」消解 ═══
+
+        [Fact]
+        public void CurrentScreen_未设置回退第一画面()
+        {
+            var (svc, project, _) = RuleAgentTests.CreateSvc();   // 建独立工程（无 CurrentScreenName）
+            var r = svc.Execute("current_screen", new Dictionary<string, object?>());
+            Assert.True(r.Success);
+            Assert.Equal(project.Screens[0].Name, GetScreenName(r.Data!));
+        }
+
+        [Fact]
+        public void CurrentScreen_已设置返回当前画面()
+        {
+            var (svc, project, _) = RuleAgentTests.CreateSvc();
+            svc.CurrentScreenName = "测试画面";
+            var r = svc.Execute("current_screen", new Dictionary<string, object?>());
+            Assert.True(r.Success);
+            Assert.Equal("测试画面", GetScreenName(r.Data!));
+        }
+
+        [Fact]
+        public void 在当前画面放按钮_消解到CurrentScreenName()
+        {
+            var (svc, project, screen) = RuleAgentTests.CreateSvc();
+            project.Screens.Add(new Screen { Name = "温度监控", Width = 800, Height = 480, Type = ScreenType.Custom });
+            svc.CurrentScreenName = "温度监控";
+            var agent = new RuleAgent(svc);
+            var r = agent.Process("在当前画面放一个按钮");
+            Assert.Contains("✓", r);
+            Assert.Single(project.Screens.First(s => s.Name == "温度监控").Widgets);
         }
     }
 }

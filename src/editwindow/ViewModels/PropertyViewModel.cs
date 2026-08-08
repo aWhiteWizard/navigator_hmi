@@ -878,6 +878,7 @@ namespace NavigatorHMI.ViewModels
                     TagRequirement.Numeric => TagCompatibility.IsNumericCompatible(t.DataType),
                     TagRequirement.StringPath => TagCompatibility.IsStringPathCompatible(t.DataType),
                     TagRequirement.DateTime => TagCompatibility.IsDateTimeCompatible(t.DataType),
+                    TagRequirement.Bool => TagCompatibility.IsBoolCompatible(t.DataType),
                     TagRequirement.None => false,   // 禁止绑定：无变量可选
                     _ => true,
                 };

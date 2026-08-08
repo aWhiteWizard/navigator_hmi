@@ -29,7 +29,7 @@ namespace NavigatorHMI.ViewModels
         ["画面导航"] = new[] { ActionType.screen_switch, ActionType.screen_prev, ActionType.screen_next },
         ["控件与界面"] = new[] { ActionType.set_property, ActionType.show_popup },
         ["通知与报警"] = new[] { ActionType.send_notification, ActionType.acknowledge_alarm },
-        ["日期时间"] = new[] { ActionType.set_datetime, ActionType.get_datetime },
+        ["日期时间"] = new[] { ActionType.set_datetime, ActionType.get_datetime, ActionType.set_system_time },
         ["执行命令"] = new[] { ActionType.run_command },
     };
 
@@ -408,6 +408,7 @@ namespace NavigatorHMI.ViewModels
             ActionType.set_datetime => new() { ("datetime", "日期时间(格式 yyyy-MM-dd HH:mm:ss)", "string", null) },
             ActionType.get_datetime => new(),
             ActionType.acknowledge_alarm => new() { ("alarm_name", "报警", "alarm", null) },
+                ActionType.set_system_time => new() { ("datetime", "日期时间(格式 yyyy-MM-dd HH:mm:ss)", "string", null) },
             _ => new(),
         };
 

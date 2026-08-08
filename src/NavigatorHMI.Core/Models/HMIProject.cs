@@ -23,6 +23,10 @@ namespace NavigatorHMI.Common
         protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
+        /// <summary>E11 运行时当前画面名（[ProtoIgnore] 不落盘：GUI 画面切换时维护；CLI/AI 的 current_screen 命令读取）。</summary>
+        [ProtoIgnore]
+        public string? CurrentScreenName { get; set; }
+
         // ═══════════════════════════════════════════
         // v1.0 字段 (ProtoMember 1-8, 不可变)
         // ═══════════════════════════════════════════

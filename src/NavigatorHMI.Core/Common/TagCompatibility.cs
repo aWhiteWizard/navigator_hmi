@@ -11,6 +11,8 @@ namespace NavigatorHMI.Common
         Numeric,
         /// <summary>字符串类型（文本控件显示值）。</summary>
         StringPath,
+        /// <summary>布尔类型（开关/复选框控件）。</summary>
+        Bool,
         /// <summary>日期时间类型（DateTime 控件）。</summary>
         DateTime
     }
@@ -27,6 +29,9 @@ namespace NavigatorHMI.Common
         /// <summary>字符串绑定控件允许的变量类型（STRING：文本内容/图片路径）。</summary>
         public static bool IsStringPathCompatible(TagDataType t) => t == TagDataType.STRING;
 
+        /// <summary>开关/复选框控件允许的变量类型（仅 BOOL）。</summary>
+        public static bool IsBoolCompatible(TagDataType t) => t == TagDataType.BOOL;
+
         /// <summary>DateTime 控件允许的变量类型（仅 DATETIME）。</summary>
         public static bool IsDateTimeCompatible(TagDataType t) => t == TagDataType.DATETIME;
 
@@ -39,6 +44,8 @@ namespace NavigatorHMI.Common
             TextWidget => TagRequirement.StringPath,
             // 输入输出域：数字或字符串均可显示
             IOFieldWidget => TagRequirement.Any,
+            // 开关/复选框（B3/B4）：仅绑 BOOL 变量（运行时双向同步）
+            SwitchWidget or CheckBoxWidget => TagRequirement.Bool,
             // 数值显示/进度条：数字
             NumericDisplayWidget or ProgressBarWidget => TagRequirement.Numeric,
             // 列表消费控件（Image/Frame/TextList）：绑定数值变量 = 显示索引（0=第1项）
@@ -61,6 +68,8 @@ namespace NavigatorHMI.Common
                     $"变量 \"{tag.Name}\" 类型 {tag.DataType} 不能绑定文本控件（支持 STRING）",
                 TagRequirement.DateTime when !IsDateTimeCompatible(tag.DataType) =>
                     $"变量 \"{tag.Name}\" 类型 {tag.DataType} 不能绑定日期时间控件（仅支持 DATETIME）",
+                TagRequirement.Bool when !IsBoolCompatible(tag.DataType) =>
+                    $"变量 \"{tag.Name}\" 类型 {tag.DataType} 不能绑定开关/复选框（需 BOOL）",
                 _ => null,
             };
         }

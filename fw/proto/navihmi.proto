@@ -91,6 +91,7 @@ enum EventType {
   EV_ON_INPUT = 12;
   EV_ON_ON = 13;
   EV_ON_OFF = 14;
+  EV_ON_PROGRESS_COMPLETE = 15;
 }
 
 enum ActionType {
@@ -110,6 +111,7 @@ enum ActionType {
   ACT_SET_DATETIME = 13;
   ACT_GET_DATETIME = 14;
   ACT_ACKNOWLEDGE_ALARM = 15;
+  ACT_SET_SYSTEM_TIME = 16;
 }
 
 // ── 消息 ──

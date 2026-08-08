@@ -84,6 +84,7 @@ namespace NavigatorHMI.Views
         // widget的专职类
         private readonly WidgetSelectionManager _selectionManager;
         private readonly WidgetDragBehavior _dragBehavior;
+        private readonly DispatcherTimer _clockTimer;   // D6：画布 1Hz 时钟（未绑定 DateTime 控件实时刷新）
 
         // 树形视图和 Widget 的右键菜单处理器
         private readonly TreeViewContextMenuHandler _treeContextMenuHandler;
@@ -167,6 +168,17 @@ namespace NavigatorHMI.Views
             this.Closed += EditWindow_Closed;
             _viewModel.AiMessages.CollectionChanged += AiMessages_CollectionChanged;   // AI 消息自动滚动到底
 
+            // D6：画布 1Hz 时钟——未绑定 DateTime 控件显示实时当前时间（Tick 通知 DisplayText 刷新）
+            _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            _clockTimer.Tick += (_, _) =>
+            {
+                var screen = _viewModel.CurrentScreen;
+                if (screen == null) return;
+                foreach (var w in screen.Widgets)
+                    if (w is DateTimeWidget dt) dt.RefreshDisplay();
+            };
+            _clockTimer.Start();
+
             // 8. 订阅 ViewModel 事件
             _viewModel.CanvasReloadRequested += LoadCanvas;
             _viewModel.RefreshCanvasRequested += () => LoadCanvas(_viewModel.CurrentScreen);
@@ -209,6 +221,7 @@ namespace NavigatorHMI.Views
 
             // 12.5 初始化列表管理面板（新建/删除/重命名/编辑项走 CommandService）
             _listManagerVM = new ListManagerViewModel(_currentProject, _viewModel.CommandService);
+            _viewModel.ListManager = _listManagerVM;   // A12：列表撤销优先回调接入（工具栏撤销/Ctrl+Z/菜单统一）
 
             // 13. 注册设计态变量解析器（绑定控件渲染基准值）
             TagResolver.CurrentProject = _currentProject;
@@ -1066,6 +1079,7 @@ namespace NavigatorHMI.Views
         /// </summary>
         private void EditWindow_Closed(object? sender, EventArgs e)
         {
+            _clockTimer.Stop();   // D6：关闭停止画布时钟
             if (SelectorHelper.ResizeDragStarted == _resizeDragStartedCallback)
                 SelectorHelper.ResizeDragStarted = null;
             if (SelectorHelper.GetCanvasSize == _getCanvasSizeCallback)
@@ -2766,8 +2780,20 @@ namespace NavigatorHMI.Views
 
         private void AiInput_KeyDown(object sender, KeyEventArgs e)
         {
-            // Enter 发送，Shift+Enter 换行（与聊天工具一致）
-            if (e.Key == Key.Enter && !(Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)))
+            // Enter 发送，Shift+Enter 换行（与聊天工具一致）；IME 候选确认回车（ImeProcessedKey != None）放行给 TextBox 提交候选词，不发送
+            if (e.Key == Key.Enter && e.ImeProcessedKey == Key.None && !(Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)))
+            {
+                e.Handled = true;
+                if (_viewModel.AiSendCommand.CanExecute(null))
+                    _viewModel.AiSendCommand.Execute(null);
+            }
+        }
+
+        /// <summary>A7：IME 候选词确认回车（ImeProcessedKey != None）不触发发送——隧道阶段拦截，中文输入法选词不误发送；普通 Enter 在 Preview 发送并 Handled（KeyDown 被屏蔽），IME 回车放行给 TextBox 提交候选词。</summary>
+        private void AiInput_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter && e.ImeProcessedKey == Key.None
+                && !Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
             {
                 e.Handled = true;
                 if (_viewModel.AiSendCommand.CanExecute(null))

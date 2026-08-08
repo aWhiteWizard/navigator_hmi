@@ -96,6 +96,12 @@ namespace NavigatorHMI.AiAgent
                     // 回退：screen 不在画面列表时，试 screen+"画面" 在列表 → 用全名（如「全局」→「全局画面」）
                     var screenName = args.TryGetValue("screen_name", out var s0) ? s0?.ToString() ?? "" : "";
                     var screens = _commands.GetScreenNames();
+                    // E11：当前画面消解——「当前/当前画面/本画面/这个画面」→ GUI 维护的 CurrentScreenName（未设置回退第一画面）
+                    if (screenName is "当前" or "当前画面" or "本画面" or "这个画面")
+                    {
+                        var cur = _commands.CurrentScreenName ?? screens.FirstOrDefault() ?? "";
+                        if (cur.Length > 0) { args["screen_name"] = cur; screenName = cur; }
+                    }
                     if (!screens.Contains(screenName, StringComparer.OrdinalIgnoreCase)
                         && screens.Contains(screenName + "画面", StringComparer.OrdinalIgnoreCase))
                     {

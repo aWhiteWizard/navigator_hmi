@@ -68,12 +68,14 @@
                           ItemsSource="{Binding FunctionGroupActionNames}" Text="{Binding SelectedFunctionGroupActionName}" IsEditable="True"/>
                 <Button Content="＋ 添加" Width="70" Height="26" Margin="6,0,0,0" Click="AddFunction_Click"/>
             </StackPanel>
+            <TextBlock Grid.Row="3" Text="小类筛选函数类型，选中后点「＋添加」加入列表（按触发顺序执行）" FontSize="10" Foreground="Gray" Margin="0,2,0,0"/>
         </Grid>
 
         <!-- 参数区 -->
         <ScrollViewer Grid.Row="1" Margin="0,4" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel>
                 <TextBlock Text="函数参数" FontWeight="Bold" Margin="0,0,0,4"/>
+                <TextBlock Text="参数修改立即生效；切换函数不会丢失已填内容" FontSize="10" Foreground="Gray" Margin="0,0,0,4"/>
                 <!-- run_command：命令下拉 + 元数据驱动表单 -->
                 <StackPanel Visibility="{Binding ShowCommandParams, Converter={StaticResource BoolToVisibilityConverter}}">
                     <Grid Margin="0,2">
@@ -89,6 +91,7 @@
                             <ComboBox Margin="0,2,0,0" FontSize="12" Padding="2"
                                       ItemsSource="{Binding FilteredCommandNames}" Text="{Binding SelectedCommandName}" IsEditable="True"
                                       ToolTip="命令（按分类过滤；选中写入函数命令）"/>
+                            <TextBlock Text="分类 → 命令两级选择；参数由命令自动列出" FontSize="10" Foreground="Gray" Margin="0,2,0,0"/>
                         </StackPanel>
                     </Grid>
                     <ItemsControl ItemsSource="{Binding SelectedFunction.CommandParams}" Margin="0,2,0,0"/>

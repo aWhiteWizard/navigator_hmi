@@ -247,9 +247,16 @@ namespace NavigatorHMI.AiAgent
             return summary;
         }
 
-        private string BuildSystemPrompt() => _enableTools
-            ? "你是 NavigatorHMI 组态软件 AI 助手，把用户的中文自然语言指令转换为对组态软件的命令调用。\n" +
-            "规则：\n" +
+        private string BuildSystemPrompt()
+        {
+            var cur = _commands.CurrentScreenName;
+            var curLine = string.IsNullOrEmpty(cur)
+                ? "当前画面：未指定（操作前先确认画面名）。\n"
+                : $"当前画面：\"{cur}\"——用户说「当前画面/本画面/这个画面」= 该画面；未指定画面时默认操作该画面。\n";
+            return (_enableTools
+                ? "你是 NavigatorHMI 组态软件 AI 助手，把用户的中文自然语言指令转换为对组态软件的命令调用。\n" +
+                "规则：\n" +
+                curLine +
             "1. 判断用户意图：需要操作工程（建画面/放控件/建变量/建报警等）时，直接调用 tools 中的函数；" +
             "不要询问确认、不要用文本描述过程、不要编造不存在的工具名。\n" +
             "2. 参数必须符合函数 schema；不确定的次要参数可省略（命令层有默认值/校验）。\n" +
@@ -276,6 +283,7 @@ namespace NavigatorHMI.AiAgent
             "规则：\n" +
             "1. 当前模式不提供工程操作工具，无法直接创建/修改画面、变量、报警。\n" +
             "2. 用户要求执行操作时，说明该操作需要切换到函数调用模式（模型下拉选 DeepSeek Chat），并给出对应的自然语言指令示例。\n" +
-            "3. 用户提问、分析、咨询时正常回答。";
+            "3. 用户提问、分析、咨询时正常回答。");
     }
+}
 }

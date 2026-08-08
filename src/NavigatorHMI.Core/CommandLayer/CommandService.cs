@@ -50,6 +50,7 @@ namespace NavigatorHMI.CommandLayer
                 ["rename_screen"]   = new RenameScreenHandler(),
                 ["copy_screen"]     = new CopyScreenHandler(),
                 ["paste_screen"]    = new PasteScreenHandler(),
+                ["current_screen"]  = new CurrentScreenHandler(),
 
                 // ── 控件操作 ──
                 ["add_widget"]      = new AddWidgetHandler(),
@@ -166,6 +167,13 @@ namespace NavigatorHMI.CommandLayer
         public List<string> GetScreenNames()
         {
             lock (_lock) { return _project.Screens.Select(s => s.Name).ToList(); }
+        }
+
+        /// <summary>E11 当前画面名：代理到工程运行时字段（GUI 画面切换维护；current_screen 命令读取）。</summary>
+        public string? CurrentScreenName
+        {
+            get { lock (_lock) { return _project.CurrentScreenName; } }
+            set { lock (_lock) { _project.CurrentScreenName = value; } }
         }
     }
 }

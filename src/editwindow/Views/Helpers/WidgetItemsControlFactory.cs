@@ -442,8 +442,12 @@ namespace NavigatorHMI.Views.Helpers
         {
             var dt = new DataTemplate();
             var tb = new FrameworkElementFactory(typeof(TextBlock));
-            tb.SetBinding(TextBlock.TextProperty, new Binding("Text"));
-            tb.SetBinding(TextBlock.ForegroundProperty, new Binding("ForeColor") { Converter = new ColorStringToBrushConverter() });
+            tb.SetBinding(TextBlock.TextProperty, new Binding("DisplayText"));   // D6：未绑定实时时钟/绑定基准值
+            var fg = new MultiBinding { Converter = new SafeTextColorConverter() };   // TextColor + FillColor（与其他文本控件一致）
+            fg.Bindings.Add(new Binding("TextColor"));
+            fg.Bindings.Add(new Binding("FillColor"));
+            tb.SetBinding(TextBlock.ForegroundProperty, fg);
+            tb.SetValue(TextBlock.BackgroundProperty, System.Windows.Media.Brushes.White);   // D8：白底可读（与画布区分）
             tb.SetValue(TextBlock.VerticalAlignmentProperty, System.Windows.VerticalAlignment.Center);
             tb.SetValue(TextBlock.HorizontalAlignmentProperty, System.Windows.HorizontalAlignment.Center);
             dt.VisualTree = WrapWithBorder(tb, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU);

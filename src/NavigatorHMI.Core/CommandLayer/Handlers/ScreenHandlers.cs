@@ -259,4 +259,30 @@ namespace NavigatorHMI.CommandLayer.Handlers
             return name;
         }
     }
+
+    /// <summary>E11 获取当前画面名（运行时画面：GUI 切换维护的 HMIProject.CurrentScreenName；未设置时回退工程第一个画面）。</summary>
+    public class CurrentScreenHandler : ICommandHandler
+    {
+        /// <inheritdoc/>
+        public CommandDefinition Definition => new()
+        {
+            Name = "current_screen",
+            Description = "获取当前画面名称（AI 感知当前所在画面）",
+            Parameters = new()
+        };
+
+        /// <inheritdoc/>
+        public ValidationResult Validate(Dictionary<string, object?> parameters) => ValidationResult.Ok;
+
+        /// <inheritdoc/>
+        public CommandResult Execute(HMIProject project, Dictionary<string, object?> parameters)
+        {
+            var name = project.CurrentScreenName;
+            if (string.IsNullOrEmpty(name))
+                name = project.Screens.FirstOrDefault()?.Name ?? "";
+            if (name.Length == 0)
+                return CommandResult.Fail("NOT_FOUND", "工程没有画面");
+            return CommandResult.Ok(new { screen_name = name });
+        }
+    }
 }

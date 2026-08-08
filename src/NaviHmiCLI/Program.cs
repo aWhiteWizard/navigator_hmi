@@ -79,11 +79,12 @@ public static class Program
             "create-screen"  => Cmd("create_screen", Require("name"), Opt("type", "custom"), Opt("width", ""), Opt("height", "")),
             "delete-screen"  => Cmd("delete_screen", Require("name")),
             "rename-screen"  => Cmd("rename_screen", Require("name"), Require("new-name", "new_name")),
+            "current-screen" => Cmd("current_screen"),
             "copy-screen"    => Cmd("copy_screen", Require("name")),
             "paste-screen"   => Cmd("paste_screen", Opt("name", "")),
 
             // 控件
-            "add-widget"     => Cmd("add_widget", Require("screen", "screen_name"), OptMap("type", "widget_type", "button"), Opt("x", "100"), Opt("y", "100"), Opt("width", "100"), Opt("height", "40"), Opt("center", "false")),
+            "add-widget"     => Cmd("add_widget", Require("screen", "screen_name"), OptMap("type", "widget_type", "button"), Opt("x", "100"), Opt("y", "100"), Opt("width", "100"), Opt("height", "40"), Opt("center", "false"), OptMap("bound-tag", "bound_tag", "")),
             "move-widget"    => Cmd("move_widget", Require("screen", "screen_name"), Require("widget", "widget_name"), Require("x"), Require("y")),
             "resize-widget"  => Cmd("resize_widget", Require("screen", "screen_name"), Require("widget", "widget_name"), Require("width"), Require("height")),
             "delete-widget"  => Cmd("delete_widget", Require("screen", "screen_name"), Require("widget", "widget_name")),
@@ -612,7 +613,7 @@ public static class Program
         Console.WriteLine("""
 可用命令:
   工程: create-project, open-project, save-project, compile
-  画面: create-screen, delete-screen, rename-screen, copy-screen, paste-screen
+  画面: create-screen, delete-screen, rename-screen, copy-screen, paste-screen, current-screen（无参=显示当前画面）
   控件: add-widget, move-widget, resize-widget, delete-widget, set-property
   剪贴板: copy-widget, paste-widget
   默认字体: set-default-font

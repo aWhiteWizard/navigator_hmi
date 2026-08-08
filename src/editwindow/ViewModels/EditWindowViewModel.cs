@@ -335,6 +335,9 @@ namespace NavigatorHMI.ViewModels
                 _currentScreen = value;
                 OnPropertyChanged();
 
+                // E11：画面切换同步 current_screen 命令的运行时画面（AI 感知当前画面）
+                CommandService.CurrentScreenName = value?.Name;
+
                 // 切到画面时自动退出变量管理器/通讯/列表管理视图（标签栏高亮同步）
                 VariableManagerActive = false;
                 CommunicationActive = false;
@@ -530,6 +533,9 @@ namespace NavigatorHMI.ViewModels
         /// <summary>
         /// 在执行修改操作之前保存当前画面的 Undo 快照。
         /// </summary>
+        /// <summary>A12：列表撤销优先回调（工具栏撤销/Ctrl+Z/菜单统一走此——列表栈非空时先撤列表项操作；View 初始化时赋值）。</summary>
+        public ListManagerViewModel? ListManager { get; set; }
+
         public void PushUndoSnapshot()
         {
             if (CurrentScreen != null)
@@ -584,6 +590,8 @@ namespace NavigatorHMI.ViewModels
             UndoCommand = new RelayCommand(
                 () =>
                 {
+                    // A12：列表栈非空时优先撤销列表项操作（列表操作粒度小、频率高，按钮/Ctrl+Z/菜单一致）
+                    if (ListManager?.HasListUndo == true) { ListManager.UndoList(); return; }
                     if (CurrentScreen == null) return;
                     var restored = _undoManager.Undo(CurrentScreen);
                     if (restored != null)
@@ -599,6 +607,8 @@ namespace NavigatorHMI.ViewModels
             RedoCommand = new RelayCommand(
                 () =>
                 {
+                    // A12：列表栈非空时优先重做列表项操作
+                    if (ListManager?.HasListRedo == true) { ListManager.RedoList(); return; }
                     if (CurrentScreen == null) return;
                     var restored = _undoManager.Redo(CurrentScreen);
                     if (restored != null)

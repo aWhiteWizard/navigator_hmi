@@ -36,7 +36,9 @@ namespace NavigatorHMI.Common
         /// <summary>开关打开（Switch）</summary>
         onOn,
         /// <summary>开关关闭（Switch）</summary>
-        onOff
+        onOff,
+        /// <summary>进度条到达 100%（ProgressBar）</summary>
+        onProgressComplete
     }
 
     /// <summary>
@@ -75,7 +77,9 @@ namespace NavigatorHMI.Common
         /// <summary>读取日期时间</summary>
         get_datetime,
         /// <summary>确认报警</summary>
-        acknowledge_alarm
+        acknowledge_alarm,
+        /// <summary>修改系统时间（设备 RTC）</summary>
+        set_system_time
     }
 
     /// <summary>
