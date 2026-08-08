@@ -280,6 +280,52 @@ namespace NavigatorHMI.Views
         }
 
         /// <summary>变量删除：确认 → CommandService（delete_tag 自带引用保护）。</summary>
+        /// <summary>变量表格快捷键：Delete 删除选中、Ctrl+A 全选。</summary>
+        private void TagGrid_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Delete) { TagDelete_Click(sender, null); e.Handled = true; }
+            else if (e.Key == Key.A && Keyboard.Modifiers == ModifierKeys.Control) { TagGrid.SelectAll(); e.Handled = true; }
+        }
+
+        /// <summary>报警表格快捷键：Delete 删除选中、Ctrl+A 全选。</summary>
+        private void AlarmGrid_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Delete) { AlarmDelete_Click(sender, null); e.Handled = true; }
+            else if (e.Key == Key.A && Keyboard.Modifiers == ModifierKeys.Control) { AlarmGrid.SelectAll(); e.Handled = true; }
+        }
+
+        /// <summary>文本列表快捷键：Delete 删除选中、Ctrl+A 全选。</summary>
+        private void TextListBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Delete) { TextListDelete_Click(sender, null); e.Handled = true; }
+            else if (e.Key == Key.A && Keyboard.Modifiers == ModifierKeys.Control) { TextListBox.SelectAll(); e.Handled = true; }
+        }
+
+        /// <summary>图片列表快捷键：Delete 删除选中、Ctrl+A 全选。</summary>
+        private void ImageListBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Delete) { ImageListDelete_Click(sender, null); e.Handled = true; }
+            else if (e.Key == Key.A && Keyboard.Modifiers == ModifierKeys.Control) { ImageListBox.SelectAll(); e.Handled = true; }
+        }
+        /// <summary>批量删除选中变量（删除按钮 + 右键菜单；多选时全部删除，被引用项拒绝并提示）。</summary>
+        private void TagDelete_Click(object sender, RoutedEventArgs e)
+        {
+            var selected = TagGrid.SelectedItems.Cast<Tag>().ToList();
+            if (selected.Count == 0) return;
+            var names = string.Join("、", selected.Select(t => $"\"{t.Name}\""));
+            var confirm = MessageBox.Show($"确定删除变量 {names} 吗？", "删除变量",
+                MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (confirm != MessageBoxResult.Yes) return;
+            var failed = new List<string>();
+            foreach (var tag in selected)
+            {
+                var r = _viewModel.CommandService.Execute("delete_tag", new Dictionary<string, object?> { ["name"] = tag.Name });
+                if (!r.Success) failed.Add($"{tag.Name}: {r.ErrorMessage}");
+            }
+            if (failed.Count > 0)
+                MessageBox.Show("部分删除失败：\n" + string.Join("\n", failed), "变量", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+
         private void OnTagDeleteRequested(Tag tag)
         {
             var confirm = MessageBox.Show($"确定删除变量 \"{tag.Name}\" 吗？", "删除变量",
@@ -392,6 +438,38 @@ namespace NavigatorHMI.Views
         }
 
         /// <summary>报警删除：确认 → CommandService（delete_alarm 无引用限制，直接删除）。</summary>
+        /// <summary>批量删除选中报警（删除按钮 + 右键；多选时全部删除）。</summary>
+        private void AlarmDelete_Click(object sender, RoutedEventArgs e)
+        {
+            var selected = AlarmGrid.SelectedItems.Cast<AlarmRule>().ToList();
+            if (selected.Count == 0) return;
+            var names = string.Join("、", selected.Select(a => $"\"{a.Name}\""));
+            var confirm = MessageBox.Show($"确定删除报警 {names} 吗？", "删除报警",
+                MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (confirm != MessageBoxResult.Yes) return;
+            var failed = new List<string>();
+            foreach (var alarm in selected)
+            {
+                var r = _viewModel.CommandService.Execute("delete_alarm", new Dictionary<string, object?> { ["name"] = alarm.Name });
+                if (!r.Success) failed.Add($"{alarm.Name}: {r.ErrorMessage}");
+            }
+            if (failed.Count > 0)
+                MessageBox.Show("部分删除失败：\n" + string.Join("\n", failed), "报警", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+
+        /// <summary>批量删除选中文本列表（删除按钮；多选时全部删除）。</summary>
+        private void TextListDelete_Click(object sender, RoutedEventArgs e)
+        {
+            var selected = TextListBox.SelectedItems.Cast<ListDef>().ToList();
+            if (selected.Count > 0) _listManagerVM.DeleteLists(selected);
+        }
+
+        /// <summary>批量删除选中图片列表（删除按钮；多选时全部删除）。</summary>
+        private void ImageListDelete_Click(object sender, RoutedEventArgs e)
+        {
+            var selected = ImageListBox.SelectedItems.Cast<ListDef>().ToList();
+            if (selected.Count > 0) _listManagerVM.DeleteLists(selected);
+        }
         private void OnAlarmDeleteRequested(AlarmRule alarm)
         {
             var confirm = MessageBox.Show($"确定删除报警 \"{alarm.Name}\" 吗？", "删除报警",

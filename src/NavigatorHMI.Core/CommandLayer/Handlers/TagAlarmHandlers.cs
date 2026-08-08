@@ -46,6 +46,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
             if (project.Tags.Any(t => t.Name == name)) return CommandResult.Fail("DUPLICATE", $"变量 \"{name}\" 已存在");
             if (!Enum.TryParse<TagDataType>(p["data_type"]!.ToString(), ignoreCase: true, out var dt))
                 return CommandResult.Fail("INVALID_PARAM", $"未知数据类型: {p["data_type"]}");
+            var bvErr = BaseValueValidator.Check(p.GetValueOrDefault("base_value")?.ToString(), dt);
+            if (bvErr != null) return CommandResult.Fail("INVALID_PARAM", bvErr);
             project.Tags.Add(new Tag
             {
                 Name = name, DataType = dt,
@@ -433,9 +435,33 @@ namespace NavigatorHMI.CommandLayer.Handlers
             if (p.TryGetValue("description", out var desc) && desc != null)
                 tag.Description = desc.ToString() ?? "";
             if (p.TryGetValue("base_value", out var bv) && bv != null)
+            {
+                var bvErr = BaseValueValidator.Check(bv.ToString(), tag.DataType);
+                if (bvErr != null) return CommandResult.Fail("INVALID_PARAM", bvErr);
                 tag.BaseValue = bv.ToString() ?? "";
+            }
 
             return CommandResult.Ok(new { tag_name = tag.Name });
         }
+    }
+}
+
+/// <summary>base_value（设计态预览基准值）按变量类型校验：非空时必须能解析为对应类型的数值，防 AI/CLI 传垃圾字符串进工程文件。</summary>
+internal static class BaseValueValidator
+{
+    public static string? Check(string? raw, TagDataType dt)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return null;   // 空 = 清空/未提供，放行
+        var s = raw.Trim();
+        var ok = dt switch
+        {
+            TagDataType.FLOAT => double.TryParse(s, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _),
+            TagDataType.INT16 => short.TryParse(s, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _),
+            TagDataType.UINT16 => ushort.TryParse(s, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _),
+            TagDataType.INT32 => int.TryParse(s, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _),
+            TagDataType.BOOL => bool.TryParse(s, out _) || s is "1" or "0",
+            _ => true,   // STRING 等任意文本
+        };
+        return ok ? null : $"base_value 不是合法的 {dt} 数值: '{raw}'";
     }
 }

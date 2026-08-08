@@ -147,7 +147,13 @@ namespace NavigatorHMI.ViewModels
         private void OnCommandExecuted(string cmdName, Dictionary<string, object?> parameters, CommandResult result)
         {
             if (result.Success && cmdName is "create_list" or "update_list" or "delete_list")
-                RefreshLists();
+            {
+                // AI 后台线程触发命令时封送到 UI 线程（ObservableCollection 变更须在 UI 线程）
+                if (System.Windows.Application.Current?.Dispatcher.CheckAccess() == true)
+                    RefreshLists();
+                else
+                    System.Windows.Application.Current?.Dispatcher.BeginInvoke(RefreshLists);
+            }
         }
 
         /// <summary>增量同步列表集合：按名称保序，缺失补充/多余移除，不重建对象（防选中/编辑焦点丢失）。</summary>
@@ -323,6 +329,26 @@ namespace NavigatorHMI.ViewModels
             // 成功：OnCommandExecuted → RefreshLists 已处理选中置空
         }
 
+
+        /// <summary>批量删除选中列表（多选删除按钮/右键）：逐个走 delete_list 命令（被引用拒绝），失败汇总提示。</summary>
+        public void DeleteLists(IReadOnlyList<ListDef> lists)
+        {
+            if (lists.Count == 0) return;
+            var names = string.Join("、", lists.Select(l => $"\"{l.Name}\""));
+            var confirm = System.Windows.MessageBox.Show(
+                $"确定删除列表 {names} 吗？\n删除后不可恢复（被控件引用的列表会被拒绝删除）。", "删除列表",
+                System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Question);
+            if (confirm != System.Windows.MessageBoxResult.Yes) return;
+            var failed = new List<string>();
+            foreach (var list in lists)
+            {
+                var result = CommandService.Execute("delete_list", new Dictionary<string, object?> { ["name"] = list.Name });
+                if (!result.Success) failed.Add($"{list.Name}: {result.ErrorMessage}");
+            }
+            if (failed.Count > 0)
+                System.Windows.MessageBox.Show("部分删除失败：\n" + string.Join("\n", failed), "删除列表",
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+        }
         private void AddItem(ListType type)
         {
             var list = type == ListType.Text ? SelectedTextList : SelectedImageList;

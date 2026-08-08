@@ -1300,7 +1300,7 @@
                                     <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
                                         <Button Content="＋ 新建变量" Command="{Binding NewTagCommand}" Width="90" Height="26" Margin="0,0,4,0" ToolTip="新建变量"/>
                                         <Button Content="✏ 编辑" Command="{Binding EditTagCommand}" Width="60" Height="26" Margin="0,0,4,0" ToolTip="编辑选中变量（或双击行）"/>
-                                        <Button Content="🗑 删除" Command="{Binding DeleteTagCommand}" Width="60" Height="26" ToolTip="删除选中变量（被引用时拒绝）"/>
+                                        <Button Content="🗑 删除" Width="60" Height="26" Click="TagDelete_Click" ToolTip="删除选中变量（被引用时拒绝；多选可批量）"/>
                                     </StackPanel>
                                     <DockPanel Grid.Row="1" Margin="0,0,0,4">
                                         <TextBlock DockPanel.Dock="Left" Text="搜索:" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="12"/>
@@ -1310,7 +1310,7 @@
                                         <DataGrid x:Name="TagGrid" ItemsSource="{Binding Tags}" SelectedItem="{Binding SelectedTag}"
                                                   AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="True"
                                                   HeadersVisibility="Column" IsReadOnly="True" MouseDoubleClick="TagGrid_DoubleClick"
-                                                  PreviewMouseLeftButtonDown="TagGrid_PreviewMouseLeftButtonDown" PreviewMouseMove="TagGrid_PreviewMouseMove" PreviewMouseLeftButtonUp="TagGrid_PreviewMouseLeftButtonUp"
+                                                  PreviewMouseLeftButtonDown="TagGrid_PreviewMouseLeftButtonDown" PreviewMouseMove="TagGrid_PreviewMouseMove" PreviewMouseLeftButtonUp="TagGrid_PreviewMouseLeftButtonUp" PreviewKeyDown="TagGrid_KeyDown"
                                                   SelectionMode="Extended" SelectionUnit="FullRow" GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12"
                                                   RowHeight="26" EnableRowVirtualization="True"
                                                   VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
@@ -1341,7 +1341,7 @@
                                                     <MenuItem Header="＋ 新建变量" Command="{Binding NewTagCommand}"/>
                                                     <MenuItem Header="✏ 编辑变量" Command="{Binding EditTagCommand}"/>
                                                     <Separator/>
-                                                    <MenuItem Header="🗑 删除变量" Command="{Binding DeleteTagCommand}"/>
+                                                    <MenuItem Header="🗑 删除选中项" Click="TagDelete_Click"/>
                                                 </ContextMenu>
                                             </DataGrid.ContextMenu>
                                         </DataGrid>
@@ -1372,7 +1372,7 @@
                                     <DataGrid Grid.Row="2" ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}"
                                               AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="True"
                                               HeadersVisibility="Column" IsReadOnly="True" MouseDoubleClick="DeviceGrid_DoubleClick"
-                                              SelectionMode="Single" GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12"
+                                              SelectionMode="Extended" GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12"
                                               RowHeight="26">
                                         <DataGrid.Columns>
                                             <DataGridTextColumn Header="名称" Binding="{Binding Name}" Width="*"/>
@@ -1400,16 +1400,16 @@
                                     <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
                                         <Button Content="＋ 新建报警" Command="{Binding NewAlarmCommand}" Width="90" Height="26" Margin="0,0,4,0" ToolTip="新建报警规则"/>
                                         <Button Content="✏ 编辑" Command="{Binding EditAlarmCommand}" Width="60" Height="26" Margin="0,0,4,0" ToolTip="编辑选中报警（或双击行）"/>
-                                        <Button Content="🗑 删除" Command="{Binding DeleteAlarmCommand}" Width="60" Height="26" ToolTip="删除选中报警"/>
+                                        <Button Content="🗑 删除" Width="60" Height="26" Click="AlarmDelete_Click" ToolTip="删除选中报警（多选可批量）"/>
                                     </StackPanel>
                                     <DockPanel Grid.Row="1" Margin="0,0,0,4">
                                         <TextBlock DockPanel.Dock="Left" Text="搜索:" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="12"/>
                                         <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" FontSize="12" VerticalContentAlignment="Center"/>
                                     </DockPanel>
-                                    <DataGrid Grid.Row="2" ItemsSource="{Binding Alarms}" SelectedItem="{Binding SelectedAlarm}"
+                                    <DataGrid x:Name="AlarmGrid" Grid.Row="2" ItemsSource="{Binding Alarms}" SelectedItem="{Binding SelectedAlarm}"
                                               AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="True"
-                                              HeadersVisibility="Column" IsReadOnly="True" MouseDoubleClick="AlarmGrid_DoubleClick"
-                                              SelectionMode="Single" GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12"
+                                              HeadersVisibility="Column" IsReadOnly="True" MouseDoubleClick="AlarmGrid_DoubleClick" PreviewKeyDown="AlarmGrid_KeyDown"
+                                              SelectionMode="Extended" GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12"
                                               RowHeight="26">
                                         <DataGrid.Columns>
                                             <DataGridTextColumn Header="名称" Binding="{Binding Name}" Width="*"/>
@@ -1423,7 +1423,7 @@
                                                 <MenuItem Header="＋ 新建报警" Command="{Binding NewAlarmCommand}"/>
                                                 <MenuItem Header="✏ 编辑报警" Command="{Binding EditAlarmCommand}"/>
                                                 <Separator/>
-                                                <MenuItem Header="🗑 删除报警" Command="{Binding DeleteAlarmCommand}"/>
+                                                <MenuItem Header="🗑 删除选中项" Click="AlarmDelete_Click"/>
                                             </ContextMenu>
                                         </DataGrid.ContextMenu>
                                     </DataGrid>
@@ -1442,14 +1442,14 @@
                                                 <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
                                                     <TextBox Text="{Binding NewTextListName, UpdateSourceTrigger=PropertyChanged}" Width="120" Height="26" VerticalContentAlignment="Center" FontSize="12" ToolTip="新列表名称"/>
                                                     <Button Content="＋ 新建列表" Command="{Binding NewTextListCommand}" Width="90" Height="26" Margin="4,0,0,0" ToolTip="创建文本列表（预设值可在右侧编辑）"/>
-                                                    <Button Content="🗑 删除列表" Command="{Binding DeleteTextListCommand}" Width="90" Height="26" Margin="4,0,0,0" ToolTip="删除选中列表（被控件引用时拒绝）"/>
+                                                    <Button Content="🗑 删除列表" Width="90" Height="26" Margin="4,0,0,0" Click="TextListDelete_Click" ToolTip="删除选中列表（被控件引用时拒绝；多选可批量）"/>
                                                 </StackPanel>
                                                 <Grid Grid.Row="1">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="160"/>
                                                         <ColumnDefinition Width="*"/>
                                                     </Grid.ColumnDefinitions>
-                                                    <ListBox Grid.Column="0" Margin="0,0,4,0" ItemsSource="{Binding TextLists}" SelectedItem="{Binding SelectedTextList}" DisplayMemberPath="Name" FontSize="12"/>
+                                                    <ListBox x:Name="TextListBox" Grid.Column="0" Margin="0,0,4,0" ItemsSource="{Binding TextLists}" SelectedItem="{Binding SelectedTextList}" DisplayMemberPath="Name" FontSize="12" SelectionMode="Extended" PreviewKeyDown="TextListBox_KeyDown"/>
                                                     <Grid Grid.Column="1">
                                                         <Grid.RowDefinitions>
                                                             <RowDefinition Height="Auto"/>
@@ -1462,7 +1462,7 @@
                                                         </DockPanel>
                                                         <DataGrid Grid.Row="1" ItemsSource="{Binding TextItems}" SelectedItem="{Binding SelectedTextItem}"
                                                                   AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="False"
-                                                                  HeadersVisibility="Column" SelectionMode="Single" GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12"
+                                                                  HeadersVisibility="Column" SelectionMode="Extended" GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12"
                                                                   RowHeight="26">
                                                             <DataGrid.Columns>
                                                                 <DataGridTextColumn Header="序号" Binding="{Binding Number}" Width="50" IsReadOnly="True"/>
@@ -1487,14 +1487,14 @@
                                                 <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
                                                     <TextBox Text="{Binding NewImageListName, UpdateSourceTrigger=PropertyChanged}" Width="120" Height="26" VerticalContentAlignment="Center" FontSize="12" ToolTip="新列表名称"/>
                                                     <Button Content="＋ 新建列表" Command="{Binding NewImageListCommand}" Width="90" Height="26" Margin="4,0,0,0" ToolTip="创建图片列表（图片路径按回车确认，不存在标红）"/>
-                                                    <Button Content="🗑 删除列表" Command="{Binding DeleteImageListCommand}" Width="90" Height="26" Margin="4,0,0,0" ToolTip="删除选中列表（被控件引用时拒绝）"/>
+                                                    <Button Content="🗑 删除列表" Width="90" Height="26" Margin="4,0,0,0" Click="ImageListDelete_Click" ToolTip="删除选中列表（被控件引用时拒绝；多选可批量）"/>
                                                 </StackPanel>
                                                 <Grid Grid.Row="1">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="160"/>
                                                         <ColumnDefinition Width="*"/>
                                                     </Grid.ColumnDefinitions>
-                                                    <ListBox Grid.Column="0" Margin="0,0,4,0" ItemsSource="{Binding ImageLists}" SelectedItem="{Binding SelectedImageList}" DisplayMemberPath="Name" FontSize="12"/>
+                                                    <ListBox x:Name="ImageListBox" Grid.Column="0" Margin="0,0,4,0" ItemsSource="{Binding ImageLists}" SelectedItem="{Binding SelectedImageList}" DisplayMemberPath="Name" FontSize="12" SelectionMode="Extended" PreviewKeyDown="ImageListBox_KeyDown"/>
                                                     <Grid Grid.Column="1">
                                                         <Grid.RowDefinitions>
                                                             <RowDefinition Height="Auto"/>
@@ -1507,7 +1507,7 @@
                                                         </DockPanel>
                                                         <DataGrid Grid.Row="1" ItemsSource="{Binding ImageItems}" SelectedItem="{Binding SelectedImageItem}"
                                                                   AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="False"
-                                                                  HeadersVisibility="Column" SelectionMode="Single" GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12"
+                                                                  HeadersVisibility="Column" SelectionMode="Extended" GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12"
                                                                   RowHeight="38">
                                                             <DataGrid.RowStyle>
                                                                 <Style TargetType="DataGridRow">
@@ -1758,9 +1758,21 @@
                                  AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="90" VerticalScrollBarVisibility="Auto"
                                  FontSize="13" MinHeight="28" VerticalAlignment="Bottom" IsEnabled="{Binding IsAiThinking, Converter={StaticResource InverseBoolConverter}}"
                                  KeyDown="AiInput_KeyDown" ToolTip="输入自然语言指令；Enter 发送，Shift+Enter 换行"/>
-                        <Button Grid.Column="1" Content="发送" Width="56" Margin="6,0,0,0" VerticalAlignment="Bottom"
-                                Command="{Binding AiSendCommand}" Background="#2D7DD2" Foreground="White" BorderThickness="0"
-                                Padding="0,6" Cursor="Hand"/>
+                        <Button Grid.Column="1" Width="56" Margin="6,0,0,0" VerticalAlignment="Bottom"
+                                Command="{Binding AiSendOrCancelCommand}" Background="#2D7DD2" Foreground="White" BorderThickness="0"
+                                Padding="0,6" Cursor="Hand">
+                            <Button.Style>
+                                <Style TargetType="Button">
+                                    <Setter Property="Content" Value="发送"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsAiThinking}" Value="True">
+                                            <Setter Property="Content" Value="停止"/>
+                                            <Setter Property="Background" Value="#C0392B"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Button.Style>
+                        </Button>
                     </Grid>
                     <!-- 会话设置（发送栏下方；API Key 已移至「设置 → AI 助手设置…」窗口，密文存储） -->
                     <Border Grid.Row="3" Background="#F0F0F0" BorderBrush="#DDDDDD" BorderThickness="0,1,0,0" Padding="10,8">

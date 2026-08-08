@@ -180,7 +180,11 @@ namespace NavigatorHMI.AiAgent
             sb.Append("<|im_start|>system\n");
             if (systemRule.Length > 0) sb.Append(systemRule).Append("\n\n");
             if (!string.IsNullOrWhiteSpace(toolsJson))
+            {
                 sb.Append("可用工具（tools，调用时输出 <tool_call> 包裹的 JSON）：\n").Append(toolsJson).Append('\n');
+                sb.Append("\n调用格式（严格照此，一次只输出一个 <tool_call> 块，块外不要写任何文字）：\n" +
+                          "<tool_call>\n{\"name\": \"create_screen\", \"arguments\": {\"name\": \"温度监控\"}}\n</tool_call>\n");
+            }
             sb.Append("<|im_end|>\n");
 
             // 历史消息（跳过 system，避免 tools 重复）

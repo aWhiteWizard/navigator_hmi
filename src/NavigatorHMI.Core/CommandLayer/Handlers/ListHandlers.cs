@@ -12,8 +12,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
             if (items is List<string> list) return new List<string>(list);
             if (items is string s)
             {
-                // 兼容多种分隔符（AI 模型可能用 | / ; / 逗号 / 换行 / 全角分号；Windows 路径不含这些字符，拆分安全）
-                var parts = s.Split(new[] { '|', ';', ',', '，', '\n', '\r', '；' }, StringSplitOptions.TrimEntries);
+                // 兼容多种分隔符（AI 模型可能用 | / ; / 逗号 / 顿号 / 换行 / 全角分号；Windows 路径不含这些字符，拆分安全）
+                var parts = s.Split(new[] { '|', ';', ',', '，', '、', '\n', '\r', '；' }, StringSplitOptions.TrimEntries);
                 return parts.Where(p => p.Length > 0).ToList();
             }
             if (items is System.Collections.IEnumerable en && items is not string)

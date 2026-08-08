@@ -114,3 +114,27 @@ dotnet build navigator_hmi.sln
 # CLI（Release）
 dotnet build src/NaviHmiCLI/NaviHmiCLI.csproj -c Release
 ```
+
+## AI 助手（语义 Agent）
+
+GUI 右下角圆形 AI 按钮 → 侧边栏对话（Copilot 风格：模型切换 / 推理深度 / 上下文长度 / 新建会话 / 停止按钮）：
+
+- **DeepSeek Chat**（默认，函数调用）：自然语言操作工程（建画面/放控件/建变量列表报警/绑定/阵列等）
+- **DeepSeek Reasoner**（深度思考，无工具）：提问/分析
+- **本地 Qwen**（GGUF，离线）：`models/qwen2.5-7b-instruct-q4_k_m.gguf`（对话 + `<tool_call>` 工具调用）
+- API Key：`设置 → AI 助手设置…`（DPAPI 密文存储；优先于环境变量 `DEEPSEEK_API` / `NAVIGATOR_HMI_AI_KEY`）
+
+AI 可执行全部组态命令（黑名单为空，机制保留）；执行后输出操作清单，画面改动可 Ctrl+Z 整体撤销。CLI 同链路：`navihmi --project xxx.hmiproj ai --mode cloud|local|rule "指令"`。
+
+## CLI 命令
+
+`navihmi --project 工程.hmiproj <命令>`：画面（create/delete/rename/copy-screen）、控件（add/delete/move/resize-widget、set-property、align、array）、变量（create/update/delete-tag、bind-tag）、列表（create/update/delete-list）、报警（create/update/delete-alarm）、设备（configure/update/delete-device）。交互式：直接 `navihmi` 进入 REPL。
+
+## 测试
+
+`src/NavigatorHMI.Tests/`（xunit）：RuleAgent 模板引擎 16 用例（画面/控件/变量/报警/保护/未识别）。运行：`dotnet test src/NavigatorHMI.Tests`。
+
+## 当前状态（2026-08-08）
+
+- PC 端核心功能就绪：画面编辑/多选批量/撤销重做/变量列表报警管理/三管理器多选批量删除/AI 语义 Agent/本地 Qwen
+- FW 端：9 模块设计完成；目标平台迅为 RK3562（Qt 6.5.6），开发板到货后配环境 + 编码

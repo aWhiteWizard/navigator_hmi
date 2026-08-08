@@ -628,21 +628,47 @@ namespace NavigatorHMI.ViewModels
                 AiMessages.Add(new AiChatEntry("user", text));
                 AiMessages.Add(new AiChatEntry("status", "思考中…"));
                 IsAiThinking = true;
+                _aiCts?.Dispose();
+                _aiCts = new CancellationTokenSource();
+                var token = _aiCts.Token;
                 try
                 {
                     EnsureAiAgent();
                     if (_aiAgent == null)
                         throw new InvalidOperationException("本地模型加载中，请稍候再发送…");
                     var agent = _aiAgent;   // 捕获引用：Task.Run 执行时不再重读（防切换设置竞态 NRE）
+                    PushUndoSnapshot();   // AI 操作前快照当前画面（Ctrl+Z 可整体撤销 AI 的画面改动；变量/列表/报警用对应管理器删）
                     // 网络推理放后台线程；await 后经 WPF SynchronizationContext 回 UI 线程更新消息
-                    var result = await Task.Run(() => agent!.ChatAsync(text));
+                    var result = await Task.Run(() => agent!.ChatAsync(text, token), token);
                     ReplaceThinking("ai", result);
+                    // 操作清单：展示 AI 本次执行了什么（可据此手动撤销单项）
+                    var ops = agent.LastOperations.Where(o => o.Success).ToList();
+                    if (ops.Count > 0)
+                        AiMessages.Add(new AiChatEntry("status",
+                            $"本次执行 {ops.Count} 项操作：\n" + string.Join("\n", ops.Select((o, i) => $"{i + 1}. {o.CommandName}（{o.ArgsSummary}）")) +
+                            "\n画面改动可 Ctrl+Z 撤销；变量/列表/报警可在对应管理器手动删除。"));
+                }
+                catch (OperationCanceledException)
+                {
+                    ReplaceThinking("status", "已停止（用户终止当前任务）。");
                 }
                 catch (Exception ex)
                 {
                     ReplaceThinking("status", ex.Message);
                 }
-                finally { IsAiThinking = false; }
+                finally
+                {
+                    IsAiThinking = false;
+                    _aiCts?.Dispose();
+                    _aiCts = null;
+                }
+            });
+            // 思考中：发送按钮变「停止」，点击取消当前任务（CancellationToken）
+            CancelAiCommand = new RelayCommand(() => _aiCts?.Cancel());
+            AiSendOrCancelCommand = new RelayCommand(() =>
+            {
+                if (IsAiThinking) CancelAiCommand.Execute(null);
+                else AiSendCommand.Execute(null);
             });
         }
 
@@ -775,6 +801,7 @@ namespace NavigatorHMI.ViewModels
         /// <summary>AI 侧边栏是否展开。</summary>
         public bool IsAiPanelOpen { get => _isAiPanelOpen; set { _isAiPanelOpen = value; OnPropertyChanged(); } }
 
+        private CancellationTokenSource? _aiCts;   // AI 任务取消令牌（发送后变「停止」可终止）
         private bool _isAiThinking;
         /// <summary>AI 是否正在推理（发送中禁用输入/按钮）。</summary>
         public bool IsAiThinking { get => _isAiThinking; set { _isAiThinking = value; OnPropertyChanged(); } }
@@ -783,6 +810,8 @@ namespace NavigatorHMI.ViewModels
         public ICommand ToggleAiPanelCommand { get; private set; } = null!;
         /// <summary>发送自然语言指令给 AI（DeepSeek 语义 Agent，多轮会话）。</summary>
         public ICommand AiSendCommand { get; private set; } = null!;
+        public ICommand CancelAiCommand { get; private set; } = null!;
+        public ICommand AiSendOrCancelCommand { get; private set; } = null!;
         /// <summary>新建会话：清空历史（Agent Reset + 消息列表清空 + 欢迎提示）。</summary>
         public ICommand AiNewSessionCommand { get; private set; } = null!;
 

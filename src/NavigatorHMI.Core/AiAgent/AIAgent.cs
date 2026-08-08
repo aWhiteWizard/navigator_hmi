@@ -27,21 +27,10 @@ namespace NavigatorHMI.AiAgent
         public const string CompleteSentinel = "__complete__";
 
         /// <summary>
-        /// 核心组态命令白名单：语义 Agent 只暴露这些（schema 精简 → 模型调工具准确率高；
-        /// 部署/连接类命令（RequiresConnection）不暴露，防误操作 + 防 prompt injection 诱导）。
+        /// 命令黑名单：默认**空**（AI 可执行全部命令——连接/部署/设备参数均放行，删除画面保护由 handler 层保证 Template/WorldMap 不可删）。
+        /// 命中黑名单的命令：不暴露给模型 + 执行时拒绝并提醒用户手动操作。
         /// </summary>
-        private static readonly string[] CoreCommands =
-        {
-            "create_screen", "delete_screen", "rename_screen", "copy_screen", "paste_screen",
-            "add_widget", "move_widget", "resize_widget", "delete_widget", "set_property",
-            "bring_to_front", "bring_forward", "send_backward", "send_to_back",
-            "align_widgets", "array_layout",
-            "copy_widget", "paste_widget", "set_default_font",
-            "create_tag", "update_tag", "delete_tag", "bind_tag",
-            "create_list", "update_list", "delete_list",
-            "create_alarm", "update_alarm", "delete_alarm",
-            "configure_device", "update_device", "delete_device",
-        };
+        private static readonly string[] BlacklistCommands = { };
 
         /// <summary>会话历史保留最近 N 轮 user/assistant 对（防长会话超模型上下文）；GUI 上下文长度选项可调。</summary>
         public int MaxHistoryTurns { get; set; } = 10;
@@ -52,10 +41,16 @@ namespace NavigatorHMI.AiAgent
             _backend = backend ?? throw new ArgumentNullException(nameof(backend));
             _enableTools = enableTools;
             _commandDispatcher = commandDispatcher;   // GUI 注入 Dispatcher：命令执行（改模型集合）必须在 UI 线程，防 CollectionView 跨线程异常
-            var defs = commands.GetAvailableCommands().Where(c => CoreCommands.Contains(c.Name));
+            var defs = commands.GetAvailableCommands().Where(c => !BlacklistCommands.Contains(c.Name));   // 全量命令（黑名单除外）
             _toolsJson = _enableTools ? ToolsSchemaBuilder.Build(defs, compact: true) : "";   // 精简 schema（省略参数描述）：模型调工具准确率高；无工具模式空串（后端跳过 tools 注入）
             _history.Add(new ChatMessage("system", BuildSystemPrompt()));   // 会话首条：规则
         }
+
+        /// <summary>AI 执行的操作记录（清单：本次会话最新一批做了什么，GUI 展示 + 撤销参考）。</summary>
+        public record AiOperation(string CommandName, string ArgsSummary, bool Success);
+
+        public IReadOnlyList<AiOperation> LastOperations => _lastOperations;
+        private readonly List<AiOperation> _lastOperations = new();
 
         private readonly bool _enableTools;
         private readonly Action<Action>? _commandDispatcher;
@@ -78,6 +73,8 @@ namespace NavigatorHMI.AiAgent
         /// <summary>执行命令：GUI 场景经 Dispatcher 封送到 UI 线程（handler 直接改 ObservableCollection，WPF CollectionView 线程亲和）；CLI 无 WPF 直接执行。</summary>
         private CommandResult ExecuteCommand(string name, Dictionary<string, object?> args)
         {
+            if (BlacklistCommands.Contains(name))
+                return CommandResult.Fail("BLOCKED", $"操作 \"{name}\" 已在 AI 黑名单中，AI 不能执行；请手动操作。");   // 提醒用户，不执行
             if (_commandDispatcher == null)
                 return _commands.Execute(name, args);
             CommandResult result = CommandResult.Fail("COMMAND_CRASH", "命令未执行");
@@ -90,7 +87,19 @@ namespace NavigatorHMI.AiAgent
                 // Dispatcher 关闭等竞态（窗口退出中）：返回失败而非上抛，保持 assistant tool_calls 与 tool 消息配对闭合（防下一轮 API 400）
                 result = CommandResult.Fail("COMMAND_CRASH", $"命令执行调度失败: {ex.Message}");
             }
+            _lastOperations.Add(new AiOperation(name, SummarizeArgs(args), result.Success));
             return result;
+        }
+
+        /// <summary>命令参数摘要（清单展示用：键=值，值裁剪防刷屏）。</summary>
+        private static string SummarizeArgs(Dictionary<string, object?> args)
+        {
+            if (args.Count == 0) return "";
+            return string.Join(" ", args.Select(kv =>
+            {
+                var v = kv.Value?.ToString() ?? "";
+                return v.Length > 40 ? $"{kv.Key}={v[..40]}…" : $"{kv.Key}={v}";
+            }));
         }
 
         /// <summary>
@@ -99,6 +108,7 @@ namespace NavigatorHMI.AiAgent
         /// </summary>
         public async Task<string> ChatAsync(string userInput, CancellationToken ct = default)
         {
+            _lastOperations.Clear();   // 新一批操作清单（GUI 展示 AI 本次做了什么）
             TrimHistory();   // 裁剪旧轮次，防会话无限增长
             _retriedPrompt = false;   // 每次新指令重置未命中重试机会
             _retryRollbackIndex = 0;   // 回滚点入口统一复位（含重试失败路径，防下一轮误删历史）
@@ -242,7 +252,7 @@ namespace NavigatorHMI.AiAgent
             "7. 用户只是提问/闲聊/感谢，或全部操作已完成时，直接用中文回复，不要再调用工具。\n" +
             "8. 涉及设备连接、部署、删除画面等破坏性或外部操作时，先确认用户意图再执行。\n" +
             "9. 复杂指令（多画面/多控件/阵列等）可一次调用多个工具，加快完成。\n" +
-            "10. 控件与列表：用户让 image/frame 控件\"按列表显示/显示列表内容/绑定列表\"时，用 set_property 的 listRef 属性" +
+            "10. 控件与列表：用户让 image/frame/文本列表控件\"按列表显示/显示列表内容/绑定列表\"时，用 set_property 的 listRef 属性" +
             "绑定到列表名（列表不存在则先 create_list）；不要用 imagePath 设单张静态图代替（只有明确要求显示某一张固定图时才设 imagePath）。\n" +
             "示例（严格照此模式：操作指令第一步必须调用工具，不要用文本描述计划）：\n" +
             "用户：创建一个画面叫温度监控\n" +
