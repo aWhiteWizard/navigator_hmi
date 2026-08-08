@@ -98,6 +98,7 @@ namespace NavigatorHMI.ViewModels
             VariableManagerActive = true;
             CommunicationActive = false;
             ListManagerActive = false;
+            UserActive = false;
             AlarmActive = false;
             RefreshTreeCurrentStatus();
         }
@@ -109,6 +110,7 @@ namespace NavigatorHMI.ViewModels
             VariableManagerActive = true;
             CommunicationActive = false;
             ListManagerActive = false;
+            UserActive = false;
             AlarmActive = false;
             RefreshTreeCurrentStatus();
         }
@@ -150,6 +152,7 @@ namespace NavigatorHMI.ViewModels
             CommunicationActive = true;
             VariableManagerActive = false;
             ListManagerActive = false;
+            UserActive = false;
             AlarmActive = false;
             RefreshTreeCurrentStatus();
         }
@@ -161,6 +164,7 @@ namespace NavigatorHMI.ViewModels
             CommunicationActive = true;
             VariableManagerActive = false;
             ListManagerActive = false;
+            UserActive = false;
             AlarmActive = false;
             RefreshTreeCurrentStatus();
         }
@@ -236,6 +240,7 @@ namespace NavigatorHMI.ViewModels
             VariableManagerActive = false;
             CommunicationActive = false;
             AlarmActive = false;
+            UserActive = false;
             RefreshTreeCurrentStatus();
         }
 
@@ -249,6 +254,7 @@ namespace NavigatorHMI.ViewModels
             VariableManagerActive = false;
             CommunicationActive = false;
             AlarmActive = false;
+            UserActive = false;
             RefreshTreeCurrentStatus();
         }
 
@@ -290,6 +296,7 @@ namespace NavigatorHMI.ViewModels
             VariableManagerActive = false;
             CommunicationActive = false;
             ListManagerActive = false;
+            UserActive = false;
             RefreshTreeCurrentStatus();
         }
 
@@ -301,6 +308,7 @@ namespace NavigatorHMI.ViewModels
             VariableManagerActive = false;
             CommunicationActive = false;
             ListManagerActive = false;
+            UserActive = false;
             RefreshTreeCurrentStatus();
         }
 
@@ -312,12 +320,166 @@ namespace NavigatorHMI.ViewModels
             RefreshTreeCurrentStatus();
         }
 
+        // ═══════════════════════════════════════════
+        // W3 用户面板（用户名设置/用户组策略/用户安全设置三子页，与变量/通讯/列表/报警互斥）
+        // ═══════════════════════════════════════════
+
+        private bool _userTabOpen;
+        /// <summary>用户面板 Tab 是否打开。</summary>
+        public bool UserTabOpen
+        {
+            get => _userTabOpen;
+            set { if (_userTabOpen != value) { _userTabOpen = value; OnPropertyChanged(); } }
+        }
+
+        private bool _userActive;
+        /// <summary>当前内容是否为用户面板。</summary>
+        public bool UserActive
+        {
+            get => _userActive;
+            set { if (_userActive != value) { _userActive = value; OnPropertyChanged(); } }
+        }
+
+        private int _userPanelPage;
+        /// <summary>用户面板子页（0=用户名设置 1=用户组策略 2=用户安全设置）。</summary>
+        public int UserPanelPage
+        {
+            get => _userPanelPage;
+            set { if (_userPanelPage != value) { _userPanelPage = value; OnPropertyChanged(); RefreshTreeCurrentStatus(); } }   // 子页切换同步树叶子高亮（与 ListManagerSelectedIndex 对齐）
+        }
+
+        private void OpenUserPanelInternal(int page)
+        {
+            UserTabOpen = true;
+            UserActive = true;   // 互斥关完后置位（统一 Replace 安全）
+            UserPanelPage = page;
+            VariableManagerActive = false;
+            CommunicationActive = false;
+            ListManagerActive = false;
+            AlarmActive = false;
+            RefreshUserPanel();   // W3b：打开面板同步用户/组/策略数据
+            RefreshTreeCurrentStatus();
+        }
+
+        /// <summary>打开用户面板-用户名设置（用户 CRUD）。</summary>
+        public void OpenUserPanel() => OpenUserPanelInternal(0);
+
+        /// <summary>打开用户面板-用户组策略（组权限）。</summary>
+        public void OpenUserGroupPanel() => OpenUserPanelInternal(1);
+
+        /// <summary>打开用户面板-用户安全设置（密码策略）。</summary>
+        public void OpenUserSecurityPanel() => OpenUserPanelInternal(2);
+
+        /// <summary>激活用户面板（Tab 已开时点击标签栏——不重复开，刷新数据）。</summary>
+        public void ActivateUser()
+        {
+            if (!UserTabOpen) UserTabOpen = true;
+            VariableManagerActive = false;
+            CommunicationActive = false;
+            ListManagerActive = false;
+            AlarmActive = false;
+            UserActive = true;
+            RefreshUserPanel();
+            RefreshTreeCurrentStatus();
+        }
+
+        /// <summary>关闭用户面板 Tab。</summary>
+        public void CloseUserTab()
+        {
+            if (UserActive) UserActive = false;
+            UserTabOpen = false;
+            RefreshTreeCurrentStatus();
+        }
+
+        // ═══ W3b 用户面板数据（用户名设置/用户组策略/用户安全设置） ═══
+
+        /// <summary>用户账户列表（同步工程 project.Users；打开面板时刷新）。</summary>
+        public System.Collections.ObjectModel.ObservableCollection<UserAccount> UserAccounts { get; } = new();
+
+        /// <summary>用户组列表（同步 project.Groups）。</summary>
+        public System.Collections.ObjectModel.ObservableCollection<UserGroup> UserGroups { get; } = new();
+
+        /// <summary>安全设置（绑定密码策略表单）。</summary>
+        public SecuritySettings Security
+        {
+            get => CurrentProject.Security;
+            set { CurrentProject.Security = value; OnPropertyChanged(); }
+        }
+
+        private UserAccount? _selectedUser;
+        public UserAccount? SelectedUser
+        {
+            get => _selectedUser;
+            set { _selectedUser = value; OnPropertyChanged(); }
+        }
+
+        private string _newUserName = "";
+        public string NewUserName { get => _newUserName; set { _newUserName = value; OnPropertyChanged(); } }
+
+        private string _newUserPassword = "";
+        public string NewUserPassword { get => _newUserPassword; set { _newUserPassword = value; OnPropertyChanged(); } }
+
+        private string _newUserGroup = "访客";
+        public string NewUserGroup { get => _newUserGroup; set { _newUserGroup = value; OnPropertyChanged(); } }
+
+        /// <summary>刷新用户面板数据（打开面板时调用）。</summary>
+        public void RefreshUserPanel()
+        {
+            UserAccounts.Clear();
+            foreach (var u in CurrentProject.Users) UserAccounts.Add(u);
+            UserGroups.Clear();
+            foreach (var g in CurrentProject.Groups) UserGroups.Add(g);
+            OnPropertyChanged(nameof(Security));
+        }
+
+        /// <summary>添加用户（走命令层 create_user——校验/哈希/组存在性统一）。</summary>
+        public void AddUserCommand()
+        {
+            var uname = NewUserName.Trim();
+            var r = CommandService.Execute("create_user", new Dictionary<string, object?>
+            {
+                ["user_name"] = uname,
+                ["password"] = NewUserPassword,
+                ["group_name"] = NewUserGroup,
+            });
+            if (r.Success) { RefreshUserPanel(); NewUserName = ""; NewUserPassword = ""; }
+            System.Windows.MessageBox.Show(r.Success ? $"已创建用户 {uname}" : $"创建失败 [{r.ErrorCode}]: {r.ErrorMessage}",
+                "用户管理", System.Windows.MessageBoxButton.OK,
+                r.Success ? System.Windows.MessageBoxImage.Information : System.Windows.MessageBoxImage.Warning);
+        }
+
+        /// <summary>删除选中用户（走命令层 delete_user——最后管理员保护）。</summary>
+        public void DeleteUserCommand()
+        {
+            if (SelectedUser == null) return;
+            var uname = SelectedUser.UserName;
+            var r = CommandService.Execute("delete_user", new Dictionary<string, object?> { ["user_name"] = uname });
+            if (r.Success) { RefreshUserPanel(); SelectedUser = null; }
+            System.Windows.MessageBox.Show(r.Success ? $"已删除用户 {uname}" : $"删除失败 [{r.ErrorCode}]: {r.ErrorMessage}",
+                "用户管理", System.Windows.MessageBoxButton.OK,
+                r.Success ? System.Windows.MessageBoxImage.Information : System.Windows.MessageBoxImage.Warning);
+        }
+
+        /// <summary>保存安全设置（写 project.Security + 标脏；负值拒绝）。</summary>
+        public void SaveSecurityCommand()
+        {
+            var s = CurrentProject.Security;
+            if (s.MinPasswordLength < 0 || s.PasswordMaxAgeDays < 0 || s.FailedLoginLockout < 0 || s.LockMinutes < 0)
+            {
+                System.Windows.MessageBox.Show("密码策略数值不能为负", "用户安全设置", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                return;
+            }
+            OnPropertyChanged(nameof(Security));
+            ProjectDirtyRequested?.Invoke();
+        }
+
         /// <summary>激活画面：退出变量管理器/通讯/列表管理视图并切换画面（即使 CurrentScreen 未变也生效）。</summary>
         public void ActivateScreen(Screen screen)
         {
             VariableManagerActive = false;
             CommunicationActive = false;
             ListManagerActive = false;
+            UserActive = false;
             AlarmActive = false;
             CurrentScreen = screen;   // 可能短路（值未变），短路时树高亮靠下方 RefreshTreeCurrentStatus 兜底
             RefreshTreeCurrentStatus();
@@ -343,6 +505,7 @@ namespace NavigatorHMI.ViewModels
                 CommunicationActive = false;
                 ListManagerActive = false;
                 AlarmActive = false;
+                UserActive = false;
 
                 // 打开画面 → 自动加入标签集合（打开才显示标签）
                 EnsureScreenOpen(value);
@@ -365,15 +528,15 @@ namespace NavigatorHMI.ViewModels
         {
             foreach (var root in TreeRoots)
             {
-                UpdateNodeRecursive(root, CurrentScreen, VariableManagerActive, CommunicationActive, ListManagerActive, AlarmActive, ListManagerListType);
+                UpdateNodeRecursive(root, CurrentScreen, VariableManagerActive, CommunicationActive, ListManagerActive, AlarmActive, UserActive, UserPanelPage, ListManagerListType);
             }
         }
 
-        private static void UpdateNodeRecursive(ProjectTreeViewModel node, Screen currentScreen, bool variableManagerActive, bool communicationActive, bool listManagerActive, bool alarmActive, ListType listManagerListType)
+        private static void UpdateNodeRecursive(ProjectTreeViewModel node, Screen currentScreen, bool variableManagerActive, bool communicationActive, bool listManagerActive, bool alarmActive, bool userActive, int userPanelPage, ListType listManagerListType)
         {
             if (node is ScreenItemNode screenNode)
             {
-                screenNode.IsCurrent = !variableManagerActive && !communicationActive && !listManagerActive && !alarmActive && (screenNode.Screen == currentScreen);
+                screenNode.IsCurrent = !variableManagerActive && !communicationActive && !listManagerActive && !alarmActive && !userActive && (screenNode.Screen == currentScreen);
             }
             else if (node is VariableManagerNode vmNode)
             {
@@ -395,9 +558,21 @@ namespace NavigatorHMI.ViewModels
             {
                 ilNode.IsCurrent = listManagerActive && listManagerListType == ListType.Image;
             }
+            else if (node is UserNameNode unNode)
+            {
+                unNode.IsCurrent = userActive && userPanelPage == 0;
+            }
+            else if (node is UserGroupNode ugNode)
+            {
+                ugNode.IsCurrent = userActive && userPanelPage == 1;
+            }
+            else if (node is UserSecurityNode usNode)
+            {
+                usNode.IsCurrent = userActive && userPanelPage == 2;
+            }
             foreach (var child in node.Children)
             {
-                UpdateNodeRecursive(child, currentScreen, variableManagerActive, communicationActive, listManagerActive, alarmActive, listManagerListType);
+                UpdateNodeRecursive(child, currentScreen, variableManagerActive, communicationActive, listManagerActive, alarmActive, userActive, userPanelPage, listManagerListType);
             }
         }
 
@@ -494,6 +669,8 @@ namespace NavigatorHMI.ViewModels
             TreeRoots.Add(customRoot);
             TreeRoots.Add(BuildCommunicationRootNode());
             TreeRoots.Add(BuildListRootNode());
+            TreeRoots.Add(BuildAlarmRootNode());
+            TreeRoots.Add(BuildUserRootNode());
         }
 
         /// <summary>构建「通信变量」根节点（含「变量」/「通讯」子节点，双击在画布位置打开对应 Tab）。</summary>
@@ -502,7 +679,6 @@ namespace NavigatorHMI.ViewModels
             var node = new CommunicationRootNode();
             node.OnVariableManagerSelected += OpenVariableManager;
             node.OnDeviceConfigSelected += OpenCommunication;
-            node.OnAlarmConfigSelected += OpenAlarm;
             return node;
         }
 
@@ -512,6 +688,24 @@ namespace NavigatorHMI.ViewModels
             var node = new ListRootNode();
             node.OnTextListSelected += () => OpenListManager(ListType.Text);
             node.OnImageListSelected += () => OpenListManager(ListType.Image);
+            return node;
+        }
+
+        /// <summary>W3 构建「报警」根节点（从通信变量移出；双击打开报警配置 Tab）。</summary>
+        private AlarmRootNode BuildAlarmRootNode()
+        {
+            var node = new AlarmRootNode();
+            node.OnAlarmConfigSelected += OpenAlarm;
+            return node;
+        }
+
+        /// <summary>W3 构建「用户」根节点（三子节点：用户名设置/用户组策略/用户安全设置——打开对应面板）。</summary>
+        private UserRootNode BuildUserRootNode()
+        {
+            var node = new UserRootNode();
+            node.OnUserNameSelected += OpenUserPanel;
+            node.OnUserGroupSelected += OpenUserGroupPanel;
+            node.OnUserSecuritySelected += OpenUserSecurityPanel;
             return node;
         }
         // 撤销操作执行后触发，用于通知 View 层标记工程已修改
@@ -583,6 +777,8 @@ namespace NavigatorHMI.ViewModels
             TreeRoots.Add(customRoot);
             TreeRoots.Add(BuildCommunicationRootNode());
             TreeRoots.Add(BuildListRootNode());
+            TreeRoots.Add(BuildAlarmRootNode());
+            TreeRoots.Add(BuildUserRootNode());
 
             // 默认选中全局画面
             CurrentScreen = project.Screens.First(s => s.Type == ScreenType.WorldMap);

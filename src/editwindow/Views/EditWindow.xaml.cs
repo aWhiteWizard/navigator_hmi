@@ -455,6 +455,14 @@ namespace NavigatorHMI.Views
                 _listManagerVM.PasteItem(ListType.Image, v);
         }
 
+        /// <summary>W3b 用户面板：添加用户（走 VM AddUserCommand）。</summary>
+        private void UserAdd_Click(object sender, RoutedEventArgs e) => _viewModel.AddUserCommand();
+
+        /// <summary>W3b 用户面板：删除选中用户（走 VM DeleteUserCommand——最后管理员保护）。</summary>
+        private void UserDelete_Click(object sender, RoutedEventArgs e) => _viewModel.DeleteUserCommand();
+
+        /// <summary>W3b 用户面板：保存安全设置（走 VM SaveSecurityCommand）。</summary>
+        private void UserSaveSecurity_Click(object sender, RoutedEventArgs e) => _viewModel.SaveSecurityCommand();
         /// <summary>批量删除选中设备（删除按钮 + 右键；多选时全部删除）。</summary>
         private void DeviceDelete_Click(object sender, RoutedEventArgs e)
         {
@@ -961,6 +969,20 @@ namespace NavigatorHMI.Views
         private void AlarmTabClose_Click(object sender, MouseButtonEventArgs e)
         {
             _viewModel.CloseAlarmTab();
+            e.Handled = true;
+        }
+
+        /// <summary>W3 点击「用户」Tab：切到用户面板（Activate 语义——Tab 已开时切换，不重复开）。</summary>
+        private void UserTab_Click(object sender, MouseButtonEventArgs e)
+        {
+            _viewModel.ActivateUser();
+            e.Handled = true;
+        }
+
+        /// <summary>W3 关闭「用户」Tab（当前激活时切回当前画面）。</summary>
+        private void UserTabClose_Click(object sender, MouseButtonEventArgs e)
+        {
+            _viewModel.CloseUserTab();
             e.Handled = true;
         }
 
@@ -1852,6 +1874,7 @@ namespace NavigatorHMI.Views
                 "Frame" => new FrameWidgetCreator(),
                 "ProgressBar" => new ProgressBarWidgetCreator(),
                 "DateTime" => new DateTimeWidgetCreator(),
+                "Window" => new WindowWidgetCreator(),
                 _ => null
             };
 
@@ -3004,7 +3027,7 @@ namespace NavigatorHMI.Views
                 "deploy-firmware" => _viewModel.CommandService.Execute("deploy_firmware",
                     new() { ["device_ip"] = opts.GetValueOrDefault("ip", ""), ["file_path"] = opts.GetValueOrDefault("file", "") }),
                 "create-alarm" => _viewModel.CommandService.Execute("create_alarm",
-                    new() { ["name"] = opts.GetValueOrDefault("name", ""), ["tag_name"] = opts.GetValueOrDefault("tag", ""), ["type"] = opts.GetValueOrDefault("type", ""), ["threshold"] = opts.GetValueOrDefault("threshold", ""), ["deadband"] = opts.GetValueOrDefault("deadband", "0"), ["delay_ms"] = opts.GetValueOrDefault("delay", "0"), ["severity"] = opts.GetValueOrDefault("severity", "Warning"), ["message"] = opts.GetValueOrDefault("message", "") }),
+                    new() { ["name"] = opts.GetValueOrDefault("name", ""), ["tag_name"] = opts.GetValueOrDefault("tag", ""), ["type"] = opts.GetValueOrDefault("type", ""), ["threshold"] = opts.GetValueOrDefault("threshold", ""), ["deadband"] = opts.GetValueOrDefault("deadband", "0"), ["delay_ms"] = opts.GetValueOrDefault("delay", "0"), ["severity"] = opts.GetValueOrDefault("severity", "Warning"), ["message"] = opts.GetValueOrDefault("message", ""), ["trigger_mode"] = opts.GetValueOrDefault("trigger-mode", "Threshold"), ["category"] = opts.GetValueOrDefault("category", "User"), ["priority"] = opts.GetValueOrDefault("priority", "0"), ["ack_required"] = opts.GetValueOrDefault("ack-required", "true"), ["ack_group"] = opts.GetValueOrDefault("ack-group", ""), ["color_override"] = opts.GetValueOrDefault("color-override", "") }),
                 "update-alarm" => UpdateAlarm(opts),
                 "delete-alarm" => _viewModel.CommandService.Execute("delete_alarm", new() { ["name"] = opts.GetValueOrDefault("name", "") }),
                 "create-list" => _viewModel.CommandService.Execute("create_list",
@@ -3026,6 +3049,13 @@ namespace NavigatorHMI.Views
             if (opts.TryGetValue("delay", out var dl) && dl.Length > 0) p["delay_ms"] = dl;
             if (opts.TryGetValue("severity", out var sv) && sv.Length > 0) p["severity"] = sv;
             if (opts.TryGetValue("message", out var msg)) p["message"] = msg;
+            // W1 六参数（OptIfProvided 语义：未提供不进字典保留现值；与 CLI Program.cs:141 逐 key 对齐）
+            if (opts.TryGetValue("trigger-mode", out var tm) && tm.Length > 0) p["trigger_mode"] = tm;
+            if (opts.TryGetValue("category", out var cat) && cat.Length > 0) p["category"] = cat;
+            if (opts.TryGetValue("priority", out var pri) && pri.Length > 0) p["priority"] = pri;
+            if (opts.TryGetValue("ack-required", out var ar) && ar.Length > 0) p["ack_required"] = ar;
+            if (opts.TryGetValue("ack-group", out var ag) && ag.Length > 0) p["ack_group"] = ag;
+            if (opts.TryGetValue("color-override", out var co) && co.Length > 0) p["color_override"] = co;
             return _viewModel.CommandService.Execute("update_alarm", p);
         }
 
@@ -3082,7 +3112,7 @@ namespace NavigatorHMI.Views
                 bool hasUpDir = value.Contains("..");
                 bool hasSep = value.Contains('/') || value.Contains('\\');
                 bool isPathParam = key is "path" or "project" or "file" or "output" or "connection" or "source";
-                bool isNameParam = key is "name" or "screen" or "widget" or "widgets" or "tag" or "key" or "new-name" or "event" or "action" or "nic" or "protocol" or "severity" or "direction" or "mode" or "ip" or "device_ip";
+                bool isNameParam = key is "name" or "screen" or "widget" or "widgets" or "tag" or "key" or "new-name" or "user-name" or "new-user-name" or "new-group-name" or "event" or "action" or "nic" or "protocol" or "severity" or "direction" or "mode" or "ip" or "device_ip";
                 // value 语义由 --key 决定（颜色/文本/路径/数值），静态分类无法覆盖：
                 // 归自由文本类仅拦 '..'（imagePath 值含 / 或 \ 是合法的相对/绝对路径）
                 // ⚠️ 白名单须与 Program.cs SanitizeParam 逐 key 同步（cli-param-sanitize §5/§6）：新增自由文本 key 时两端同改

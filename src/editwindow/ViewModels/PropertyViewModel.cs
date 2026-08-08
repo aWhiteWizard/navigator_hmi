@@ -324,6 +324,22 @@ namespace NavigatorHMI.ViewModels
                             case FrameWidget f: FrameTitle = f.Title; FrameFillColor = f.FillColor; FrameImagePath = f.ImagePath; FrameFontFamily = f.FontFamily; FrameFontSize = f.FontSize; FrameFontWeight = f.FontWeight; FrameFontStyle = f.FontStyle; FrameTextDecoration = f.TextDecoration; FrameListRef = f.ListRef; FrameDefaultIndex = f.DefaultIndex; break;
                             case ProgressBarWidget pb: ProgressValue = pb.Value; ProgressMin = pb.Min; ProgressMax = pb.Max; ProgressFillColor = pb.FillColor; ProgressFillStyle = pb.FillStyle; break;
                 case DateTimeWidget dt: DateTimeText = dt.Text; DateTimeFormat = dt.Format; break;
+                case WindowWidget ww:
+                    WindowTypeName = ww.Type.ToString();
+                    WindowTitle = ww.Title;
+                    WindowShowTitleBar = ww.ShowTitleBar;
+                    WindowFillColor = ww.FillColor;
+                    WindowBorderColor = ww.BorderColor;
+                    WindowShowUserName = ww.ShowUserName; WindowShowRole = ww.ShowRole; WindowShowMode = ww.ShowMode;
+                    WindowShowHistory = ww.ShowHistory;
+                    WindowCardWidth = ww.CardWidth; WindowCardHeight = ww.CardHeight;
+                    WindowCardShowNumber = ww.CardShowNumber; WindowCardShowStatus = ww.CardShowStatus; WindowCardShowLocation = ww.CardShowLocation;
+                    WindowSelectedTag = ww.SelectedTag;
+                    WindowBoundDevice = ww.BoundDevice;
+                    RefreshWindowDevices();
+                    RefreshWindowDeviceTags();   // 显式刷（模型默认 BoundDevice="" == VM 默认短路——setter 不触发，首选中不空）
+                    RefreshRobotSlots();   // WindowBoundDevice setter 内已刷新变量列表（去重）
+                    break;
                         }
 
                         // 绑定变量（基类通用属性，选中控件时同步下拉 + 刷新变量列表）
@@ -425,6 +441,55 @@ namespace NavigatorHMI.ViewModels
                     break;
                 case nameof(LineWidget.Y2):
                     if (_selectedWidget is LineWidget line2) LineY2 = line2.Y2;
+                    break;
+                // W4：WindowWidget 外部改模型 → 面板实时同步（CLI/Undo）
+                case nameof(WindowWidget.Type):
+                    if (_selectedWidget is WindowWidget wwt) WindowTypeName = wwt.Type.ToString();
+                    break;
+                case nameof(WindowWidget.Title):
+                    if (_selectedWidget is WindowWidget wt) WindowTitle = wt.Title;
+                    break;
+                case nameof(WindowWidget.ShowTitleBar):
+                    if (_selectedWidget is WindowWidget wsb) WindowShowTitleBar = wsb.ShowTitleBar;
+                    break;
+                case nameof(WindowWidget.FillColor):
+                    if (_selectedWidget is WindowWidget wfc) WindowFillColor = wfc.FillColor;
+                    break;
+                case nameof(WindowWidget.BorderColor):
+                    if (_selectedWidget is WindowWidget wbc) WindowBorderColor = wbc.BorderColor;
+                    break;
+                case nameof(WindowWidget.ShowUserName):
+                    if (_selectedWidget is WindowWidget wun) WindowShowUserName = wun.ShowUserName;
+                    break;
+                case nameof(WindowWidget.ShowRole):
+                    if (_selectedWidget is WindowWidget wro) WindowShowRole = wro.ShowRole;
+                    break;
+                case nameof(WindowWidget.ShowMode):
+                    if (_selectedWidget is WindowWidget wmo) WindowShowMode = wmo.ShowMode;
+                    break;
+                case nameof(WindowWidget.ShowHistory):
+                    if (_selectedWidget is WindowWidget wh) WindowShowHistory = wh.ShowHistory;
+                    break;
+                case nameof(WindowWidget.CardWidth):
+                    if (_selectedWidget is WindowWidget wcw) WindowCardWidth = wcw.CardWidth;
+                    break;
+                case nameof(WindowWidget.CardHeight):
+                    if (_selectedWidget is WindowWidget wch) WindowCardHeight = wch.CardHeight;
+                    break;
+                case nameof(WindowWidget.CardShowNumber):
+                    if (_selectedWidget is WindowWidget wcn) WindowCardShowNumber = wcn.CardShowNumber;
+                    break;
+                case nameof(WindowWidget.CardShowStatus):
+                    if (_selectedWidget is WindowWidget wcs) WindowCardShowStatus = wcs.CardShowStatus;
+                    break;
+                case nameof(WindowWidget.CardShowLocation):
+                    if (_selectedWidget is WindowWidget wcl) WindowCardShowLocation = wcl.CardShowLocation;
+                    break;
+                case nameof(WindowWidget.BoundDevice):
+                    if (_selectedWidget is WindowWidget wb) WindowBoundDevice = wb.BoundDevice;
+                    break;
+                case nameof(WindowWidget.SelectedTag):
+                    if (_selectedWidget is WindowWidget ws) WindowSelectedTag = ws.SelectedTag;
                     break;
             }
             }
@@ -1385,10 +1450,131 @@ namespace NavigatorHMI.ViewModels
         private string _dateTimeText = "2026-01-01 00:00:00";
         public string DateTimeText { get => _dateTimeText; set { if (_dateTimeText != value) { _dateTimeText = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is DateTimeWidget dt) dt.Text = value; } } }
         private string _dateTimeFormat = "yyyy-MM-dd HH:mm:ss";
+
+        // ═══ W4 窗口控件属性 ═══
+        private string _windowTypeName = "UserView";
+        public string WindowTypeName { get => _windowTypeName; set { if (_windowTypeName != value) { _windowTypeName = value; OnPropertyChanged(); if (!_syncingFromModel && _selectedWidget is WindowWidget ww && Enum.TryParse<WindowType>(value, out var t)) { BeforeModify?.Invoke(); ww.Type = t; } } } }
+        private string _windowTitle = "用户";
+        public string WindowTitle { get => _windowTitle; set { if (_windowTitle != value) { _windowTitle = value; OnPropertyChanged(); if (!_syncingFromModel && _selectedWidget is WindowWidget ww) { BeforeModify?.Invoke(); ww.Title = value; } } } }
+        private bool _windowShowTitleBar = true;
+        public bool WindowShowTitleBar { get => _windowShowTitleBar; set { if (_windowShowTitleBar != value) { _windowShowTitleBar = value; OnPropertyChanged(); if (!_syncingFromModel && _selectedWidget is WindowWidget ww) { BeforeModify?.Invoke(); ww.ShowTitleBar = value; } } } }
+        private string _windowFillColor = "#EEEEEE";
+        public string WindowFillColor { get => _windowFillColor; set { if (_windowFillColor != value) { _windowFillColor = value; OnPropertyChanged(); if (!_syncingFromModel && _selectedWidget is WindowWidget ww) { BeforeModify?.Invoke(); ww.FillColor = value; } } } }
+        private string _windowBorderColor = "#888888";
+        public string WindowBorderColor { get => _windowBorderColor; set { if (_windowBorderColor != value) { _windowBorderColor = value; OnPropertyChanged(); if (!_syncingFromModel && _selectedWidget is WindowWidget ww) { BeforeModify?.Invoke(); ww.BorderColor = value; } } } }
+        private bool _windowShowUserName = true;
+        public bool WindowShowUserName { get => _windowShowUserName; set { if (_windowShowUserName != value) { _windowShowUserName = value; OnPropertyChanged(); if (!_syncingFromModel && _selectedWidget is WindowWidget ww) { BeforeModify?.Invoke(); ww.ShowUserName = value; } } } }
+        private bool _windowShowRole = true;
+        public bool WindowShowRole { get => _windowShowRole; set { if (_windowShowRole != value) { _windowShowRole = value; OnPropertyChanged(); if (!_syncingFromModel && _selectedWidget is WindowWidget ww) { BeforeModify?.Invoke(); ww.ShowRole = value; } } } }
+        private bool _windowShowMode = true;
+        public bool WindowShowMode { get => _windowShowMode; set { if (_windowShowMode != value) { _windowShowMode = value; OnPropertyChanged(); if (!_syncingFromModel && _selectedWidget is WindowWidget ww) { BeforeModify?.Invoke(); ww.ShowMode = value; } } } }
+        private bool _windowShowHistory;
+        public bool WindowShowHistory { get => _windowShowHistory; set { if (_windowShowHistory != value) { _windowShowHistory = value; OnPropertyChanged(); if (!_syncingFromModel && _selectedWidget is WindowWidget ww) { BeforeModify?.Invoke(); ww.ShowHistory = value; } } } }
+        private double _windowCardWidth = 120;
+        public double WindowCardWidth { get => _windowCardWidth; set { if (_windowCardWidth != value) { _windowCardWidth = value; OnPropertyChanged(); if (!_syncingFromModel && _selectedWidget is WindowWidget ww) { BeforeModify?.Invoke(); ww.CardWidth = value; } } } }
+        private double _windowCardHeight = 110;
+        public double WindowCardHeight { get => _windowCardHeight; set { if (_windowCardHeight != value) { _windowCardHeight = value; OnPropertyChanged(); if (!_syncingFromModel && _selectedWidget is WindowWidget ww) { BeforeModify?.Invoke(); ww.CardHeight = value; } } } }
+        private bool _windowCardShowNumber = true;
+        public bool WindowCardShowNumber { get => _windowCardShowNumber; set { if (_windowCardShowNumber != value) { _windowCardShowNumber = value; OnPropertyChanged(); if (!_syncingFromModel && _selectedWidget is WindowWidget ww) { BeforeModify?.Invoke(); ww.CardShowNumber = value; } } } }
+        private bool _windowCardShowStatus = true;
+        public bool WindowCardShowStatus { get => _windowCardShowStatus; set { if (_windowCardShowStatus != value) { _windowCardShowStatus = value; OnPropertyChanged(); if (!_syncingFromModel && _selectedWidget is WindowWidget ww) { BeforeModify?.Invoke(); ww.CardShowStatus = value; } } } }
+        private bool _windowCardShowLocation = true;
+        public bool WindowCardShowLocation { get => _windowCardShowLocation; set { if (_windowCardShowLocation != value) { _windowCardShowLocation = value; OnPropertyChanged(); if (!_syncingFromModel && _selectedWidget is WindowWidget ww) { BeforeModify?.Invoke(); ww.CardShowLocation = value; } } } }
+        private string _windowSelectedTag = "";
+        public string WindowSelectedTag { get => _windowSelectedTag; set { if (value == null) return; if (_windowSelectedTag != value) { _windowSelectedTag = value; OnPropertyChanged(); if (!_syncingFromModel && _selectedWidget is WindowWidget ww) { BeforeModify?.Invoke(); ww.SelectedTag = value; } } } }
+        private string _windowBoundDevice = "";
+        public string WindowBoundDevice { get => _windowBoundDevice; set { if (value == null) return; var mapped = value == "（仅内部变量）" ? "" : value; if (_windowBoundDevice != mapped) { _windowBoundDevice = mapped; OnPropertyChanged(); if (!_syncingFromModel && _selectedWidget is WindowWidget ww) { BeforeModify?.Invoke(); ww.BoundDevice = mapped; } RefreshWindowDeviceTags(); } } }
+
+        /// <summary>W4 设备列表（RobotList BoundDevice 两态过滤用）。</summary>
+        public System.Collections.ObjectModel.ObservableCollection<string> WindowDevices { get; } = new();
+        public void RefreshWindowDevices()
+        {
+            WindowDevices.Clear();
+            WindowDevices.Add("（仅内部变量）");
+            if (Project != null)
+                foreach (var d in Project.Devices) WindowDevices.Add(d.Name);
+        }
+
+        /// <summary>W4 RobotList 可用变量（按 BoundDevice 两态过滤：指定设备 → 该设备变量（Tag.DeviceName）+ 内部变量；空 → 仅内部变量）。</summary>
+        public System.Collections.ObjectModel.ObservableCollection<Tag> WindowDeviceTags { get; } = new();
+        public void RefreshWindowDeviceTags()
+        {
+            WindowDeviceTags.Clear();
+            if (Project == null) return;
+            foreach (var t in Project.Tags)
+            {
+                if (_windowBoundDevice.Length == 0 && string.IsNullOrEmpty(t.DeviceName)) WindowDeviceTags.Add(t);
+                else if (_windowBoundDevice.Length > 0 && (t.DeviceName == _windowBoundDevice || string.IsNullOrEmpty(t.DeviceName))) WindowDeviceTags.Add(t);
+            }
+        }
+
+        /// <summary>W4 RobotSlots 绑定表行集合（5 槽位：编号/状态/位置/详细信息/操作）。</summary>
+        public System.Collections.ObjectModel.ObservableCollection<RobotSlotRowVM> RobotSlotRows { get; } = new();
+        public void RefreshRobotSlots()
+        {
+            RobotSlotRows.Clear();
+            if (_selectedWidget is not WindowWidget ww) return;
+            var labels = new[] { "编号变量", "状态变量", "位置变量", "详细信息JSON", "操作变量" };
+            var getters = new Func<RobotSlotBinding, string>[] { b => b.IdTag, b => b.StatusTag, b => b.LocationTag, b => b.DetailTag, b => b.OperTag };
+            for (int i = 0; i < 5; i++)
+            {
+                var b = i < ww.RobotSlots.Count ? ww.RobotSlots[i] : null;   // 无槽位不补模型（行 VM 空值展示）
+                RobotSlotRows.Add(new RobotSlotRowVM(this, i, labels[i], b == null ? "" : getters[i](b)));
+            }
+        }
+
+        /// <summary>RobotSlotRowVM 写回：槽位 i 的绑定变量 → ww.RobotSlots[i] 对应字段。</summary>
+        public void SetRobotSlotTag(int index, string tag)
+        {
+            if (_selectedWidget is not WindowWidget ww || index < 0) return;
+            BeforeModify?.Invoke();   // 快照先推（补槽/赋值前——撤销可回滚）
+            while (ww.RobotSlots.Count <= index) ww.RobotSlots.Add(new RobotSlotBinding());   // 首次配置才补槽位
+            var b = ww.RobotSlots[index];
+            switch (index)
+            {
+                case 0: b.IdTag = tag; break;
+                case 1: b.StatusTag = tag; break;
+                case 2: b.LocationTag = tag; break;
+                case 3: b.DetailTag = tag; break;
+                default: b.OperTag = tag; break;
+            }
+        }
         public string DateTimeFormat { get => _dateTimeFormat; set { if (_dateTimeFormat != value) { _dateTimeFormat = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is DateTimeWidget dt) dt.Format = value; } } }
 
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string? name = null)
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    }
+
+    /// <summary>W4 RobotList 机器人槽位绑定行（属性面板绑定表一行）。</summary>
+    public class RobotSlotRowVM : System.ComponentModel.INotifyPropertyChanged
+    {
+        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+        private void Notify(string n) => PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(n));
+        private readonly PropertyViewModel _owner;
+        private readonly int _index;
+        public string Label { get; }
+        public System.Collections.ObjectModel.ObservableCollection<Tag> Tags => _owner.WindowDeviceTags;
+
+        private string _selectedTag = "";
+        public string SelectedTag
+        {
+            get => _selectedTag;
+            set
+            {
+                if (value == null) return;   // 集合重建瞬态失配回写 null 拦截（防清空已配置槽位）
+                if (_selectedTag != value)
+                {
+                    _selectedTag = value;
+                    Notify(nameof(SelectedTag));
+                    _owner.SetRobotSlotTag(_index, value);
+                }
+            }
+        }
+
+        public RobotSlotRowVM(PropertyViewModel owner, int index, string label, string tag)
+        {
+            _owner = owner; _index = index; Label = label; _selectedTag = tag;
+        }
     }
 }

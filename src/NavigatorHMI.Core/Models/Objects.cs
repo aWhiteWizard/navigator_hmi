@@ -130,6 +130,7 @@ namespace NavigatorHMI.Common
 [ProtoInclude(113, typeof(ProgressBarWidget))]
 [ProtoInclude(114, typeof(EllipseWidget))]
 [ProtoInclude(115, typeof(DateTimeWidget))]
+[ProtoInclude(116, typeof(WindowWidget))]
 public abstract class Widget : INotifyPropertyChanged
 {
     private double _x;

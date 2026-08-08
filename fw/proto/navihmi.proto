@@ -56,6 +56,12 @@ enum ProtocolType {
   PROTO_MQTT = 2;
 }
 
+enum WindowType {
+  WIN_USER_VIEW = 0;
+  WIN_ALARM_VIEW = 1;
+  WIN_ROBOT_LIST = 2;
+}
+
 enum WidgetType {
   W_BUTTON = 0;
   W_TEXT = 1;
@@ -73,6 +79,7 @@ enum WidgetType {
   W_FRAME = 13;
   W_PROGRESS_BAR = 14;
   W_DATETIME = 15;
+  W_WINDOW = 16;
 }
 
 enum EventType {
@@ -92,6 +99,9 @@ enum EventType {
   EV_ON_ON = 13;
   EV_ON_OFF = 14;
   EV_ON_PROGRESS_COMPLETE = 15;
+  EV_ON_USER_CHANGED = 16;
+  EV_ON_ACK = 17;
+  EV_ON_SELECT = 18;
 }
 
 enum ActionType {
@@ -133,7 +143,11 @@ message HMIProject {
   NavPosition navigation_position = 14;
   string start_screen = 15;
   repeated ListDef lists = 16;
-  int32 format_version = 17;  // 契约版本（当前=1；FW 端解析后校验，不匹配拒绝加载）
+  int32 format_version = 17;   // 契约版本（当前=1；FW 端解析后校验，不匹配拒绝加载）
+  // W1 用户系统
+  repeated UserAccount users = 18;
+  repeated UserGroup groups = 19;
+  SecuritySettings security = 20;  // 用户安全设置（密码策略）
 }
 
 message Screen {
@@ -195,10 +209,27 @@ message Widget {
   double x2 = 34;            // Line
   double y2 = 35;            // Line
   // Frame
-  string title = 36;         // Frame 标题
+  string title = 36;         // Frame 标题；Window 类型时=边框色 BorderColor
   // 日期时间（DateTime）
   string dt_text = 37;       // DateTime 显示文本
   string dt_format = 38;     // DateTime 格式
+  // W1 窗口控件（39+，W5 细化 RobotSlots）
+  int32 window_type = 39;    // WindowType: 0=UserView 1=AlarmView 2=RobotList
+  string win_title = 40;     // 窗口标题
+  bool show_title_bar = 41;  // 显示标题栏
+  bool show_history = 42;    // AlarmView 含历史
+  string selected_tag = 43;  // RobotList 选中编号变量
+  double card_width = 44;    // RobotList 卡片宽
+  double card_height = 45;   // RobotList 卡片高
+  // W5 窗口控件扩展（46+）
+  bool show_user_name = 46;     // UserView 显示用户名
+  bool show_role = 47;          // UserView 显示角色
+  bool show_mode = 48;          // UserView 显示运行模式
+  bool card_show_number = 49;   // RobotList 显示编号
+  bool card_show_status = 50;   // RobotList 显示状态
+  bool card_show_location = 51; // RobotList 显示位置
+  string bound_device = 52;     // RobotList 绑定设备名
+  repeated RobotSlotBinding robot_slots = 53;   // RobotList 机器人绑定组
 }
 
 message WidgetEvent {
@@ -220,7 +251,8 @@ message Tag {
   int32 scan_interval_ms = 5;
   double deadband = 6;
   string description = 7;
-  string base_value = 8;     // 设计态基准值
+  string base_value = 8;         // 设计态基准值
+  string device_name = 9;   // W1 所属设备名（RobotList BoundDevice 两态过滤）
 }
 
 message AlarmRule {
@@ -232,6 +264,12 @@ message AlarmRule {
   int32 delay_ms = 6;        // 防抖延迟
   Severity level = 7;
   string message = 8;
+  int32 alarm_trigger_mode = 9;   // AlarmTriggerMode: 0=Threshold 1=OnRising 2=OnFalling 3=OnChange
+  int32 category = 10;             // AlarmCategory: 0=System 1=User 2=Error
+  int32 priority = 11;             // 排序优先级
+  bool ack_required = 12;          // 需要确认
+  string ack_group = 13;           // 确认组
+  string color_override = 14;      // 颜色图标覆盖
 }
 
 message ListDef {
@@ -254,4 +292,35 @@ message WorldMapConfig {
   string tile_source = 5;      // 离线/在线瓦片源
   int32 zoom_level = 6;
   bool show_global_overlay = 7;
+}
+
+message UserAccount {
+  string user_name = 1;
+  string password_hash = 2;
+  string group_name = 3;
+  bool must_change_password = 4;
+}
+
+message UserGroup {
+  string name = 1;
+  repeated int32 permissions = 2;   // UserPermission 位（值表：0=ScreenEdit 1=AlarmAck 2=UserManage 3=SystemSettings）
+}
+
+message SecuritySettings {
+  int32 min_password_length = 1;
+  bool require_digit = 2;
+  bool require_letter = 3;
+  bool require_upper_lower = 4;
+  bool require_special = 5;
+  int32 password_max_age_days = 6;
+  int32 failed_login_lockout = 7;
+  int32 lock_minutes = 8;
+}
+
+message RobotSlotBinding {
+  string id_tag = 1;
+  string status_tag = 2;
+  string location_tag = 3;
+  string detail_tag = 4;
+  string oper_tag = 5;
 }

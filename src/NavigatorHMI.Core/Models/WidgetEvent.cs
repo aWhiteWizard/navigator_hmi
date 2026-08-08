@@ -38,7 +38,13 @@ namespace NavigatorHMI.Common
         /// <summary>开关关闭（Switch）</summary>
         onOff,
         /// <summary>进度条到达 100%（ProgressBar）</summary>
-        onProgressComplete
+        onProgressComplete,
+        /// <summary>用户登录/登出（UserView 窗口控件）</summary>
+        onUserChanged,
+        /// <summary>报警确认（AlarmView 窗口控件，携带报警编号）</summary>
+        onAck,
+        /// <summary>机器人选中（RobotList 窗口控件，携带编号）</summary>
+        onSelect
     }
 
     /// <summary>

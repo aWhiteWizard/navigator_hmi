@@ -108,6 +108,9 @@ namespace NavigatorHMI.Common
                 Alarms = p.Alarms,
                 Devices = p.Devices,
                 Lists = p.Lists,
+                Users = p.Users,      // W1 用户系统（编译进 .navihmi，FW 登录/权限/密码策略）
+                Groups = p.Groups,
+                Security = p.Security,
             };
         }
 
@@ -198,6 +201,16 @@ namespace NavigatorHMI.Common
                     break;
                 case DateTimeWidget dt:
                     dto.Type = NavihmiWidgetType.DateTime; dto.DtText = dt.Text; dto.DtFormat = dt.Format;
+                    break;
+                case WindowWidget ww:
+                    dto.Type = NavihmiWidgetType.Window; dto.WindowType = (int)ww.Type;
+                    dto.WinTitle = ww.Title; dto.ShowTitleBar = ww.ShowTitleBar;
+                    dto.FillColor = ww.FillColor; dto.Title = ww.BorderColor;   // Title 槽位复用承载边框色（proto W_WINDOW 用 border 字段）
+                    dto.ShowHistory = ww.ShowHistory; dto.SelectedTag = ww.SelectedTag;
+                    dto.CardWidth = ww.CardWidth; dto.CardHeight = ww.CardHeight;
+                    dto.ShowUserName = ww.ShowUserName; dto.ShowRole = ww.ShowRole; dto.ShowMode = ww.ShowMode;
+                    dto.CardShowNumber = ww.CardShowNumber; dto.CardShowStatus = ww.CardShowStatus; dto.CardShowLocation = ww.CardShowLocation;
+                    dto.BoundDevice = ww.BoundDevice; dto.RobotSlots = ww.RobotSlots;
                     break;
                 default:
                     throw new InvalidOperationException($"未映射的控件类型: {w.GetType().Name}（新增控件需同步 navihmi.proto 与 NavihmiDto）");

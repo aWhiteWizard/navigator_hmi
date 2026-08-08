@@ -11,12 +11,13 @@ namespace NavigatorHMI.CommandLayer.Handlers
             Parameters = new()
             {
                 ["screen_name"] = new() { Type = "string", Required = true },
-                ["widget_type"] = new() { Type = "enum", Required = true, EnumValues = new[] { "button", "text", "rectangle", "label", "image", "numeric", "switch", "line", "circle", "ellipse", "iofield", "checkbox", "textlist", "textbox", "frame", "progressbar", "datetime" }, Description = "控件类型（textbox 为 textlist 兼容别名；datetime 为日期时间控件）" },
+                ["widget_type"] = new() { Type = "enum", Required = true, EnumValues = new[] { "button", "text", "rectangle", "label", "image", "numeric", "switch", "line", "circle", "ellipse", "iofield", "checkbox", "textlist", "textbox", "frame", "progressbar", "datetime", "window" }, Description = "控件类型（textbox 为 textlist 兼容别名；datetime 为日期时间控件；window 为窗口控件——用 --window-type 指定 UserView/AlarmView/RobotList）" },
                 ["x"] = new() { Type = "int", DefaultValue = 100 },
                 ["y"] = new() { Type = "int", DefaultValue = 100 },
                 ["width"] = new() { Type = "int", DefaultValue = 100 },
                 ["height"] = new() { Type = "int", DefaultValue = 40 },
                 ["bound_tag"] = new() { Type = "string", DefaultValue = "", Description = "绑定变量（可选，创建后立即绑定）" },
+                ["window_type"] = new() { Type = "enum", DefaultValue = "userview", EnumValues = new[] { "userview", "alarmview", "robotlist" }, Description = "window 类型的窗口种类（W1：UserView/AlarmView/RobotList）" },
                 ["center"] = new() { Type = "bool", DefaultValue = false, KeepInCompact = true, Description = "true 时置于画面中心（忽略 x/y；AI 指令「放在中心」用）" },
             }
         };
@@ -27,8 +28,15 @@ namespace NavigatorHMI.CommandLayer.Handlers
             // 控件类型枚举校验（防未知类型静默走 default 创建 Button——静默失败比报错更危险）
             var wt = parameters["widget_type"]!.ToString()!;
             if (wt is not ("button" or "text" or "rectangle" or "label" or "image" or "numeric" or "switch" or "line"
-                or "circle" or "ellipse" or "iofield" or "checkbox" or "textlist" or "textbox" or "frame" or "progressbar" or "datetime"))
+                or "circle" or "ellipse" or "iofield" or "checkbox" or "textlist" or "textbox" or "frame" or "progressbar" or "datetime" or "window"))
                 return ValidationResult.Fail($"未知控件类型: {wt}");
+            // W1：window 类型校验 window_type 白名单（防未知类型静默创建 UserView）
+            if (wt == "window")
+            {
+                var wtype = parameters.GetValueOrDefault("window_type")?.ToString() ?? "userview";
+                if (wtype.ToLowerInvariant() is not ("userview" or "alarmview" or "robotlist"))
+                    return ValidationResult.Fail($"未知窗口类型: {wtype}（userview/alarmview/robotlist）");
+            }
             if (!parameters.ContainsKey("x") || string.IsNullOrWhiteSpace(parameters["x"]?.ToString()))
                 parameters["x"] = 100;   // 未提供默认 (100,100) 放置（AI/CLI 场景省参）
             if (!parameters.ContainsKey("y") || string.IsNullOrWhiteSpace(parameters["y"]?.ToString()))
@@ -62,6 +70,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 "frame" => new FrameWidget(),
                 "progressbar" => new ProgressBarWidget(),
                 "datetime" => new DateTimeWidget { Text = "2026-01-01 00:00:00" },
+                "window" => CreateWindow(parameters),
                 _ => new ButtonWidget { Text = "Button" }
             };
             widget.X = Convert.ToDouble(parameters["x"] ?? 0); widget.Y = Convert.ToDouble(parameters["y"] ?? 0);
@@ -83,6 +92,28 @@ namespace NavigatorHMI.CommandLayer.Handlers
             }
             screen.Widgets.Add(widget);
             return CommandResult.Ok(new { widget_name = widget.ObjectName });
+        }
+
+        /// <summary>W1 窗口控件创建：window_type → WindowType；默认 UserView。</summary>
+        private static Widget CreateWindow(Dictionary<string, object?> parameters)
+        {
+            var wt = parameters.GetValueOrDefault("window_type")?.ToString() ?? "userview";
+            var type = wt.ToLowerInvariant() switch
+            {
+                "alarmview" => WindowType.AlarmView,
+                "robotlist" => WindowType.RobotList,
+                _ => WindowType.UserView,
+            };
+            return new WindowWidget
+            {
+                Type = type,
+                Title = type switch
+                {
+                    WindowType.AlarmView => "报警",
+                    WindowType.RobotList => "机器人列表",
+                    _ => "用户",
+                },
+            };
         }
     }
 
@@ -307,6 +338,20 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 case ProgressBarWidget pb when key == "max": pb.Max = double.Parse(value); break;
                 case ProgressBarWidget pb when key == "fillColor": pb.FillColor = value; break;
                 case ProgressBarWidget pb when key == "fillStyle": pb.FillStyle = value; break;
+                // W 批次：窗口控件属性（命令层/CLI/AI 可改——与 GUI 属性面板一致）
+                case WindowWidget ww when key == "windowType": ww.Type = Enum.TryParse<WindowType>(value, true, out var wt) ? wt : ww.Type; break;
+                case WindowWidget ww when key == "title": ww.Title = value; break;
+                case WindowWidget ww when key == "showTitleBar": ww.ShowTitleBar = value is "1" or "true" or "True"; break;
+                case WindowWidget ww when key == "fillColor": ww.FillColor = value; break;
+                case WindowWidget ww when key == "borderColor": ww.BorderColor = value; break;
+                case WindowWidget ww when key == "showUserName": ww.ShowUserName = value is "1" or "true" or "True"; break;
+                case WindowWidget ww when key == "showRole": ww.ShowRole = value is "1" or "true" or "True"; break;
+                case WindowWidget ww when key == "showMode": ww.ShowMode = value is "1" or "true" or "True"; break;
+                case WindowWidget ww when key == "showHistory": ww.ShowHistory = value is "1" or "true" or "True"; break;
+                case WindowWidget ww when key == "cardWidth": ww.CardWidth = double.Parse(value); break;
+                case WindowWidget ww when key == "cardHeight": ww.CardHeight = double.Parse(value); break;
+                case WindowWidget ww when key == "boundDevice": ww.BoundDevice = value; break;
+                case WindowWidget ww when key == "selectedTag": ww.SelectedTag = value; break;
                 default: return CommandResult.Fail("UNKNOWN_PROPERTY", $"不支持属性: {key}");
             }
             return CommandResult.Ok();

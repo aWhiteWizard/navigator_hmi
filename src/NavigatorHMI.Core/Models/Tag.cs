@@ -62,5 +62,9 @@ namespace NavigatorHMI.Common
         /// 数字变量存数字文本（如 "25.5"），字符串变量存原值（如图片路径/文本）。</summary>
         [ProtoMember(8)]
         public string BaseValue { get; set; } = "";
+
+        /// <summary>W1 所属设备名（通信设备/控制器——RobotList BoundDevice 两态过滤用；空=内部变量）。</summary>
+        [ProtoMember(9)]
+        public string DeviceName { get; set; } = "";
     }
 }

@@ -827,6 +827,99 @@
                                         <ComboBoxItem Content="yyyy-MM-dd HH:mm:ss"/><ComboBoxItem Content="yyyy-MM-dd"/><ComboBoxItem Content="HH:mm:ss"/><ComboBoxItem Content="yyyy/MM/dd HH:mm:ss"/><ComboBoxItem Content="yyyy年MM月dd日"/><ComboBoxItem Content="HH:mm"/></ComboBox>
             </Grid>
         </StackPanel></DataTemplate>
+        <!-- W4 窗口控件属性（UserView/AlarmView/RobotList 共用 + 各自开关） -->
+        <DataTemplate x:Key="PropWindow"><StackPanel>
+            <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
+            <Separator Margin="4,2"/>
+            <TextBlock Text="窗口" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="类型:" Style="{StaticResource PropLabel}"/>
+                <ComboBox Grid.Column="1" SelectedValue="{Binding WindowTypeName, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" Style="{StaticResource PropComboBox}">
+                    <ComboBoxItem Content="UserView"/><ComboBoxItem Content="AlarmView"/><ComboBoxItem Content="RobotList"/>
+                </ComboBox>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="标题:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding WindowTitle, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" KeyDown="PropField_KeyDown"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="标题栏:" Style="{StaticResource PropLabel}"/>
+                <CheckBox Grid.Column="1" IsChecked="{Binding WindowShowTitleBar}" VerticalAlignment="Center"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="背景色:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding WindowFillColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" KeyDown="PropField_KeyDown"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="边框色:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding WindowBorderColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" KeyDown="PropField_KeyDown"/>
+            </Grid>
+            <!-- UserView 显示开关 -->
+            <TextBlock Text="UserView 显示" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="用户名:" Style="{StaticResource PropLabel}"/>
+                <CheckBox Grid.Column="1" IsChecked="{Binding WindowShowUserName}" VerticalAlignment="Center"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="角色:" Style="{StaticResource PropLabel}"/>
+                <CheckBox Grid.Column="1" IsChecked="{Binding WindowShowRole}" VerticalAlignment="Center"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="运行模式:" Style="{StaticResource PropLabel}"/>
+                <CheckBox Grid.Column="1" IsChecked="{Binding WindowShowMode}" VerticalAlignment="Center"/>
+            </Grid>
+            <!-- AlarmView -->
+            <TextBlock Text="AlarmView" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="含历史:" Style="{StaticResource PropLabel}"/>
+                <CheckBox Grid.Column="1" IsChecked="{Binding WindowShowHistory}" VerticalAlignment="Center" ToolTip="false=仅活动报警"/>
+            </Grid>
+            <!-- RobotList：卡片尺寸 + 信息开关 + 绑定设备 + 选中变量 -->
+            <TextBlock Text="RobotList 卡片" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="卡片宽:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding WindowCardWidth, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}" KeyDown="PropField_KeyDown"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="卡片高:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding WindowCardHeight, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}" KeyDown="PropField_KeyDown"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="显示编号:" Style="{StaticResource PropLabel}"/>
+                <CheckBox Grid.Column="1" IsChecked="{Binding WindowCardShowNumber}" VerticalAlignment="Center"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="显示状态:" Style="{StaticResource PropLabel}"/>
+                <CheckBox Grid.Column="1" IsChecked="{Binding WindowCardShowStatus}" VerticalAlignment="Center"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="显示位置:" Style="{StaticResource PropLabel}"/>
+                <CheckBox Grid.Column="1" IsChecked="{Binding WindowCardShowLocation}" VerticalAlignment="Center"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="绑定设备:" Style="{StaticResource PropLabel}"/>
+                <ComboBox Grid.Column="1" ItemsSource="{Binding WindowDevices}" SelectedItem="{Binding WindowBoundDevice, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropComboBox}" ToolTip="RobotList 两态过滤：选设备 → 变量仅该设备（Tag.DeviceName）；「（仅内部变量）」→ 仅内部变量"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="选中变量:" Style="{StaticResource PropLabel}"/>
+                <ComboBox Grid.Column="1" ItemsSource="{Binding WindowDeviceTags}" SelectedValue="{Binding WindowSelectedTag, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Name" DisplayMemberPath="Name" Style="{StaticResource PropComboBox}" ToolTip="RobotList 选中编号写入变量（STRING）"/>
+            </Grid>
+            <!-- RobotSlots 绑定表 -->
+            <TextBlock Text="机器人绑定组" Style="{StaticResource PropGroupHeader}"/>
+            <ItemsControl ItemsSource="{Binding RobotSlotRows}" Margin="0,2">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="{Binding Label}" VerticalAlignment="Center" FontSize="10"/>
+                            <ComboBox Grid.Column="1" ItemsSource="{Binding Tags}" SelectedValue="{Binding SelectedTag, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Name" DisplayMemberPath="Name" FontSize="10" Height="22"/>
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel></DataTemplate>
     </Window.Resources>
 
     <Window.CommandBindings><CommandBinding Command="Save" Executed="SaveCurrentProject_Click"/><CommandBinding Command="Help" Executed="Help_Click"/></Window.CommandBindings>
@@ -1003,6 +1096,12 @@
                                         <HierarchicalDataTemplate DataType="{x:Type vm:ListRootNode}" ItemsSource="{Binding Children}">
                                             <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
                                         </HierarchicalDataTemplate>
+                                        <HierarchicalDataTemplate DataType="{x:Type vm:AlarmRootNode}" ItemsSource="{Binding Children}">
+                                            <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
+                                        </HierarchicalDataTemplate>
+                                        <HierarchicalDataTemplate DataType="{x:Type vm:UserRootNode}" ItemsSource="{Binding Children}">
+                                            <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
+                                        </HierarchicalDataTemplate>
                                         <DataTemplate DataType="{x:Type vm:VariableManagerNode}">
                                             <!-- 与画面节点一致的选中样式（✅ 高亮 + 默认字体颜色） -->
                                             <StackPanel Orientation="Horizontal">
@@ -1019,6 +1118,24 @@
                                         </DataTemplate>
                                         <DataTemplate DataType="{x:Type vm:AlarmConfigNode}">
                                             <!-- 与画面节点一致的选中样式（✅ 高亮 + 默认字体颜色） -->
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="✅" Visibility="{Binding IsCurrent, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,4,0" FontSize="12"/>
+                                                <TextBlock Text="{Binding Name}"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                        <DataTemplate DataType="{x:Type vm:UserNameNode}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="✅" Visibility="{Binding IsCurrent, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,4,0" FontSize="12"/>
+                                                <TextBlock Text="{Binding Name}"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                        <DataTemplate DataType="{x:Type vm:UserGroupNode}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="✅" Visibility="{Binding IsCurrent, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,4,0" FontSize="12"/>
+                                                <TextBlock Text="{Binding Name}"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                        <DataTemplate DataType="{x:Type vm:UserSecurityNode}">
                                             <StackPanel Orientation="Horizontal">
                                                 <TextBlock Text="✅" Visibility="{Binding IsCurrent, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,4,0" FontSize="12"/>
                                                 <TextBlock Text="{Binding Name}"/>
@@ -1063,6 +1180,7 @@
                                         <Button Content="TextList" Tag="TextList" Click="ToggleAddWidgetMode"/>
                                         <Button Content="Frame" Tag="Frame" Click="ToggleAddWidgetMode"/>
                                         <Button Content="ProgressBar" Tag="ProgressBar" Click="ToggleAddWidgetMode"/>
+                                            <Button Content="Window" Tag="Window" Click="ToggleAddWidgetMode" ToolTip="窗口控件：UserView/AlarmView/RobotList（属性面板切类型）"/>
                                             <Button Content="DateTime" Tag="DateTime" Click="ToggleAddWidgetMode"/>
                                     </StackPanel></TabItem>
                                     <TabItem Header="窗口控件"><StackPanel Orientation="Vertical">
@@ -1148,6 +1266,28 @@
                                                            Cursor="Hand" MouseLeftButtonDown="AlarmTabClose_Click"/>
                                             </StackPanel>
                                         </Border>
+                                        <!-- W3 用户 Tab（由「用户」树节点双击打开，打开才显示，激活高亮） -->
+                                        <Border x:Name="UserTab" BorderThickness="1" CornerRadius="3" Padding="6,3" Margin="0,0,4,0"
+                                                Cursor="Hand" MouseLeftButtonDown="UserTab_Click"
+                                                Visibility="{Binding UserTabOpen, Converter={StaticResource BoolToVisibilityConverter}}">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="#E0E0E0"/>
+                                                    <Setter Property="BorderBrush" Value="#B0B0B0"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding UserActive}" Value="True">
+                                                            <Setter Property="Background" Value="#0078D4"/>
+                                                            <Setter Property="BorderBrush" Value="#0078D4"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="用户" FontSize="12" VerticalAlignment="Center"/>
+                                                <TextBlock Text=" ✕" FontSize="10" Foreground="#888888" VerticalAlignment="Center" Margin="4,0,0,0"
+                                                           Cursor="Hand" MouseLeftButtonDown="UserTabClose_Click"/>
+                                            </StackPanel>
+                                        </Border>
                                         <!-- 列表管理 Tab（由「通信变量→列表→文本/图片列表」树节点双击打开，打开才显示，激活高亮） -->
                                         <Border x:Name="ListManagerTab" BorderThickness="1" CornerRadius="3" Padding="6,3" Margin="0,0,4,0"
                                                 Cursor="Hand" MouseLeftButtonDown="ListManagerTab_Click"
@@ -1193,6 +1333,7 @@
                                                             <Condition Binding="{Binding DataContext.CommunicationActive, RelativeSource={RelativeSource AncestorType=Window}}" Value="False"/>
                                                             <Condition Binding="{Binding DataContext.ListManagerActive, RelativeSource={RelativeSource AncestorType=Window}}" Value="False"/>
                                                             <Condition Binding="{Binding DataContext.AlarmActive, RelativeSource={RelativeSource AncestorType=Window}}" Value="False"/>
+                                                            <Condition Binding="{Binding DataContext.UserActive, RelativeSource={RelativeSource AncestorType=Window}}" Value="False"/>
                                                         </MultiDataTrigger.Conditions>
                                                         <Setter TargetName="TabBorder" Property="Background" Value="#0078D4"/>
                                                         <Setter TargetName="TabBorder" Property="BorderBrush" Value="#0078D4"/>
@@ -1246,7 +1387,7 @@
                                         <Style TargetType="Border">
                                             <Setter Property="Visibility" Value="Visible"/>
                                             <Style.Triggers>
-                                                <!-- 变量管理器/通讯/列表/报警激活时隐藏画布（同一位置切换）
+                                                <!-- 变量管理器/通讯/列表/报警/用户激活时隐藏画布（同一位置切换）
                                                      用 Hidden 而非 Collapsed：不销毁画布大量控件的布局树，切页/切回更快；
                                                      Hidden 不渲染且不参与命中测试，变量/通讯/列表 Grid 在 Z 序上正常显示 -->
                                                 <MultiDataTrigger>
@@ -1255,6 +1396,7 @@
                                                         <Condition Binding="{Binding CommunicationActive}" Value="False"/>
                                                         <Condition Binding="{Binding ListManagerActive}" Value="False"/>
                                                         <Condition Binding="{Binding AlarmActive}" Value="False"/>
+                                                        <Condition Binding="{Binding UserActive}" Value="False"/>
                                                     </MultiDataTrigger.Conditions>
                                                     <Setter Property="Visibility" Value="Visible"/>
                                                 </MultiDataTrigger>
@@ -1268,6 +1410,9 @@
                                                     <Setter Property="Visibility" Value="Hidden"/>
                                                 </DataTrigger>
                                                 <DataTrigger Binding="{Binding AlarmActive}" Value="True">
+                                                    <Setter Property="Visibility" Value="Hidden"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding UserActive}" Value="True">
                                                     <Setter Property="Visibility" Value="Hidden"/>
                                                 </DataTrigger>
                                             </Style.Triggers>
@@ -1438,6 +1583,97 @@
                                             </ContextMenu>
                                         </DataGrid.ContextMenu>
                                     </DataGrid>
+                                </Grid>
+                                <!-- W3 用户面板内容（用户 Tab 激活时显示，与画布同一位置切换；三子页：用户名设置/用户组策略/用户安全设置） -->
+                                <Grid Grid.Row="1" Margin="3"
+                                      Visibility="{Binding DataContext.UserActive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
+                                    <TabControl SelectedIndex="{Binding DataContext.UserPanelPage, RelativeSource={RelativeSource AncestorType=Window}}">
+                                        <!-- 页 0：用户名设置（用户 CRUD） -->
+                                        <TabItem Header="用户名设置">
+                                            <Grid Margin="2">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="*"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+                                                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
+                                                    <TextBlock Text="用户名:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                    <TextBox Text="{Binding DataContext.NewUserName, RelativeSource={RelativeSource AncestorType=Window}, UpdateSourceTrigger=PropertyChanged}" Width="110" Height="26" VerticalContentAlignment="Center" FontSize="12"/>
+                                                    <TextBlock Text="密码:" VerticalAlignment="Center" Margin="10,0,4,0"/>
+                                                    <TextBox Text="{Binding DataContext.NewUserPassword, RelativeSource={RelativeSource AncestorType=Window}, UpdateSourceTrigger=PropertyChanged}" Width="110" Height="26" VerticalContentAlignment="Center" FontSize="12"/>
+                                                    <TextBlock Text="组:" VerticalAlignment="Center" Margin="10,0,4,0"/>
+                                                    <ComboBox Width="90" Height="26" VerticalContentAlignment="Center" FontSize="12"
+                                                              ItemsSource="{Binding DataContext.UserGroups, RelativeSource={RelativeSource AncestorType=Window}}" DisplayMemberPath="Name"
+                                                              SelectedValue="{Binding DataContext.NewUserGroup, RelativeSource={RelativeSource AncestorType=Window}}" SelectedValuePath="Name"/>
+                                                    <Button Content="＋ 添加用户" Width="88" Height="26" Margin="10,0,0,0" Click="UserAdd_Click" ToolTip="创建用户（SHA256 哈希存储；组不存在拒绝）"/>
+                                                </StackPanel>
+                                                <DataGrid Grid.Row="1" ItemsSource="{Binding DataContext.UserAccounts, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding DataContext.SelectedUser, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                          AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" HeadersVisibility="Column"
+                                                          GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12" RowHeight="26">
+                                                    <DataGrid.Columns>
+                                                        <DataGridTextColumn Header="用户名" Binding="{Binding UserName}" Width="*"/>
+                                                        <DataGridTextColumn Header="所属组" Binding="{Binding GroupName}" Width="*"/>
+                                                    </DataGrid.Columns>
+                                                </DataGrid>
+                                                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,4,0,0">
+                                                    <Button Content="🗑 删除选中用户" Width="110" Height="26" Click="UserDelete_Click" ToolTip="删除选中用户（不能删除最后一个管理员）"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </TabItem>
+                                        <!-- 页 1：用户组策略（组权限） -->
+                                        <TabItem Header="用户组策略">
+                                            <Grid Margin="2">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="*"/>
+                                                </Grid.RowDefinitions>
+                                                <TextBlock Grid.Row="0" Text="预置组：管理员（全权）/ 操作员（报警确认·画面编辑）/ 访客（默认全禁）。权限按所属组判定（运行时 FW 执行）。" FontSize="11" Foreground="Gray" Margin="0,0,0,4" TextWrapping="Wrap"/>
+                                                <DataGrid Grid.Row="1" ItemsSource="{Binding DataContext.UserGroups, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                          AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" HeadersVisibility="Column"
+                                                          GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12" RowHeight="26">
+                                                    <DataGrid.Columns>
+                                                        <DataGridTextColumn Header="组名" Binding="{Binding Name}" Width="140"/>
+                                                        <DataGridTemplateColumn Header="权限">
+                                                            <DataGridTemplateColumn.CellTemplate>
+                                                                <DataTemplate>
+                                                                    <TextBlock Text="{Binding Permissions, StringFormat={}{0}}" TextTrimming="CharacterEllipsis"/>
+                                                                </DataTemplate>
+                                                            </DataGridTemplateColumn.CellTemplate>
+                                                        </DataGridTemplateColumn>
+                                                    </DataGrid.Columns>
+                                                </DataGrid>
+                                            </Grid>
+                                        </TabItem>
+                                        <!-- 页 2：用户安全设置（密码策略） -->
+                                        <TabItem Header="用户安全设置">
+                                            <StackPanel Margin="4" MaxWidth="420" HorizontalAlignment="Left">
+                                                <TextBlock Text="密码策略（FW 登录时强制）" FontWeight="Bold" FontSize="13" Margin="0,0,0,6"/>
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="170"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="最小密码长度:" VerticalAlignment="Center" Margin="0,3"/>
+                                                    <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding DataContext.Security.MinPasswordLength, RelativeSource={RelativeSource AncestorType=Window}, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}" Margin="0,3"/>
+                                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="要求包含数字:" VerticalAlignment="Center" Margin="0,3"/>
+                                                    <CheckBox Grid.Row="1" Grid.Column="1" IsChecked="{Binding DataContext.Security.RequireDigit, RelativeSource={RelativeSource AncestorType=Window}}" VerticalAlignment="Center" Margin="0,3"/>
+                                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="要求包含字母:" VerticalAlignment="Center" Margin="0,3"/>
+                                                    <CheckBox Grid.Row="2" Grid.Column="1" IsChecked="{Binding DataContext.Security.RequireLetter, RelativeSource={RelativeSource AncestorType=Window}}" VerticalAlignment="Center" Margin="0,3"/>
+                                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="要求大小写混合:" VerticalAlignment="Center" Margin="0,3"/>
+                                                    <CheckBox Grid.Row="3" Grid.Column="1" IsChecked="{Binding DataContext.Security.RequireUpperLower, RelativeSource={RelativeSource AncestorType=Window}}" VerticalAlignment="Center" Margin="0,3"/>
+                                                    <TextBlock Grid.Row="4" Grid.Column="0" Text="要求特殊字符:" VerticalAlignment="Center" Margin="0,3"/>
+                                                    <CheckBox Grid.Row="4" Grid.Column="1" IsChecked="{Binding DataContext.Security.RequireSpecial, RelativeSource={RelativeSource AncestorType=Window}}" VerticalAlignment="Center" Margin="0,3"/>
+                                                    <TextBlock Grid.Row="5" Grid.Column="0" Text="密码有效期(天,0=不过期):" VerticalAlignment="Center" Margin="0,3"/>
+                                                    <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding DataContext.Security.PasswordMaxAgeDays, RelativeSource={RelativeSource AncestorType=Window}, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}" Margin="0,3"/>
+                                                    <TextBlock Grid.Row="6" Grid.Column="0" Text="连续失败锁定阈值(0=不锁):" VerticalAlignment="Center" Margin="0,3"/>
+                                                    <TextBox Grid.Row="6" Grid.Column="1" Text="{Binding DataContext.Security.FailedLoginLockout, RelativeSource={RelativeSource AncestorType=Window}, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}" Margin="0,3"/>
+                                                    <TextBlock Grid.Row="7" Grid.Column="0" Text="锁定时长(分钟):" VerticalAlignment="Center" Margin="0,3"/>
+                                                    <TextBox Grid.Row="7" Grid.Column="1" Text="{Binding DataContext.Security.LockMinutes, RelativeSource={RelativeSource AncestorType=Window}, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}" Margin="0,3"/>
+                                                </Grid>
+                                                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                                    <Button Content="✔ 保存安全设置" Width="120" Height="28" Click="UserSaveSecurity_Click" ToolTip="保存密码策略到工程"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </TabItem>
+                                    </TabControl>
                                 </Grid>
                                 <!-- 列表管理内容（Tab 激活时显示，与画布同一位置切换；Visibility 从 Window.DataContext 取防 DataContext 覆盖） -->
                                 <Grid Grid.Row="1" Margin="3" DataContext="{Binding ListManagerVM, RelativeSource={RelativeSource AncestorType=Window}}"
@@ -1621,6 +1857,7 @@
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="FrameWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropFrame}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="ProgressBarWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropProgressBar}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="DateTimeWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropDateTime}"/></DataTrigger>
+                                                    <DataTrigger Binding="{Binding SelectedObjectType}" Value="WindowWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropWindow}"/></DataTrigger>
                                                 </Style.Triggers>
                                             </Style></ContentControl.Style></ContentControl>
                                             <!-- 事件栏（DESIGN-EVENTS.md §4：选中控件且支持事件时显示可用事件 + 配置入口） -->

@@ -17,8 +17,8 @@ namespace NavigatorHMI.Common
   create-list --name <name> --type Text --items 'a|b|c'  创建列表（Text/Image；items 用 | 分隔，图片列表为图片路径）
   update-list --name <name> [--new-name <name>] [--items 'a|b|c']  更新列表（重命名级联同步控件引用）
   delete-list --name <name>                           删除列表（被控件引用时拒绝）
-  create-alarm --name <name> --tag <name> --type High --threshold 80  创建报警
-  update-alarm --name <name> [--new-name <name>] [--tag <name>] [--type <...>] [--threshold <n>] [--deadband <n>] [--delay <ms>] [--severity <...>] [--message <text>]  更新报警
+  create-alarm --name <name> --tag <name> --type High --threshold 80 [--trigger-mode Threshold] [--category User] [--priority 0] [--ack-required true] [--ack-group <组>] [--color-override #RRGGBB]  创建报警
+  update-alarm --name <name> [--new-name <name>] [--tag <name>] [--type <...>] [--threshold <n>] [--deadband <n>] [--delay <ms>] [--severity <s>] [--trigger-mode <m>] [--category <c>] [--priority <n>] [--ack-required <b>] [--ack-group <g>] [--color-override <c>]  更新报警
   delete-alarm --name <name>                           删除报警
   copy-widget --screen <name> --widget <name>   复制控件
   paste-widget --screen <name>                   粘贴控件

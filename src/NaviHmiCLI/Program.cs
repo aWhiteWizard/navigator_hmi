@@ -84,7 +84,7 @@ public static class Program
             "paste-screen"   => Cmd("paste_screen", Opt("name", "")),
 
             // 控件
-            "add-widget"     => Cmd("add_widget", Require("screen", "screen_name"), OptMap("type", "widget_type", "button"), Opt("x", "100"), Opt("y", "100"), Opt("width", "100"), Opt("height", "40"), Opt("center", "false"), OptMap("bound-tag", "bound_tag", "")),
+            "add-widget"     => Cmd("add_widget", Require("screen", "screen_name"), OptMap("type", "widget_type", "button"), Opt("x", "100"), Opt("y", "100"), Opt("width", "100"), Opt("height", "40"), Opt("center", "false"), OptMap("bound-tag", "bound_tag", ""), OptMap("window-type", "window_type", "userview")),
             "move-widget"    => Cmd("move_widget", Require("screen", "screen_name"), Require("widget", "widget_name"), Require("x"), Require("y")),
             "resize-widget"  => Cmd("resize_widget", Require("screen", "screen_name"), Require("widget", "widget_name"), Require("width"), Require("height")),
             "delete-widget"  => Cmd("delete_widget", Require("screen", "screen_name"), Require("widget", "widget_name")),
@@ -116,7 +116,10 @@ public static class Program
                                     OptIfProvided("new-name", "new_name"), OptIfProvided("type", "data_type"), OptIfProvided("source"), OptIfProvided("unit"),
                                     OptIfProvided("scan-interval", "scan_interval"), OptIfProvided("deadband"), OptIfProvided("description"), OptIfProvided("base-value", "base_value")),
             "delete-tag"     => Cmd("delete_tag", Require("name")),
-            "bind-tag"       => Cmd("bind_tag", Require("screen", "screen_name"), Require("widget", "widget_name"), Require("tag", "tag_name")),
+            "create-user"    => Cmd("create_user", Require("user-name", "user_name"), Require("password"), OptMap("group-name", "group_name", "访客")),
+            "update-user"    => Cmd("update_user", Require("user-name", "user_name"), OptMap("new-user-name", "new_user_name", ""), OptMap("new-password", "new_password", ""), OptMap("new-group-name", "new_group_name", "")),
+            "delete-user"    => Cmd("delete_user", Require("user-name", "user_name")),
+            "list-users"     => Cmd("list_users"),            "bind-tag"       => Cmd("bind_tag", Require("screen", "screen_name"), Require("widget", "widget_name"), Require("tag", "tag_name")),
 
             // 列表
             "create-list"    => Cmd("create_list", Require("name"), Require("type"), Opt("items", "")),
@@ -134,8 +137,8 @@ public static class Program
                                     OptMap("text-decoration", "text_decoration", "")),
 
             // 报警
-            "create-alarm"   => Cmd("create_alarm", Require("name"), Require("tag", "tag_name"), Require("type"), Require("threshold"), Opt("deadband", "0"), OptMap("delay", "delay_ms", "0"), Opt("severity", "Warning"), Opt("message")),
-            "update-alarm"   => Cmd("update_alarm", Require("name"), OptIfProvided("new-name", "new_name"), OptIfProvided("tag", "tag_name"), OptIfProvided("type"), OptIfProvided("threshold"), OptIfProvided("deadband"), OptIfProvided("delay", "delay_ms"), OptIfProvided("severity"), OptIfProvided("message")),
+            "create-alarm"   => Cmd("create_alarm", Require("name"), Require("tag", "tag_name"), Require("type"), Require("threshold"), Opt("deadband", "0"), OptMap("delay", "delay_ms", "0"), Opt("severity", "Warning"), Opt("message"), OptMap("trigger-mode", "trigger_mode", "Threshold"), OptMap("category", "category", "User"), Opt("priority", "0"), OptMap("ack-required", "ack_required", "true"), OptMap("ack-group", "ack_group", ""), OptMap("color-override", "color_override", "")),
+            "update-alarm"   => Cmd("update_alarm", Require("name"), OptIfProvided("new-name", "new_name"), OptIfProvided("tag", "tag_name"), OptIfProvided("type"), OptIfProvided("threshold"), OptIfProvided("deadband"), OptIfProvided("delay", "delay_ms"), OptIfProvided("severity"), OptIfProvided("message"), OptIfProvided("trigger-mode", "trigger_mode"), OptIfProvided("category", "category"), OptIfProvided("priority"), OptIfProvided("ack-required", "ack_required"), OptIfProvided("ack-group", "ack_group"), OptIfProvided("color-override", "color_override")),
             "delete-alarm"   => Cmd("delete_alarm", Require("name")),
 
 
@@ -452,6 +455,7 @@ public static class Program
         bool hasSeparator = value.Contains('/') || value.Contains('\\');
         bool isPathParam = key is "path" or "project" or "file" or "output" or "connection" or "source";
         bool isNameParam = key is "name" or "screen" or "widget" or "widgets" or "tag" or "key" or "new-name"
+            or "user-name" or "new-user-name" or "new-group-name"
             or "event" or "action" or "nic" or "protocol" or "severity" or "direction" or "mode" or "ip" or "device_ip";
         // value 语义由 --key 决定（颜色/文本/路径/数值），静态分类无法覆盖：
         // 归自由文本类仅拦 '..'（imagePath 值含 / 或 \ 是合法的相对/绝对路径）
@@ -621,7 +625,8 @@ public static class Program
   布局: align, array
   事件: bind-event
   变量: create-tag, update-tag, delete-tag, bind-tag
-  报警: create-alarm, update-alarm, delete-alarm
+  用户: create-user, update-user, delete-user, list-users
+报警: create-alarm, update-alarm, delete-alarm
   设备: configure-device, update-device, delete-device, connect, scan, deploy-project, deploy-firmware
 
 set-property 属性键 (--screen <画面> --widget <控件> --key <键> --value <值>):
@@ -662,7 +667,7 @@ NavigatorHMI CLI — 组态软件命令行接口
   paste-screen           [--name <name>]
 
 控件命令:
-  add-widget             --screen <name> --type button --x <n> --y <n> [--width <n>] [--height <n>]
+  add-widget             --screen <name> --type button --x <n> --y <n> [--width <n>] [--height <n>] [--window-type userview|alarmview|robotlist]
   move-widget            --screen <name> --widget <name> --x <n> --y <n>
   resize-widget          --screen <name> --widget <name> --width <n> --height <n>
   delete-widget          --screen <name> --widget <name>
@@ -692,6 +697,10 @@ set-property 属性键 (--screen <画面> --widget <控件> --key <键> --value 
 
 变量命令:
   create-tag             --name <name> --type <BOOL|INT16|FLOAT|...> [--source <uri>] [--unit <u>] [--scan-interval <ms>] [--base-value <n>]   # source 缺省 = 内部变量；base-value = 设计态基准值
+create-user            --user-name <name> --password <pwd> [--group-name 管理员|操作员|访客]
+update-user            --user-name <name> [--new-user-name <n>] [--new-password <p>] [--new-group-name <g>]   # 留空=不改
+delete-user            --user-name <name>   # 不能删除最后一个管理员
+list-users
   update-tag             --name <name> [--new-name <name>] [--type <...>] [--source <uri>] [--unit <u>] [--scan-interval <ms>] [--deadband <n>] [--description <text>] [--base-value <n>]  重命名自动同步控件/报警引用；--source "" 清空为内部变量；--unit "" / --description "" 清空
   delete-tag             --name <name>   被控件/报警引用时拒绝
   bind-tag               --screen <name> --widget <name> --tag <name>
@@ -704,8 +713,8 @@ set-property 属性键 (--screen <画面> --widget <控件> --key <键> --value 
   set-default-font       [--font-family <name>] [--font-size <n>] [--font-weight Normal|Bold] [--font-style Normal|Italic] [--text-decoration None|Underline]
 
 报警命令:
-  create-alarm           --name <name> --tag <name> --type <High|Low|...> --threshold <n> [--severity Warning]
-  update-alarm           --name <name> [--new-name <name>] [--tag <name>] [--type <...>] [--threshold <n>] [--deadband <n>] [--delay <ms>] [--severity <...>] [--message <text>]
+  create-alarm           --name <name> --tag <name> --type <High|Low|...> --threshold <n> [--severity Warning] [--trigger-mode Threshold|OnRising|...] [--category System|User|Error] [--priority <n>] [--ack-group <组>] [--ack-required true|false] [--color-override #RRGGBB]
+  update-alarm           --name <name> [--new-name <name>] [--tag <name>] [--type <...>] [--threshold <n>] [--deadband <n>] [--delay <ms>] [--severity <...>] [--message <text>] [--trigger-mode <m>] [--category <c>] [--priority <n>] [--ack-required <b>] [--ack-group <g>] [--color-override <c>]
   delete-alarm           --name <name>
 
 设备命令:

@@ -35,6 +35,7 @@ namespace NavigatorHMI.Views.Helpers
         public DataTemplate ProgressBarTemplate { get; set; } = null!;
         public DataTemplate DateTimeTemplate { get; set; } = null!;
         public DataTemplate DefaultTemplate { get; set; } = null!;
+    public DataTemplate WindowTemplate { get; set; } = null!;   // W4：窗口控件（UserView/AlarmView/RobotList）
 
         /// <summary>
         /// 根据 item 运行时类型选择对应的 DataTemplate。
@@ -60,6 +61,7 @@ namespace NavigatorHMI.Views.Helpers
                 FrameWidget => FrameTemplate,
                 ProgressBarWidget => ProgressBarTemplate,
                 DateTimeWidget => DateTimeTemplate,
+                WindowWidget => WindowTemplate,
                 RectangleWidget => DefaultTemplate,
                 _ => DefaultTemplate
             };
@@ -126,7 +128,8 @@ namespace NavigatorHMI.Views.Helpers
                 FrameTemplate = CreateFrameTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
                 ProgressBarTemplate = CreateProgressBarTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
                 DateTimeTemplate = CreateDateTimeTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
-                DefaultTemplate = CreateRectangleTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler)
+                DefaultTemplate = CreateRectangleTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
+                WindowTemplate = CreateWindowTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler)
             };
 
             itemsControl.ItemTemplateSelector = selector;
@@ -437,8 +440,27 @@ namespace NavigatorHMI.Views.Helpers
         }
 
         /// <summary>C13 日期时间控件渲染：TextBlock 显示 Text（边框包裹）。</summary>
-        private static DataTemplate CreateDateTimeTemplate(RoutedEventHandler click, MouseButtonEventHandler pmLBD, MouseButtonEventHandler mLBD,
+        /// <summary>W4 窗口控件渲染：按 WindowType 三模板设计态预览（UserView 未登录示例 / AlarmView 2-3 条示例 / RobotList 3 卡片示例）。</summary>
+        private static DataTemplate CreateWindowTemplate(RoutedEventHandler click, MouseButtonEventHandler pmLBD, MouseButtonEventHandler mLBD,
             MouseEventHandler mMove, MouseButtonEventHandler mLBU, MouseButtonEventHandler pmRBD, MouseButtonEventHandler mRBU)
+        {
+            var dt = new DataTemplate();
+            var ww = new FrameworkElementFactory(typeof(WindowPreview));
+            ww.SetBinding(WindowPreview.WindowWidgetProperty, new Binding("."));
+            ww.SetBinding(WindowPreview.WidthProperty, new Binding("Width"));
+            ww.SetBinding(WindowPreview.HeightProperty, new Binding("Height"));
+            ww.SetBinding(SelectorHelper.IsSelectedProperty, new Binding("IsSelected") { Mode = BindingMode.TwoWay });   // 选中视觉 + ResizeAdorner
+            ww.AddHandler(UIElement.PreviewMouseLeftButtonDownEvent, pmLBD);
+            ww.AddHandler(UIElement.MouseLeftButtonDownEvent, mLBD);
+            ww.AddHandler(UIElement.MouseMoveEvent, mMove);
+            ww.AddHandler(UIElement.MouseLeftButtonUpEvent, mLBU);
+            ww.AddHandler(UIElement.PreviewMouseRightButtonDownEvent, pmRBD);
+            ww.AddHandler(UIElement.MouseRightButtonUpEvent, mRBU);
+            dt.VisualTree = ww;
+            return dt;
+        }
+
+        private static DataTemplate CreateDateTimeTemplate(RoutedEventHandler click, MouseButtonEventHandler pmLBD, MouseButtonEventHandler mLBD,            MouseEventHandler mMove, MouseButtonEventHandler mLBU, MouseButtonEventHandler pmRBD, MouseButtonEventHandler mRBU)
         {
             var dt = new DataTemplate();
             var tb = new FrameworkElementFactory(typeof(TextBlock));

@@ -126,6 +126,12 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 ["delay_ms"] = new() { Type = "int", DefaultValue = 0, Description = "延迟 ms" },
                 ["severity"] = new() { Type = "enum", DefaultValue = "Warning", EnumValues = new[] { "Emergency", "Important", "Warning", "Info" }, Description = "严重等级" },
                 ["message"] = new() { Type = "string", DefaultValue = "", Description = "报警描述" },
+                ["trigger_mode"] = new() { Type = "enum", DefaultValue = "Threshold", EnumValues = new[] { "Threshold", "OnRising", "OnFalling", "OnChange" }, Description = "触发模式（BOOL 位沿）" },
+                ["category"] = new() { Type = "enum", DefaultValue = "User", EnumValues = new[] { "System", "User", "Error" }, Description = "报警类别" },
+                ["priority"] = new() { Type = "int", DefaultValue = 0, Description = "排序优先级（大者靠前）" },
+                ["ack_required"] = new() { Type = "bool", DefaultValue = true, Description = "需要确认" },
+                ["ack_group"] = new() { Type = "string", DefaultValue = "", Description = "确认组（同组联动确认）" },
+                ["color_override"] = new() { Type = "string", DefaultValue = "", Description = "颜色图标覆盖（十六进制）" },
             }
         };
         public ValidationResult Validate(Dictionary<string, object?> p)
@@ -152,6 +158,18 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 if (!double.IsFinite(dv))
                     return ValidationResult.Fail("deadband 必须是有限数字");
             }
+            if (p.TryGetValue("severity", out var sv0) && sv0 != null && !string.IsNullOrWhiteSpace(sv0.ToString())
+             && !Enum.TryParse<Severity>(sv0.ToString(), ignoreCase: true, out _))
+                return ValidationResult.Fail("未知等级: " + sv0);
+            if (p.TryGetValue("trigger_mode", out var tm0) && tm0 != null && !string.IsNullOrWhiteSpace(tm0.ToString())
+             && !Enum.TryParse<AlarmTriggerMode>(tm0.ToString(), ignoreCase: true, out _))
+                return ValidationResult.Fail("未知触发模式: " + tm0);
+            if (p.TryGetValue("category", out var cat0) && cat0 != null && !string.IsNullOrWhiteSpace(cat0.ToString())
+             && !Enum.TryParse<AlarmCategory>(cat0.ToString(), ignoreCase: true, out _))
+                return ValidationResult.Fail("未知类别: " + cat0);
+            if (p.TryGetValue("priority", out var pr0) && pr0 != null && !string.IsNullOrWhiteSpace(pr0.ToString())
+             && !int.TryParse(pr0.ToString(), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _))
+                return ValidationResult.Fail("priority 必须是整数");
             if (p.TryGetValue("delay_ms", out var dm) && dm != null)
             {
                 var delayStr = dm.ToString();
@@ -183,6 +201,14 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 DelayMs = Convert.ToInt32(p.GetValueOrDefault("delay_ms", 0), System.Globalization.CultureInfo.InvariantCulture),
                 Level = sv,
                 Message = p.GetValueOrDefault("message")?.ToString() ?? "",
+                TriggerMode = Enum.TryParse<AlarmTriggerMode>(p.GetValueOrDefault("trigger_mode")?.ToString() ?? "Threshold", ignoreCase: true, out var tm) ? tm : AlarmTriggerMode.Threshold,
+                Category = Enum.TryParse<AlarmCategory>(p.GetValueOrDefault("category")?.ToString() ?? "User", ignoreCase: true, out var cat) ? cat : AlarmCategory.User,
+                Priority = int.TryParse(p.GetValueOrDefault("priority", 0)?.ToString(), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var pri) ? pri : 0,
+                AckRequired = p.TryGetValue("ack_required", out var ar) && ar != null
+                    ? (ar is bool ab ? ab : (bool.TryParse(ar.ToString(), out var bv) ? bv : ar.ToString() == "1"))
+                    : true,
+                AckGroup = p.GetValueOrDefault("ack_group")?.ToString() ?? "",
+                ColorOverride = p.GetValueOrDefault("color_override")?.ToString() ?? "",
             });
             return CommandResult.Ok(new { alarm_name = name });
         }
@@ -204,6 +230,12 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 ["delay_ms"] = new() { Type = "int", Description = "延迟 ms" },
                 ["severity"] = new() { Type = "enum", EnumValues = new[] { "Emergency", "Important", "Warning", "Info" }, Description = "严重等级" },
                 ["message"] = new() { Type = "string", Description = "报警描述；显式空串 = 清空" },
+                ["trigger_mode"] = new() { Type = "enum", EnumValues = new[] { "Threshold", "OnRising", "OnFalling", "OnChange" }, Description = "触发模式" },
+                ["category"] = new() { Type = "enum", EnumValues = new[] { "System", "User", "Error" }, Description = "报警类别" },
+                ["priority"] = new() { Type = "int", Description = "排序优先级" },
+                ["ack_required"] = new() { Type = "bool", Description = "需要确认" },
+                ["ack_group"] = new() { Type = "string", Description = "确认组" },
+                ["color_override"] = new() { Type = "string", Description = "颜色图标覆盖" },
             }
         };
         public ValidationResult Validate(Dictionary<string, object?> p)
@@ -227,6 +259,23 @@ namespace NavigatorHMI.CommandLayer.Handlers
                     return ValidationResult.Fail("delay_ms 必须是整数");
                 if (dv < 0) return ValidationResult.Fail("delay_ms 不能为负");
             }
+            // W1 枚举/整数校验（与 delay_ms 平级——不随分支跳过）
+            foreach (var en in new[] { "severity", "trigger_mode", "category" })
+            {
+                if (p.TryGetValue(en, out var ev) && ev != null && !string.IsNullOrWhiteSpace(ev.ToString()))
+                {
+                    bool ok = en switch
+                    {
+                        "severity" => Enum.TryParse<Severity>(ev.ToString(), ignoreCase: true, out _),
+                        "trigger_mode" => Enum.TryParse<AlarmTriggerMode>(ev.ToString(), ignoreCase: true, out _),
+                        _ => Enum.TryParse<AlarmCategory>(ev.ToString(), ignoreCase: true, out _),
+                    };
+                    if (!ok) return ValidationResult.Fail($"未知{en}: " + ev);
+                }
+            }
+            if (p.TryGetValue("priority", out var prv) && prv != null && !string.IsNullOrWhiteSpace(prv.ToString())
+             && !int.TryParse(prv.ToString(), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _))
+                return ValidationResult.Fail("priority 必须是整数");
             return ValidationResult.Ok;
         }
         public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
@@ -283,6 +332,22 @@ namespace NavigatorHMI.CommandLayer.Handlers
             // message 显式提供即写入（含空串 = 清空描述）
             if (p.TryGetValue("message", out var msg) && msg != null)
                 alarm.Message = msg.ToString() ?? "";
+            // W1 新字段（显式提供即写入）
+            if (p.TryGetValue("trigger_mode", out var tm) && tm != null && !string.IsNullOrWhiteSpace(tm.ToString())
+             && Enum.TryParse<AlarmTriggerMode>(tm.ToString(), ignoreCase: true, out var tm2))
+                alarm.TriggerMode = tm2;
+            if (p.TryGetValue("category", out var cat) && cat != null && !string.IsNullOrWhiteSpace(cat.ToString())
+             && Enum.TryParse<AlarmCategory>(cat.ToString(), ignoreCase: true, out var cat2))
+                alarm.Category = cat2;
+            if (p.TryGetValue("priority", out var pri) && pri != null && !string.IsNullOrWhiteSpace(pri.ToString())
+             && int.TryParse(pri.ToString(), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var pri2))
+                alarm.Priority = pri2;
+            if (p.TryGetValue("ack_required", out var ar) && ar != null)
+                alarm.AckRequired = ar is bool ab2 ? ab2 : (bool.TryParse(ar.ToString(), out var bv2) ? bv2 : ar.ToString() == "1");
+            if (p.TryGetValue("ack_group", out var ag) && ag != null)
+                alarm.AckGroup = ag.ToString() ?? "";
+            if (p.TryGetValue("color_override", out var co) && co != null)
+                alarm.ColorOverride = co.ToString() ?? "";
 
             return CommandResult.Ok(new { alarm_name = alarm.Name });
         }

@@ -28,6 +28,30 @@ namespace NavigatorHMI.Common
         Info
     }
 
+    /// <summary>报警触发模式（W1 补充：BOOL 变量位沿触发；模拟量仍用 High/Low 阈值）。</summary>
+    public enum AlarmTriggerMode
+    {
+        /// <summary>阈值比较（默认：High/Low/Deviation/RateChange 按 Threshold）</summary>
+        Threshold,
+        /// <summary>BOOL 上升沿触发（false→true）</summary>
+        OnRising,
+        /// <summary>BOOL 下降沿触发（true→false）</summary>
+        OnFalling,
+        /// <summary>BOOL 值变化即触发</summary>
+        OnChange
+    }
+
+    /// <summary>报警类别（W1 补充：与级别分离——类别管确认策略，级别管显示语义）。</summary>
+    public enum AlarmCategory
+    {
+        /// <summary>系统报警（设备系统，默认按系统策略）</summary>
+        System,
+        /// <summary>用户自定义报警（组态配置）</summary>
+        User,
+        /// <summary>错误类（异常/故障语义）</summary>
+        Error
+    }
+
     /// <summary>
     /// 报警规则定义。编译到 .navihmi 下发到设备端，由 AlarmEngine 按规则检测、触发、通知。
     /// </summary>
@@ -65,5 +89,29 @@ namespace NavigatorHMI.Common
         /// <summary>报警描述文本（设备端显示用）</summary>
         [ProtoMember(8)]
         public string Message { get; set; } = "";
+
+        /// <summary>W1 触发模式（BOOL 位沿/阈值比较）。</summary>
+        [ProtoMember(9)]
+        public AlarmTriggerMode TriggerMode { get; set; } = AlarmTriggerMode.Threshold;
+
+        /// <summary>W1 报警类别（System/User/Error——管确认策略）。</summary>
+        [ProtoMember(10)]
+        public AlarmCategory Category { get; set; } = AlarmCategory.User;
+
+        /// <summary>W1 排序优先级（数值越大越靠前；同级按时间倒序）。</summary>
+        [ProtoMember(11)]
+        public int Priority { get; set; }
+
+        /// <summary>W1 需要确认（false=自动恢复无需确认）。</summary>
+        [ProtoMember(12)]
+        public bool AckRequired { get; set; } = true;
+
+        /// <summary>W1 确认组（联动确认：同组报警一起确认；空=单独确认）。</summary>
+        [ProtoMember(13)]
+        public string AckGroup { get; set; } = "";
+
+        /// <summary>W1 颜色图标覆盖（空=跟随级别系统语义色；十六进制如 "#FF0000"）。</summary>
+        [ProtoMember(14)]
+        public string ColorOverride { get; set; } = "";
     }
 }

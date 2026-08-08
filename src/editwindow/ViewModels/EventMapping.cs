@@ -27,6 +27,9 @@ namespace NavigatorHMI.ViewModels
             [EventType.onOn] = "开关打开",
             [EventType.onOff] = "开关关闭",
             [EventType.onProgressComplete] = "进度完成（100%）",
+            [EventType.onUserChanged] = "用户变化",
+            [EventType.onAck] = "确认报警(AlarmView)",
+            [EventType.onSelect] = "选中",
         };
 
         /// <summary>动作类型中文名（对话框函数列表显示）。</summary>
@@ -63,6 +66,7 @@ namespace NavigatorHMI.ViewModels
             ["CheckBoxWidget"] = new[] { EventType.onClick, EventType.onValueChange, EventType.onRelease },
             ["TextListWidget"] = new[] { EventType.onClick, EventType.onPress, EventType.onValueChange, EventType.onRelease },
             ["ProgressBarWidget"] = new[] { EventType.onProgressComplete },
+            ["WindowWidget"] = new[] { EventType.onUserChanged, EventType.onAck, EventType.onSelect },   // W4：窗口控件三事件（UserView/AlarmView/RobotList 各用其一；运行时按 Type 过滤）
         };
 
         /// <summary>控件类型是否支持事件（属性面板事件栏可见性）。</summary>

@@ -140,5 +140,21 @@ namespace NavigatorHMI.Common
         /// <summary>工程中所有列表定义（文本列表/图片列表，控件按数值变量索引显示对应项）</summary>
         [ProtoMember(16)]
         public List<ListDef> Lists { get; set; } = new();
+
+        // ═══════════════════════════════════════════
+        // W1 新增（ProtoMember 17+）——注意：.hmiproj 源模型编号独立于 .navihmi 编译产物（proto 17=format_version，源模型无）；用户系统源 17-19 ↔ 编译产物 proto 18-20（ProjectGenerator.ToDto 映射）
+        // ═══════════════════════════════════════════
+
+        /// <summary>W1 用户账户列表（运行时用户系统；FW 初始管理员兜底）。</summary>
+        [ProtoMember(17)]
+        public List<UserAccount> Users { get; set; } = new();
+
+        /// <summary>W1 用户组（预置管理员/操作员/访客 + 自定义）。</summary>
+        [ProtoMember(18)]
+        public List<UserGroup> Groups { get; set; } = new();
+
+        /// <summary>W1 安全设置（密码策略——用户安全设置面板）。</summary>
+        [ProtoMember(19)]
+        public SecuritySettings Security { get; set; } = new();
     }
 }

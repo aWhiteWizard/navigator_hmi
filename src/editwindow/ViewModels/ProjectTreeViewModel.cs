@@ -231,7 +231,7 @@ namespace NavigatorHMI.ViewModels
             Name = "通信变量";
             Children.Add(new VariableManagerNode(this));
             Children.Add(new DeviceConfigNode(this));
-            Children.Add(new AlarmConfigNode(this));
+            // W3：报警配置移出为独立根节点（AlarmRootNode）
         }
 
         /// <summary>「变量」子节点被选中时触发（上层打开变量管理器 Tab）。</summary>
@@ -246,11 +246,6 @@ namespace NavigatorHMI.ViewModels
         /// <summary>供子节点调用的内部入口。</summary>
         internal void NotifyDeviceConfigSelected() => OnDeviceConfigSelected?.Invoke();
 
-        /// <summary>「报警」子节点被选中时触发（上层打开报警配置 Tab）。</summary>
-        public event Action? OnAlarmConfigSelected;
-
-        /// <summary>供子节点调用的内部入口。</summary>
-        internal void NotifyAlarmConfigSelected() => OnAlarmConfigSelected?.Invoke();
     }
 
     /// <summary>「列表」根节点（与「通信变量」平级）：展开显示「文本列表」「图片列表」，双击子节点打开列表管理面板对应页。</summary>
@@ -331,13 +326,83 @@ namespace NavigatorHMI.ViewModels
     /// <summary>「报警」叶子节点：双击打开报警配置（画布 Tab）。</summary>
     public class AlarmConfigNode : ProjectTreeViewModel
     {
-        private readonly CommunicationRootNode _parent;
+        private readonly AlarmRootNode _parent;
 
-        public AlarmConfigNode(CommunicationRootNode parent)
+        public AlarmConfigNode(AlarmRootNode parent)
         {
             _parent = parent;
             Name = "报警";
             DoubleClickCommand = new RelayCommand(() => _parent.NotifyAlarmConfigSelected());
+        }
+    }
+
+    /// <summary>W3「报警」根节点：从通信变量移出（DESIGN-WINDOWS.md 项目树定稿），含「报警」子节点。</summary>
+    public class AlarmRootNode : ProjectTreeViewModel
+    {
+        public AlarmRootNode()
+        {
+            Name = "报警";
+            Children.Add(new AlarmConfigNode(this));
+        }
+
+        /// <summary>「报警」子节点被选中时触发（上层打开报警配置 Tab）。</summary>
+        public event Action? OnAlarmConfigSelected;
+
+        internal void NotifyAlarmConfigSelected() => OnAlarmConfigSelected?.Invoke();
+    }
+
+    /// <summary>W3「用户」根节点：用户名设置/用户组策略/用户安全设置三子节点（DESIGN-WINDOWS.md §用户节点）。</summary>
+    public class UserRootNode : ProjectTreeViewModel
+    {
+        public UserRootNode()
+        {
+            Name = "用户";
+            Children.Add(new UserNameNode(this));
+            Children.Add(new UserGroupNode(this));
+            Children.Add(new UserSecurityNode(this));
+        }
+
+        public event Action? OnUserNameSelected;
+        public event Action? OnUserGroupSelected;
+        public event Action? OnUserSecuritySelected;
+        internal void NotifyUserNameSelected() => OnUserNameSelected?.Invoke();
+        internal void NotifyUserGroupSelected() => OnUserGroupSelected?.Invoke();
+        internal void NotifyUserSecuritySelected() => OnUserSecuritySelected?.Invoke();
+    }
+
+    /// <summary>「用户名设置」叶子：打开用户管理面板（用户 CRUD）。</summary>
+    public class UserNameNode : ProjectTreeViewModel
+    {
+        private readonly UserRootNode _parent;
+        public UserNameNode(UserRootNode parent)
+        {
+            _parent = parent;
+            Name = "用户名设置";
+            DoubleClickCommand = new RelayCommand(() => _parent.NotifyUserNameSelected());
+        }
+    }
+
+    /// <summary>「用户组策略」叶子：打开用户组权限面板。</summary>
+    public class UserGroupNode : ProjectTreeViewModel
+    {
+        private readonly UserRootNode _parent;
+        public UserGroupNode(UserRootNode parent)
+        {
+            _parent = parent;
+            Name = "用户组策略";
+            DoubleClickCommand = new RelayCommand(() => _parent.NotifyUserGroupSelected());
+        }
+    }
+
+    /// <summary>「用户安全设置」叶子：打开密码策略面板。</summary>
+    public class UserSecurityNode : ProjectTreeViewModel
+    {
+        private readonly UserRootNode _parent;
+        public UserSecurityNode(UserRootNode parent)
+        {
+            _parent = parent;
+            Name = "用户安全设置";
+            DoubleClickCommand = new RelayCommand(() => _parent.NotifyUserSecuritySelected());
         }
     }
 }
