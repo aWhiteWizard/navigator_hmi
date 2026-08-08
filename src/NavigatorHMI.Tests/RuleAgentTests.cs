@@ -226,5 +226,15 @@ namespace NavigatorHMI.Tests
             Assert.Equal(100, w.X);   // 非中心：保持默认 (100,100)
             Assert.Equal(100, w.Y);
         }
+
+        [Fact]
+        public void 在全局画面放按钮_画面名含画面回退()
+        {
+            var (a, p) = Create();   // Create 已有「全局画面」模板画面
+            var r = a.Process("在全局画面放一个按钮");
+            Assert.Contains("✓", r);
+            var screen = p.Screens.First(s => s.Name == "全局画面");
+            Assert.Single(screen.Widgets);   // 落到全局画面（而非 NOT_FOUND）
+        }
     }
 }

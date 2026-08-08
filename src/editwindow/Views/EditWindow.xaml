@@ -107,6 +107,7 @@
                                     <Setter Property="Text" Value="{Binding Name}"/>
                                     <Style.Triggers><DataTrigger Binding="{Binding Name}" Value="">
                                         <Setter Property="Text" Value="（无绑定）"/>
+                                        <Setter Property="Foreground" Value="#777777"/>
                                     </DataTrigger></Style.Triggers>
                                 </Style></TextBlock.Style>
                             </TextBlock>
@@ -357,6 +358,7 @@
                                     <Setter Property="Text" Value="{Binding}"/>
                                     <Style.Triggers><DataTrigger Binding="{Binding}" Value="">
                                         <Setter Property="Text" Value="（无绑定）"/>
+                                        <Setter Property="Foreground" Value="#777777"/>
                                     </DataTrigger></Style.Triggers>
                                 </Style></TextBlock.Style>
                             </TextBlock>
@@ -654,6 +656,7 @@
                                     <Setter Property="Text" Value="{Binding}"/>
                                     <Style.Triggers><DataTrigger Binding="{Binding}" Value="">
                                         <Setter Property="Text" Value="（无绑定）"/>
+                                        <Setter Property="Foreground" Value="#777777"/>
                                     </DataTrigger></Style.Triggers>
                                 </Style></TextBlock.Style>
                             </TextBlock>
@@ -735,6 +738,7 @@
                                     <Setter Property="Text" Value="{Binding}"/>
                                     <Style.Triggers><DataTrigger Binding="{Binding}" Value="">
                                         <Setter Property="Text" Value="（无绑定）"/>
+                                        <Setter Property="Foreground" Value="#777777"/>
                                     </DataTrigger></Style.Triggers>
                                 </Style></TextBlock.Style>
                             </TextBlock>

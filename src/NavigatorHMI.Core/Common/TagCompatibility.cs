@@ -10,7 +10,9 @@ namespace NavigatorHMI.Common
         /// <summary>数字类型（数值/列表索引控件）。</summary>
         Numeric,
         /// <summary>字符串类型（文本控件显示值）。</summary>
-        StringPath
+        StringPath,
+        /// <summary>日期时间类型（DateTime 控件）。</summary>
+        DateTime
     }
 
     /// <summary>
@@ -25,6 +27,9 @@ namespace NavigatorHMI.Common
         /// <summary>字符串绑定控件允许的变量类型（STRING：文本内容/图片路径）。</summary>
         public static bool IsStringPathCompatible(TagDataType t) => t == TagDataType.STRING;
 
+        /// <summary>DateTime 控件允许的变量类型（仅 DATETIME）。</summary>
+        public static bool IsDateTimeCompatible(TagDataType t) => t == TagDataType.DATETIME;
+
         /// <summary>控件类型 → 变量类型要求。新增控件类型显式声明（默认 Any 属已知放宽，非静默漏配）。</summary>
         public static TagRequirement GetRequirement(Widget widget) => widget switch
         {
@@ -38,6 +43,8 @@ namespace NavigatorHMI.Common
             NumericDisplayWidget or ProgressBarWidget => TagRequirement.Numeric,
             // 列表消费控件（Image/Frame/TextList）：绑定数值变量 = 显示索引（0=第1项）
             ImageWidget or FrameWidget or TextListWidget => TagRequirement.Numeric,
+            // 日期时间控件：仅绑 DATETIME 变量
+            DateTimeWidget => TagRequirement.DateTime,
             _ => TagRequirement.Any,
         };
 
@@ -52,6 +59,8 @@ namespace NavigatorHMI.Common
                     $"变量 \"{tag.Name}\" 类型 {tag.DataType} 不能绑定该控件（索引需 BOOL/INT16/UINT16/INT32/FLOAT）",
                 TagRequirement.StringPath when !IsStringPathCompatible(tag.DataType) =>
                     $"变量 \"{tag.Name}\" 类型 {tag.DataType} 不能绑定文本控件（支持 STRING）",
+                TagRequirement.DateTime when !IsDateTimeCompatible(tag.DataType) =>
+                    $"变量 \"{tag.Name}\" 类型 {tag.DataType} 不能绑定日期时间控件（仅支持 DATETIME）",
                 _ => null,
             };
         }

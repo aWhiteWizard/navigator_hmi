@@ -11,7 +11,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
             Parameters = new()
             {
                 ["name"] = new() { Type = "string", Required = true, Description = "变量名" },
-                ["data_type"] = new() { Type = "enum", Required = true, EnumValues = new[] { "BOOL", "INT16", "UINT16", "INT32", "FLOAT", "STRING" }, Description = "数据类型" },
+                ["data_type"] = new() { Type = "enum", Required = true, EnumValues = new[] { "BOOL", "INT16", "UINT16", "INT32", "FLOAT", "STRING", "DATETIME" }, Description = "数据类型" },
                 ["source"] = new() { Type = "string", DefaultValue = "", Description = "数据来源 (modbus:// 或 mqtt://)，空/缺省 = 内部变量" },
                 ["unit"] = new() { Type = "string", DefaultValue = "", Description = "工程单位" },
                 ["scan_interval"] = new() { Type = "int", DefaultValue = 100, Description = "采集周期 ms" },
@@ -369,7 +369,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
             {
                 ["name"] = new() { Type = "string", Required = true, Description = "原变量名" },
                 ["new_name"] = new() { Type = "string", Description = "新变量名（重命名）" },
-                ["data_type"] = new() { Type = "enum", EnumValues = new[] { "BOOL", "INT16", "UINT16", "INT32", "FLOAT", "STRING" }, Description = "数据类型" },
+                ["data_type"] = new() { Type = "enum", EnumValues = new[] { "BOOL", "INT16", "UINT16", "INT32", "FLOAT", "STRING", "DATETIME" }, Description = "数据类型" },
                 ["source"] = new() { Type = "string", Description = "数据来源；未提供=保留现值，空串=清空为内部变量 (modbus:// 或 mqtt://)" },
                 ["unit"] = new() { Type = "string", Description = "工程单位" },
                 ["scan_interval"] = new() { Type = "int", Description = "采集周期 ms" },

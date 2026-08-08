@@ -282,6 +282,8 @@ namespace NavigatorHMI.Views
         /// <summary>变量表格快捷键：Delete 删除选中、Ctrl+A 全选。</summary>
         private void TagGrid_KeyDown(object sender, KeyEventArgs e)
         {
+            if (e.Key == Key.C && Keyboard.Modifiers == ModifierKeys.Control) { TagCopyPaste_Click(sender, true); e.Handled = true; return; }
+            if (e.Key == Key.V && Keyboard.Modifiers == ModifierKeys.Control) { TagCopyPaste_Click(sender, false); e.Handled = true; return; }
             if (e.Key == Key.Delete) { TagDelete_Click(sender, null); e.Handled = true; }
             else if (e.Key == Key.A && Keyboard.Modifiers == ModifierKeys.Control) { TagGrid.SelectAll(); e.Handled = true; }
         }
@@ -289,6 +291,8 @@ namespace NavigatorHMI.Views
         /// <summary>报警表格快捷键：Delete 删除选中、Ctrl+A 全选。</summary>
         private void AlarmGrid_KeyDown(object sender, KeyEventArgs e)
         {
+            if (e.Key == Key.C && Keyboard.Modifiers == ModifierKeys.Control) { AlarmCopyPaste_Click(sender, true); e.Handled = true; return; }
+            if (e.Key == Key.V && Keyboard.Modifiers == ModifierKeys.Control) { AlarmCopyPaste_Click(sender, false); e.Handled = true; return; }
             if (e.Key == Key.Delete) { AlarmDelete_Click(sender, null); e.Handled = true; }
             else if (e.Key == Key.A && Keyboard.Modifiers == ModifierKeys.Control) { AlarmGrid.SelectAll(); e.Handled = true; }
         }
@@ -309,6 +313,8 @@ namespace NavigatorHMI.Views
         /// <summary>设备表格快捷键：Delete 删除选中、Ctrl+A 全选。</summary>
         private void DeviceGrid_KeyDown(object sender, KeyEventArgs e)
         {
+            if (e.Key == Key.C && Keyboard.Modifiers == ModifierKeys.Control) { DeviceCopyPaste_Click(sender, true); e.Handled = true; return; }
+            if (e.Key == Key.V && Keyboard.Modifiers == ModifierKeys.Control) { DeviceCopyPaste_Click(sender, false); e.Handled = true; return; }
             if (e.Key == Key.Delete) { DeviceDelete_Click(sender, null); e.Handled = true; }
             else if (e.Key == Key.A && Keyboard.Modifiers == ModifierKeys.Control) { DeviceGrid.SelectAll(); e.Handled = true; }
         }
@@ -323,6 +329,119 @@ namespace NavigatorHMI.Views
                 PropertyVM.RefreshEventBar(w);   // 配置后刷新事件栏状态
             }
         }
+        /// <summary>表格行复制剪贴板（Ctrl+C 深拷贝选中行，Ctrl+V 粘贴新建行副本）。</summary>
+        private readonly List<object> _copiedRows = new();
+
+        /// <summary>生成不冲突的名字（原名已存在 → 原名_副本 → 原名_副本2 …）。</summary>
+        private static string UniqueName(string name, IEnumerable<string> existing)
+        {
+            if (!existing.Contains(name, StringComparer.OrdinalIgnoreCase)) return name;
+            for (int i = 1; ; i++)
+            {
+                var candidate = $"{name}_副本{i}";
+                if (!existing.Contains(candidate, StringComparer.OrdinalIgnoreCase)) return candidate;
+            }
+        }
+
+        /// <summary>变量表格复制粘贴：Ctrl+C 深拷贝选中变量行，Ctrl+V 新建变量副本（重名自动 _副本N）。</summary>
+        private void TagCopyPaste_Click(object sender, bool copy)
+        {
+            if (copy)
+            {
+                _copiedRows.Clear();
+                foreach (Tag t in TagGrid.SelectedItems)
+                    _copiedRows.Add(ProtoBuf.Serializer.DeepClone(t));
+                return;
+            }
+            var existing = _viewModel.CurrentProject.Tags.Select(t => t.Name).ToList();
+            foreach (Tag t in _copiedRows.OfType<Tag>())
+            {
+                var name = UniqueName(t.Name, existing);
+                existing.Add(name);
+                var r = _viewModel.CommandService.Execute("create_tag", new Dictionary<string, object?>
+                {
+                    ["name"] = name, ["data_type"] = t.DataType.ToString(), ["source"] = t.Source,
+                    ["unit"] = t.Unit, ["scan_interval"] = t.ScanIntervalMs, ["deadband"] = t.Deadband,
+                    ["description"] = t.Description, ["base_value"] = t.BaseValue,
+                });
+                if (!r.Success) MessageBox.Show($"{name}: {r.ErrorMessage}", "复制变量", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        /// <summary>报警表格复制粘贴：Ctrl+C 深拷贝选中报警行，Ctrl+V 新建报警副本。</summary>
+        private void AlarmCopyPaste_Click(object sender, bool copy)
+        {
+            if (copy)
+            {
+                _copiedRows.Clear();
+                foreach (AlarmRule a in AlarmGrid.SelectedItems)
+                    _copiedRows.Add(ProtoBuf.Serializer.DeepClone(a));
+                return;
+            }
+            var existing = _viewModel.CurrentProject.Alarms.Select(a => a.Name).ToList();
+            foreach (AlarmRule a in _copiedRows.OfType<AlarmRule>())
+            {
+                var name = UniqueName(a.Name, existing);
+                existing.Add(name);
+                var r = _viewModel.CommandService.Execute("create_alarm", new Dictionary<string, object?>
+                {
+                    ["name"] = name, ["tag_name"] = a.TagName, ["type"] = a.Type.ToString(),
+                    ["threshold"] = a.Threshold, ["deadband"] = a.Deadband, ["delay_ms"] = a.DelayMs,
+                    ["severity"] = a.Level.ToString(), ["message"] = a.Message,
+                });
+                if (!r.Success) MessageBox.Show($"{name}: {r.ErrorMessage}", "复制报警", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        /// <summary>设备表格复制粘贴：Ctrl+C 深拷贝选中设备行，Ctrl+V 新建设备副本。</summary>
+        private void DeviceCopyPaste_Click(object sender, bool copy)
+        {
+            if (copy)
+            {
+                _copiedRows.Clear();
+                foreach (DeviceConfig d in DeviceGrid.SelectedItems)
+                    _copiedRows.Add(ProtoBuf.Serializer.DeepClone(d));
+                return;
+            }
+            var existing = _viewModel.CurrentProject.Devices.Select(d => d.Name).ToList();
+            foreach (DeviceConfig d in _copiedRows.OfType<DeviceConfig>())
+            {
+                var name = UniqueName(d.Name, existing);
+                existing.Add(name);
+                var r = _viewModel.CommandService.Execute("create_device", new Dictionary<string, object?>
+                {
+                    ["name"] = name, ["protocol"] = d.Protocol.ToString(), ["connection_info"] = d.ConnectionInfo,
+                });
+                if (!r.Success) MessageBox.Show($"{name}: {r.ErrorMessage}", "复制设备", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        /// <summary>文本列表项复制粘贴：Ctrl+C 存值，Ctrl+V 添加新项（复制值）。</summary>
+        private void TextItemsCopyPaste_Click(object sender, bool copy)
+        {
+            if (copy)
+            {
+                _copiedRows.Clear();
+                foreach (ListItemVM it in TextItemsGrid.SelectedItems) _copiedRows.Add(it.Value);
+                return;
+            }
+            foreach (string v in _copiedRows.OfType<string>())
+                _listManagerVM.PasteItem(ListType.Text, v);
+        }
+
+        /// <summary>图像列表项复制粘贴：Ctrl+C 存值，Ctrl+V 添加新项（复制值）。</summary>
+        private void ImageItemsCopyPaste_Click(object sender, bool copy)
+        {
+            if (copy)
+            {
+                _copiedRows.Clear();
+                foreach (ListItemVM it in ImageItemsGrid.SelectedItems) _copiedRows.Add(it.Value);
+                return;
+            }
+            foreach (string v in _copiedRows.OfType<string>())
+                _listManagerVM.PasteItem(ListType.Image, v);
+        }
+
         /// <summary>批量删除选中设备（删除按钮 + 右键；多选时全部删除）。</summary>
         private void DeviceDelete_Click(object sender, RoutedEventArgs e)
         {
@@ -497,6 +616,8 @@ namespace NavigatorHMI.Views
         /// <summary>文本列表项快捷键：Delete 删除选中、Ctrl+A 全选。</summary>
         private void TextItemsGrid_KeyDown(object sender, KeyEventArgs e)
         {
+            if (e.Key == Key.C && Keyboard.Modifiers == ModifierKeys.Control) { TextItemsCopyPaste_Click(sender, true); e.Handled = true; return; }
+            if (e.Key == Key.V && Keyboard.Modifiers == ModifierKeys.Control) { TextItemsCopyPaste_Click(sender, false); e.Handled = true; return; }
             if (e.OriginalSource is System.Windows.Controls.TextBox) return;   // 单元格编辑态：Delete 交给文本编辑，防整行误删
             if (e.Key == Key.Delete) { TextItemsDelete_Click(sender, null); e.Handled = true; }
             else if (e.Key == Key.A && Keyboard.Modifiers == ModifierKeys.Control) { TextItemsGrid.SelectAll(); e.Handled = true; }
@@ -505,6 +626,8 @@ namespace NavigatorHMI.Views
         /// <summary>图片列表项快捷键：Delete 删除选中、Ctrl+A 全选。</summary>
         private void ImageItemsGrid_KeyDown(object sender, KeyEventArgs e)
         {
+            if (e.Key == Key.C && Keyboard.Modifiers == ModifierKeys.Control) { ImageItemsCopyPaste_Click(sender, true); e.Handled = true; return; }
+            if (e.Key == Key.V && Keyboard.Modifiers == ModifierKeys.Control) { ImageItemsCopyPaste_Click(sender, false); e.Handled = true; return; }
             if (e.OriginalSource is System.Windows.Controls.TextBox) return;   // 单元格编辑态：Delete 交给文本编辑，防整行误删
             if (e.Key == Key.Delete) { ImageItemsDelete_Click(sender, null); e.Handled = true; }
             else if (e.Key == Key.A && Keyboard.Modifiers == ModifierKeys.Control) { ImageItemsGrid.SelectAll(); e.Handled = true; }
@@ -1593,6 +1716,12 @@ namespace NavigatorHMI.Views
                 return;
             }
 
+            if (e.Key == Key.Z && Keyboard.Modifiers == ModifierKeys.Control && !shift
+                && IsFocusInManagerControl())
+            { _listManagerVM.UndoList(); e.Handled = true; return; }   // 列表项撤销（焦点在列表管理器时拦截，空栈也不穿透到画面撤销）
+            if (((e.Key == Key.Y && ctrl) || (e.Key == Key.Z && ctrl && shift))
+                && IsFocusInManagerControl())
+            { _listManagerVM.RedoList(); e.Handled = true; return; }   // 列表项重做
             if (e.Key == Key.Delete && none && !IsFocusInManagerControl())
             {
                 _widgetContextMenuHandler.DeleteSelectedWidget();

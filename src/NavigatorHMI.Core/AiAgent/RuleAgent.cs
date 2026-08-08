@@ -92,11 +92,19 @@ namespace NavigatorHMI.AiAgent
                 {
                     args.TryAdd("x", "100");
                     args.TryAdd("y", "100");
+                    // 画面名歧义消解：正则的「画面」后缀可能吃掉画面名本身（如「全局画面」→「全局」）。
+                    // 回退：screen 不在画面列表时，试 screen+"画面" 在列表 → 用全名（如「全局」→「全局画面」）
+                    var screenName = args.TryGetValue("screen_name", out var s0) ? s0?.ToString() ?? "" : "";
+                    var screens = _commands.GetScreenNames();
+                    if (!screens.Contains(screenName, StringComparer.OrdinalIgnoreCase)
+                        && screens.Contains(screenName + "画面", StringComparer.OrdinalIgnoreCase))
+                    {
+                        args["screen_name"] = screenName + "画面";
+                        screenName = screenName + "画面";
+                    }
                     if (m.Groups["center"].Success)
                     {
                         // 歧义消解：画面名含「中心」优先（如「数据中心」→ 画面名而非中心位置），否则视为中心位置
-                        var screenName = args.TryGetValue("screen_name", out var s) ? s?.ToString() ?? "" : "";
-                        var screens = _commands.GetScreenNames();
                         if (!screens.Contains(screenName, StringComparer.OrdinalIgnoreCase)
                             && screens.Contains(screenName + "中心", StringComparer.OrdinalIgnoreCase))
                             args["screen_name"] = screenName + "中心";

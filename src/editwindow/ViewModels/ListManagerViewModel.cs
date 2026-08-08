@@ -331,6 +331,55 @@ namespace NavigatorHMI.ViewModels
 
 
         /// <summary>批量删除选中列表（多选删除按钮/右键）：逐个走 delete_list 命令（被引用拒绝），失败汇总提示。</summary>
+
+        // ═══ 列表项撤销/重做（P3-6：增删改进撤销栈，Ctrl+Z 恢复） ═══
+        private readonly List<Dictionary<ListDef, string[]>> _listUndoStack = new();
+        private readonly List<Dictionary<ListDef, string[]>> _listRedoStack = new();
+        public bool HasListUndo => _listUndoStack.Count > 0;
+        public bool HasListRedo => _listRedoStack.Count > 0;
+
+        /// <summary>操作前快照：记录全部列表的 Items 内容（撤销粒度=单次操作）。</summary>
+        private void PushListSnapshot()
+        {
+            var snap = Project.Lists.ToDictionary(l => l, l => l.Items.ToArray());
+            _listUndoStack.Add(snap);
+            if (_listUndoStack.Count > 50) _listUndoStack.RemoveAt(0);   // 上限防膨胀
+            _listRedoStack.Clear();
+        }
+
+        private void ApplySnapshot(Dictionary<ListDef, string[]> snap)
+        {
+            foreach (var (list, items) in snap)
+            {
+                list.Items.Clear();
+                list.Items.AddRange(items);
+            }
+            RefreshLists();
+            RebuildTextItems();
+            RebuildImageItems();
+        }
+
+        /// <summary>撤销列表项操作（Ctrl+Z；返回是否执行）。</summary>
+        public bool UndoList()
+        {
+            if (_listUndoStack.Count == 0) return false;
+            var snap = _listUndoStack[^1];
+            _listUndoStack.RemoveAt(_listUndoStack.Count - 1);
+            _listRedoStack.Add(Project.Lists.ToDictionary(l => l, l => l.Items.ToArray()));
+            ApplySnapshot(snap);
+            return true;
+        }
+
+        /// <summary>重做列表项操作（Ctrl+Y；返回是否执行）。</summary>
+        public bool RedoList()
+        {
+            if (_listRedoStack.Count == 0) return false;
+            var snap = _listRedoStack[^1];
+            _listRedoStack.RemoveAt(_listRedoStack.Count - 1);
+            _listUndoStack.Add(Project.Lists.ToDictionary(l => l, l => l.Items.ToArray()));
+            ApplySnapshot(snap);
+            return true;
+        }
         public void DeleteLists(IReadOnlyList<ListDef> lists)
         {
             if (lists.Count == 0) return;
@@ -357,6 +406,7 @@ namespace NavigatorHMI.ViewModels
                 System.Windows.MessageBox.Show("请先选择或新建一个列表", "添加列表项", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
                 return;
             }
+            PushListSnapshot();   // P3-6 撤销快照（guard 后：仅真实操作入栈）
             list.Items.Add("");
             CommitItems(list);
             if (type == ListType.Text) RebuildTextItems(); else RebuildImageItems();
@@ -367,6 +417,7 @@ namespace NavigatorHMI.ViewModels
             var list = type == ListType.Text ? SelectedTextList : SelectedImageList;
             var item = type == ListType.Text ? SelectedTextItem : SelectedImageItem;
             if (list == null || item == null) return;
+            PushListSnapshot();   // P3-6 撤销快照（guard 后：仅真实操作入栈）
             list.Items.RemoveAt(item.Number - 1);
             CommitItems(list);
             if (type == ListType.Text) RebuildTextItems(); else RebuildImageItems();
@@ -378,11 +429,27 @@ namespace NavigatorHMI.ViewModels
         {
             var list = type == ListType.Text ? SelectedTextList : SelectedImageList;
             if (list == null || items.Count == 0) return;
+            PushListSnapshot();   // P3-6 撤销快照（guard 后：仅真实操作入栈）
             foreach (var item in items.OrderByDescending(i => i.Number))
             {
                 if (item.Number >= 1 && item.Number <= list.Items.Count)
                     list.Items.RemoveAt(item.Number - 1);
             }
+            CommitItems(list);
+            if (type == ListType.Text) RebuildTextItems(); else RebuildImageItems();
+        }
+
+        /// <summary>粘贴列表项（P3-5 复制粘贴）：添加新项并复制值。</summary>
+        public void PasteItem(ListType type, string value)
+        {
+            var list = type == ListType.Text ? SelectedTextList : SelectedImageList;
+            if (list == null)
+            {
+                System.Windows.MessageBox.Show("请先选择或新建一个列表", "粘贴列表项", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                return;
+            }
+            PushListSnapshot();   // P3-6 撤销快照（guard 后：仅真实操作入栈）
+            list.Items.Add(value);
             CommitItems(list);
             if (type == ListType.Text) RebuildTextItems(); else RebuildImageItems();
         }

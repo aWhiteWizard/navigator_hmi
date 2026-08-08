@@ -191,12 +191,15 @@ namespace NavigatorHMI.Views
             if (!double.IsFinite(deadband))
             { ShowError("死区必须是有限数字"); return; }
 
-            // 基准值：数字类型变量要求可解析为数字（ProgressBar/NumericDisplay 设计态显示用）
+            // 基准值：数字类型变量要求可解析为数字（ProgressBar/NumericDisplay 设计态显示用）；DATETIME 用日期时间格式
             var baseValue = BaseValueBox.Text.Trim();
             if (baseValue.Length > 0 && dt != TagDataType.STRING
+             && dt != TagDataType.DATETIME
              && !double.TryParse(baseValue, System.Globalization.NumberStyles.Float,
                     System.Globalization.CultureInfo.InvariantCulture, out _))
             { ShowError("数字类型变量的基准值必须是数字（如 25.5 / 1）"); return; }
+            if (baseValue.Length > 0 && dt == TagDataType.DATETIME && !DateTime.TryParse(baseValue, out _))
+            { ShowError("DATETIME 变量的基准值必须是有效日期时间（如 2026-08-08 12:30:00）"); return; }
 
             Result = new Tag
             {

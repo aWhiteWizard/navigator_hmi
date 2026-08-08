@@ -16,14 +16,11 @@ namespace NavigatorHMI.Views
             _vm = new EventConfigViewModel(project, widget, evt, commands);
             DataContext = _vm;
             Title = $"事件配置 - {EventMapping.EventName(evt)}（{widget.ObjectName}）";
-            // 动作下拉：ActionType + 中文名
-            foreach (var t in _vm.AllActions)
-                ActionCombo.Items.Add(new ComboBoxItem { Content = EventMapping.ActionNames.TryGetValue(t, out var n) ? n : t.ToString(), Tag = t });
         }
 
         private void AddFunction_Click(object sender, RoutedEventArgs e)
         {
-            if (ActionCombo.SelectedItem is ComboBoxItem item && item.Tag is ActionType t)
+            if (_vm.SelectedFunctionGroupAction is ActionType t)
                 _vm.AddFunction(t);
         }
 

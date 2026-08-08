@@ -20,6 +20,104 @@ namespace NavigatorHMI.ViewModels
         /// <summary>本事件全部可用动作（添加函数下拉）。</summary>
         public IReadOnlyList<ActionType> AllActions { get; } = Enum.GetValues<ActionType>();
 
+    // ═══ P3-7 函数两级选择（小类 → 函数） ═══
+    public IReadOnlyList<string> FunctionGroupNames { get; } = new[] { "变量操作", "画面导航", "控件与界面", "通知与报警", "日期时间", "执行命令" };
+
+    private static readonly Dictionary<string, ActionType[]> FunctionGroupActionMap = new()
+    {
+        ["变量操作"] = new[] { ActionType.tag_write, ActionType.tag_add, ActionType.tag_subtract, ActionType.tag_toggle, ActionType.set_bit, ActionType.reset_bit },
+        ["画面导航"] = new[] { ActionType.screen_switch, ActionType.screen_prev, ActionType.screen_next },
+        ["控件与界面"] = new[] { ActionType.set_property, ActionType.show_popup },
+        ["通知与报警"] = new[] { ActionType.send_notification, ActionType.acknowledge_alarm },
+        ["日期时间"] = new[] { ActionType.set_datetime, ActionType.get_datetime },
+        ["执行命令"] = new[] { ActionType.run_command },
+    };
+
+    private string _selectedFunctionGroupName = "变量操作";
+    public string SelectedFunctionGroupName
+    {
+        get => _selectedFunctionGroupName;
+        set
+        {
+            if (_selectedFunctionGroupName == value) return;
+            _selectedFunctionGroupName = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(FunctionGroupActionNames));
+            SelectedFunctionGroupActionName = FunctionGroupActionNames.FirstOrDefault();
+        }
+    }
+
+    /// <summary>当前小类下可添加的函数（中文名列表）。</summary>
+    public IReadOnlyList<string> FunctionGroupActionNames
+        => FunctionGroupActionMap.TryGetValue(SelectedFunctionGroupName, out var list)
+            ? list.Select(t => EventMapping.ActionNames.TryGetValue(t, out var n) ? n : t.ToString()).ToList()
+            : Array.Empty<string>();
+
+    private string _selectedFunctionGroupActionName = "";
+    /// <summary>选中的函数（添加按钮用；名字 → ActionType 反查）。</summary>
+    public string SelectedFunctionGroupActionName
+    {
+        get => _selectedFunctionGroupActionName;
+        set
+        {
+            _selectedFunctionGroupActionName = value ?? "";
+            OnPropertyChanged();
+            SelectedFunctionGroupAction = ResolveActionType(_selectedFunctionGroupActionName);
+        }
+    }
+
+    private ActionType? _selectedFunctionGroupAction;
+    public ActionType? SelectedFunctionGroupAction { get => _selectedFunctionGroupAction; set { _selectedFunctionGroupAction = value; OnPropertyChanged(); } }
+
+    private static ActionType? ResolveActionType(string name)
+    {
+        foreach (var t in Enum.GetValues<ActionType>())
+            if ((EventMapping.ActionNames.TryGetValue(t, out var n) ? n : t.ToString()) == name) return t;
+        return Enum.TryParse<ActionType>(name, ignoreCase: true, out var r) ? r : null;
+    }
+
+    // ═══ P3-7 命令两级选择（分类 → 命令） ═══
+    public IReadOnlyList<string> CommandGroupNames { get; } = new[] { "创建类", "删除类", "设置/更新类", "绑定类", "其他" };
+
+    public static string CommandGroupOf(string cmd) => cmd switch
+    {
+        var c when c.StartsWith("create_") || c.StartsWith("add_") => "创建类",
+        var c when c.StartsWith("delete_") || c.StartsWith("remove_") => "删除类",
+        var c when c.StartsWith("set_") || c.StartsWith("update_") => "设置/更新类",
+        var c when c.StartsWith("bind_") || c.StartsWith("unbind_") => "绑定类",
+        _ => "其他",
+    };
+
+    private string _selectedCommandGroupName = "创建类";
+    public string SelectedCommandGroupName
+    {
+        get => _selectedCommandGroupName;
+        set
+        {
+            if (_selectedCommandGroupName == value) return;
+            _selectedCommandGroupName = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(FilteredCommandNames));
+        }
+    }
+
+    /// <summary>当前分类下的命令名（选中写入 SelectedFunction.CommandName）。</summary>
+    public IReadOnlyList<string> FilteredCommandNames
+        => Commands.Where(c => CommandGroupOf(c.Name) == SelectedCommandGroupName).Select(c => c.Name).ToList();
+
+    private string _selectedCommandName = "";
+    public string SelectedCommandName
+    {
+        get => _selectedCommandName;
+        set
+        {
+            _selectedCommandName = value ?? "";
+            OnPropertyChanged();
+            if (SelectedFunction != null && !string.IsNullOrWhiteSpace(_selectedCommandName))
+                SelectedFunction.CommandName = _selectedCommandName;   // 写回函数命令（触发参数表单重建）
+        }
+    }
+
         public ObservableCollection<ActionEditVM> Functions { get; } = new();
         private ActionEditVM? _selectedFunction;
         public ActionEditVM? SelectedFunction
@@ -35,12 +133,22 @@ namespace NavigatorHMI.ViewModels
                 OnPropertyChanged(nameof(ShowCommandParams));
                 OnPropertyChanged(nameof(ShowActionParams));
                 OnPropertyChanged(nameof(NoParamsHint));
+                // P3-7：run_command 函数切换时同步命令两级下拉（分类 + 命令），避免残留旧命令与表单矛盾
+                if (value?.Type == ActionType.run_command && !string.IsNullOrWhiteSpace(value.CommandName))
+                {
+                    SelectedCommandGroupName = CommandGroupOf(value.CommandName);
+                    SelectedCommandName = value.CommandName;
+                }
             }
         }
         public bool HasSelection => _selectedFunction != null;
         public bool ShowCommandParams => _selectedFunction?.Type == ActionType.run_command;
         public bool ShowActionParams => _selectedFunction != null && _selectedFunction.Type != ActionType.run_command && _selectedFunction.ActionParams.Count > 0;
         public bool NoParamsHint => _selectedFunction != null && _selectedFunction.Type != ActionType.run_command && _selectedFunction.ActionParams.Count == 0;
+
+        /// <summary>变量名 → 类型（tag-bool/tag-numeric 过滤用；不存在返回 BOOL 以免误含）。</summary>
+        public TagDataType TagOf(string name)
+            => _project.Tags.FirstOrDefault(t => t.Name == name)?.DataType ?? TagDataType.BOOL;
 
         /// <summary>可用命令列表（run_command 下拉；按 CommandService 注册全量）。</summary>
         public IReadOnlyList<CommandDefinition> Commands { get; }
@@ -63,6 +171,7 @@ namespace NavigatorHMI.ViewModels
             _widget = widget;
             _eventType = evt;
             Commands = commands.GetAvailableCommands().OrderBy(c => c.Name).ToList();
+            SelectedFunctionGroupActionName = FunctionGroupActionNames.FirstOrDefault();   // 初始选中第一个函数（tag_write）
             var screen = project.Screens.FirstOrDefault(s => s.Widgets.Contains(widget));
             ScreenNames = project.Screens.Where(s => !s.Name.Contains("全局")).Select(s => s.Name).ToList();
             WidgetNames = screen?.Widgets.Select(w => w.ObjectName).ToList() ?? new List<string>();
@@ -182,7 +291,9 @@ namespace NavigatorHMI.ViewModels
             {
                 var value = existing.TryGetValue(key, out var v) ? v : "";
                 var opts2 = kind == "screen" ? _owner.ScreenNames : kind == "widget" ? _owner.WidgetNames
-                    : kind == "tag" ? _owner.TagNames : kind == "alarm" ? _owner.AlarmNames : opts;
+                    : kind == "tag" ? _owner.TagNames : kind == "tag-bool" ? _owner.TagNames.Where(n => _owner.TagOf(n) == TagDataType.BOOL).ToList()
+                    : kind == "tag-numeric" ? _owner.TagNames.Where(n => TagCompatibility.IsNumericCompatible(_owner.TagOf(n))).ToList()
+                    : kind == "alarm" ? _owner.AlarmNames : opts;
                 var pf = new ParamFieldVM(key, value, label, kind, opts2);
                 pf.PropertyChanged += (_, _) => OnPropertyChanged(nameof(Summary));
                 ActionParams.Add(pf);
@@ -283,11 +394,11 @@ namespace NavigatorHMI.ViewModels
         internal static List<(string key, string label, string kind, string[]? opts)> Get(ActionType t) => t switch
         {
             ActionType.tag_write => new() { ("tag_name", "变量", "tag", null), ("value", "值", "string", null) },
-            ActionType.tag_add => new() { ("tag_name", "变量", "tag", null), ("delta", "增量", "string", null) },
-            ActionType.tag_subtract => new() { ("tag_name", "变量", "tag", null), ("delta", "减量", "string", null) },
-            ActionType.tag_toggle => new() { ("tag_name", "变量(BOOL)", "tag", null) },
-            ActionType.set_bit => new() { ("tag_name", "变量(BOOL)", "tag", null) },
-            ActionType.reset_bit => new() { ("tag_name", "变量(BOOL)", "tag", null) },
+            ActionType.tag_add => new() { ("tag_name", "变量(数值)", "tag-numeric", null), ("delta", "增量", "string", null) },
+            ActionType.tag_subtract => new() { ("tag_name", "变量(数值)", "tag-numeric", null), ("delta", "减量", "string", null) },
+            ActionType.tag_toggle => new() { ("tag_name", "变量(BOOL)", "tag-bool", null) },
+            ActionType.set_bit => new() { ("tag_name", "变量(BOOL)", "tag-bool", null) },
+            ActionType.reset_bit => new() { ("tag_name", "变量(BOOL)", "tag-bool", null) },
             ActionType.screen_switch => new() { ("target_screen", "目标画面", "screen", null) },
             ActionType.screen_prev => new(),
             ActionType.screen_next => new(),

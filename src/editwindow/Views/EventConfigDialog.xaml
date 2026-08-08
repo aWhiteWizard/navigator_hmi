@@ -60,13 +60,15 @@
                 </ListBox.ItemTemplate>
             </ListBox>
             <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,4,0,0">
-                <TextBlock Text="添加函数:" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                <ComboBox x:Name="ActionCombo" Width="180" Height="26" VerticalContentAlignment="Center"/>
+                <TextBlock Text="小类:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                <ComboBox Width="92" Height="26" VerticalContentAlignment="Center"
+                          ItemsSource="{Binding FunctionGroupNames}" Text="{Binding SelectedFunctionGroupName}" IsEditable="True"/>
+                <TextBlock Text="函数:" VerticalAlignment="Center" Margin="8,0,4,0"/>
+                <ComboBox Width="136" Height="26" VerticalContentAlignment="Center"
+                          ItemsSource="{Binding FunctionGroupActionNames}" Text="{Binding SelectedFunctionGroupActionName}" IsEditable="True"/>
                 <Button Content="＋ 添加" Width="70" Height="26" Margin="6,0,0,0" Click="AddFunction_Click"/>
             </StackPanel>
         </Grid>
-
-        <Separator Grid.Row="0" Margin="0,6" VerticalAlignment="Bottom"/>
 
         <!-- 参数区 -->
         <ScrollViewer Grid.Row="1" Margin="0,4" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -80,8 +82,14 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="命令" VerticalAlignment="Center"/>
-                        <ComboBox Grid.Column="1" ItemsSource="{Binding SelectedFunction.CommandNames}" Text="{Binding SelectedFunction.CommandName}"
-                                  IsEditable="True" FontSize="12" Padding="2" ToolTip="Command Layer 全量命令（按类分组）"/>
+                        <StackPanel Grid.Column="1" Margin="0,2">
+                            <ComboBox FontSize="12" Padding="2"
+                                      ItemsSource="{Binding CommandGroupNames}" Text="{Binding SelectedCommandGroupName}" IsEditable="True"
+                                      ToolTip="命令分类（创建/删除/设置/绑定/其他）"/>
+                            <ComboBox Margin="0,2,0,0" FontSize="12" Padding="2"
+                                      ItemsSource="{Binding FilteredCommandNames}" Text="{Binding SelectedCommandName}" IsEditable="True"
+                                      ToolTip="命令（按分类过滤；选中写入函数命令）"/>
+                        </StackPanel>
                     </Grid>
                     <ItemsControl ItemsSource="{Binding SelectedFunction.CommandParams}" Margin="0,2,0,0"/>
                 </StackPanel>
