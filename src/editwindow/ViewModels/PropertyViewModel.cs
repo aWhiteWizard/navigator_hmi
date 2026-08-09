@@ -325,7 +325,7 @@ namespace NavigatorHMI.ViewModels
                             case TextListWidget tl: TextListFontFamily = tl.FontFamily; TextListFontSize = tl.FontSize; TextListFontWeight = tl.FontWeight; TextListFontStyle = tl.FontStyle; TextListTextDecoration = tl.TextDecoration; TextListTextColor = tl.TextColor; TextListFillColor = tl.FillColor; TextListListRef = tl.ListRef; TextListDefaultIndex = tl.DefaultIndex; break;
                             case FrameWidget f: FrameTitle = f.Title; FrameFillColor = f.FillColor; FrameImagePath = f.ImagePath; FrameFontFamily = f.FontFamily; FrameFontSize = f.FontSize; FrameFontWeight = f.FontWeight; FrameFontStyle = f.FontStyle; FrameTextDecoration = f.TextDecoration; FrameListRef = f.ListRef; FrameDefaultIndex = f.DefaultIndex; break;
                             case ProgressBarWidget pb: ProgressValue = pb.Value; ProgressMin = pb.Min; ProgressMax = pb.Max; ProgressFillColor = pb.FillColor; ProgressFillStyle = pb.FillStyle; break;
-                case DateTimeWidget dt: DateTimeText = dt.Text; DateTimeFormat = dt.Format; break;
+                case DateTimeWidget dt: DateTimeFormat = dt.Format; break;
                 case WindowWidget ww:
                     WindowTitle = ww.Title;
                     WindowShowTitleBar = ww.ShowTitleBar;
@@ -1446,8 +1446,6 @@ namespace NavigatorHMI.ViewModels
         /// <summary>ProgressBar 填充样式（Solid/Diagonal/Grid）。</summary>
         public string ProgressFillStyle { get => _progressFillStyle; set { if (_progressFillStyle != value) { _progressFillStyle = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is ProgressBarWidget pb) pb.FillStyle = value; } } }
 
-        private string _dateTimeText = "2026-01-01 00:00:00";
-        public string DateTimeText { get => _dateTimeText; set { if (_dateTimeText != value) { _dateTimeText = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is DateTimeWidget dt) dt.Text = value; } } }
         private string _dateTimeFormat = "yyyy-MM-dd HH:mm:ss";
 
         // ═══ W4 窗口控件属性 ═══

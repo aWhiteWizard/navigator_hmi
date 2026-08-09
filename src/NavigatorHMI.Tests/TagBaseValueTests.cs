@@ -40,11 +40,13 @@ namespace NavigatorHMI.Tests
         }
 
         [Fact]
-        public void 空串清空放行()
+        public void FLOAT空串_默认0_0()
         {
-            var svc = Create();
+            var project = new HMIProject();
+            var svc = new CommandService(project);
             var r = svc.Execute("create_tag", new Dictionary<string, object?> { ["name"] = "T", ["data_type"] = "FLOAT", ["base_value"] = "" });
             Assert.True(r.Success);
+            Assert.Equal("0.0", project.Tags[0].BaseValue);   // D4：FLOAT 空串 → 默认 0.0（不再清空）
         }
 
         [Fact]
@@ -88,5 +90,85 @@ namespace NavigatorHMI.Tests
             Assert.False(r.Success);   // 白名单外字符（年/月/日）→ 拒绝（0000 无效且非全 0 字面）
             Assert.Equal("INVALID_PARAM", r.ErrorCode);
         }
+
+    // ── D1：DATETIME 基准值不得删空（按格式校验；删空/非法都拒绝）──
+
+    [Fact]
+    public void DATETIME_updateTag删空基准值拒绝()
+    {
+        var project = new HMIProject();
+        var svc = new CommandService(project);
+        svc.Execute("create_tag", new Dictionary<string, object?> { ["name"] = "TD", ["data_type"] = "DATETIME" });
+        var r = svc.Execute("update_tag", new Dictionary<string, object?> { ["name"] = "TD", ["base_value"] = "" });
+        Assert.False(r.Success);
+        Assert.Equal("INVALID_PARAM", r.ErrorCode);
+        Assert.Contains("不能为空", r.ErrorMessage);
+        // 基准值保持原值（未被清空）
+        Assert.Equal("0000:00:00 00:00:00", project.Tags[0].BaseValue);
+    }
+
+    [Fact]
+    public void DATETIME_updateTag非法基准值拒绝()
+    {
+        var project = new HMIProject();
+        var svc = new CommandService(project);
+        svc.Execute("create_tag", new Dictionary<string, object?> { ["name"] = "TD2", ["data_type"] = "DATETIME" });
+        var r = svc.Execute("update_tag", new Dictionary<string, object?> { ["name"] = "TD2", ["base_value"] = "abc" });
+        Assert.False(r.Success);
+        Assert.Equal("INVALID_PARAM", r.ErrorCode);
+    }
+
+    // ── D4：数字变量基准值默认 0/0.0 ──
+
+    [Theory]
+    [InlineData("FLOAT", "0.0")]
+    [InlineData("INT32", "0")]
+    [InlineData("INT16", "0")]
+    [InlineData("UINT16", "0")]
+    public void 数字变量未传基准值默认0(string dataType, string expect)
+    {
+        var project = new HMIProject();
+        var svc = new CommandService(project);
+        var r = svc.Execute("create_tag", new Dictionary<string, object?> { ["name"] = "N1", ["data_type"] = dataType });
+        Assert.True(r.Success, $"{r.ErrorCode} {r.ErrorMessage}");
+        Assert.Equal(expect, project.Tags[0].BaseValue);   // D4：数字变量默认基准值 0/0.0
+    }
+
+    [Fact]
+    public void 数字变量显式传基准值不被覆盖()
+    {
+        var project = new HMIProject();
+        var svc = new CommandService(project);
+        var r = svc.Execute("create_tag", new Dictionary<string, object?> { ["name"] = "N2", ["data_type"] = "FLOAT", ["base_value"] = "25.5" });
+        Assert.True(r.Success, $"{r.ErrorCode} {r.ErrorMessage}");
+        Assert.Equal("25.5", project.Tags[0].BaseValue);   // 显式传值不被 D4 默认覆盖
+    }
+
+    [Fact]
+    public void updateTag组合参数校验失败_重命名不落库()
+    {
+        // 原子性回归：new_name + 非法 base_value → 校验失败时重命名/级联不得生效（防部分落库）
+        var project = new HMIProject();
+        var svc = new CommandService(project);
+        svc.Execute("create_tag", new Dictionary<string, object?> { ["name"] = "A", ["data_type"] = "FLOAT", ["base_value"] = "1.0" });
+        var r = svc.Execute("update_tag", new Dictionary<string, object?> { ["name"] = "A", ["new_name"] = "B", ["base_value"] = "abc" });
+        Assert.False(r.Success);
+        Assert.Equal("INVALID_PARAM", r.ErrorCode);
+        Assert.True(project.Tags.Any(t => t.Name == "A"), "校验失败后重命名不得生效");
+        Assert.False(project.Tags.Any(t => t.Name == "B"));
+    }
+
+    [Fact]
+    public void updateTag改类型到DATETIME_空基准值自动补全零()
+    {
+        // D1 边界：STRING 变量（空基准值）改类型 → DATETIME → 自动补全 0 默认（防无基准值 DATETIME 变量）
+        var project = new HMIProject();
+        var svc = new CommandService(project);
+        svc.Execute("create_tag", new Dictionary<string, object?> { ["name"] = "S", ["data_type"] = "STRING" });
+        var r = svc.Execute("update_tag", new Dictionary<string, object?> { ["name"] = "S", ["data_type"] = "DATETIME" });
+        Assert.True(r.Success, $"{r.ErrorCode} {r.ErrorMessage}");
+        Assert.Equal(TagDataType.DATETIME, project.Tags[0].DataType);
+        Assert.Equal("0000:00:00 00:00:00", project.Tags[0].BaseValue);
+    }
     }
 }

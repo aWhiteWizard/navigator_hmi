@@ -194,6 +194,8 @@ namespace NavigatorHMI.Views
             // 基准值：数字类型变量要求可解析为数字（ProgressBar/NumericDisplay 设计态显示用）；DATETIME 用日期时间格式（任务8：全 0 字面放行）
             var baseValue = BaseValueBox.Text.Trim();
             if (dt == TagDataType.DATETIME && baseValue.Length == 0) baseValue = "0000:00:00 00:00:00";   // 任务8：DATETIME 默认全 0 基准值
+            if (baseValue.Length == 0 && dt == TagDataType.FLOAT) baseValue = "0.0";   // D4：数字变量默认基准值 0/0.0
+            if (baseValue.Length == 0 && dt is TagDataType.INT16 or TagDataType.UINT16 or TagDataType.INT32) baseValue = "0";
             if (baseValue.Length > 0 && dt != TagDataType.STRING
              && dt != TagDataType.DATETIME
              && !double.TryParse(baseValue, System.Globalization.NumberStyles.Float,

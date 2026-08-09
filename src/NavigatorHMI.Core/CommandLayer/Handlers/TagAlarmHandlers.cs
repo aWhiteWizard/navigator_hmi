@@ -49,8 +49,11 @@ namespace NavigatorHMI.CommandLayer.Handlers
             var bvErr = BaseValueValidator.Check(p.GetValueOrDefault("base_value")?.ToString(), dt);
             if (bvErr != null) return CommandResult.Fail("INVALID_PARAM", bvErr);
             // 任务8：DATETIME 变量未提供基准值 → 默认全 0 字面（0000:00:00 00:00:00，年月日冒号分隔）
+            // D4：数字变量未提供基准值 → 默认 0（FLOAT 用 0.0 保持浮点语义；整数用 0）
             var baseValue = p.GetValueOrDefault("base_value")?.ToString() ?? "";
             if (dt == TagDataType.DATETIME && string.IsNullOrEmpty(baseValue)) baseValue = "0000:00:00 00:00:00";
+            else if (string.IsNullOrEmpty(baseValue) && dt is TagDataType.FLOAT) baseValue = "0.0";
+            else if (string.IsNullOrEmpty(baseValue) && dt is TagDataType.INT16 or TagDataType.UINT16 or TagDataType.INT32) baseValue = "0";
             project.Tags.Add(new Tag
             {
                 Name = name, DataType = dt,
@@ -470,12 +473,61 @@ namespace NavigatorHMI.CommandLayer.Handlers
             var tag = project.Tags.FirstOrDefault(t => t.Name == name);
             if (tag == null) return CommandResult.Fail("NOT_FOUND", $"变量 \"{name}\" 不存在");
 
-            // 重命名：唯一性校验 + 级联同步引用
+            // ══ 全部可失败校验前置（组合参数原子性：任何失败不改变任何状态——含重命名级联）══
+            string? newName = null;
             if (p.TryGetValue("new_name", out var nn) && nn != null && !string.IsNullOrWhiteSpace(nn.ToString()) && nn.ToString() != name)
             {
-                var newName = nn.ToString()!;
+                newName = nn.ToString()!;
                 if (project.Tags.Any(t => t.Name == newName))
                     return CommandResult.Fail("DUPLICATE", $"变量 \"{newName}\" 已存在");
+            }
+            TagDataType targetType = tag.DataType;
+            if (p.TryGetValue("data_type", out var dtParam) && dtParam != null && !string.IsNullOrWhiteSpace(dtParam.ToString()))
+            {
+                if (!Enum.TryParse<TagDataType>(dtParam.ToString(), ignoreCase: true, out var td))
+                    return CommandResult.Fail("INVALID_PARAM", $"未知数据类型: {dtParam}");
+                targetType = td;
+            }
+            string? newBaseValue = null;   // null = 未提供（保留现值）
+            if (p.TryGetValue("base_value", out var bv) && bv != null)
+            {
+                var raw = bv.ToString() ?? "";
+                if (string.IsNullOrWhiteSpace(raw))
+                {
+                    // D1/D4：不制造无基准值变量——DATETIME 空拒绝；数字类型空串归一默认 0/0.0（与 create_tag 一致）；其余（STRING/BOOL）空 = 清空
+                    if (targetType == TagDataType.DATETIME)
+                        return CommandResult.Fail("INVALID_PARAM", "DATETIME 变量的基准值不能为空（请输入日期时间或全 0 字面 0000:00:00 00:00:00）");
+                    newBaseValue = targetType == TagDataType.FLOAT ? "0.0"
+                        : targetType is TagDataType.INT16 or TagDataType.UINT16 or TagDataType.INT32 ? "0" : "";
+                }
+                else
+                {
+                    var bvErr = BaseValueValidator.Check(raw, targetType);
+                    if (bvErr != null) return CommandResult.Fail("INVALID_PARAM", bvErr);
+                    newBaseValue = raw;
+                }
+            }
+            // data_type 变更时处理现有 BaseValue：空 → 自动补默认（DATETIME 全 0 / 数字 0·0.0，与 create_tag 一致，防无基准值变量）；
+            // 非空 → 用新类型校验（防 STRING 旧值残留为数字/日期基准值绕过校验器）
+            if (targetType != tag.DataType && newBaseValue == null)
+            {
+                if (string.IsNullOrEmpty(tag.BaseValue))
+                {
+                    newBaseValue = targetType == TagDataType.DATETIME ? "0000:00:00 00:00:00"
+                        : targetType == TagDataType.FLOAT ? "0.0"
+                        : targetType is TagDataType.INT16 or TagDataType.UINT16 or TagDataType.INT32 ? "0" : "";
+                }
+                else
+                {
+                    var bvErr = BaseValueValidator.Check(tag.BaseValue, targetType);
+                    if (bvErr != null)
+                        return CommandResult.Fail("INVALID_PARAM", $"改为 {targetType} 后现有基准值 '{tag.BaseValue}' 不合法，请同时提供合法 base_value");
+                }
+            }
+
+            // ══ 统一落库（校验全部通过后）══
+            if (newName != null)
+            {
                 // 级联：同步控件 BoundTag + 报警 TagName
                 foreach (var screen in project.Screens)
                     foreach (var w in screen.Widgets.Where(w => w.BoundTag == name))
@@ -484,13 +536,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
                     alarm.TagName = newName;
                 tag.Name = newName;
             }
-
-            if (p.TryGetValue("data_type", out var dt) && dt != null && !string.IsNullOrWhiteSpace(dt.ToString()))
-            {
-                if (!Enum.TryParse<TagDataType>(dt.ToString(), ignoreCase: true, out var td))
-                    return CommandResult.Fail("INVALID_PARAM", $"未知数据类型: {dt}");
-                tag.DataType = td;
-            }
+            if (p.TryGetValue("data_type", out var dt2) && dt2 != null && !string.IsNullOrWhiteSpace(dt2.ToString()))
+                tag.DataType = targetType;
             if (p.TryGetValue("source", out var src) && src != null)
                 // 显式空串 = 清空为内部变量（OptIfProvided 语义：CLI 未提供不进字典，保留现值）
                 tag.Source = src.ToString()?.Trim() ?? "";
@@ -499,15 +546,11 @@ namespace NavigatorHMI.CommandLayer.Handlers
             if (p.TryGetValue("scan_interval", out var si) && si != null && !string.IsNullOrWhiteSpace(si.ToString()))
                 tag.ScanIntervalMs = Convert.ToInt32(si);
             if (p.TryGetValue("deadband", out var db) && db != null && !string.IsNullOrWhiteSpace(db.ToString()))
-                tag.Deadband = Convert.ToDouble(db);
+                tag.Deadband = Convert.ToDouble(db, System.Globalization.CultureInfo.InvariantCulture);   // InvariantCulture：与 Validate 一致，防区域性小数点异常
             if (p.TryGetValue("description", out var desc) && desc != null)
                 tag.Description = desc.ToString() ?? "";
-            if (p.TryGetValue("base_value", out var bv) && bv != null)
-            {
-                var bvErr = BaseValueValidator.Check(bv.ToString(), tag.DataType);
-                if (bvErr != null) return CommandResult.Fail("INVALID_PARAM", bvErr);
-                tag.BaseValue = bv.ToString() ?? "";
-            }
+            if (newBaseValue != null)
+                tag.BaseValue = newBaseValue;
 
             return CommandResult.Ok(new { tag_name = tag.Name });
         }

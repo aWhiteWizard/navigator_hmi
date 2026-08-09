@@ -34,10 +34,12 @@ public class DateTimeWidgetTests
     }
 
     [Fact]
-    public void DisplayText_未绑定编辑过Text显示编辑值()
+    public void DisplayText_未绑定恒实时不受Text影响()
     {
+        // D2：未绑定任何参数时直接按格式显示当前时间（不再保留可手改的 Text 残留——Text 字段保留仅序列化兼容，不参与显示）
         var w = new DateTimeWidget { Text = "2026-08-09 09:30:00" };
-        Assert.Equal("2026-08-09 09:30:00", w.DisplayText);   // P2-2：失焦保留
+        var v = w.DisplayText;
+        Assert.StartsWith(DateTime.Now.Year.ToString(), v);   // 1Hz 实时当前时间（旧编辑值不再显示）
     }
 
     [Fact]

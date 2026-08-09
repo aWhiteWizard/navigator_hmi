@@ -810,13 +810,9 @@
             <Separator Margin="4,2"/>
             <TextBlock Text="参数" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <Label Grid.Column="0" Content="显示文本:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding DateTimeText, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" KeyDown="PropField_KeyDown"/>
-            </Grid>
-            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="格式:" Style="{StaticResource PropLabel}"/>
                 <ComboBox Grid.Column="1" Text="{Binding DateTimeFormat, UpdateSourceTrigger=PropertyChanged}" IsEditable="True" Style="{StaticResource PropComboBox}" ToolTip="DateTime 格式（可编辑输入自定义；选中项为常用格式）">
-                                        <ComboBoxItem Content="yyyy-MM-dd HH:mm:ss"/><ComboBoxItem Content="yyyy-MM-dd"/><ComboBoxItem Content="HH:mm:ss"/><ComboBoxItem Content="yyyy/MM/dd HH:mm:ss"/><ComboBoxItem Content="yyyy年MM月dd日"/><ComboBoxItem Content="HH:mm"/></ComboBox>
+                                        <ComboBoxItem Content="yyyy-MM-dd HH:mm:ss"/><ComboBoxItem Content="yyyy-MM-dd"/><ComboBoxItem Content="HH:mm:ss"/><ComboBoxItem Content="yyyy/MM/dd HH:mm:ss"/><ComboBoxItem Content="yyyy年MM月dd日"/><ComboBoxItem Content="HH:mm"/><ComboBoxItem Content="yyyy:MM:dd HH:mm:ss"/></ComboBox>
             </Grid>
         </StackPanel></DataTemplate>
         <!-- W4 窗口控件属性（UserView/AlarmView/RobotList 共用 + 各自开关） -->
