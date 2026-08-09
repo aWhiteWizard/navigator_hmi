@@ -1096,12 +1096,15 @@ namespace NavigatorHMI.ViewModels
                     // 网络推理放后台线程；await 后经 WPF SynchronizationContext 回 UI 线程更新消息
                     var result = await Task.Run(() => agent!.ChatAsync(text, token), token);
                     ReplaceThinking("ai", result);
-                    // 操作清单：展示 AI 本次执行了什么（可据此手动撤销单项）
+                    // 操作清单：展示 AI 本次执行了什么（可据此手动撤销单项）；撤销指引按操作类型分类（A4）
                     var ops = agent.LastOperations.Where(o => o.Success).ToList();
                     if (ops.Count > 0)
-                        AiMessages.Add(new AiChatEntry("status",
-                            $"本次执行 {ops.Count} 项操作：\n" + string.Join("\n", ops.Select((o, i) => $"{i + 1}. {o.CommandName}（{o.ArgsSummary}）")) +
-                            "\n画面改动可 Ctrl+Z 撤销；变量/列表/报警可在对应管理器手动删除。"));
+                    {
+                        var lines = new List<string> { $"本次执行 {ops.Count} 项操作：" };
+                        lines.AddRange(ops.Select((o, i) => $"{i + 1}. {o.CommandName}（{o.ArgsSummary}）"));
+                        lines.Add(UndoGuidanceFor(ops));
+                        AiMessages.Add(new AiChatEntry("status", string.Join("\n", lines)));
+                    }
                 }
                 catch (OperationCanceledException)
                 {
@@ -1125,6 +1128,47 @@ namespace NavigatorHMI.ViewModels
                 if (IsAiThinking) CancelAiCommand.Execute(null);
                 else AiSendCommand.Execute(null);
             });
+        }
+
+        // ── A4：AI 操作撤销指引分类（按命令域提示正确的撤销入口）──
+
+        /// <summary>用户/组域命令：撤销入口在【用户管理】页面（页面级 Ctrl+Z，A3）。</summary>
+        private static readonly HashSet<string> UndoUserDomainCommands = new()
+        {
+            "create_user", "update_user", "delete_user",
+            "create_group", "update_group", "delete_group",
+        };
+
+        /// <summary>画面域命令：当前画面 Ctrl+Z 撤销。</summary>
+        private static readonly HashSet<string> UndoScreenDomainCommands = new()
+        {
+            "create_screen", "delete_screen", "rename_screen", "copy_screen", "paste_screen", "set_default_font",
+            "add_widget", "move_widget", "resize_widget", "delete_widget", "set_property",
+            "bring_to_front", "bring_forward", "send_backward", "send_to_back",
+            "align_widgets", "array_layout", "copy_widget", "paste_widget",
+            "bind_event", "add_event", "remove_event", "update_event", "bind_tag",
+        };
+
+        /// <summary>无需撤销指引的命令（只读/持久化/编译——归第三类时不能提示「手动删除」）。</summary>
+        private static readonly HashSet<string> UndoNoGuidanceCommands = new()
+        {
+            "current_screen", "save_project", "compile", "list_users", "scan_devices",
+            "connect", "deploy_project", "deploy_firmware",
+        };
+
+        /// <summary>按本次成功操作涉及的域生成撤销指引文案（只列出现过的域；其余默认归「对应管理器查看/处理」）。</summary>
+        private static string UndoGuidanceFor(List<AIAgent.AiOperation> ops)
+        {
+            var hints = new List<string>();
+            if (ops.Any(o => UndoScreenDomainCommands.Contains(o.CommandName)))
+                hints.Add("切回画面页后 Ctrl+Z 撤销画面改动");
+            if (ops.Any(o => UndoUserDomainCommands.Contains(o.CommandName)))
+                hints.Add("切到【用户管理】页面后 Ctrl+Z 撤销用户/组改动");
+            if (ops.Any(o => !UndoScreenDomainCommands.Contains(o.CommandName)
+                             && !UndoUserDomainCommands.Contains(o.CommandName)
+                             && !UndoNoGuidanceCommands.Contains(o.CommandName)))
+                hints.Add("其余操作可在对应管理器查看/处理");
+            return "撤销指引：" + string.Join("；", hints) + "。";
         }
 
         // ── AI 会话设置（Copilot 风格：模型 / 推理深度 / 上下文长度）──

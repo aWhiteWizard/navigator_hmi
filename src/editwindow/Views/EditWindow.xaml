@@ -1635,7 +1635,7 @@
                                                 <DataGrid x:Name="GroupsGrid" Grid.Row="2" ItemsSource="{Binding DataContext.UserGroups, RelativeSource={RelativeSource AncestorType=Window}}"
                                                           AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" HeadersVisibility="Column"
                                                           GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12" RowHeight="26"
-                                                          MouseDoubleClick="GroupsGrid_MouseDoubleClick" KeyDown="GroupsGrid_KeyDown" PreviewMouseRightButtonDown="GroupsGrid_PreviewMouseRightButtonDown">
+                                                          MouseDoubleClick="GroupsGrid_MouseDoubleClick" PreviewKeyDown="GroupsGrid_PreviewKeyDown" PreviewMouseRightButtonDown="GroupsGrid_PreviewMouseRightButtonDown">
                                                     <DataGrid.ContextMenu>
                                                         <ContextMenu>
                                                             <MenuItem Header="复制" Click="GroupCopy_Click"/>

@@ -17,7 +17,7 @@ namespace NavigatorHMI.CommandLayer
             {
                 ["user_name"] = new() { Type = "string", Required = true, Description = "用户名" },
                 ["password"] = new() { Type = "string", Required = true, Description = "密码（SHA256 哈希存储）" },
-                ["group_name"] = new() { Type = "string", DefaultValue = "访客", Description = "所属组（管理员/操作员/访客）" },
+                ["group_name"] = new() { Type = "string", DefaultValue = "访客", Description = "所属组（管理员/操作员/访客）", KeepInCompact = true },   // A1：compact schema 可见——AI 创建用户时可指定组（否则只能默认访客）
             }
         };
 
@@ -37,7 +37,7 @@ namespace NavigatorHMI.CommandLayer
                 return CommandResult.Fail("DUPLICATE", $"用户 \"{name}\" 已存在");
             var group = p.GetValueOrDefault("group_name")?.ToString() ?? "访客";
             if (project.Groups.Count > 0 && !project.Groups.Any(g => g.Name == group))
-                return CommandResult.Fail("NOT_FOUND", $"用户组 \"{group}\" 不存在");
+                return CommandResult.Fail("NOT_FOUND", $"用户组 \"{group}\" 不存在，可用：{string.Join("/", project.Groups.Select(g => g.Name))}");   // A1：错误附可用组清单——AI 设错组名时模型可自纠
             project.Users.Add(new UserAccount
             {
                 UserName = name,
@@ -84,7 +84,7 @@ namespace NavigatorHMI.CommandLayer
                 return CommandResult.Fail("DUPLICATE", $"用户名 \"{newName}\" 已被占用");
             var newGroup = (p.GetValueOrDefault("new_group_name")?.ToString() ?? "").Trim();
             if (newGroup.Length > 0 && project.Groups.Count > 0 && !project.Groups.Any(g => g.Name == newGroup))
-                return CommandResult.Fail("NOT_FOUND", $"用户组 \"{newGroup}\" 不存在");
+                return CommandResult.Fail("NOT_FOUND", $"用户组 \"{newGroup}\" 不存在，可用：{string.Join("/", project.Groups.Select(g => g.Name))}");   // A1 一致性：错误附可用组清单——AI 设错组名时可自纠
             // 全部校验通过后统一落库
             if (newName.Length > 0 && newName != name) user.UserName = newName;
             var newPass = p.GetValueOrDefault("new_password")?.ToString() ?? "";

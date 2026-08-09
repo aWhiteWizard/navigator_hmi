@@ -473,10 +473,10 @@ namespace NavigatorHMI.Views
                 _viewModel.UpdateGroupCommand(g.Name, dlg.GroupName.Trim(), dlg.GetPermissions());
         }
 
-        /// <summary>P2-1/任务10：组表格 DELETE 键批量删除选中（一次确认；预设组命令层 BLOCKED 跳过并汇总）。</summary>
-        private void GroupsGrid_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        /// <summary>A2：组表格 DELETE 键批量删除选中（一次确认；预设组命令层 BLOCKED 跳过并汇总）。PreviewKeyDown 隧道事件——KeyDown 冒泡会被 DataGridCell 内置删除命令拦截（原 KeyDown 失效根因）；仅无修饰键时触发（对齐窗口级 Delete 分支）。</summary>
+        private void GroupsGrid_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
-            if (e.Key != Key.Delete) return;
+            if (e.Key != Key.Delete || Keyboard.Modifiers != ModifierKeys.None) return;
             if (sender is not System.Windows.Controls.DataGrid dg || dg.SelectedItems.Count == 0) return;
             var groups = dg.SelectedItems.OfType<UserGroup>().ToList();
             if (System.Windows.MessageBox.Show($"确定删除选中的 {groups.Count} 个用户组吗？（预设组不可删）", "用户组",
@@ -1926,16 +1926,16 @@ namespace NavigatorHMI.Views
             }
 
             if (e.Key == Key.Z && Keyboard.Modifiers == ModifierKeys.Control && !shift
-                && _viewModel.UserActive && IsFocusInManagerControl())
-            { _viewModel.UndoUser(); e.Handled = true; return; }   // 用户/组撤销（用户面板焦点优先于列表）
+                && _viewModel.UserActive && _viewModel.UndoUser())
+            { e.Handled = true; return; }   // A3：用户/组撤销——按「用户管理 Tab 页面激活」路由（不再要求焦点在管理器控件内：AI 操作后焦点在侧边栏也能撤）；栈空返回 false 不拦截，落到画面撤销/KeyBinding
             if (((e.Key == Key.Y && ctrl) || (e.Key == Key.Z && ctrl && shift))
-                && _viewModel.UserActive && IsFocusInManagerControl())
-            { _viewModel.RedoUser(); e.Handled = true; return; }   // 用户/组重做
+                && _viewModel.UserActive && _viewModel.RedoUser())
+            { e.Handled = true; return; }   // 用户/组重做
             if (e.Key == Key.Z && Keyboard.Modifiers == ModifierKeys.Control && !shift
-                && IsFocusInManagerControl())
-            { _listManagerVM.UndoList(); e.Handled = true; return; }   // 列表项撤销（焦点在列表管理器时拦截，空栈也不穿透到画面撤销）
+                && !_viewModel.UserActive && IsFocusInManagerControl())
+            { _listManagerVM.UndoList(); e.Handled = true; return; }   // 列表项撤销（焦点在列表管理器时拦截，空栈也不穿透到画面撤销；!UserActive 保证用户页激活时空栈统一落到画面 KeyBinding——行为与焦点位置无关）
             if (((e.Key == Key.Y && ctrl) || (e.Key == Key.Z && ctrl && shift))
-                && IsFocusInManagerControl())
+                && !_viewModel.UserActive && IsFocusInManagerControl())
             { _listManagerVM.RedoList(); e.Handled = true; return; }   // 列表项重做
             if (e.Key == Key.Delete && none && !IsFocusInManagerControl())
             {
