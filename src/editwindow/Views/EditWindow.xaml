@@ -11,6 +11,7 @@
         mc:Ignorable="d"
         WindowState="Maximized"
         Closing="EditWindow_Closing"
+        SizeChanged="EditWindow_SizeChanged"
         PreviewKeyDown="EditWindow_PreviewKeyDown"
         Title="NavigatorHMI" Height="450" Width="800">
     <Window.Resources>
@@ -1920,8 +1921,8 @@
         </avalon:DockingManager>
 
         <!-- ═══ AI 助手：悬浮按钮（任务11 退回内嵌）+ 右侧侧边栏 ═══ -->
-        <Button x:Name="AiFabBtn" Grid.RowSpan="99" Width="46" Height="46" HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                Margin="0,0,16,26" Command="{Binding ToggleAiPanelCommand}" ToolTip="AI 助手（拖动可移动位置）"
+        <Button x:Name="AiFabBtn" Grid.Row="3" Panel.ZIndex="1000" Width="46" Height="46" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                Margin="0,0,16,26" ToolTip="AI 助手（拖动可移动位置）"
                 Background="#2D2D30" Foreground="White" BorderThickness="0" Cursor="Hand"
                 PreviewMouseLeftButtonDown="AiFab_MouseDown" PreviewMouseMove="AiFab_MouseMove" PreviewMouseLeftButtonUp="AiFab_MouseUp">
             <Button.Template>

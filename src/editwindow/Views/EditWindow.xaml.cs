@@ -1205,17 +1205,31 @@ namespace NavigatorHMI.Views
         private void AiBallToggle_Unchecked(object sender, RoutedEventArgs e)
             => AiFabBtn.Visibility = Visibility.Collapsed;
 
-        // ── 任务11 内嵌悬浮球拖动（退回 0cbcb1f 逻辑） ──
+        // ── 任务11 内嵌悬浮球拖动（退回 0cbcb1f 逻辑）+ Z1 锚定/钳制 ──
         private bool _aiFabDragging;
         private Point _aiFabMouseDownPos;
         private Thickness _aiFabDownMargin;
 
-        /// <summary>AI 悬浮按钮：按下记录起点并捕获鼠标（不立即移动；拖动/点击在 Move/Up 判定）。</summary>
+        /// <summary>Z1：把 AiFab 的绝对位置（HorizontalAlignment=Left/Top + Margin）钳制回可视区——拖动后窗口缩小/状态切换不漂出窗外。
+        /// 基准：AiFab 位于 Grid.Row=3 单元格（与 DockManager 同格），Margin 相对单元格左上角——用 DockManager 作基准（窗口客户区基准会因上方 Auto 行高错位 ~60px）。</summary>
+        private void ClampAiFabToView()
+        {
+            if (AiFabBtn == null || AiFabBtn.HorizontalAlignment != HorizontalAlignment.Left) return;   // 未拖动过（锚定右下角）不处理
+            var w = Math.Max(0, DockManager.ActualWidth - AiFabBtn.ActualWidth);
+            var h = Math.Max(0, DockManager.ActualHeight - AiFabBtn.ActualHeight);
+            var m = AiFabBtn.Margin;
+            AiFabBtn.Margin = new Thickness(Math.Min(Math.Max(0, m.Left), w), Math.Min(Math.Max(0, m.Top), h), 0, 0);
+        }
+
+        /// <summary>Z1：窗口尺寸变化时钳制 AiFab 位置（拖动后的绝对 Margin 不随窗口自适应，缩小时漂出窗外）。</summary>
+        private void EditWindow_SizeChanged(object sender, SizeChangedEventArgs e) => ClampAiFabToView();
+
+        /// <summary>AI 悬浮按钮：按下记录起点并捕获鼠标（不立即移动；拖动/点击在 Move/Up 判定）。基准 = DockManager（与 AiFab 同 Grid 单元格，Margin/GetPosition 同一坐标系）。</summary>
         private void AiFab_MouseDown(object sender, MouseButtonEventArgs e)
         {
             if (sender is not System.Windows.Controls.Button btn) return;
             _aiFabDragging = false;
-            _aiFabMouseDownPos = e.GetPosition(this);
+            _aiFabMouseDownPos = e.GetPosition(DockManager);
             _aiFabDownMargin = btn.Margin;
             btn.CaptureMouse();
             e.Handled = true;
@@ -1224,7 +1238,7 @@ namespace NavigatorHMI.Views
         private void AiFab_MouseMove(object sender, MouseEventArgs e)
         {
             if (sender is not System.Windows.Controls.Button btn || !btn.IsMouseCaptured) return;
-            var pos = e.GetPosition(this);
+            var pos = e.GetPosition(DockManager);
             var dx = pos.X - _aiFabMouseDownPos.X;
             var dy = pos.Y - _aiFabMouseDownPos.Y;
             if (!_aiFabDragging && (Math.Abs(dx) > 5 || Math.Abs(dy) > 5))
@@ -1237,7 +1251,12 @@ namespace NavigatorHMI.Views
             }
             if (_aiFabDragging)
             {
-                btn.Margin = new Thickness(_aiFabDownMargin.Left + dx, _aiFabDownMargin.Top + dy, 0, 0);
+                // Z1：拖动实时钳制在单元格可视区内（不漂出窗口）
+                var maxW = Math.Max(0, DockManager.ActualWidth - btn.ActualWidth);
+                var maxH = Math.Max(0, DockManager.ActualHeight - btn.ActualHeight);
+                btn.Margin = new Thickness(
+                    Math.Min(Math.Max(0, _aiFabDownMargin.Left + dx), maxW),
+                    Math.Min(Math.Max(0, _aiFabDownMargin.Top + dy), maxH), 0, 0);
             }
             e.Handled = true;
         }
@@ -1245,11 +1264,12 @@ namespace NavigatorHMI.Views
         private void AiFab_MouseUp(object sender, MouseButtonEventArgs e)
         {
             if (sender is not System.Windows.Controls.Button btn) return;
-            var pos = e.GetPosition(this);
+            var pos = e.GetPosition(DockManager);   // 与 Down/Move 同基准（Grid.Row=3 单元格）——混用窗口基准会使 moved 恒含 ~58px 偏移导致单击失效
             var moved = Math.Abs(pos.X - _aiFabMouseDownPos.X) + Math.Abs(pos.Y - _aiFabMouseDownPos.Y);
             var wasDragging = _aiFabDragging;
             _aiFabDragging = false;
             btn.ReleaseMouseCapture();
+            ClampAiFabToView();   // Z1：松手钳制一次（防边缘越界残留）
             if (!wasDragging && moved < 10 && _viewModel.ToggleAiPanelCommand.CanExecute(null))
                 _viewModel.ToggleAiPanelCommand.Execute(null);
             e.Handled = true;
