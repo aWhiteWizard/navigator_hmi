@@ -448,7 +448,7 @@ public static class Program
 
     /// <summary>
     /// 参数安全净化。三级分类:
-    /// - 路径类(允许 / \): 只拦 .. 和绝对路径
+    /// - 路径类(允许 / \): 只拦 .. 和绝对路径（connection/project 豁免绝对路径——connection 承载 JSON 设备地址、project 为工程文件任意目录场景）
     /// - 标识符类: 拦 .. / \
     /// - 自由文本类(描述/消息等): 只拦 ..
     /// </summary>
@@ -470,7 +470,8 @@ public static class Program
             if (hasUpDir)
                 { PrintError($"参数 --{key} 包含非法字符 '..' : {value}"); Environment.Exit(1); }
             // connection 接受 JSON 格式，允许绝对路径（如 /dev/ttyUSB0 应包在 JSON 内）
-            if (Path.IsPathRooted(value) && key is not "connection")
+            // #5：project 放开绝对路径（工程文件在任意目录是正常使用场景；'..' 已单独拦截防目录逃逸）
+            if (Path.IsPathRooted(value) && key is not ("connection" or "project"))
                 { PrintError($"参数 --{key} 不允许绝对路径: {value}"); Environment.Exit(1); }
         }
         else if (isNameParam && (hasUpDir || hasSeparator))

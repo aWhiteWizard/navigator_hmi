@@ -3322,7 +3322,7 @@ namespace NavigatorHMI.Views
                 if (isPathParam)
                 {
                     if (hasUpDir) throw new ArgumentException($"参数 --{key} 包含 '..' : {value}");
-                    if (Path.IsPathRooted(value) && key is not "connection") throw new ArgumentException($"参数 --{key} 不允许绝对路径: {value}");
+                    if (Path.IsPathRooted(value) && key is not ("connection" or "project")) throw new ArgumentException($"参数 --{key} 不允许绝对路径: {value}");   // #5：project 豁免绝对路径（与 Program.cs SanitizeParam 同步——两端白名单逐 key 一致）
                 }
                 else if (isNameParam && (hasUpDir || hasSep))
                 {
