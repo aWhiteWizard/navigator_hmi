@@ -66,23 +66,7 @@ public class WindowSplitTests
         Assert.Equal(WindowType.RobotList, ((WindowWidget)p2.Screens[0].Widgets[0]).Type);
     }
 
-    [Fact]
-    public void 属性面板切Type_默认标题联动()
-    {
-        var ww = new WindowWidget { Type = WindowType.UserView, Title = "用户" };   // 默认标题
-        var vm = new PropertyViewModel { SelectedWidget = ww };
-        vm.WindowTypeName = "AlarmView";
-        Assert.Equal(WindowType.AlarmView, ww.Type);
-        Assert.Equal("报警", ww.Title);   // 未改过标题 → 联动默认
-    }
-
-    [Fact]
-    public void 属性面板切Type_自定义标题不联动()
-    {
-        var ww = new WindowWidget { Type = WindowType.UserView, Title = "我的用户页" };   // 用户自定义
-        var vm = new PropertyViewModel { SelectedWidget = ww };
-        vm.WindowTypeName = "RobotList";
-        Assert.Equal(WindowType.RobotList, ww.Type);
-        Assert.Equal("我的用户页", ww.Title);   // 自定义标题保留
-    }
+    // W2：属性面板不再提供类型切换（用户 2026-08-09 拍板——类型由创建时决定，三个按钮分别放置三种窗口控件）——
+    // 原「属性面板切Type_默认标题联动 / 自定义标题不联动」两测试随 WindowTypeName 联动逻辑一并移除；
+    // Type 保持创建时值由上方序列化测试覆盖。
 }

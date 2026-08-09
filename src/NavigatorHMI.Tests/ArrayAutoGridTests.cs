@@ -33,14 +33,14 @@ public class ArrayAutoGridTests
         var (_, svc, s) = Setup(4);
         var r = RunAuto(svc, "b1,b2,b3,b4");
         Assert.True(r.Success, $"{r.ErrorCode} {r.ErrorMessage}");
-        // cols=2 rows=2：b3 在第 2 行第 1 列（中心点 (0, 1*80)，减半宽后 X 钳 0、Y=60）
+        // cols=2 rows=2：W3 起点=左上角语义——b3 第 2 行第 1 列左上角 (0, 1*80)
         var b3 = (ButtonWidget)s.Widgets[2];
         Assert.Equal(0, b3.X, 0.5);
-        Assert.Equal(60, b3.Y, 0.5);
-        // b4 在第 2 行第 2 列（中心点 (1*120, 1*80) → (70, 60)）
+        Assert.Equal(80, b3.Y, 0.5);
+        // b4 第 2 行第 2 列左上角 (1*120, 1*80)
         var b4 = (ButtonWidget)s.Widgets[3];
-        Assert.Equal(70, b4.X, 0.5);
-        Assert.Equal(60, b4.Y, 0.5);
+        Assert.Equal(120, b4.X, 0.5);
+        Assert.Equal(80, b4.Y, 0.5);
     }
 
     [Fact]
@@ -49,9 +49,9 @@ public class ArrayAutoGridTests
         var (_, svc, s) = Setup(2);
         var r = RunAuto(svc, "b1,b2");
         Assert.True(r.Success, $"{r.ErrorCode} {r.ErrorMessage}");
-        // cols=ceil(sqrt(2))=2, rows=ceil(2/2)=1：b2 在第 1 行第 2 列（中心点 (1*120, 0) → (70, 0)）
+        // cols=ceil(sqrt(2))=2, rows=ceil(2/2)=1：b2 第 1 行第 2 列左上角 (1*120, 0)
         var b2 = (ButtonWidget)s.Widgets[1];
-        Assert.Equal(70, b2.X, 0.5);
+        Assert.Equal(120, b2.X, 0.5);
         Assert.Equal(0, b2.Y, 0.5);
     }
 
@@ -69,9 +69,9 @@ public class ArrayAutoGridTests
             ["spacing_y"] = "80",
         });
         Assert.True(r.Success, $"{r.ErrorCode} {r.ErrorMessage}");
-        // 显式 1×4：b3 在第 3 行（中心点 (0, 2*80) → (0, 140)）
+        // 显式 1×4：b3 第 3 行左上角 (0, 2*80)
         var b3 = (ButtonWidget)s.Widgets[2];
         Assert.Equal(0, b3.X, 0.5);
-        Assert.Equal(140, b3.Y, 0.5);
+        Assert.Equal(160, b3.Y, 0.5);
     }
 }

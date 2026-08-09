@@ -19,7 +19,7 @@
             <!-- 内容：按 WindowType 三预览 -->
             <Grid Grid.Row="1">
                 <!-- UserView：未登录示例（头像占位+未登录+登录按钮） -->
-                <StackPanel Visibility="{Binding IsUserView, RelativeSource={RelativeSource Self}, Converter={StaticResource B2V}}" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel Visibility="{Binding IsUserView, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Converter={StaticResource B2V}}" HorizontalAlignment="Center" VerticalAlignment="Center">
                     <Border Width="40" Height="40" CornerRadius="20" Background="#C8C8C8" HorizontalAlignment="Center">
                         <TextBlock Text="👤" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
@@ -29,7 +29,7 @@
                     <Button Content="登 录" Width="70" Height="22" Margin="0,6,0,0" FontSize="10"/>
                 </StackPanel>
                 <!-- AlarmView：2-3 条示例报警（级别色标） -->
-                <StackPanel Visibility="{Binding IsAlarmView, RelativeSource={RelativeSource Self}, Converter={StaticResource B2V}}" Margin="4">
+                <StackPanel Visibility="{Binding IsAlarmView, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Converter={StaticResource B2V}}" Margin="4">
                     <StackPanel Orientation="Horizontal" Margin="0,2">
                         <Rectangle Width="4" Height="12" Fill="#E81123" Margin="0,0,4,0"/>
                         <TextBlock Text="12:03:05  紧急  压力超限" FontSize="10"/>
@@ -43,10 +43,10 @@
                         <TextBlock Text="11:58:40  警告  液位偏低" FontSize="10"/>
                     </StackPanel>
                     <TextBlock Text="暂无活动报警" FontSize="10" Foreground="Gray" Margin="0,8,0,0"
-                               Visibility="{Binding IsAlarmViewEmpty, RelativeSource={RelativeSource Self}, Converter={StaticResource B2V}}"/>
+                               Visibility="{Binding IsAlarmViewEmpty, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Converter={StaticResource B2V}}"/>
                 </StackPanel>
                 <!-- RobotList：3 张示例卡片（不同大类图标） -->
-                <StackPanel Visibility="{Binding IsRobotList, RelativeSource={RelativeSource Self}, Converter={StaticResource B2V}}" Margin="4">
+                <StackPanel Visibility="{Binding IsRobotList, RelativeSource={RelativeSource AncestorType={x:Type UserControl}}, Converter={StaticResource B2V}}" Margin="4">
                     <StackPanel Orientation="Horizontal">
                         <Border Width="70" Height="76" BorderBrush="#999" BorderThickness="1" CornerRadius="3" Margin="0,0,4,0" Background="White">
                             <StackPanel>

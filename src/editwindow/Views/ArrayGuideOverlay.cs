@@ -9,7 +9,8 @@ namespace NavigatorHMI.Views
     /// <summary>
     /// 阵列辅助线落点标记覆盖层：蓝色勾边透明空心方块 + 序号数字（1、2、3…）。
     /// 自绘（OnRender）实现，避免动态 Children.Add 在 AvalonDock/ScrollViewer 下不可见的问题。
-    /// 方块中心 = 阵列中心点（网格线交点）；数字默认在方块右上方，
+    /// 方块位置 = CalcPositions 返回的交点：矩形非中心起点模式下=起点（第一个控件左上角），
+    /// 中心起点/圆形模式下=控件中心（W3 用户拍板，与命令层落位一致）；数字默认在方块右上方，
     /// 若与其他数字矩形重叠（控件/点重合场景）则按候选位置序列避让，尽可能保证序号可读。
     /// </summary>
     public class ArrayGuideOverlay : FrameworkElement

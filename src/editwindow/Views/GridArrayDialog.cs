@@ -42,7 +42,7 @@ namespace NavigatorHMI.Views
 
             if (!isCircle)
             {
-                root.Children.Add(MakeRow("中心 X:", out _startX, defCx.ToString("F0"))); root.Children.Add(MakeRow("中心 Y:", out _startY, defCy.ToString("F0")));
+                root.Children.Add(MakeRow("起点 X:", out _startX, defCx.ToString("F0"))); root.Children.Add(MakeRow("起点 Y:", out _startY, defCy.ToString("F0")));   // W3：起点 = 第一个控件左上角位置（用户 2026-08-09 拍板）
                 root.Children.Add(MakeRow("列数:", out _cols, "3")); root.Children.Add(MakeRow("行数:", out _rows, "2"));
                 root.Children.Add(MakeRow("列距:", out _sx, "120")); root.Children.Add(MakeRow("行距:", out _sy, "80"));
                 _cols.TextChanged += (_, _) => InvokePreview(); _rows.TextChanged += (_, _) => InvokePreview();

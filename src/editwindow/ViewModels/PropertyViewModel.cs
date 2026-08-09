@@ -327,7 +327,6 @@ namespace NavigatorHMI.ViewModels
                             case ProgressBarWidget pb: ProgressValue = pb.Value; ProgressMin = pb.Min; ProgressMax = pb.Max; ProgressFillColor = pb.FillColor; ProgressFillStyle = pb.FillStyle; break;
                 case DateTimeWidget dt: DateTimeText = dt.Text; DateTimeFormat = dt.Format; break;
                 case WindowWidget ww:
-                    WindowTypeName = ww.Type.ToString();
                     WindowTitle = ww.Title;
                     WindowShowTitleBar = ww.ShowTitleBar;
                     WindowFillColor = ww.FillColor;
@@ -446,9 +445,6 @@ namespace NavigatorHMI.ViewModels
                     if (_selectedWidget is LineWidget line2) LineY2 = line2.Y2;
                     break;
                 // W4：WindowWidget 外部改模型 → 面板实时同步（CLI/Undo）
-                case nameof(WindowWidget.Type):
-                    if (_selectedWidget is WindowWidget wwt) WindowTypeName = wwt.Type.ToString();
-                    break;
                 case nameof(WindowWidget.Title):
                     if (_selectedWidget is WindowWidget wt) WindowTitle = wt.Title;
                     break;
@@ -1455,16 +1451,6 @@ namespace NavigatorHMI.ViewModels
         private string _dateTimeFormat = "yyyy-MM-dd HH:mm:ss";
 
         // ═══ W4 窗口控件属性 ═══
-        private string _windowTypeName = "UserView";
-        public string WindowTypeName { get => _windowTypeName; set { if (_windowTypeName != value) { _windowTypeName = value; OnPropertyChanged(); if (!_syncingFromModel && _selectedWidget is WindowWidget ww && Enum.TryParse<WindowType>(value, out var t)) { BeforeModify?.Invoke(); var oldType = ww.Type; ww.Type = t; if (ww.Title == DefaultTitle(oldType)) { var newTitle = DefaultTitle(t); ww.Title = newTitle; _syncingFromModel = true; try { WindowTitle = newTitle; } finally { _syncingFromModel = false; } } } } } }
-
-        /// <summary>任务A 窗口控件默认标题（与 Creator/Handler 映射一致；切 Type 时未改过标题才联动）。</summary>
-        private static string DefaultTitle(WindowType type) => type switch
-        {
-            WindowType.AlarmView => "报警",
-            WindowType.RobotList => "机器人列表",
-            _ => "用户",
-        };
         private string _windowTitle = "用户";
         public string WindowTitle { get => _windowTitle; set { if (_windowTitle != value) { _windowTitle = value; OnPropertyChanged(); if (!_syncingFromModel && _selectedWidget is WindowWidget ww) { BeforeModify?.Invoke(); ww.Title = value; } } } }
         private bool _windowShowTitleBar = true;

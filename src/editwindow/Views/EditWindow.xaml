@@ -827,12 +827,6 @@
             <Separator Margin="4,2"/>
             <TextBlock Text="窗口" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <Label Grid.Column="0" Content="类型:" Style="{StaticResource PropLabel}"/>
-                <ComboBox Grid.Column="1" SelectedValue="{Binding WindowTypeName, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" Style="{StaticResource PropComboBox}">
-                    <ComboBoxItem Content="UserView"/><ComboBoxItem Content="AlarmView"/><ComboBoxItem Content="RobotList"/>
-                </ComboBox>
-            </Grid>
-            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="标题:" Style="{StaticResource PropLabel}"/>
                 <TextBox Grid.Column="1" Text="{Binding WindowTitle, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" KeyDown="PropField_KeyDown"/>
             </Grid>
@@ -1587,7 +1581,7 @@
                                 <!-- W3 用户面板内容（用户 Tab 激活时显示，与画布同一位置切换；三子页：用户名设置/用户组策略/用户安全设置） -->
                                 <Grid Grid.Row="1" Margin="3"
                                       Visibility="{Binding DataContext.UserActive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
-                                    <TabControl SelectedIndex="{Binding DataContext.UserPanelPage, RelativeSource={RelativeSource AncestorType=Window}}">
+                                    <TabControl x:Name="UserPanelTabs" SelectedIndex="{Binding DataContext.UserPanelPage, RelativeSource={RelativeSource AncestorType=Window}}">
                                         <!-- 页 0：用户名设置（用户 CRUD） -->
                                         <TabItem Header="用户名设置">
                                             <Grid Margin="2">
@@ -1691,7 +1685,7 @@
                                 <!-- 列表管理内容（Tab 激活时显示，与画布同一位置切换；Visibility 从 Window.DataContext 取防 DataContext 覆盖） -->
                                 <Grid Grid.Row="1" Margin="3" DataContext="{Binding ListManagerVM, RelativeSource={RelativeSource AncestorType=Window}}"
                                       Visibility="{Binding DataContext.ListManagerActive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
-                                    <TabControl SelectedIndex="{Binding DataContext.ListManagerSelectedIndex, RelativeSource={RelativeSource AncestorType=Window}}">
+                                    <TabControl x:Name="ListManagerTabs" SelectedIndex="{Binding DataContext.ListManagerSelectedIndex, RelativeSource={RelativeSource AncestorType=Window}}">
                                         <!-- 文本列表页 -->
                                         <TabItem Header="文本列表">
                                             <Grid Margin="2">

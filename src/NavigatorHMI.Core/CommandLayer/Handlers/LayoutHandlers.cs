@@ -114,12 +114,12 @@ namespace NavigatorHMI.CommandLayer.Handlers
         }
     }
 
-    /// <summary>阵列排列控件（矩形网格 / 圆形轨迹，中心点基准）。</summary>
+    /// <summary>阵列排列控件（矩形网格 / 圆形轨迹；W3：矩形交点=起点（第一个控件左上角），圆形交点=控件中心）。</summary>
     public class ArrayLayoutHandler : ICommandHandler
     {
         public CommandDefinition Definition => new()
         {
-            Name = "array_layout", Description = "阵列排列多个控件（矩形: 起始中心/列行数/间距；圆形: 圆心/半径/起止角）",
+            Name = "array_layout", Description = "阵列排列多个控件（矩形: 起点(第一个控件左上角)/列行数/间距；圆形: 圆心/半径/起止角）",
             Parameters = new()
             {
                 ["screen_name"] = new() { Type = "string", Required = true },
@@ -200,7 +200,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
             double startX = GetDbl(parameters, "start_x", 0);
             double startY = GetDbl(parameters, "start_y", 0);
             // P3-3：center_start=true → 起点（第一个控件中心）在画面中心（忽略 start_x/start_y；AI「以画面中心为起点」）
-            if (parameters.GetValueOrDefault("center_start") is true or "true" or "True" or "1")
+            bool centerStart = parameters.GetValueOrDefault("center_start") is true or "true" or "True" or "1";
+            if (centerStart)
             {
                 startX = maxW0 / 2.0;
                 startY = maxH0 / 2.0;
@@ -209,14 +210,18 @@ namespace NavigatorHMI.CommandLayer.Handlers
             var positions = LayoutMath.CalcPositions(isCircle, widgets.Count, cols, rows, startX, startY, sx, sy,
                 cx, cy, radius, startAngle, endAngle);
 
-            // 中心点基准落位：中心点 - 自身宽高/2，再钳制到画布（与 GUI 预览一致）
+            // W3 落位语义（用户 2026-08-09 拍板）：矩形阵列 start_x/start_y = 第一个控件**左上角**（不减半，落 X=startX/Y=startY）；
+            // center_start=true 保留中心语义（起点=第一个控件中心，落位中心点-宽高/2 居中）；
+            // 圆形阵列恒为中心语义（圆周点=控件中心，始终减半）——W3 矩形语义不得波及圆形（否则中心偏离圆周 +w/2,+h/2 且与预览错位）
             double maxW = screen.Width > 0 ? screen.Width : project.DeviceWidth;
             double maxH = screen.Height > 0 ? screen.Height : project.DeviceHeight;
             for (int i = 0; i < Math.Min(positions.Count, widgets.Count); i++)
             {
                 var w = widgets[i];
-                w.X = Math.Max(0, Math.Min(positions[i].X - w.Width / 2, maxW - w.Width));
-                w.Y = Math.Max(0, Math.Min(positions[i].Y - w.Height / 2, maxH - w.Height));
+                double dx = (isCircle || centerStart) ? w.Width / 2 : 0;
+                double dy = (isCircle || centerStart) ? w.Height / 2 : 0;
+                w.X = Math.Max(0, Math.Min(positions[i].X - dx, maxW - w.Width));
+                w.Y = Math.Max(0, Math.Min(positions[i].Y - dy, maxH - w.Height));
             }
             return CommandResult.Ok(new { count = widgets.Count, mode = parameters["mode"] });
         }

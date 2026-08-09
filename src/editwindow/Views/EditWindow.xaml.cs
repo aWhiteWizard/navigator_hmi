@@ -1860,13 +1860,15 @@ namespace NavigatorHMI.Views
         /// - Delete 键：删除当前选中的 Widget
         /// - ESC 键：关闭属性窗口
         /// </summary>
-        /// <summary>键盘焦点是否在管理器表格/列表内（DataGrid/ListBox）——是则 Ctrl+A/Delete 交给控件级 handler（表格多选/删除），窗口级画布快捷键不拦截。</summary>
-        private static bool IsFocusInManagerControl()
+        /// <summary>键盘焦点是否在管理器表格/列表内（DataGrid/ListBox，或用户面板子页 TabControl）——是则 Ctrl+A/Delete 交给控件级 handler（表格多选/删除），窗口级画布快捷键不拦截。Z3 收窄：TabControl 仅用户面板子页命中（画布在 AvalonDock 文档区——DocumentPane 也是 TabControl，一刀切会让画布快捷键失效）。</summary>
+        private bool IsFocusInManagerControl()
         {
             var f = System.Windows.Input.Keyboard.FocusedElement as System.Windows.DependencyObject;
             while (f != null)
             {
-                if (f is System.Windows.Controls.DataGrid or System.Windows.Controls.ListBox or System.Windows.Controls.TabControl) return true;   // TabControl：用户面板 Tab（问题 1/9——焦点在按钮/空白也命中撤销路由）
+                if (f is System.Windows.Controls.DataGrid or System.Windows.Controls.ListBox) return true;
+                // Z3：TabControl 仅用户面板子页 / 列表管理器命中（其余 TabControl 如画布 DocumentPane 不命中，画布快捷键才可用）
+                if (f is System.Windows.Controls.TabControl tab && (ReferenceEquals(tab, UserPanelTabs) || ReferenceEquals(tab, ListManagerTabs))) return true;
                 f = System.Windows.Media.VisualTreeHelper.GetParent(f);
             }
             return false;
@@ -2614,8 +2616,19 @@ namespace NavigatorHMI.Views
             if (selected == null || selected.Count < 2) return;
 
             var sorted = selected.OrderBy(w => ExtractIdNumber(w.ObjectName)).ToList();
-            double cx = Math.Min(Math.Max(sorted.Average(w => w.X + w.Width / 2), 50), (_viewModel.DeviceWidth - 50));
-            double cy = Math.Min(Math.Max(sorted.Average(w => w.Y + w.Height / 2), 50), (_viewModel.DeviceHeight - 50));
+            double cx, cy;
+            if (isCircle)
+            {
+                // 圆形：默认圆心 = 选中群平均中心
+                cx = Math.Min(Math.Max(sorted.Average(w => w.X + w.Width / 2), 50), (_viewModel.DeviceWidth - 50));
+                cy = Math.Min(Math.Max(sorted.Average(w => w.Y + w.Height / 2), 50), (_viewModel.DeviceHeight - 50));
+            }
+            else
+            {
+                // W3：矩形阵列起点=第一个控件左上角——默认值取选中群包络左上角（贴合原选中位置，避免阵列整体向右下偏移）
+                cx = Math.Max(0, sorted.Min(w => w.X));
+                cy = Math.Max(0, sorted.Min(w => w.Y));
+            }
 
             GridArrayDialog? dialog = null;
             dialog = new GridArrayDialog(isCircle, sorted.Count, cx, cy, () =>
@@ -2722,7 +2735,8 @@ namespace NavigatorHMI.Views
             ArrayGuideShape.Data = group;
             ArrayGuideShape.Visibility = Visibility.Visible;
 
-            // 落点标记层（自绘覆盖层）：蓝色空心方块 + 序号数字，中心 = CalcPositions 返回的中心点（网格线交点）
+            // 落点标记层（自绘覆盖层）：蓝色空心方块 + 序号数字，位置 = CalcPositions 返回的交点
+            // 语义：矩形非中心起点模式下交点=起点（第一个控件左上角）；中心起点/圆形模式下交点=控件中心（W3 用户拍板）
             if (ArrayGuideOverlay != null)
             {
                 ArrayGuideOverlay.SetMarks(positions);

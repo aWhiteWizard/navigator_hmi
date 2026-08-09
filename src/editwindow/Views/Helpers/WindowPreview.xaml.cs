@@ -46,7 +46,7 @@ namespace NavigatorHMI.Views.Helpers
             SetValue(IsAlarmViewEmptyProperty, false);   // 设计态恒显示示例（空提示仅运行时）
         }
 
-        // 可见性 DP（XAML RelativeSource Self 绑定；Type 变更时 NotifyTypeChanged 刷新）
+        // 可见性 DP（XAML 绑定 RelativeSource AncestorType=UserControl，指向本 UserControl 的 DP；Type 变更时 NotifyTypeChanged 刷新）
         public static readonly DependencyProperty IsUserViewProperty = DependencyProperty.Register(nameof(IsUserView), typeof(bool), typeof(WindowPreview), new PropertyMetadata(false));
         public bool IsUserView => (bool)GetValue(IsUserViewProperty);
         public static readonly DependencyProperty IsAlarmViewProperty = DependencyProperty.Register(nameof(IsAlarmView), typeof(bool), typeof(WindowPreview), new PropertyMetadata(false));
@@ -54,7 +54,7 @@ namespace NavigatorHMI.Views.Helpers
         public static readonly DependencyProperty IsRobotListProperty = DependencyProperty.Register(nameof(IsRobotList), typeof(bool), typeof(WindowPreview), new PropertyMetadata(false));
         public bool IsRobotList => (bool)GetValue(IsRobotListProperty);
         public static readonly DependencyProperty IsAlarmViewEmptyProperty = DependencyProperty.Register(nameof(IsAlarmViewEmpty), typeof(bool), typeof(WindowPreview), new PropertyMetadata(false));
-        public bool IsAlarmViewEmpty => false;   // 设计态恒显示示例（空提示仅运行时）
+        public bool IsAlarmViewEmpty => (bool)GetValue(IsAlarmViewEmptyProperty);   // 设计态恒 false（示例常显；空提示仅运行时）
 
         public WindowPreview()
         {
