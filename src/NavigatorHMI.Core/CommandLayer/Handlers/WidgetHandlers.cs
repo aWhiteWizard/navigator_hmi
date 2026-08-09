@@ -12,10 +12,10 @@ namespace NavigatorHMI.CommandLayer.Handlers
             {
                 ["screen_name"] = new() { Type = "string", Required = true },
                 ["widget_type"] = new() { Type = "enum", Required = true, EnumValues = new[] { "button", "text", "rectangle", "label", "image", "numeric", "switch", "line", "circle", "ellipse", "iofield", "checkbox", "textlist", "textbox", "frame", "progressbar", "datetime", "window", "userview", "alarmview", "robotlist" }, Description = "控件类型（textbox 为 textlist 兼容别名；datetime 为日期时间控件；window 为窗口控件——用 --window-type 指定；userview/alarmview/robotlist 为三独立窗口控件）" },
-                ["x"] = new() { Type = "int", DefaultValue = 100 },
-                ["y"] = new() { Type = "int", DefaultValue = 100 },
-                ["width"] = new() { Type = "int", DefaultValue = 100 },
-                ["height"] = new() { Type = "int", DefaultValue = 40 },
+                ["x"] = new() { Type = "int", DefaultValue = 100, KeepInCompact = true },   // #3：AI 创建控件可指定位置
+                ["y"] = new() { Type = "int", DefaultValue = 100, KeepInCompact = true },   // #3：AI 创建控件可指定位置
+                ["width"] = new() { Type = "int", DefaultValue = 100, KeepInCompact = true },   // 🟡：AI 创建控件可指定尺寸
+                ["height"] = new() { Type = "int", DefaultValue = 40, KeepInCompact = true },   // 🟡：AI 创建控件可指定尺寸
                 ["bound_tag"] = new() { Type = "string", DefaultValue = "", Description = "绑定变量（可选，创建后立即绑定）" },
                 ["window_type"] = new() { Type = "enum", DefaultValue = "userview", EnumValues = new[] { "userview", "alarmview", "robotlist" }, Description = "window 类型的窗口种类（W1：UserView/AlarmView/RobotList）" },
                 ["center"] = new() { Type = "bool", DefaultValue = false, KeepInCompact = true, Description = "true 时置于画面中心（忽略 x/y；AI 指令「放在中心」用）" },
@@ -122,7 +122,12 @@ namespace NavigatorHMI.CommandLayer.Handlers
             if (!v.IsValid) return v;
             return WidgetHelper.ValidateNumericParams(p, "x", "y");
         }
-        public CommandResult Execute(HMIProject project, Dictionary<string, object?> p) => WidgetHelper.WithWidget(project, p, w => { w.X = Convert.ToDouble(p["x"] ?? 0); w.Y = Convert.ToDouble(p["y"] ?? 0); });
+        public CommandResult Execute(HMIProject project, Dictionary<string, object?> p) => WidgetHelper.WithWidget(project, p, w =>
+        {
+            // 🟡：未传的轴保持现值（AI 单轴移动不得把另一轴归 0）
+            if (p.TryGetValue("x", out var x) && x != null && !string.IsNullOrWhiteSpace(x.ToString())) w.X = Convert.ToDouble(x);
+            if (p.TryGetValue("y", out var y) && y != null && !string.IsNullOrWhiteSpace(y.ToString())) w.Y = Convert.ToDouble(y);
+        });
     }
 
     /// <summary>调整控件尺寸。</summary>
@@ -135,7 +140,12 @@ namespace NavigatorHMI.CommandLayer.Handlers
             if (!v.IsValid) return v;
             return WidgetHelper.ValidateNumericParams(p, "width", "height");
         }
-        public CommandResult Execute(HMIProject project, Dictionary<string, object?> p) => WidgetHelper.WithWidget(project, p, w => { w.Width = Convert.ToDouble(p["width"] ?? 0); w.Height = Convert.ToDouble(p["height"] ?? 0); });
+        public CommandResult Execute(HMIProject project, Dictionary<string, object?> p) => WidgetHelper.WithWidget(project, p, w =>
+        {
+            // 🟡：未传的尺寸保持现值（AI 单边调整不得把另一边归 0）
+            if (p.TryGetValue("width", out var wd) && wd != null && !string.IsNullOrWhiteSpace(wd.ToString())) w.Width = Convert.ToDouble(wd);
+            if (p.TryGetValue("height", out var ht) && ht != null && !string.IsNullOrWhiteSpace(ht.ToString())) w.Height = Convert.ToDouble(ht);
+        });
     }
 
     /// <summary>删除控件。</summary>
@@ -463,7 +473,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 ["screen_name"] = new() { Type = "string", Required = true },
                 ["widget_name"] = new() { Type = "string", Required = true }
             };
-            foreach (var e in extra) d[e] = new() { Type = "string", Required = true };
+            foreach (var e in extra) d[e] = new() { Type = "int", KeepInCompact = true };   // #3/🟡：move/resize 参数 AI compact 可见；不设 Required（AI 可单轴移动/单边调整，未传保持现值）
             return d;
         }
     }

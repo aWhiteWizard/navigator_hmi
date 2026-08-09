@@ -170,5 +170,69 @@ namespace NavigatorHMI.Tests
         Assert.Equal(TagDataType.DATETIME, project.Tags[0].DataType);
         Assert.Equal("0000:00:00 00:00:00", project.Tags[0].BaseValue);
     }
+
+    // ── #4（2026-08-10）：BOOL 基准值只能 false/true、默认 false ──
+
+    [Fact]
+    public void BOOL_createTag默认false()
+    {
+        var project = new HMIProject();
+        var svc = new CommandService(project);
+        var r = svc.Execute("create_tag", new Dictionary<string, object?> { ["name"] = "B1", ["data_type"] = "BOOL" });
+        Assert.True(r.Success, $"{r.ErrorCode} {r.ErrorMessage}");
+        Assert.Equal("false", project.Tags[0].BaseValue);   // #4：BOOL 默认基准值 false
+    }
+
+    [Fact]
+    public void BOOL_updateTag空串归一false()
+    {
+        var project = new HMIProject();
+        var svc = new CommandService(project);
+        svc.Execute("create_tag", new Dictionary<string, object?> { ["name"] = "B2", ["data_type"] = "BOOL", ["base_value"] = "true" });
+        var r = svc.Execute("update_tag", new Dictionary<string, object?> { ["name"] = "B2", ["base_value"] = "" });
+        Assert.True(r.Success, $"{r.ErrorCode} {r.ErrorMessage}");
+        Assert.Equal("false", project.Tags[0].BaseValue);   // #4：BOOL 空串归一 false（不制造无基准值）
+    }
+
+    [Fact]
+    public void BOOL_updateTag改类型补false()
+    {
+        var project = new HMIProject();
+        var svc = new CommandService(project);
+        svc.Execute("create_tag", new Dictionary<string, object?> { ["name"] = "B3", ["data_type"] = "STRING" });
+        var r = svc.Execute("update_tag", new Dictionary<string, object?> { ["name"] = "B3", ["data_type"] = "BOOL" });
+        Assert.True(r.Success, $"{r.ErrorCode} {r.ErrorMessage}");
+        Assert.Equal(TagDataType.BOOL, project.Tags[0].DataType);
+        Assert.Equal("false", project.Tags[0].BaseValue);   // #4：改类型到 BOOL 自动补 false
+    }
+
+    [Theory]
+    [InlineData("1")]
+    [InlineData("0")]
+    [InlineData("abc")]
+    [InlineData("2")]
+    public void BOOL_非法基准值拒绝(string bad)
+    {
+        var project = new HMIProject();
+        var svc = new CommandService(project);
+        var r = svc.Execute("create_tag", new Dictionary<string, object?> { ["name"] = "B4", ["data_type"] = "BOOL", ["base_value"] = bad });
+        Assert.False(r.Success);   // #4：BOOL 只能 false/true（"1"/"0" 不再接受）
+        Assert.Equal("INVALID_PARAM", r.ErrorCode);
+    }
+
+    [Theory]
+    [InlineData("false", "false")]
+    [InlineData("true", "true")]
+    [InlineData("True", "true")]
+    [InlineData("FALSE", "false")]
+    [InlineData("TRUE", "true")]
+    public void BOOL_合法基准值通过_归一存储(string input, string expect)
+    {
+        var project = new HMIProject();
+        var svc = new CommandService(project);
+        var r = svc.Execute("create_tag", new Dictionary<string, object?> { ["name"] = "B5", ["data_type"] = "BOOL", ["base_value"] = input });
+        Assert.True(r.Success, $"{r.ErrorCode} {r.ErrorMessage}");
+        Assert.Equal(expect, project.Tags[0].BaseValue);   // #4：BOOL 归一存储（大小写变体 → true/false 小写）
+    }
     }
 }

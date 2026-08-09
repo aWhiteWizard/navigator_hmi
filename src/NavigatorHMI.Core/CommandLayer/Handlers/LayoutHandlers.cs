@@ -125,18 +125,18 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 ["screen_name"] = new() { Type = "string", Required = true },
                 ["widgets"] = new() { Type = "string", Required = true, Description = "逗号分隔的控件名列表" },
                 ["mode"] = new() { Type = "enum", Required = true, EnumValues = new[] { "rect", "circle" } },
-                ["start_x"] = new() { Type = "double", DefaultValue = 0.0 },
-                ["start_y"] = new() { Type = "double", DefaultValue = 0.0 },
+                ["start_x"] = new() { Type = "double", DefaultValue = 0.0, KeepInCompact = true, Description = "矩形阵列起点 X（第一个控件左上角；AI 可指定）" },   // #3
+                ["start_y"] = new() { Type = "double", DefaultValue = 0.0, KeepInCompact = true, Description = "矩形阵列起点 Y（第一个控件左上角；AI 可指定）" },   // #3
                 ["center_start"] = new() { Type = "bool", DefaultValue = false, Description = "true 时起点（第一个控件中心）置于画面中心（忽略 start_x/start_y；AI「以画面中心为起点」用）", KeepInCompact = true },
                 ["cols"] = new() { Type = "int", KeepInCompact = true, Description = "列数（省略时按控件数自动计算）" },
                 ["rows"] = new() { Type = "int", KeepInCompact = true, Description = "行数（省略时按控件数自动计算）" },
-                ["spacing_x"] = new() { Type = "double", DefaultValue = 120.0 },
-                ["spacing_y"] = new() { Type = "double", DefaultValue = 80.0 },
-                ["center_x"] = new() { Type = "double", DefaultValue = 0.0 },
-                ["center_y"] = new() { Type = "double", DefaultValue = 0.0 },
-                ["radius"] = new() { Type = "double", DefaultValue = 150.0 },
-                ["start_angle"] = new() { Type = "double", DefaultValue = 0.0 },
-                ["end_angle"] = new() { Type = "double", DefaultValue = 360.0 },
+                ["spacing_x"] = new() { Type = "double", DefaultValue = 120.0, KeepInCompact = true, Description = "列间距（AI 可指定）" },   // #3
+                ["spacing_y"] = new() { Type = "double", DefaultValue = 80.0, KeepInCompact = true, Description = "行间距（AI 可指定）" },   // #3
+                ["center_x"] = new() { Type = "double", DefaultValue = 0.0, KeepInCompact = true, Description = "圆心 X（AI 改阵列中心用）" },   // #3：Z2 根因修复
+                ["center_y"] = new() { Type = "double", DefaultValue = 0.0, KeepInCompact = true, Description = "圆心 Y（AI 改阵列中心用）" },   // #3
+                ["radius"] = new() { Type = "double", DefaultValue = 150.0, KeepInCompact = true, Description = "半径（AI 改阵列半径用）" },   // #3
+                ["start_angle"] = new() { Type = "double", DefaultValue = 0.0, KeepInCompact = true, Description = "起始角度（度；AI 可指定）" },   // #3
+                ["end_angle"] = new() { Type = "double", DefaultValue = 360.0, KeepInCompact = true, Description = "终止角度（度；AI 可指定）" },   // #3
             }
         };
 

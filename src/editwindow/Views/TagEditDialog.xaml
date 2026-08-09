@@ -30,7 +30,7 @@
             <TextBox Grid.Row="0" Grid.Column="1" x:Name="NameBox" ToolTip="工程内唯一，如 Tank1_Temp"/>
 
             <TextBlock Grid.Row="1" Grid.Column="0" Text="数据类型:" VerticalAlignment="Center"/>
-            <ComboBox Grid.Row="1" Grid.Column="1" x:Name="DataTypeBox" SelectedIndex="4">
+            <ComboBox Grid.Row="1" Grid.Column="1" x:Name="DataTypeBox" SelectionChanged="DataTypeBox_SelectionChanged">
                 <ComboBoxItem Content="BOOL"/>
                 <ComboBoxItem Content="INT16"/>
                 <ComboBoxItem Content="UINT16"/>
@@ -70,7 +70,13 @@
             <TextBox Grid.Row="7" Grid.Column="1" x:Name="DescriptionBox" ToolTip="用户备注（不参与运行时逻辑）"/>
 
             <TextBlock Grid.Row="8" Grid.Column="0" VerticalAlignment="Center"><Run Text="基准值:"/><Run Text="（可选）" Foreground="Gray" FontSize="10"/></TextBlock>
-            <TextBox Grid.Row="8" Grid.Column="1" x:Name="BaseValueBox" ToolTip="设计态预览值：绑定该变量的控件在设计态显示此值（数字变量填数字，图片变量填路径）"/>
+            <Grid Grid.Row="8" Grid.Column="1">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <TextBox Grid.Column="0" x:Name="BaseValueBox" ToolTip="设计态预览值：数字变量填数字，图片变量填路径（BOOL 类型请用右侧下拉）"/>
+                <ComboBox Grid.Column="1" x:Name="BoolBaseBox" Width="80" Visibility="Collapsed" SelectedIndex="0">
+                    <ComboBoxItem Content="false"/><ComboBoxItem Content="true"/>
+                </ComboBox>
+            </Grid>
         </Grid>
 
         <TextBlock x:Name="ErrorBox" Foreground="Red" FontSize="12" Margin="0,8,0,0" TextWrapping="Wrap" Visibility="Collapsed"/>

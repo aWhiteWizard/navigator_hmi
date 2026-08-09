@@ -49,11 +49,13 @@ namespace NavigatorHMI.CommandLayer.Handlers
             var bvErr = BaseValueValidator.Check(p.GetValueOrDefault("base_value")?.ToString(), dt);
             if (bvErr != null) return CommandResult.Fail("INVALID_PARAM", bvErr);
             // 任务8：DATETIME 变量未提供基准值 → 默认全 0 字面（0000:00:00 00:00:00，年月日冒号分隔）
-            // D4：数字变量未提供基准值 → 默认 0（FLOAT 用 0.0 保持浮点语义；整数用 0）
+            // D4/#4：数字变量未提供基准值 → 默认 0（FLOAT 用 0.0；整数用 0；BOOL 用 false）
             var baseValue = p.GetValueOrDefault("base_value")?.ToString() ?? "";
             if (dt == TagDataType.DATETIME && string.IsNullOrEmpty(baseValue)) baseValue = "0000:00:00 00:00:00";
             else if (string.IsNullOrEmpty(baseValue) && dt is TagDataType.FLOAT) baseValue = "0.0";
             else if (string.IsNullOrEmpty(baseValue) && dt is TagDataType.INT16 or TagDataType.UINT16 or TagDataType.INT32) baseValue = "0";
+            else if (string.IsNullOrEmpty(baseValue) && dt is TagDataType.BOOL) baseValue = "false";   // #4：BOOL 基准值默认 false
+            if (dt == TagDataType.BOOL && baseValue.Length > 0) baseValue = baseValue.ToLowerInvariant();   // #4：BOOL 归一存储（True/TRUE→true，源头消除大小写变体防 GUI 回填翻转）
             project.Tags.Add(new Tag
             {
                 Name = name, DataType = dt,
@@ -494,20 +496,22 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 var raw = bv.ToString() ?? "";
                 if (string.IsNullOrWhiteSpace(raw))
                 {
-                    // D1/D4：不制造无基准值变量——DATETIME 空拒绝；数字类型空串归一默认 0/0.0（与 create_tag 一致）；其余（STRING/BOOL）空 = 清空
+                    // D1/D4/#4：不制造无基准值变量——DATETIME 空拒绝；数字/BOOL 空串归一默认（与 create_tag 一致）；其余（STRING）空 = 清空
                     if (targetType == TagDataType.DATETIME)
                         return CommandResult.Fail("INVALID_PARAM", "DATETIME 变量的基准值不能为空（请输入日期时间或全 0 字面 0000:00:00 00:00:00）");
                     newBaseValue = targetType == TagDataType.FLOAT ? "0.0"
-                        : targetType is TagDataType.INT16 or TagDataType.UINT16 or TagDataType.INT32 ? "0" : "";
+                        : targetType is TagDataType.INT16 or TagDataType.UINT16 or TagDataType.INT32 ? "0"
+                        : targetType == TagDataType.BOOL ? "false" : "";   // #4：BOOL 空串归一 false
                 }
                 else
                 {
                     var bvErr = BaseValueValidator.Check(raw, targetType);
                     if (bvErr != null) return CommandResult.Fail("INVALID_PARAM", bvErr);
                     newBaseValue = raw;
+                    if (targetType == TagDataType.BOOL) newBaseValue = raw.ToLowerInvariant();   // #4：BOOL 归一存储（True/TRUE→true）
                 }
             }
-            // data_type 变更时处理现有 BaseValue：空 → 自动补默认（DATETIME 全 0 / 数字 0·0.0，与 create_tag 一致，防无基准值变量）；
+            // data_type 变更时处理现有 BaseValue：空 → 自动补默认（DATETIME 全 0 / 数字 0·0.0 / BOOL false，与 create_tag 一致，防无基准值变量）；
             // 非空 → 用新类型校验（防 STRING 旧值残留为数字/日期基准值绕过校验器）
             if (targetType != tag.DataType && newBaseValue == null)
             {
@@ -515,7 +519,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 {
                     newBaseValue = targetType == TagDataType.DATETIME ? "0000:00:00 00:00:00"
                         : targetType == TagDataType.FLOAT ? "0.0"
-                        : targetType is TagDataType.INT16 or TagDataType.UINT16 or TagDataType.INT32 ? "0" : "";
+                        : targetType is TagDataType.INT16 or TagDataType.UINT16 or TagDataType.INT32 ? "0"
+                        : targetType == TagDataType.BOOL ? "false" : "";   // #4：改类型到 BOOL 补 false
                 }
                 else
                 {
@@ -550,7 +555,10 @@ namespace NavigatorHMI.CommandLayer.Handlers
             if (p.TryGetValue("description", out var desc) && desc != null)
                 tag.Description = desc.ToString() ?? "";
             if (newBaseValue != null)
+            {
+                if (targetType == TagDataType.BOOL) newBaseValue = newBaseValue.ToLowerInvariant();   // #4 兜底：改类型/归一路径统一落库小写（防存量变体绕过 create/update 直改路径）
                 tag.BaseValue = newBaseValue;
+            }
 
             return CommandResult.Ok(new { tag_name = tag.Name });
         }
@@ -570,7 +578,7 @@ internal static class BaseValueValidator
             TagDataType.INT16 => short.TryParse(s, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _),
             TagDataType.UINT16 => ushort.TryParse(s, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _),
             TagDataType.INT32 => int.TryParse(s, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _),
-            TagDataType.BOOL => bool.TryParse(s, out _) || s is "1" or "0",
+            TagDataType.BOOL => bool.TryParse(s, out _),   // #4：BOOL 基准值只能填 false/true（bool.TryParse 含大小写；不再接受 "1"/"0"）
             TagDataType.DATETIME => DateTime.TryParse(s, out _) || IsZeroDateLiteral(s),   // 任意有效日期时间（yyyy-MM-dd HH:mm:ss 等）；任务8：全 0 字面（0000:00:00 00:00:00，0000 年无效）放行
             _ => true,   // STRING 等任意文本
         };

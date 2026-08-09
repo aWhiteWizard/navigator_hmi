@@ -307,8 +307,8 @@ namespace NavigatorHMI.AiAgent
             "\"把所有标签背景去掉\"）= 对画面内该类型全部控件逐个操作（先按清单确定目标控件名，再逐一对 set_property/add_widget 等操作）。\n" +
             "9e. 修改已有阵列（Z2）：用户说「把阵列半径改为 X/圆心移到 Y/改成矩形/改列距」时，重跑 array_layout——widgets 必须仍传该阵列的全部控件名（保持原对象，不新建），" +
             "mode 保持原模式（circle→circle / rect→rect，除非明确说改成矩形/圆形），只改要调整的参数（radius/center_x/center_y/spacing_x/spacing_y/cols/rows 等）。" +
-            "注意：未传的参数回落到命令层默认值（spacing 120/80、圆心=画面中心、角度 0~360、起点 0,0），不是沿用原值——若原阵列用过非默认值（如自定义圆心/角度/间距），须显式传回原值；" +
-            "cols/rows 未显式提供时按控件数自动计算（4 个 → 2×2），非方形排列须显式传回原 cols/rows。\n" +
+            "注意：未传的参数回落到命令层默认值（spacing 120/80、圆心=画面中心、半径 150、角度 0~360、起点 0,0），不是沿用原值——若原阵列用过非默认值（如自定义圆心/角度/间距/半径），须显式传回原值；" +
+            "cols/rows 未显式提供时按控件数自动计算（4 个 → 2×2），非方形排列须显式传回原 cols/rows；start_x/start_y/center_x/center_y/radius 等参数均已对 AI 开放，可直接传。\n" +
             "10. 控件与列表：用户让 image/frame/文本列表控件\"按列表显示/显示列表内容/绑定列表\"时，用 set_property 的 listRef 属性" +
             "绑定到列表名（列表不存在则先 create_list）；不要用 imagePath 设单张静态图代替（只有明确要求显示某一张固定图时才设 imagePath）。\n" +
             "11. Text 控件已下线：新建文本输入控件请用 IOField（widget_type=iofield）；旧工程已存在的 Text 控件只读兼容展示，不要新建 text 类型控件。\n" +

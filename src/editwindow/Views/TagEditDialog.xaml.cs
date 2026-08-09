@@ -30,6 +30,7 @@ namespace NavigatorHMI.Views
             _existing = existing;
             _project = project;
             PopulateSourceBox();
+            DataTypeBox.SelectedIndex = 4;   // 🟡：控件就绪后赋值（默认 FLOAT；XAML 移除 SelectedIndex 防 SelectionChanged 构造时序陷阱——wpf-xaml-initialize-trap 教训）
 
             if (existing == null)
             {
@@ -50,6 +51,9 @@ namespace NavigatorHMI.Views
                 DeadbandBox.Text = existing.Deadband.ToString(System.Globalization.CultureInfo.InvariantCulture);
                 DescriptionBox.Text = existing.Description;
                 BaseValueBox.Text = existing.BaseValue;
+                if (existing.DataType == TagDataType.BOOL)   // #4：BOOL 编辑回填下拉；存量 "1"/"True"/"TRUE" 兼容（大小写不敏感——命令层新写入已归一，旧工程可能存变体）
+                    BoolBaseBox.SelectedIndex = existing.BaseValue is not null
+                        && (string.Equals(existing.BaseValue, "true", StringComparison.OrdinalIgnoreCase) || existing.BaseValue == "1") ? 1 : 0;
                 SelectScanInterval(existing.ScanIntervalMs);
                 SelectSource(existing.Source);
             }
@@ -119,6 +123,15 @@ namespace NavigatorHMI.Views
             {
                 if (ReferenceEquals(item.Tag, dev)) { SourceBox.SelectedItem = item; return; }
             }
+        }
+
+        /// <summary>#4：BOOL 类型基准值用下拉（false/true——只能填这两个），其余类型用文本框。</summary>
+        private void DataTypeBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (DataTypeBox.SelectedItem is not ComboBoxItem bi) return;
+            bool isBool = bi.Content?.ToString() == nameof(TagDataType.BOOL);
+            BaseValueBox.Visibility = isBool ? Visibility.Collapsed : Visibility.Visible;
+            BoolBaseBox.Visibility = isBool ? Visibility.Visible : Visibility.Collapsed;
         }
 
         /// <summary>来源下拉切换：选中设备显示地址输入，内部变量/自定义隐藏。</summary>
@@ -191,13 +204,16 @@ namespace NavigatorHMI.Views
             if (!double.IsFinite(deadband))
             { ShowError("死区必须是有限数字"); return; }
 
-            // 基准值：数字类型变量要求可解析为数字（ProgressBar/NumericDisplay 设计态显示用）；DATETIME 用日期时间格式（任务8：全 0 字面放行）
-            var baseValue = BaseValueBox.Text.Trim();
+            // 基准值：BOOL 用下拉（false/true——只能填这两个）；数字类型要求可解析为数字；DATETIME 用日期时间格式（任务8：全 0 字面放行）
+            var baseValue = dt == TagDataType.BOOL
+                ? (BoolBaseBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "false"
+                : BaseValueBox.Text.Trim();
             if (dt == TagDataType.DATETIME && baseValue.Length == 0) baseValue = "0000:00:00 00:00:00";   // 任务8：DATETIME 默认全 0 基准值
             if (baseValue.Length == 0 && dt == TagDataType.FLOAT) baseValue = "0.0";   // D4：数字变量默认基准值 0/0.0
             if (baseValue.Length == 0 && dt is TagDataType.INT16 or TagDataType.UINT16 or TagDataType.INT32) baseValue = "0";
             if (baseValue.Length > 0 && dt != TagDataType.STRING
              && dt != TagDataType.DATETIME
+             && dt != TagDataType.BOOL   // #4：BOOL 走下拉恒合法（false/true）
              && !double.TryParse(baseValue, System.Globalization.NumberStyles.Float,
                     System.Globalization.CultureInfo.InvariantCulture, out _))
             { ShowError("数字类型变量的基准值必须是数字（如 25.5 / 1）"); return; }
