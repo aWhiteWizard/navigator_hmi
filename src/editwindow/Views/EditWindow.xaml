@@ -1043,7 +1043,7 @@
                 </Button>
             </ToolBar>
 
-            <ToolBar x:Name="TbAi" Width="70" Height="32" Margin="0,0,2,0"
+            <ToolBar x:Name="TbAi" Width="105" Height="32" Margin="0,0,2,0"
                      PreviewMouseLeftButtonDown="Toolbar_MouseDown" Cursor="Hand">
                 <ToggleButton x:Name="AiBallToggle" ToolTip="AI 悬浮窗（开/关）" Width="28" Height="28"
                               Checked="AiBallToggle_Checked" Unchecked="AiBallToggle_Unchecked">🛰</ToggleButton>
@@ -1179,11 +1179,12 @@
                                         <Button Content="TextList" Tag="TextList" Click="ToggleAddWidgetMode"/>
                                         <Button Content="Frame" Tag="Frame" Click="ToggleAddWidgetMode"/>
                                         <Button Content="ProgressBar" Tag="ProgressBar" Click="ToggleAddWidgetMode"/>
-                                            <Button Content="Window" Tag="Window" Click="ToggleAddWidgetMode" ToolTip="窗口控件：UserView/AlarmView/RobotList（属性面板切类型）"/>
                                             <Button Content="DateTime" Tag="DateTime" Click="ToggleAddWidgetMode"/>
                                     </StackPanel></TabItem>
                                     <TabItem Header="窗口控件"><StackPanel Orientation="Vertical">
-                                        <Button Content="User View"/><Button Content="Alarm View"/><Button Content="Robot List"/>
+                                        <Button Content="User View" Tag="UserView" Click="ToggleAddWidgetMode" ToolTip="用户视图控件（头像/用户名/角色/模式/登录）"/>
+                                        <Button Content="Alarm View" Tag="AlarmView" Click="ToggleAddWidgetMode" ToolTip="报警视图控件（活动报警列表/级别色标/确认）"/>
+                                        <Button Content="Robot List" Tag="RobotList" Click="ToggleAddWidgetMode" ToolTip="机器人列表控件（卡片网格/绑定变量驱动）"/>
                                     </StackPanel></TabItem>
                                 </TabControl>
                             </avalon:LayoutAnchorable>
@@ -1602,7 +1603,7 @@
                                                 <DataGrid Grid.Row="1" x:Name="UsersGrid" ItemsSource="{Binding DataContext.UserAccounts, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding DataContext.SelectedUser, RelativeSource={RelativeSource AncestorType=Window}}"
                                                           AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" HeadersVisibility="Column"
                                                           GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12" RowHeight="26"
-                                                          MouseDoubleClick="UsersGrid_MouseDoubleClick">
+                                                          MouseDoubleClick="UsersGrid_MouseDoubleClick" PreviewMouseRightButtonDown="UsersGrid_PreviewMouseRightButtonDown">
                                                     <DataGrid.ContextMenu>
                                                         <ContextMenu>
                                                             <MenuItem Header="复制" Click="UserCopy_Click"/>
@@ -1634,7 +1635,7 @@
                                                 <DataGrid x:Name="GroupsGrid" Grid.Row="2" ItemsSource="{Binding DataContext.UserGroups, RelativeSource={RelativeSource AncestorType=Window}}"
                                                           AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" HeadersVisibility="Column"
                                                           GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12" RowHeight="26"
-                                                          MouseDoubleClick="GroupsGrid_MouseDoubleClick">
+                                                          MouseDoubleClick="GroupsGrid_MouseDoubleClick" KeyDown="GroupsGrid_KeyDown" PreviewMouseRightButtonDown="GroupsGrid_PreviewMouseRightButtonDown">
                                                     <DataGrid.ContextMenu>
                                                         <ContextMenu>
                                                             <MenuItem Header="复制" Click="GroupCopy_Click"/>
@@ -1928,7 +1929,23 @@
             </avalon:LayoutRoot>
         </avalon:DockingManager>
 
-        <!-- ═══ AI 助手：右侧侧边栏（本地 LLM Function Calling）；悬浮球独立窗（AiFloatBallWindow，P3-6）═══ -->
+        <!-- ═══ AI 助手：悬浮按钮（任务11 退回内嵌）+ 右侧侧边栏 ═══ -->
+        <Button x:Name="AiFabBtn" Grid.RowSpan="99" Width="46" Height="46" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                Margin="0,0,16,26" Command="{Binding ToggleAiPanelCommand}" ToolTip="AI 助手（拖动可移动位置）"
+                Background="#2D2D30" Foreground="White" BorderThickness="0" Cursor="Hand"
+                PreviewMouseLeftButtonDown="AiFab_MouseDown" PreviewMouseMove="AiFab_MouseMove" PreviewMouseLeftButtonUp="AiFab_MouseUp">
+            <Button.Template>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" CornerRadius="23" Background="{TemplateBinding Background}" BorderBrush="#555" BorderThickness="1">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Bd" Property="Background" Value="#3E3E42"/></Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Button.Template>
+            <TextBlock Text="AI" FontWeight="Bold" FontSize="16"/>
+        </Button>
 
         <Grid Grid.RowSpan="99" Width="380" HorizontalAlignment="Right" Margin="0,0,0,0"
               Visibility="{Binding IsAiPanelOpen, Converter={StaticResource BoolToVisibilityConverter}}">

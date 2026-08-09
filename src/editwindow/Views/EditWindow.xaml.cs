@@ -473,6 +473,22 @@ namespace NavigatorHMI.Views
                 _viewModel.UpdateGroupCommand(g.Name, dlg.GroupName.Trim(), dlg.GetPermissions());
         }
 
+        /// <summary>P2-1/任务10：组表格 DELETE 键批量删除选中（一次确认；预设组命令层 BLOCKED 跳过并汇总）。</summary>
+        private void GroupsGrid_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key != Key.Delete) return;
+            if (sender is not System.Windows.Controls.DataGrid dg || dg.SelectedItems.Count == 0) return;
+            var groups = dg.SelectedItems.OfType<UserGroup>().ToList();
+            if (System.Windows.MessageBox.Show($"确定删除选中的 {groups.Count} 个用户组吗？（预设组不可删）", "用户组",
+                    System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Question) != System.Windows.MessageBoxResult.Yes)
+            {
+                e.Handled = true;
+                return;
+            }
+            _viewModel.DeleteGroupsBatch(groups.Select(g => g.Name).ToList());
+            e.Handled = true;
+        }
+
         /// <summary>P2-1 用户组：删除选中（按钮/右键；预设组命令层 BLOCKED）。</summary>
         private void GroupDelete_Click(object sender, RoutedEventArgs e)
         {
@@ -480,15 +496,34 @@ namespace NavigatorHMI.Views
             if (g != null) _viewModel.DeleteGroupCommand(g.Name);
         }
 
-        /// <summary>P2-1 用户组：复制选中组。</summary>
+        /// <summary>P2-1/任务12 用户组：复制选中组（多选 SelectedItems——右键行已在 PreviewMouseRightButtonDown 选中）。</summary>
         private void GroupCopy_Click(object sender, RoutedEventArgs e)
         {
-            var g = FindGroup(sender);
-            if (g != null) _viewModel.CopyGroupCommand(g.Name);
+            var grid = FindName("GroupsGrid") as System.Windows.Controls.DataGrid;
+            if (grid == null) return;
+            _viewModel.CopyGroupsCommand(grid.SelectedItems.OfType<UserGroup>().ToList());
         }
 
-        /// <summary>P2-1 用户组：粘贴组副本。</summary>
-        private void GroupPaste_Click(object sender, RoutedEventArgs e) => _viewModel.PasteGroupCommand();
+        /// <summary>P2-1/任务12 用户组：右键未选中行时先选中该行（右键复制语义正确）。</summary>
+        private void GroupsGrid_PreviewMouseRightButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (sender is not System.Windows.Controls.DataGrid dg) return;
+            var row = FindDataGridRow(e);
+            if (row?.Item is UserGroup g && !dg.SelectedItems.Contains(g))
+                dg.SelectedItem = g;
+        }
+
+        /// <summary>从鼠标事件源上溯到 DataGridRow（无则 null）。</summary>
+        private static System.Windows.Controls.DataGridRow? FindDataGridRow(System.Windows.Input.MouseButtonEventArgs e)
+        {
+            var el = e.OriginalSource as System.Windows.DependencyObject;
+            while (el != null && el is not System.Windows.Controls.DataGridRow)
+                el = System.Windows.Media.VisualTreeHelper.GetParent(el);
+            return el as System.Windows.Controls.DataGridRow;
+        }
+
+        /// <summary>P2-1/任务12 用户组：粘贴组副本（多副本）。</summary>
+        private void GroupPaste_Click(object sender, RoutedEventArgs e) => _viewModel.PasteGroupsCommand();
 
         /// <summary>从 sender（按钮/菜单项）溯源到组表格并取选中组。</summary>
         private UserGroup? FindGroup(object sender)
@@ -516,22 +551,25 @@ namespace NavigatorHMI.Views
                 _viewModel.UpdateUserCommand(u.UserName, dlg.UserName.Trim(), dlg.Password, dlg.SelectedGroup);
         }
 
-        /// <summary>P2-12 用户：复制选中用户。</summary>
+        /// <summary>P2-12/任务12 用户：复制选中用户（多选 SelectedItems——右键行已在 PreviewMouseRightButtonDown 选中）。</summary>
         private void UserCopy_Click(object sender, RoutedEventArgs e)
         {
-            var u = FindUser(sender);
-            if (u != null) _viewModel.CopyUserCommand(u.UserName);
+            var grid = FindName("UsersGrid") as System.Windows.Controls.DataGrid;
+            if (grid == null) return;
+            _viewModel.CopyUsersCommand(grid.SelectedItems.OfType<UserAccount>().ToList());
         }
 
-        /// <summary>P2-12 用户：粘贴用户副本。</summary>
-        private void UserPaste_Click(object sender, RoutedEventArgs e) => _viewModel.PasteUserCommand();
-
-        /// <summary>从 sender 溯源到用户表格并取选中用户。</summary>
-        private UserAccount? FindUser(object sender)
+        /// <summary>P2-12/任务12 用户：右键未选中行时先选中该行（右键复制语义正确）。</summary>
+        private void UsersGrid_PreviewMouseRightButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
-            if ((sender as System.Windows.FrameworkElement)?.DataContext is UserAccount u) return u;   // 菜单项
-            return (FindName("UsersGrid") as System.Windows.Controls.DataGrid)?.SelectedItem as UserAccount;
+            if (sender is not System.Windows.Controls.DataGrid dg) return;
+            var row = FindDataGridRow(e);
+            if (row?.Item is UserAccount u && !dg.SelectedItems.Contains(u))
+                dg.SelectedItem = u;
         }
+
+        /// <summary>P2-12/任务12 用户：粘贴用户副本（多副本）。</summary>
+        private void UserPaste_Click(object sender, RoutedEventArgs e) => _viewModel.PasteUsersCommand();
 
         /// <summary>W3b 用户面板：删除选中用户（走 VM DeleteUserCommand——最后管理员保护）。</summary>
         private void UserDelete_Click(object sender, RoutedEventArgs e) => _viewModel.DeleteUserCommand();
@@ -1152,61 +1190,69 @@ namespace NavigatorHMI.Views
                 _viewModel.PropertyChanged += ViewModel_PropertyChanged;
             }
 
-            SetupAiFloatBall();   // P3-6：独立 Topmost 悬浮窗（默认显示；P3-11 工具栏开关控制）
-            AiBallToggle.IsChecked = true;   // P3-11：统一在 Loaded 置开（不在 XAML 初值触发——避免 InitializeComponent 期间双重创建）
+            AiBallToggle.IsChecked = true;   // 任务11：🛰 开关状态置开（内嵌球 XAML 默认可见）
 
             System.Diagnostics.Debug.WriteLine($"✅ EditWindow 加载完成");
             System.Diagnostics.Debug.WriteLine($"   CurrentScreen: {_viewModel?.CurrentScreen?.Name}");
             System.Diagnostics.Debug.WriteLine($"   Widgets 数量: {_viewModel?.CurrentScreen?.Widgets?.Count}");
         }
 
-        /// <summary>P3-6 悬浮球独立窗：创建 Topmost 无边框窗 + 点击回调打开侧边栏 + 跟随主窗口移动/最小化。</summary>
-        private AiFloatBallWindow? _aiFloatBall;
-        private double _aiBallOffsetX, _aiBallOffsetY;
-
-        /// <summary>P3-11 工具栏悬浮窗开关：开 → 显示悬浮球（未创建则创建）。</summary>
+        /// <summary>任务11：工具栏悬浮窗开关（退回内嵌）——开 → 显示内嵌球；关 → 隐藏。</summary>
         private void AiBallToggle_Checked(object sender, RoutedEventArgs e)
-        {
-            if (_aiFloatBall == null) SetupAiFloatBall();
-            else _aiFloatBall.Show();
-        }
+            => AiFabBtn.Visibility = Visibility.Visible;
 
-        /// <summary>P3-11 工具栏悬浮窗开关：关 → 隐藏悬浮球。</summary>
+        /// <summary>任务11：工具栏悬浮窗开关——关 → 隐藏内嵌球。</summary>
         private void AiBallToggle_Unchecked(object sender, RoutedEventArgs e)
-            => _aiFloatBall?.Hide();
-        private void SetupAiFloatBall()
+            => AiFabBtn.Visibility = Visibility.Collapsed;
+
+        // ── 任务11 内嵌悬浮球拖动（退回 0cbcb1f 逻辑） ──
+        private bool _aiFabDragging;
+        private Point _aiFabMouseDownPos;
+        private Thickness _aiFabDownMargin;
+
+        /// <summary>AI 悬浮按钮：按下记录起点并捕获鼠标（不立即移动；拖动/点击在 Move/Up 判定）。</summary>
+        private void AiFab_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            if (_aiFloatBall != null) { _aiFloatBall.Show(); return; }   // 幂等：已创建则直接显示（防重复创建）
-            _aiFloatBall = new AiFloatBallWindow
-            {
-                Left = Left + ActualWidth - 66,
-                Top = Top + ActualHeight - 72,
-            };
-            _aiBallOffsetX = _aiFloatBall.Left - Left;
-            _aiBallOffsetY = _aiFloatBall.Top - Top;
-            _aiFloatBall.OnBallClick = () =>
-            {
-                if (_viewModel.ToggleAiPanelCommand.CanExecute(null))
-                    _viewModel.ToggleAiPanelCommand.Execute(null);
-            };
-            _aiFloatBall.Show();
-            LocationChanged += EditWindow_LocationChanged;
-            StateChanged += EditWindow_StateChanged;
+            if (sender is not System.Windows.Controls.Button btn) return;
+            _aiFabDragging = false;
+            _aiFabMouseDownPos = e.GetPosition(this);
+            _aiFabDownMargin = btn.Margin;
+            btn.CaptureMouse();
+            e.Handled = true;
         }
 
-        private void EditWindow_LocationChanged(object? sender, EventArgs e)
+        private void AiFab_MouseMove(object sender, MouseEventArgs e)
         {
-            if (_aiFloatBall == null || WindowState == WindowState.Minimized) return;
-            _aiFloatBall.Left = Left + _aiBallOffsetX;
-            _aiFloatBall.Top = Top + _aiBallOffsetY;
+            if (sender is not System.Windows.Controls.Button btn || !btn.IsMouseCaptured) return;
+            var pos = e.GetPosition(this);
+            var dx = pos.X - _aiFabMouseDownPos.X;
+            var dy = pos.Y - _aiFabMouseDownPos.Y;
+            if (!_aiFabDragging && (Math.Abs(dx) > 5 || Math.Abs(dy) > 5))
+            {
+                _aiFabDragging = true;
+                btn.HorizontalAlignment = HorizontalAlignment.Left;
+                btn.VerticalAlignment = VerticalAlignment.Top;
+                btn.Margin = new Thickness(_aiFabMouseDownPos.X - btn.ActualWidth / 2, _aiFabMouseDownPos.Y - btn.ActualHeight / 2, 0, 0);
+                _aiFabDownMargin = btn.Margin;
+            }
+            if (_aiFabDragging)
+            {
+                btn.Margin = new Thickness(_aiFabDownMargin.Left + dx, _aiFabDownMargin.Top + dy, 0, 0);
+            }
+            e.Handled = true;
         }
 
-        private void EditWindow_StateChanged(object? sender, EventArgs e)
+        private void AiFab_MouseUp(object sender, MouseButtonEventArgs e)
         {
-            if (_aiFloatBall == null) return;
-            // P3-11：恢复显示需参考工具栏开关状态（关闭后最小化还原不应重新显示）
-            _aiFloatBall.Visibility = WindowState == WindowState.Minimized ? Visibility.Hidden
-                : (AiBallToggle.IsChecked == true ? Visibility.Visible : Visibility.Hidden);
+            if (sender is not System.Windows.Controls.Button btn) return;
+            var pos = e.GetPosition(this);
+            var moved = Math.Abs(pos.X - _aiFabMouseDownPos.X) + Math.Abs(pos.Y - _aiFabMouseDownPos.Y);
+            var wasDragging = _aiFabDragging;
+            _aiFabDragging = false;
+            btn.ReleaseMouseCapture();
+            if (!wasDragging && moved < 10 && _viewModel.ToggleAiPanelCommand.CanExecute(null))
+                _viewModel.ToggleAiPanelCommand.Execute(null);
+            e.Handled = true;
         }
 
         private void EditWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
@@ -1229,8 +1275,6 @@ namespace NavigatorHMI.Views
         private void EditWindow_Closed(object? sender, EventArgs e)
         {
             _clockTimer.Stop();   // D6：关闭停止画布时钟
-            _aiFloatBall?.Close();   // P3-6：窗口真正关闭后才关悬浮窗（取消保存时不误关）
-            _aiFloatBall = null;
             if (SelectorHelper.ResizeDragStarted == _resizeDragStartedCallback)
                 SelectorHelper.ResizeDragStarted = null;
             if (SelectorHelper.GetCanvasSize == _getCanvasSizeCallback)
@@ -1822,7 +1866,7 @@ namespace NavigatorHMI.Views
             var f = System.Windows.Input.Keyboard.FocusedElement as System.Windows.DependencyObject;
             while (f != null)
             {
-                if (f is System.Windows.Controls.DataGrid or System.Windows.Controls.ListBox) return true;
+                if (f is System.Windows.Controls.DataGrid or System.Windows.Controls.ListBox or System.Windows.Controls.TabControl) return true;   // TabControl：用户面板 Tab（问题 1/9——焦点在按钮/空白也命中撤销路由）
                 f = System.Windows.Media.VisualTreeHelper.GetParent(f);
             }
             return false;
@@ -2009,7 +2053,9 @@ namespace NavigatorHMI.Views
                 "Frame" => new FrameWidgetCreator(),
                 "ProgressBar" => new ProgressBarWidgetCreator(),
                 "DateTime" => new DateTimeWidgetCreator(),
-                "Window" => new WindowWidgetCreator(),
+                "UserView" => new WindowWidgetCreator(WindowType.UserView),
+                "AlarmView" => new WindowWidgetCreator(WindowType.AlarmView),
+                "RobotList" => new WindowWidgetCreator(WindowType.RobotList),
                 _ => null
             };
 

@@ -194,6 +194,12 @@ namespace NavigatorHMI.CommandLayer
             lock (_lock) { return _project.Screens.Select(s => s.Name).ToList(); }
         }
 
+        /// <summary>P2-3：当前工程用户组名列表（AI 创建用户时知道合法 group_name）。</summary>
+        public List<string> GetGroupNames()
+        {
+            lock (_lock) { return _project.Groups.Select(g => g.Name).ToList(); }
+        }
+
         /// <summary>E11 当前画面名：代理到工程运行时字段（GUI 画面切换维护；current_screen 命令读取）。</summary>
         public string? CurrentScreenName
         {

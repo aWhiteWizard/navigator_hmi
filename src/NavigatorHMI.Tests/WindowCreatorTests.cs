@@ -4,7 +4,7 @@ using System.Windows;
 
 namespace NavigatorHMI.Tests;
 
-/// <summary>P1-8 窗口控件创建器测试：固定 UserView + 命名编号。</summary>
+/// <summary>任务A 窗口控件创建器测试：方案 2 单类 + Type 判别（三类型参数化；名称前缀随类型）。</summary>
 public class WindowCreatorTests
 {
     [Fact]
@@ -13,8 +13,7 @@ public class WindowCreatorTests
         var screen = new Screen { Name = "测试", Width = 800, Height = 480 };
         var creator = new WindowWidgetCreator();
         var w = creator.Create(new Point(200, 200), screen);
-        Assert.IsType<WindowWidget>(w);
-        var ww = (WindowWidget)w;
+        var ww = Assert.IsType<WindowWidget>(w);   // 任务A：方案 2 单类 + Type 判别
         Assert.Equal(WindowType.UserView, ww.Type);
         Assert.StartsWith("用户视图", ww.ObjectName);
         Assert.Equal(240, ww.Width);

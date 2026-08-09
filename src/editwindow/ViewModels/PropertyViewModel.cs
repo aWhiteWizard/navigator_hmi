@@ -31,7 +31,8 @@ namespace NavigatorHMI.ViewModels
         TextListWidget,
         FrameWidget,
         ProgressBarWidget,
-        DateTimeWidget
+        DateTimeWidget,
+        WindowWidget
     }
 
     /// <summary>
@@ -289,6 +290,7 @@ namespace NavigatorHMI.ViewModels
                          FrameWidget => PropertyTargetType.FrameWidget,
                          ProgressBarWidget => PropertyTargetType.ProgressBarWidget,
                          DateTimeWidget => PropertyTargetType.DateTimeWidget,
+                         WindowWidget => PropertyTargetType.WindowWidget,
                          _ => PropertyTargetType.None
                      };
                      OnPropertyChanged(nameof(SelectedObjectType));
@@ -365,10 +367,11 @@ namespace NavigatorHMI.ViewModels
         {
             if (sender != _selectedWidget) return;
 
-            // AI 后台线程（update_list 级联改控件 ListRef）触发时跨线程改 ObservableCollection 会被吞 → 封送回 UI 线程（与 OnTagCommandExecuted 同模式）
-            if (!System.Windows.Application.Current.Dispatcher.CheckAccess())
+            // AI 后台线程（update_list 级联改控件 ListRef）触发时跨线程改 ObservableCollection 会被吞 → 封送回 UI 线程（与 OnTagCommandExecuted 同模式）；无 UI 环境（测试/headless）直接走同步分支
+            var dispatcher = System.Windows.Application.Current?.Dispatcher;
+            if (dispatcher != null && !dispatcher.CheckAccess())
             {
-                System.Windows.Application.Current.Dispatcher.BeginInvoke(
+                dispatcher.BeginInvoke(
                     new Action(() => OnSelectedWidgetPropertyChanged(sender, e)));
                 return;
             }
@@ -1453,7 +1456,15 @@ namespace NavigatorHMI.ViewModels
 
         // ═══ W4 窗口控件属性 ═══
         private string _windowTypeName = "UserView";
-        public string WindowTypeName { get => _windowTypeName; set { if (_windowTypeName != value) { _windowTypeName = value; OnPropertyChanged(); if (!_syncingFromModel && _selectedWidget is WindowWidget ww && Enum.TryParse<WindowType>(value, out var t)) { BeforeModify?.Invoke(); ww.Type = t; } } } }
+        public string WindowTypeName { get => _windowTypeName; set { if (_windowTypeName != value) { _windowTypeName = value; OnPropertyChanged(); if (!_syncingFromModel && _selectedWidget is WindowWidget ww && Enum.TryParse<WindowType>(value, out var t)) { BeforeModify?.Invoke(); var oldType = ww.Type; ww.Type = t; if (ww.Title == DefaultTitle(oldType)) { var newTitle = DefaultTitle(t); ww.Title = newTitle; _syncingFromModel = true; try { WindowTitle = newTitle; } finally { _syncingFromModel = false; } } } } } }
+
+        /// <summary>任务A 窗口控件默认标题（与 Creator/Handler 映射一致；切 Type 时未改过标题才联动）。</summary>
+        private static string DefaultTitle(WindowType type) => type switch
+        {
+            WindowType.AlarmView => "报警",
+            WindowType.RobotList => "机器人列表",
+            _ => "用户",
+        };
         private string _windowTitle = "用户";
         public string WindowTitle { get => _windowTitle; set { if (_windowTitle != value) { _windowTitle = value; OnPropertyChanged(); if (!_syncingFromModel && _selectedWidget is WindowWidget ww) { BeforeModify?.Invoke(); ww.Title = value; } } } }
         private bool _windowShowTitleBar = true;

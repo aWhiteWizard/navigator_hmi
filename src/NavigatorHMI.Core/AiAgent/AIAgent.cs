@@ -125,12 +125,29 @@ namespace NavigatorHMI.AiAgent
             return await RunLoopAsync(ct);
         }
 
-        /// <summary>P1-9：用户消息前注入当前画面上下文（实时读命令层，每轮跟随切换；不污染 system 规则、无历史残留）。</summary>
+        /// <summary>P1-9/P2-3：用户消息前注入当前画面 + 可用用户组上下文（实时读命令层，每轮跟随切换；不污染 system 规则、无历史残留）。</summary>
         private string InjectCurrentScreen(string userInput)
         {
             var cur = _commands.CurrentScreenName;
-            if (string.IsNullOrWhiteSpace(cur)) return userInput;
-            return $"[当前画面：{cur}] {userInput}";
+            var prefix = string.IsNullOrWhiteSpace(cur) ? "" : $"[当前画面：{SanitizeForPrompt(cur)}]";
+            // P2-3：注入用户组清单（AI 创建用户时知道合法 group_name——避免 NOT_FOUND）
+            var groups = _commands.GetGroupNames();
+            var cleanGroups = groups.Select(SanitizeForPrompt).Where(g => g.Length > 0).ToList();
+            if (cleanGroups.Count > 0)
+                prefix += (prefix.Length > 0 ? " " : "") + $"[可用用户组：{string.Join("/", cleanGroups)}]";
+            return string.IsNullOrEmpty(prefix) ? userInput : $"{prefix} {userInput}";
+        }
+
+        /// <summary>任务 3 加固：注入 AI user 消息前的工程数据清洗——剔除方括号/双引号/换行/控制字符，防恶意名称闭合前缀注入伪指令。</summary>
+        private static string SanitizeForPrompt(string s)
+        {
+            var sb = new System.Text.StringBuilder(s.Length);
+            foreach (var ch in s)
+            {
+                if (ch is '[' or ']' or '"' or '\r' or '\n' or '\t' || char.IsControl(ch)) continue;
+                sb.Append(ch);
+            }
+            return sb.ToString();
         }
 
         /// <summary>新建会话：清空历史，仅保留 system 规则消息（GUI「新建会话」调用）。</summary>
@@ -257,7 +274,7 @@ namespace NavigatorHMI.AiAgent
 
         private string BuildSystemPrompt()
         {
-            var cur = _commands.CurrentScreenName;
+            var cur = SanitizeForPrompt(_commands.CurrentScreenName ?? "");   // 工程数据进 prompt 统一清洗（画面名可含换行/引号）
             var curLine = string.IsNullOrEmpty(cur)
                 ? "当前画面：未指定（操作前先确认画面名）。\n"
                 : $"当前画面：\"{cur}\"——用户说「当前画面/本画面/这个画面」= 该画面；未指定画面时默认操作该画面。\n";

@@ -26,6 +26,9 @@ namespace NavigatorHMI.CommandLayer
         /// <returns>画面名称列表</returns>
         List<string> GetScreenNames();
 
+        /// <summary>P2-3：当前工程用户组名列表（AI 创建用户时知道合法 group_name）。</summary>
+        List<string> GetGroupNames();
+
         /// <summary>E11 当前画面名（运行时：GUI 画面切换维护；current_screen 命令与 AI prompt 读取）。</summary>
         string? CurrentScreenName { get; set; }
     }

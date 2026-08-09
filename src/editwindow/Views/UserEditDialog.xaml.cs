@@ -13,6 +13,10 @@ public partial class UserEditDialog : Window, INotifyPropertyChanged
         InitializeComponent();
         DataContext = this;
         foreach (var g in groups) GroupCombo.Items.Add(g.Name);
+        // 新建默认选「访客」（无则第一项）——问题 1：组空会导致 create_user NOT_FOUND
+        GroupCombo.SelectedItem = "访客";
+        if (GroupCombo.SelectedItem == null && GroupCombo.Items.Count > 0)
+            GroupCombo.SelectedIndex = 0;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

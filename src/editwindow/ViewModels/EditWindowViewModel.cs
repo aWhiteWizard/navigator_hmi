@@ -476,37 +476,52 @@ namespace NavigatorHMI.ViewModels
                 r.Success ? System.Windows.MessageBoxImage.Information : System.Windows.MessageBoxImage.Warning);
         }
 
-        /// <summary>P2-12 复制用户（用户名+组；密码不复制——副本需重设密码）。</summary>
-        public void CopyUserCommand(string name)
+        /// <summary>P2-12/任务12 复制用户（多选：用户名+组集合；密码不复制——副本需重设密码）。</summary>
+        public void CopyUsersCommand(List<UserAccount> users)
         {
-            var u = CurrentProject.Users.FirstOrDefault(x => x.UserName == name);
-            if (u == null) return;
-            _copiedUser = (u.UserName, u.GroupName);
-            System.Windows.MessageBox.Show($"已复制用户 {name}（粘贴创建副本，密码需重设）", "用户管理",
+            if (users.Count == 0) return;
+            _copiedUsers = users.Select(u => (u.UserName, u.GroupName)).ToList();
+            System.Windows.MessageBox.Show($"已复制 {users.Count} 个用户（粘贴创建副本，密码需重设）", "用户管理",
                 System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
         }
 
-        /// <summary>P2-12 粘贴用户（副本：原名+副本 编号递增；密码随机生成并提示——create_user 拒绝空密码）。</summary>
-        public void PasteUserCommand()
+        /// <summary>P2-12/任务12 粘贴用户（多副本：原名+副本 编号递增；密码随机生成并提示）。</summary>
+        public void PasteUsersCommand()
         {
-            if (_copiedUser == null)
+            if (_copiedUsers == null || _copiedUsers.Count == 0)
             {
                 System.Windows.MessageBox.Show("剪贴板没有用户（请先复制）", "用户管理",
                     System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
                 return;
             }
-            var (name, group) = _copiedUser.Value;
-            var baseName = name;
-            var n = 1;
-            while (CurrentProject.Users.Any(x => x.UserName == baseName + "副本" + (n > 1 ? n.ToString() : ""))) n++;
-            var newName = baseName + "副本" + (n > 1 ? n.ToString() : "");
-            var randomPwd = System.Guid.NewGuid().ToString("N")[..8];   // 随机密码（副本创建后建议立即编辑改密）
-            AddUserCommand(newName, randomPwd, group);
-            System.Windows.MessageBox.Show($"已创建用户副本 {newName}（随机密码：{randomPwd}，请编辑设置新密码）", "用户管理",
-                System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+            PushUserSnapshot();   // 批量一次快照，整体可撤销（对齐 DeleteGroupsBatch）
+            var created = new List<string>();
+            var failed = new List<string>();
+            foreach (var (name, group) in _copiedUsers)
+            {
+                var baseName = name;
+                var n = 1;
+                while (CurrentProject.Users.Any(x => x.UserName == baseName + "副本" + (n > 1 ? n.ToString() : ""))) n++;
+                var newName = baseName + "副本" + (n > 1 ? n.ToString() : "");
+                var randomPwd = System.Guid.NewGuid().ToString("N")[..8];
+                var r = CommandService.Execute("create_user", new Dictionary<string, object?>
+                {
+                    ["user_name"] = newName,
+                    ["password"] = randomPwd,
+                    ["group_name"] = group,
+                });
+                if (r.Success) created.Add($"{newName}（密码 {randomPwd}）");
+                else failed.Add($"{newName}（{r.ErrorCode}）");
+            }
+            RefreshUserPanel();
+            var msg = created.Count > 0 ? $"已创建用户副本：{string.Join("、", created.Take(5))}{(created.Count > 5 ? $" 等 {created.Count} 个" : "")}（建议编辑改密）" : "";
+            if (failed.Count > 0) msg += (msg.Length > 0 ? "；" : "") + $"失败：{string.Join("、", failed)}";
+            System.Windows.MessageBox.Show(msg, "用户管理",
+                System.Windows.MessageBoxButton.OK,
+                failed.Count > 0 ? System.Windows.MessageBoxImage.Warning : System.Windows.MessageBoxImage.Information);
         }
 
-        private (string UserName, string GroupName)? _copiedUser;
+        private List<(string UserName, string GroupName)>? _copiedUsers;   // 任务12：多选复制集合
 
         // ═══ P2-12 用户/组撤销栈（快照 Users+Groups；GUI 操作 + AI 操作统一入栈） ═══
         private readonly System.Collections.Generic.Stack<List<UserAccount>> _usersUndo = new();
@@ -567,6 +582,10 @@ namespace NavigatorHMI.ViewModels
         {
             if (SelectedUser == null) return;
             var uname = SelectedUser.UserName;
+            // 问题 4：删除确认框
+            if (System.Windows.MessageBox.Show($"确定删除用户「{uname}」吗？", "用户管理",
+                    System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Question) != System.Windows.MessageBoxResult.Yes)
+                return;
             PushUserSnapshot();   // P2-12：删除可撤销
             var r = CommandService.Execute("delete_user", new Dictionary<string, object?> { ["user_name"] = uname });
             if (r.Success) { RefreshUserPanel(); SelectedUser = null; }
@@ -609,6 +628,10 @@ namespace NavigatorHMI.ViewModels
         /// <summary>P2-1 删除组（预设组命令层 BLOCKED）。</summary>
         public void DeleteGroupCommand(string name)
         {
+            // 问题 4：删除确认框
+            if (System.Windows.MessageBox.Show($"确定删除用户组「{name}」吗？", "用户组",
+                    System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Question) != System.Windows.MessageBoxResult.Yes)
+                return;
             PushUserSnapshot();   // P2-12：组操作可撤销
             var r = CommandService.Execute("delete_group", new Dictionary<string, object?> { ["group_name"] = name });
             if (r.Success) RefreshUserPanel();
@@ -617,34 +640,69 @@ namespace NavigatorHMI.ViewModels
                 r.Success ? System.Windows.MessageBoxImage.Information : System.Windows.MessageBoxImage.Warning);
         }
 
-        /// <summary>P2-1 复制组到剪贴板（预设组也可复制；组名+权限）。</summary>
-        public void CopyGroupCommand(string name)
+        /// <summary>任务 10：批量删除组（DELETE 键多选——一次确认已在 View；预设组 BLOCKED 跳过并汇总）。</summary>
+        public void DeleteGroupsBatch(List<string> names)
         {
-            var g = CurrentProject.Groups.FirstOrDefault(x => x.Name == name);
-            if (g == null) return;
-            _copiedGroup = (g.Name, g.Permissions.ToList());
-            System.Windows.MessageBox.Show($"已复制组 {name}（可粘贴创建副本）", "用户组",
+            if (names.Count == 0) return;
+            PushUserSnapshot();   // 批量一次快照可整体撤销
+            var failed = new List<string>();
+            foreach (var name in names)
+            {
+                var r = CommandService.Execute("delete_group", new Dictionary<string, object?> { ["group_name"] = name });
+                if (!r.Success) failed.Add($"{name}（{r.ErrorCode}）");
+            }
+            RefreshUserPanel();
+            if (failed.Count > 0)
+                System.Windows.MessageBox.Show($"部分组删除失败：{string.Join("、", failed)}", "用户组",
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+            else
+                System.Windows.MessageBox.Show($"已删除 {names.Count} 个用户组", "用户组",
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+        }
+
+        /// <summary>P2-1/任务12 复制组（多选：组名+权限集合；预设组也可复制）。</summary>
+        public void CopyGroupsCommand(List<UserGroup> groups)
+        {
+            if (groups.Count == 0) return;
+            _copiedGroups = groups.Select(g => (g.Name, g.Permissions.ToList())).ToList();
+            System.Windows.MessageBox.Show($"已复制 {groups.Count} 个组（可粘贴创建副本）", "用户组",
                 System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
         }
 
-        /// <summary>P2-1 粘贴组（创建副本：原名+副本 编号递增）。</summary>
-        public void PasteGroupCommand()
+        /// <summary>P2-1/任务12 粘贴组（多副本：原名+副本 编号递增；一次快照整体撤销）。</summary>
+        public void PasteGroupsCommand()
         {
-            if (_copiedGroup == null)
+            if (_copiedGroups == null || _copiedGroups.Count == 0)
             {
                 System.Windows.MessageBox.Show("剪贴板没有组（请先复制）", "用户组",
                     System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
                 return;
             }
-            var (name, perms) = _copiedGroup.Value;
-            var baseName = name;
-            var n = 1;
-            while (CurrentProject.Groups.Any(x => x.Name == baseName + "副本" + (n > 1 ? n.ToString() : ""))) n++;
-            var newName = baseName + "副本" + (n > 1 ? n.ToString() : "");
-            AddGroupCommand(newName, perms);
+            PushUserSnapshot();   // 批量一次快照，整体可撤销（对齐 DeleteGroupsBatch）
+            var failed = new List<string>();
+            foreach (var (name, perms) in _copiedGroups)
+            {
+                var baseName = name;
+                var n = 1;
+                while (CurrentProject.Groups.Any(x => x.Name == baseName + "副本" + (n > 1 ? n.ToString() : ""))) n++;
+                var newName = baseName + "副本" + (n > 1 ? n.ToString() : "");
+                var r = CommandService.Execute("create_group", new Dictionary<string, object?>
+                {
+                    ["group_name"] = newName,
+                    ["permissions"] = string.Join(",", perms.Select(x => x.ToString())),
+                });
+                if (!r.Success) failed.Add($"{newName}（{r.ErrorCode}）");
+            }
+            RefreshUserPanel();
+            if (failed.Count > 0)
+                System.Windows.MessageBox.Show($"部分组创建失败：{string.Join("、", failed)}", "用户组",
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+            else
+                System.Windows.MessageBox.Show($"已创建 {_copiedGroups.Count} 个组副本", "用户组",
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
         }
 
-        private (string Name, List<UserPermission> Permissions)? _copiedGroup;
+        private List<(string Name, List<UserPermission> Permissions)>? _copiedGroups;   // 任务12：多选复制集合
 
         /// <summary>保存安全设置（写 project.Security + 标脏；负值拒绝）。</summary>
         public void SaveSecurityCommand()
@@ -806,6 +864,10 @@ namespace NavigatorHMI.ViewModels
             OnPropertyChanged(nameof(OpenScreens));   // 画面增删后刷新页面标签
             // 标记工程已修改
             ProjectDirtyRequested?.Invoke();
+
+            // 用户/组命令：刷新用户面板（AI 添加用户即时显示——问题 2）
+            if (cmdName is "create_user" or "update_user" or "delete_user" or "create_group" or "update_group" or "delete_group")
+                RefreshUserPanel();
 
             // 智能跳转：create_screen → 自动切换到新画面
             if (cmdName == "create_screen" && parameters.TryGetValue("name", out var nameObj))
