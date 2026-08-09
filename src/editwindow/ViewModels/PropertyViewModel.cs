@@ -1550,15 +1550,7 @@ namespace NavigatorHMI.ViewModels
                 default: b.OperTag = tag; break;
             }
         }
-        public string DateTimeFormat { get => _dateTimeFormat; set { if (_dateTimeFormat != value) { _dateTimeFormat = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is DateTimeWidget dt) { dt.Format = value; ReformatDateTimeText(dt); } } } }
-
-        /// <summary>P2-2：改格式后把现有文本按新格式重格式化（TryParse 联动，非法值保留原文本）。</summary>
-        private static void ReformatDateTimeText(DateTimeWidget dt)
-        {
-            if (!DateTime.TryParse(dt.Text, out var t)) return;
-            try { dt.Text = t.ToString(dt.Format); }
-            catch (FormatException) { /* 非法格式：保留原文本 */ }
-        }
+        public string DateTimeFormat { get => _dateTimeFormat; set { if (_dateTimeFormat != value) { _dateTimeFormat = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is DateTimeWidget dt) { dt.Format = value; } } } }   // 任务 7：改格式不写 Text——DisplayText 绑定分支按 Format 格式化基准值、未绑定分支 FormatNow 实时（两分支自动联动）
 
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string? name = null)

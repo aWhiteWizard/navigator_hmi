@@ -125,7 +125,7 @@ namespace NavigatorHMI.AiAgent
             return await RunLoopAsync(ct);
         }
 
-        /// <summary>P1-9/P2-3：用户消息前注入当前画面 + 可用用户组上下文（实时读命令层，每轮跟随切换；不污染 system 规则、无历史残留）。</summary>
+        /// <summary>P1-9/P2-3/B③：用户消息前注入当前画面 + 可用用户组 + 画面控件清单（实时读命令层，每轮跟随切换；不污染 system 规则、无历史残留）。</summary>
         private string InjectCurrentScreen(string userInput)
         {
             var cur = _commands.CurrentScreenName;
@@ -135,6 +135,14 @@ namespace NavigatorHMI.AiAgent
             var cleanGroups = groups.Select(SanitizeForPrompt).Where(g => g.Length > 0).ToList();
             if (cleanGroups.Count > 0)
                 prefix += (prefix.Length > 0 ? " " : "") + $"[可用用户组：{string.Join("/", cleanGroups)}]";
+            // B③：注入当前画面控件清单（ObjectName+类型，上限 50——AI「所有XX」/操作既有控件时知道名字）；整体限长防挤占上下文
+            var widgets = _commands.GetCurrentScreenWidgets();
+            if (widgets.Count > 0)
+            {
+                var list = string.Join("；", widgets.Select(w => $"{SanitizeForPrompt(w.Name)}({w.Type})"));
+                if (list.Length > 2000) list = list[..2000] + "…";   // 总长截断（50 控件最坏可达数 KB）
+                prefix += (prefix.Length > 0 ? " " : "") + $"[画面控件：{list}]";
+            }
             return string.IsNullOrEmpty(prefix) ? userInput : $"{prefix} {userInput}";
         }
 
@@ -294,6 +302,9 @@ namespace NavigatorHMI.AiAgent
             "8. 涉及设备连接、部署、删除画面等破坏性或外部操作时，先确认用户意图再执行。\n" +
             "9. 复杂指令（多画面/多控件/阵列等）可一次调用多个工具，加快完成。\n" +
             "9b. 画面名直接用（无需加「画面」后缀）：用户说「在世界地图中放置」= 画面「世界地图」；「放在画面中心/居中」= add_widget 传 center=true（画面中心坐标）；「阵列以画面中心为起点/从中心开始」= array_layout 传 center_start=true。注意「全局画面」本身含「画面」二字——用户说「在全局画面放」= 画面「全局画面」（用全名，不是去掉后缀）。\n" +
+            "9c. 阵列行列：用户说「M×N 阵列」（如 2×2/3×4）时，array_layout 显式传 cols=M rows=N（先传参）；没说行列数时省略 cols/rows——命令层按控件数自动计算（4 个 → 2×2）。\n" +
+            "9d. 画面控件清单：用户消息前缀的「画面控件：xxx(类型)；yyy(类型)」是当前画面已有控件（ObjectName+类型）；用户说「所有XX」/「全部XX」（如" +
+            "\"把所有标签背景去掉\"）= 对画面内该类型全部控件逐个操作（先按清单确定目标控件名，再逐一对 set_property/add_widget 等操作）。\n" +
             "10. 控件与列表：用户让 image/frame/文本列表控件\"按列表显示/显示列表内容/绑定列表\"时，用 set_property 的 listRef 属性" +
             "绑定到列表名（列表不存在则先 create_list）；不要用 imagePath 设单张静态图代替（只有明确要求显示某一张固定图时才设 imagePath）。\n" +
             "11. Text 控件已下线：新建文本输入控件请用 IOField（widget_type=iofield）；旧工程已存在的 Text 控件只读兼容展示，不要新建 text 类型控件。\n" +

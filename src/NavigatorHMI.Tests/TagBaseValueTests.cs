@@ -58,5 +58,35 @@ namespace NavigatorHMI.Tests
             Assert.False(bad.Success);
             Assert.Equal("INVALID_PARAM", bad.ErrorCode);
         }
+
+        [Fact]
+        public void DATETIME_未传基准值默认全零()
+        {
+            var project = new HMIProject();
+            var svc = new CommandService(project);
+            var r = svc.Execute("create_tag", new Dictionary<string, object?> { ["name"] = "TD", ["data_type"] = "DATETIME" });
+            Assert.True(r.Success, $"{r.ErrorCode} {r.ErrorMessage}");
+            Assert.Equal("0000:00:00 00:00:00", project.Tags[0].BaseValue);   // 任务8：默认全 0 基准值
+        }
+
+        [Fact]
+        public void DATETIME_全零字面放行()
+        {
+            var project = new HMIProject();
+            var svc = new CommandService(project);
+            var r = svc.Execute("create_tag", new Dictionary<string, object?> { ["name"] = "TZ", ["data_type"] = "DATETIME", ["base_value"] = "0000:00:00 00:00:00" });
+            Assert.True(r.Success, $"{r.ErrorCode} {r.ErrorMessage}");   // 0000 年 TryParse 失败但全 0 字面放行
+            Assert.Equal("0000:00:00 00:00:00", project.Tags[0].BaseValue);
+        }
+
+        [Fact]
+        public void DATETIME_全零字面含非法字符拒绝()
+        {
+            var project = new HMIProject();
+            var svc = new CommandService(project);
+            var r = svc.Execute("create_tag", new Dictionary<string, object?> { ["name"] = "TZ2", ["data_type"] = "DATETIME", ["base_value"] = "0000年00月00日" });
+            Assert.False(r.Success);   // 白名单外字符（年/月/日）→ 拒绝（0000 无效且非全 0 字面）
+            Assert.Equal("INVALID_PARAM", r.ErrorCode);
+        }
     }
 }

@@ -105,7 +105,7 @@ public static class Program
             // 布局
             "align"          => Cmd("align_widgets", Require("screen", "screen_name"), Require("widgets"), Require("direction")),
             "array"          => Cmd("array_layout", Require("screen", "screen_name"), Require("widgets"), Require("mode"),
-                                    OptMap("start-x", "start_x", "0"), OptMap("start-y", "start_y", "0"), Opt("cols", "3"), Opt("rows", "2"),
+                                    OptMap("start-x", "start_x", "0"), OptMap("start-y", "start_y", "0"), OptIfProvided("cols"), OptIfProvided("rows"),
                                     OptMap("spacing-x", "spacing_x", "120"), OptMap("spacing-y", "spacing_y", "80"),
                                     OptMap("center-x", "center_x", "0"), OptMap("center-y", "center_y", "0"),
                                     Opt("radius", "150"), OptMap("start-angle", "start_angle", "0"), OptMap("end-angle", "end_angle", "360")),
@@ -694,6 +694,7 @@ set-property 属性键 (--screen <画面> --widget <控件> --key <键> --value 
   array                  --screen <name> --widgets <a,b,c> --mode <rect|circle>
                          [--start-x <n>] [--start-y <n>] [--cols <n>] [--rows <n>] [--spacing-x <n>] [--spacing-y <n>]
                          [--center-x <n>] [--center-y <n>] [--radius <n>] [--start-angle <deg>] [--end-angle <deg>]
+                         （--cols/--rows 省略时按控件数自动计算：4 个 → 2×2）
 
 事件命令:
   bind-event             --screen <name> --widget <name> --event <type> --action <type> [--params "k1=v1,k2=v2"]

@@ -3120,14 +3120,7 @@ namespace NavigatorHMI.Views
                     new() { ["name"] = opts.GetValueOrDefault("name", ""), ["data_type"] = opts.GetValueOrDefault("type", "FLOAT"), ["source"] = opts.GetValueOrDefault("source", ""), ["unit"] = opts.GetValueOrDefault("unit", ""), ["scan_interval"] = opts.GetValueOrDefault("scan-interval", "100"), ["deadband"] = opts.GetValueOrDefault("deadband", "0"), ["description"] = opts.GetValueOrDefault("description", ""), ["base_value"] = opts.GetValueOrDefault("base-value", "") }),
                 "align" => _viewModel.CommandService.Execute("align_widgets",
                     new() { ["screen_name"] = opts.GetValueOrDefault("screen", ""), ["widgets"] = opts.GetValueOrDefault("widgets", ""), ["direction"] = opts.GetValueOrDefault("direction", "") }),
-                "array" => _viewModel.CommandService.Execute("array_layout",
-                    new() {
-                        ["screen_name"] = opts.GetValueOrDefault("screen", ""), ["widgets"] = opts.GetValueOrDefault("widgets", ""), ["mode"] = opts.GetValueOrDefault("mode", "rect"),
-                        ["start_x"] = opts.GetValueOrDefault("start-x", "0"), ["start_y"] = opts.GetValueOrDefault("start-y", "0"),
-                        ["cols"] = opts.GetValueOrDefault("cols", "3"), ["rows"] = opts.GetValueOrDefault("rows", "2"),
-                        ["spacing_x"] = opts.GetValueOrDefault("spacing-x", "120"), ["spacing_y"] = opts.GetValueOrDefault("spacing-y", "80"),
-                        ["center_x"] = opts.GetValueOrDefault("center-x", "0"), ["center_y"] = opts.GetValueOrDefault("center-y", "0"),
-                        ["radius"] = opts.GetValueOrDefault("radius", "150"), ["start_angle"] = opts.GetValueOrDefault("start-angle", "0"), ["end_angle"] = opts.GetValueOrDefault("end-angle", "360") }),
+                "array" => ArrayLayoutFromGuiCli(opts),
                 "list-screens" or "ls" => ListScreens(),
                 "scan" => _viewModel.CommandService.Execute("scan_devices",
                     new() { ["nic"] = opts.GetValueOrDefault("nic", "") }),
@@ -3148,6 +3141,30 @@ namespace NavigatorHMI.Views
                 "update-tag" => UpdateTag(opts),
                 _ => ExecuteDefaultCommand(command, opts)
             };
+        }
+
+        /// <summary>GUI CLI array：OptIfProvided 语义（cols/rows 未提供不进字典 → 命令层自动计算，与独立 CLI Program.cs 对齐；防双入口漂移）。</summary>
+        private CommandResult ArrayLayoutFromGuiCli(Dictionary<string, string> opts)
+        {
+            var p = new Dictionary<string, object?>
+            {
+                ["screen_name"] = opts.GetValueOrDefault("screen", ""),
+                ["widgets"] = opts.GetValueOrDefault("widgets", ""),
+                ["mode"] = opts.GetValueOrDefault("mode", "rect"),
+                ["start_x"] = opts.GetValueOrDefault("start-x", "0"),
+                ["start_y"] = opts.GetValueOrDefault("start-y", "0"),
+                ["spacing_x"] = opts.GetValueOrDefault("spacing-x", "120"),
+                ["spacing_y"] = opts.GetValueOrDefault("spacing-y", "80"),
+                ["center_x"] = opts.GetValueOrDefault("center-x", "0"),
+                ["center_y"] = opts.GetValueOrDefault("center-y", "0"),
+                ["radius"] = opts.GetValueOrDefault("radius", "150"),
+                ["start_angle"] = opts.GetValueOrDefault("start-angle", "0"),
+                ["end_angle"] = opts.GetValueOrDefault("end-angle", "360"),
+            };
+            // OptIfProvided：显式传了才覆盖（未提供 → 命令层按控件数自动计算 cols/rows）
+            if (opts.TryGetValue("cols", out var c) && c.Length > 0) p["cols"] = c;
+            if (opts.TryGetValue("rows", out var r) && r.Length > 0) p["rows"] = r;
+            return _viewModel.CommandService.Execute("array_layout", p);
         }
 
         /// <summary>GUI CLI update-alarm：OptIfProvided 语义（未提供的字段不进字典保留现值；message 显式提供才传，含空串 = 清空描述）。</summary>

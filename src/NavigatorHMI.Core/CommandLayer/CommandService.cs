@@ -200,6 +200,18 @@ namespace NavigatorHMI.CommandLayer
             lock (_lock) { return _project.Groups.Select(g => g.Name).ToList(); }
         }
 
+        /// <summary>B③：当前画面控件清单（ObjectName + 类型名；上限 50 条——AI 操作画面内既有控件时知道名字）。</summary>
+        public List<(string Name, string Type)> GetCurrentScreenWidgets()
+        {
+            lock (_lock)
+            {
+                var name = _project.CurrentScreenName;
+                var screen = _project.Screens.FirstOrDefault(s => s.Name == name);
+                if (screen == null) return new List<(string, string)>();
+                return screen.Widgets.Take(50).Select(w => (w.ObjectName, w.GetType().Name)).ToList();
+            }
+        }
+
         /// <summary>E11 当前画面名：代理到工程运行时字段（GUI 画面切换维护；current_screen 命令读取）。</summary>
         public string? CurrentScreenName
         {

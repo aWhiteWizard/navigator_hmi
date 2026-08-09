@@ -128,8 +128,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 ["start_x"] = new() { Type = "double", DefaultValue = 0.0 },
                 ["start_y"] = new() { Type = "double", DefaultValue = 0.0 },
                 ["center_start"] = new() { Type = "bool", DefaultValue = false, Description = "true 时起点（第一个控件中心）置于画面中心（忽略 start_x/start_y；AI「以画面中心为起点」用）", KeepInCompact = true },
-                ["cols"] = new() { Type = "int", DefaultValue = 3 },
-                ["rows"] = new() { Type = "int", DefaultValue = 2 },
+                ["cols"] = new() { Type = "int", KeepInCompact = true, Description = "列数（省略时按控件数自动计算）" },
+                ["rows"] = new() { Type = "int", KeepInCompact = true, Description = "行数（省略时按控件数自动计算）" },
                 ["spacing_x"] = new() { Type = "double", DefaultValue = 120.0 },
                 ["spacing_y"] = new() { Type = "double", DefaultValue = 80.0 },
                 ["center_x"] = new() { Type = "double", DefaultValue = 0.0 },
@@ -176,8 +176,12 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 => p.TryGetValue(k, out var v) && v != null && int.TryParse(v.ToString(), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var iv) ? iv : def;
             static double GetDbl(Dictionary<string, object?> p, string k, double def)
                 => p.TryGetValue(k, out var v) && v != null && double.TryParse(v.ToString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var dv) ? dv : def;
-            int cols = Math.Max(1, GetInt(parameters, "cols", 3));
-            int rows = Math.Max(1, GetInt(parameters, "rows", 2));
+            int cols = Math.Max(1, GetInt(parameters, "cols", -1));
+            int rows = Math.Max(1, GetInt(parameters, "rows", -1));
+            // 任务 6：cols/rows 未显式提供时按控件数自动计算（cols=ceil(sqrt(count))，rows=ceil(count/cols)——4→2×2；M×N 由 AI prompt 先传参）
+            if (!parameters.ContainsKey("cols") || parameters["cols"] == null) cols = (int)Math.Ceiling(Math.Sqrt(widgets.Count));
+            if (!parameters.ContainsKey("rows") || parameters["rows"] == null) rows = (int)Math.Ceiling(widgets.Count / (double)Math.Max(1, cols));
+            cols = Math.Max(1, cols); rows = Math.Max(1, rows);
             double sx = GetDbl(parameters, "spacing_x", 120);
             double sy = GetDbl(parameters, "spacing_y", 80);
             // 圆心缺省 = 画面中心（AI compact schema 不传 center_x/y 时用画面几何中心，符合"画面正中心为圆心"直觉；

@@ -48,6 +48,9 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 return CommandResult.Fail("INVALID_PARAM", $"未知数据类型: {p["data_type"]}");
             var bvErr = BaseValueValidator.Check(p.GetValueOrDefault("base_value")?.ToString(), dt);
             if (bvErr != null) return CommandResult.Fail("INVALID_PARAM", bvErr);
+            // 任务8：DATETIME 变量未提供基准值 → 默认全 0 字面（0000:00:00 00:00:00，年月日冒号分隔）
+            var baseValue = p.GetValueOrDefault("base_value")?.ToString() ?? "";
+            if (dt == TagDataType.DATETIME && string.IsNullOrEmpty(baseValue)) baseValue = "0000:00:00 00:00:00";
             project.Tags.Add(new Tag
             {
                 Name = name, DataType = dt,
@@ -56,7 +59,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 ScanIntervalMs = Convert.ToInt32(p.GetValueOrDefault("scan_interval", 100)),
                 Deadband = Convert.ToDouble(p.GetValueOrDefault("deadband", 0), System.Globalization.CultureInfo.InvariantCulture),
                 Description = p.GetValueOrDefault("description")?.ToString() ?? "",
-                BaseValue = p.GetValueOrDefault("base_value")?.ToString() ?? "",
+                BaseValue = baseValue,
             });
             return CommandResult.Ok(new { tag_name = name });
         }
@@ -525,9 +528,19 @@ internal static class BaseValueValidator
             TagDataType.UINT16 => ushort.TryParse(s, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _),
             TagDataType.INT32 => int.TryParse(s, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _),
             TagDataType.BOOL => bool.TryParse(s, out _) || s is "1" or "0",
-            TagDataType.DATETIME => DateTime.TryParse(s, out _),   // 任意有效日期时间（yyyy-MM-dd HH:mm:ss 等）
+            TagDataType.DATETIME => DateTime.TryParse(s, out _) || IsZeroDateLiteral(s),   // 任意有效日期时间（yyyy-MM-dd HH:mm:ss 等）；任务8：全 0 字面（0000:00:00 00:00:00，0000 年无效）放行
             _ => true,   // STRING 等任意文本
         };
         return ok ? null : $"base_value 不是合法的 {dt} 数值: '{raw}'";
+    }
+
+    /// <summary>任务8：全 0 日期字面（仅 0/数字/冒号/空格/横线/斜杠，无任何非 0 数字）——0000 年 TryParse 失败，需字面放行。</summary>
+    internal static bool IsZeroDateLiteral(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return false;
+        if (!s!.All(c => char.IsDigit(c) || c is ':' or ' ' or '-' or '/')) return false;   // 字符白名单：数字/冒号/空格/横线/斜杠
+        var digits = s.Where(char.IsDigit).ToList();
+        if (digits.Count == 0) return false;
+        return digits.All(d => d == '0');
     }
 }

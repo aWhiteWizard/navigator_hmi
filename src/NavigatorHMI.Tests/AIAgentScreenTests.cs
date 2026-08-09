@@ -85,4 +85,29 @@ public class AIAgentScreenTests
         Assert.DoesNotContain("监控]]", r);   // 恶意 ] 残留会出现双 ]（清洗成功则只有前缀自身一个）
         Assert.DoesNotContain("\r", r);
     }
+
+    [Fact]
+    public void InjectCurrentScreen_注入画面控件清单()
+    {
+        var project = new HMIProject();
+        project.Screens.Add(new Screen { Name = "主画面", Width = 800, Height = 480 });
+        project.Screens[0].Widgets.Add(new LabelWidget { ObjectName = "温度标签" });
+        project.Screens[0].Widgets.Add(new ButtonWidget { ObjectName = "启动按钮" });
+        var svc = new CommandService(project);
+        svc.CurrentScreenName = "主画面";
+        var agent = new AIAgent(svc, new FakeBackend());
+        var m = typeof(AIAgent).GetMethod("InjectCurrentScreen", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        var r = (string)m.Invoke(agent, new object[] { "把所有标签背景去掉" })!;
+        Assert.Contains("[画面控件：温度标签(LabelWidget)；启动按钮(ButtonWidget)]", r);
+    }
+
+    [Fact]
+    public void InjectCurrentScreen_无当前画面_不注入控件清单()
+    {
+        var svc = new CommandService(new HMIProject());   // 无画面
+        var agent = new AIAgent(svc, new FakeBackend());
+        var m = typeof(AIAgent).GetMethod("InjectCurrentScreen", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        var r = (string)m.Invoke(agent, new object[] { "放一个按钮" })!;
+        Assert.DoesNotContain("画面控件", r);
+    }
 }

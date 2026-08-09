@@ -29,6 +29,9 @@ namespace NavigatorHMI.CommandLayer
         /// <summary>P2-3：当前工程用户组名列表（AI 创建用户时知道合法 group_name）。</summary>
         List<string> GetGroupNames();
 
+        /// <summary>B③：当前画面控件清单（ObjectName + 类型名；上限 50 条截断——AI 知道画面内有哪些控件可操作）。</summary>
+        List<(string Name, string Type)> GetCurrentScreenWidgets();
+
         /// <summary>E11 当前画面名（运行时：GUI 画面切换维护；current_screen 命令与 AI prompt 读取）。</summary>
         string? CurrentScreenName { get; set; }
     }

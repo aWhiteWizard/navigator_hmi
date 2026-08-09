@@ -191,14 +191,17 @@ namespace NavigatorHMI.Views
             if (!double.IsFinite(deadband))
             { ShowError("死区必须是有限数字"); return; }
 
-            // 基准值：数字类型变量要求可解析为数字（ProgressBar/NumericDisplay 设计态显示用）；DATETIME 用日期时间格式
+            // 基准值：数字类型变量要求可解析为数字（ProgressBar/NumericDisplay 设计态显示用）；DATETIME 用日期时间格式（任务8：全 0 字面放行）
             var baseValue = BaseValueBox.Text.Trim();
+            if (dt == TagDataType.DATETIME && baseValue.Length == 0) baseValue = "0000:00:00 00:00:00";   // 任务8：DATETIME 默认全 0 基准值
             if (baseValue.Length > 0 && dt != TagDataType.STRING
              && dt != TagDataType.DATETIME
              && !double.TryParse(baseValue, System.Globalization.NumberStyles.Float,
                     System.Globalization.CultureInfo.InvariantCulture, out _))
             { ShowError("数字类型变量的基准值必须是数字（如 25.5 / 1）"); return; }
-            if (baseValue.Length > 0 && dt == TagDataType.DATETIME && !DateTime.TryParse(baseValue, out _))
+            if (baseValue.Length > 0 && dt == TagDataType.DATETIME
+             && !DateTime.TryParse(baseValue, out _)
+             && !IsZeroDateText(baseValue))
             { ShowError("DATETIME 变量的基准值必须是有效日期时间（如 2026-08-08 12:30:00）"); return; }
 
             Result = new Tag
@@ -216,6 +219,15 @@ namespace NavigatorHMI.Views
         }
 
         private void Cancel_Click(object sender, RoutedEventArgs e) => DialogResult = false;
+
+        /// <summary>任务8：全 0 日期字面（仅 0/数字/冒号/空格/横线/斜杠，无任何非 0 数字）——0000 年 TryParse 失败，需字面放行（与命令层 IsZeroDateLiteral 同规则）。</summary>
+        private static bool IsZeroDateText(string s)
+        {
+            if (!s.All(c => char.IsDigit(c) || c is ':' or ' ' or '-' or '/')) return false;   // 字符白名单：数字/冒号/空格/横线/斜杠
+            var digits = s.Where(char.IsDigit).ToList();
+            if (digits.Count == 0) return false;
+            return digits.All(d => d == '0');
+        }
 
         private void ShowError(string msg)
         {

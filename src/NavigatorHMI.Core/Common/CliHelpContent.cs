@@ -24,7 +24,7 @@ namespace NavigatorHMI.Common
   paste-widget --screen <name>                   粘贴控件
   set-default-font --font-size 14                设置默认字体
   align --screen <name> --widgets a,b,c --direction left  对齐控件
-  array --screen <name> --widgets a,b,c --mode rect --start-x 0 --start-y 0 --cols 3 --rows 2 --spacing-x 120 --spacing-y 80  阵列排列
+  array --screen <name> --widgets a,b,c --mode rect --start-x 0 --start-y 0 [--cols N] [--rows N] --spacing-x 120 --spacing-y 80  阵列排列（--cols/--rows 省略时按控件数自动计算：4 个 → 2×2）
   compile                                       编译工程
   save                                          保存工程
   list-screens / ls                             列出所有画面

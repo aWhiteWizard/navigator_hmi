@@ -65,4 +65,36 @@ public class DateTimeWidgetTests
         w.Text = "2026-08-09 12:00:00";
         Assert.True(notified);
     }
+
+    [Fact]
+    public void DisplayText_绑定全零基准值按格式字面替换()
+    {
+        var p = new HMIProject();
+        p.Tags.Add(new Tag { Name = "TZ", DataType = TagDataType.DATETIME, BaseValue = "0000:00:00 00:00:00" });   // 任务8：全 0 默认基准值
+        TagResolver.CurrentProject = p;
+        try
+        {
+            var w = new DateTimeWidget { BoundTag = "TZ", Format = "yyyy-MM-dd HH:mm:ss" };
+            Assert.Equal("0000-00-00 00:00:00", w.DisplayText);   // 分隔符跟控件格式（冒号→横线）
+            var w2 = new DateTimeWidget { BoundTag = "TZ", Format = "yyyy/MM/dd" };
+            Assert.Equal("0000/00/00", w2.DisplayText);
+        }
+        finally { TagResolver.CurrentProject = null; }
+    }
+
+    [Fact]
+    public void DisplayText_绑定全零基准值改格式立即重算()
+    {
+        var p = new HMIProject();
+        p.Tags.Add(new Tag { Name = "TZ2", DataType = TagDataType.DATETIME, BaseValue = "0000:00:00 00:00:00" });
+        TagResolver.CurrentProject = p;
+        try
+        {
+            var w = new DateTimeWidget { BoundTag = "TZ2", Format = "yyyy-MM-dd" };
+            Assert.Equal("0000-00-00", w.DisplayText);
+            w.Format = "yyyy年MM月dd日";   // 改格式 → 全 0 按新格式字面替换
+            Assert.Equal("0000年00月00日", w.DisplayText);
+        }
+        finally { TagResolver.CurrentProject = null; }
+    }
 }
