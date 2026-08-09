@@ -594,6 +594,27 @@ namespace NavigatorHMI.ViewModels
                 r.Success ? System.Windows.MessageBoxImage.Information : System.Windows.MessageBoxImage.Warning);
         }
 
+        /// <summary>补 #2：批量删除用户（DELETE 键多选——一次确认已在 View；命令层最后管理员保护，失败汇总；对齐 DeleteGroupsBatch 模式）。</summary>
+        public void DeleteUsersBatch(List<string> names)
+        {
+            if (names.Count == 0) return;
+            PushUserSnapshot();   // 批量一次快照可整体撤销
+            var failed = new List<string>();
+            foreach (var name in names)
+            {
+                var r = CommandService.Execute("delete_user", new Dictionary<string, object?> { ["user_name"] = name });
+                if (!r.Success) failed.Add($"{name}（{r.ErrorCode}）");
+            }
+            RefreshUserPanel();
+            SelectedUser = null;
+            if (failed.Count > 0)
+                System.Windows.MessageBox.Show($"部分用户删除失败：{string.Join("、", failed)}", "用户管理",
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+            else
+                System.Windows.MessageBox.Show($"已删除 {names.Count} 个用户", "用户管理",
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+        }
+
         /// <summary>P2-1 新建组（弹窗收集 → 命令层 create_group）。</summary>
         public void AddGroupCommand(string name, List<UserPermission> perms)
         {

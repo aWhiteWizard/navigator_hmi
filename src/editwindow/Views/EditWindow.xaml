@@ -1594,7 +1594,7 @@
                                                 <DataGrid Grid.Row="1" x:Name="UsersGrid" ItemsSource="{Binding DataContext.UserAccounts, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding DataContext.SelectedUser, RelativeSource={RelativeSource AncestorType=Window}}"
                                                           AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" HeadersVisibility="Column"
                                                           GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12" RowHeight="26"
-                                                          MouseDoubleClick="UsersGrid_MouseDoubleClick" PreviewMouseRightButtonDown="UsersGrid_PreviewMouseRightButtonDown">
+                                                          MouseDoubleClick="UsersGrid_MouseDoubleClick" PreviewKeyDown="UsersGrid_PreviewKeyDown" PreviewMouseRightButtonDown="UsersGrid_PreviewMouseRightButtonDown">
                                                     <DataGrid.ContextMenu>
                                                         <ContextMenu>
                                                             <MenuItem Header="复制" Click="UserCopy_Click"/>

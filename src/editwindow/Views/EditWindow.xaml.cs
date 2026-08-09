@@ -551,6 +551,22 @@ namespace NavigatorHMI.Views
                 _viewModel.UpdateUserCommand(u.UserName, dlg.UserName.Trim(), dlg.Password, dlg.SelectedGroup);
         }
 
+        /// <summary>补 #2：用户表格 DELETE 键批量删除选中用户（一次确认；命令层最后管理员保护，失败汇总——对齐 A2 组表格语义）。PreviewKeyDown 隧道事件（KeyDown 冒泡会被 DataGridCell 内置删除命令拦截）。</summary>
+        private void UsersGrid_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key != Key.Delete || Keyboard.Modifiers != ModifierKeys.None) return;
+            if (sender is not System.Windows.Controls.DataGrid dg || dg.SelectedItems.Count == 0) return;
+            var users = dg.SelectedItems.OfType<UserAccount>().ToList();
+            if (System.Windows.MessageBox.Show($"确定删除选中的 {users.Count} 个用户吗？（最后管理员不可删）", "用户管理",
+                    System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Question) != System.Windows.MessageBoxResult.Yes)
+            {
+                e.Handled = true;
+                return;
+            }
+            _viewModel.DeleteUsersBatch(users.Select(u => u.UserName).ToList());
+            e.Handled = true;
+        }
+
         /// <summary>P2-12/任务12 用户：复制选中用户（多选 SelectedItems——右键行已在 PreviewMouseRightButtonDown 选中）。</summary>
         private void UserCopy_Click(object sender, RoutedEventArgs e)
         {
@@ -1901,12 +1917,33 @@ namespace NavigatorHMI.Views
 
             var ctrl = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
             var shift = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
+            var alt = Keyboard.Modifiers.HasFlag(ModifierKeys.Alt);
             var none = Keyboard.Modifiers == ModifierKeys.None;
 
             // ── 全选 ──（焦点在管理器表格/列表内时交给控件级 handler：表格 Ctrl+A 全选行）
             if (ctrl && !shift && e.Key == Key.A && !IsFocusInManagerControl())
             {
                 SelectAllWidgets();
+                e.Handled = true;
+                return;
+            }
+            // ── 用户管理页 Ctrl+C/V：复制/粘贴选中用户或组（页面级路由，与 A3 同款；UserActive 时画布 Hidden 无冲突；
+            //    补 #1：用户/组复制粘贴原仅右键菜单，无键盘快捷键；page==2（安全设置）不命中时放行不吞键）──
+            if (ctrl && !shift && !alt && e.Key == Key.C && _viewModel.UserActive)
+            {
+                if (_viewModel.UserPanelPage == 0 && UsersGrid.SelectedItems.Count > 0)
+                    _viewModel.CopyUsersCommand(UsersGrid.SelectedItems.OfType<UserAccount>().ToList());
+                else if (_viewModel.UserPanelPage == 1 && GroupsGrid.SelectedItems.Count > 0)
+                    _viewModel.CopyGroupsCommand(GroupsGrid.SelectedItems.OfType<UserGroup>().ToList());
+                else return;   // page==2 或无选中：放行不吞键（避免未来该页加可复制控件时静默吞键）
+                e.Handled = true;
+                return;
+            }
+            if (ctrl && !shift && !alt && e.Key == Key.V && _viewModel.UserActive)
+            {
+                if (_viewModel.UserPanelPage == 0) _viewModel.PasteUsersCommand();
+                else if (_viewModel.UserPanelPage == 1) _viewModel.PasteGroupsCommand();
+                else return;   // page==2：放行不吞键
                 e.Handled = true;
                 return;
             }
