@@ -435,17 +435,131 @@ namespace NavigatorHMI.ViewModels
         /// <summary>添加用户（走命令层 create_user——校验/哈希/组存在性统一）。</summary>
         public void AddUserCommand()
         {
-            var uname = NewUserName.Trim();
             var r = CommandService.Execute("create_user", new Dictionary<string, object?>
             {
-                ["user_name"] = uname,
-                ["password"] = NewUserPassword,
-                ["group_name"] = NewUserGroup,
+                ["user_name"] = _pendingUserName.Trim(),
+                ["password"] = _pendingUserPassword,
+                ["group_name"] = _pendingUserGroup,
             });
-            if (r.Success) { RefreshUserPanel(); NewUserName = ""; NewUserPassword = ""; }
-            System.Windows.MessageBox.Show(r.Success ? $"已创建用户 {uname}" : $"创建失败 [{r.ErrorCode}]: {r.ErrorMessage}",
+            if (r.Success) RefreshUserPanel();
+            System.Windows.MessageBox.Show(r.Success ? $"已创建用户 {_pendingUserName.Trim()}" : $"创建失败 [{r.ErrorCode}]: {r.ErrorMessage}",
                 "用户管理", System.Windows.MessageBoxButton.OK,
                 r.Success ? System.Windows.MessageBoxImage.Information : System.Windows.MessageBoxImage.Warning);
+        }
+
+        private string _pendingUserName = "";
+        private string _pendingUserPassword = "";
+        private string _pendingUserGroup = "访客";
+
+        /// <summary>P2-12 创建用户（弹窗收集 → 命令层 create_user）。</summary>
+        public void AddUserCommand(string name, string password, string group)
+        {
+            _pendingUserName = name; _pendingUserPassword = password; _pendingUserGroup = group;
+            PushUserSnapshot();
+            AddUserCommand();
+        }
+
+        /// <summary>P2-12 更新用户（改用户名/密码/组；密码留空=不改）。</summary>
+        public void UpdateUserCommand(string oldName, string newName, string newPassword, string newGroup)
+        {
+            PushUserSnapshot();
+            var r = CommandService.Execute("update_user", new Dictionary<string, object?>
+            {
+                ["user_name"] = oldName,
+                ["new_user_name"] = newName == oldName ? "" : newName,
+                ["new_password"] = newPassword,
+                ["new_group_name"] = newGroup,
+            });
+            if (r.Success) RefreshUserPanel();
+            System.Windows.MessageBox.Show(r.Success ? $"已更新用户 {newName}" : $"更新失败 [{r.ErrorCode}]: {r.ErrorMessage}",
+                "用户管理", System.Windows.MessageBoxButton.OK,
+                r.Success ? System.Windows.MessageBoxImage.Information : System.Windows.MessageBoxImage.Warning);
+        }
+
+        /// <summary>P2-12 复制用户（用户名+组；密码不复制——副本需重设密码）。</summary>
+        public void CopyUserCommand(string name)
+        {
+            var u = CurrentProject.Users.FirstOrDefault(x => x.UserName == name);
+            if (u == null) return;
+            _copiedUser = (u.UserName, u.GroupName);
+            System.Windows.MessageBox.Show($"已复制用户 {name}（粘贴创建副本，密码需重设）", "用户管理",
+                System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+        }
+
+        /// <summary>P2-12 粘贴用户（副本：原名+副本 编号递增；密码随机生成并提示——create_user 拒绝空密码）。</summary>
+        public void PasteUserCommand()
+        {
+            if (_copiedUser == null)
+            {
+                System.Windows.MessageBox.Show("剪贴板没有用户（请先复制）", "用户管理",
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                return;
+            }
+            var (name, group) = _copiedUser.Value;
+            var baseName = name;
+            var n = 1;
+            while (CurrentProject.Users.Any(x => x.UserName == baseName + "副本" + (n > 1 ? n.ToString() : ""))) n++;
+            var newName = baseName + "副本" + (n > 1 ? n.ToString() : "");
+            var randomPwd = System.Guid.NewGuid().ToString("N")[..8];   // 随机密码（副本创建后建议立即编辑改密）
+            AddUserCommand(newName, randomPwd, group);
+            System.Windows.MessageBox.Show($"已创建用户副本 {newName}（随机密码：{randomPwd}，请编辑设置新密码）", "用户管理",
+                System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+        }
+
+        private (string UserName, string GroupName)? _copiedUser;
+
+        // ═══ P2-12 用户/组撤销栈（快照 Users+Groups；GUI 操作 + AI 操作统一入栈） ═══
+        private readonly System.Collections.Generic.Stack<List<UserAccount>> _usersUndo = new();
+        private readonly System.Collections.Generic.Stack<List<UserAccount>> _usersRedo = new();
+        private readonly System.Collections.Generic.Stack<List<UserGroup>> _groupsUndo = new();
+        private readonly System.Collections.Generic.Stack<List<UserGroup>> _groupsRedo = new();
+
+        /// <summary>P2-12 操作前快照（用户/组；任何增删改复制/AI 用户操作前调用）。</summary>
+        public void PushUserSnapshot()
+        {
+            _usersUndo.Push(SnapshotUsers());
+            _groupsUndo.Push(SnapshotGroups());
+            _usersRedo.Clear();
+            _groupsRedo.Clear();
+        }
+
+        /// <summary>P2-12 撤销用户/组操作（Ctrl+Z 用户面板焦点；恢复快照）。</summary>
+        public bool UndoUser()
+        {
+            if (_usersUndo.Count == 0) return false;
+            _usersRedo.Push(SnapshotUsers());
+            _groupsRedo.Push(SnapshotGroups());
+            RestoreUsers(_usersUndo.Pop());
+            RestoreGroups(_groupsUndo.Pop());
+            RefreshUserPanel();
+            return true;
+        }
+
+        /// <summary>P2-12 重做用户/组操作（Ctrl+Y）。</summary>
+        public bool RedoUser()
+        {
+            if (_usersRedo.Count == 0) return false;
+            _usersUndo.Push(SnapshotUsers());
+            _groupsUndo.Push(SnapshotGroups());
+            RestoreUsers(_usersRedo.Pop());
+            RestoreGroups(_groupsRedo.Pop());
+            RefreshUserPanel();
+            return true;
+        }
+
+        private List<UserAccount> SnapshotUsers() => CurrentProject.Users.Select(u => new UserAccount { UserName = u.UserName, PasswordHash = u.PasswordHash, GroupName = u.GroupName, MustChangePassword = u.MustChangePassword }).ToList();
+        private List<UserGroup> SnapshotGroups() => CurrentProject.Groups.Select(g => new UserGroup { Name = g.Name, Permissions = { } }).Select(g => { g.Permissions.AddRange(CurrentProject.Groups.First(x => x.Name == g.Name).Permissions); return g; }).ToList();
+
+        private void RestoreUsers(List<UserAccount> list)
+        {
+            CurrentProject.Users.Clear();
+            foreach (var u in list) CurrentProject.Users.Add(u);
+        }
+
+        private void RestoreGroups(List<UserGroup> list)
+        {
+            CurrentProject.Groups.Clear();
+            foreach (var g in list) CurrentProject.Groups.Add(g);
         }
 
         /// <summary>删除选中用户（走命令层 delete_user——最后管理员保护）。</summary>
@@ -453,12 +567,84 @@ namespace NavigatorHMI.ViewModels
         {
             if (SelectedUser == null) return;
             var uname = SelectedUser.UserName;
+            PushUserSnapshot();   // P2-12：删除可撤销
             var r = CommandService.Execute("delete_user", new Dictionary<string, object?> { ["user_name"] = uname });
             if (r.Success) { RefreshUserPanel(); SelectedUser = null; }
             System.Windows.MessageBox.Show(r.Success ? $"已删除用户 {uname}" : $"删除失败 [{r.ErrorCode}]: {r.ErrorMessage}",
                 "用户管理", System.Windows.MessageBoxButton.OK,
                 r.Success ? System.Windows.MessageBoxImage.Information : System.Windows.MessageBoxImage.Warning);
         }
+
+        /// <summary>P2-1 新建组（弹窗收集 → 命令层 create_group）。</summary>
+        public void AddGroupCommand(string name, List<UserPermission> perms)
+        {
+            PushUserSnapshot();   // P2-12：组操作可撤销
+            var r = CommandService.Execute("create_group", new Dictionary<string, object?>
+            {
+                ["group_name"] = name,
+                ["permissions"] = string.Join(",", perms.Select(x => x.ToString())),
+            });
+            if (r.Success) RefreshUserPanel();
+            System.Windows.MessageBox.Show(r.Success ? $"已创建组 {name}" : $"创建失败 [{r.ErrorCode}]: {r.ErrorMessage}",
+                "用户组", System.Windows.MessageBoxButton.OK,
+                r.Success ? System.Windows.MessageBoxImage.Information : System.Windows.MessageBoxImage.Warning);
+        }
+
+        /// <summary>P2-1 更新组（改名/权限）。</summary>
+        public void UpdateGroupCommand(string oldName, string newName, List<UserPermission> perms)
+        {
+            PushUserSnapshot();   // P2-12：组操作可撤销
+            var r = CommandService.Execute("update_group", new Dictionary<string, object?>
+            {
+                ["group_name"] = oldName,
+                ["new_group_name"] = newName == oldName ? "" : newName,
+                ["permissions"] = string.Join(",", perms.Select(x => x.ToString())),
+            });
+            if (r.Success) RefreshUserPanel();
+            System.Windows.MessageBox.Show(r.Success ? $"已更新组 {newName}" : $"更新失败 [{r.ErrorCode}]: {r.ErrorMessage}",
+                "用户组", System.Windows.MessageBoxButton.OK,
+                r.Success ? System.Windows.MessageBoxImage.Information : System.Windows.MessageBoxImage.Warning);
+        }
+
+        /// <summary>P2-1 删除组（预设组命令层 BLOCKED）。</summary>
+        public void DeleteGroupCommand(string name)
+        {
+            PushUserSnapshot();   // P2-12：组操作可撤销
+            var r = CommandService.Execute("delete_group", new Dictionary<string, object?> { ["group_name"] = name });
+            if (r.Success) RefreshUserPanel();
+            System.Windows.MessageBox.Show(r.Success ? $"已删除组 {name}" : $"删除失败 [{r.ErrorCode}]: {r.ErrorMessage}",
+                "用户组", System.Windows.MessageBoxButton.OK,
+                r.Success ? System.Windows.MessageBoxImage.Information : System.Windows.MessageBoxImage.Warning);
+        }
+
+        /// <summary>P2-1 复制组到剪贴板（预设组也可复制；组名+权限）。</summary>
+        public void CopyGroupCommand(string name)
+        {
+            var g = CurrentProject.Groups.FirstOrDefault(x => x.Name == name);
+            if (g == null) return;
+            _copiedGroup = (g.Name, g.Permissions.ToList());
+            System.Windows.MessageBox.Show($"已复制组 {name}（可粘贴创建副本）", "用户组",
+                System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+        }
+
+        /// <summary>P2-1 粘贴组（创建副本：原名+副本 编号递增）。</summary>
+        public void PasteGroupCommand()
+        {
+            if (_copiedGroup == null)
+            {
+                System.Windows.MessageBox.Show("剪贴板没有组（请先复制）", "用户组",
+                    System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                return;
+            }
+            var (name, perms) = _copiedGroup.Value;
+            var baseName = name;
+            var n = 1;
+            while (CurrentProject.Groups.Any(x => x.Name == baseName + "副本" + (n > 1 ? n.ToString() : ""))) n++;
+            var newName = baseName + "副本" + (n > 1 ? n.ToString() : "");
+            AddGroupCommand(newName, perms);
+        }
+
+        private (string Name, List<UserPermission> Permissions)? _copiedGroup;
 
         /// <summary>保存安全设置（写 project.Security + 标脏；负值拒绝）。</summary>
         public void SaveSecurityCommand()
@@ -844,6 +1030,7 @@ namespace NavigatorHMI.ViewModels
                         throw new InvalidOperationException("本地模型加载中，请稍候再发送…");
                     var agent = _aiAgent;   // 捕获引用：Task.Run 执行时不再重读（防切换设置竞态 NRE）
                     PushUndoSnapshot();   // AI 操作前快照当前画面（Ctrl+Z 可整体撤销 AI 的画面改动；变量/列表/报警用对应管理器删）
+                PushUserSnapshot();   // P2-12：AI 用户/组操作也可撤销（快照 Users+Groups）
                     // 网络推理放后台线程；await 后经 WPF SynchronizationContext 回 UI 线程更新消息
                     var result = await Task.Run(() => agent!.ChatAsync(text, token), token);
                     ReplaceThinking("ai", result);
@@ -991,8 +1178,11 @@ namespace NavigatorHMI.ViewModels
         /// <summary>设置窗口保存后重读 API Key（AiConfigStore 已更新）并重建 Agent。</summary>
         public void ReloadAiKeyFromStore()
         {
-            _aiApiKey = AiConfigStore.Load().ApiKey;
+            var cfg = AiConfigStore.Load();
+            _aiApiKey = cfg.ApiKey;
+            _aiLocalModelPath = cfg.LocalModelPath;   // P3-7：模型路径移设置窗后一并刷新（否则 Agent 用旧路径）
             OnPropertyChanged(nameof(AiApiKey));
+            OnPropertyChanged(nameof(AiLocalModelPath));
             RebuildAiAgent();
         }
 

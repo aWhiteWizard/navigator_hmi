@@ -127,6 +127,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 ["mode"] = new() { Type = "enum", Required = true, EnumValues = new[] { "rect", "circle" } },
                 ["start_x"] = new() { Type = "double", DefaultValue = 0.0 },
                 ["start_y"] = new() { Type = "double", DefaultValue = 0.0 },
+                ["center_start"] = new() { Type = "bool", DefaultValue = false, Description = "true 时起点（第一个控件中心）置于画面中心（忽略 start_x/start_y；AI「以画面中心为起点」用）", KeepInCompact = true },
                 ["cols"] = new() { Type = "int", DefaultValue = 3 },
                 ["rows"] = new() { Type = "int", DefaultValue = 2 },
                 ["spacing_x"] = new() { Type = "double", DefaultValue = 120.0 },
@@ -194,6 +195,12 @@ namespace NavigatorHMI.CommandLayer.Handlers
             double endAngle = GetDbl(parameters, "end_angle", 360);
             double startX = GetDbl(parameters, "start_x", 0);
             double startY = GetDbl(parameters, "start_y", 0);
+            // P3-3：center_start=true → 起点（第一个控件中心）在画面中心（忽略 start_x/start_y；AI「以画面中心为起点」）
+            if (parameters.GetValueOrDefault("center_start") is true or "true" or "True" or "1")
+            {
+                startX = maxW0 / 2.0;
+                startY = maxH0 / 2.0;
+            }
 
             var positions = LayoutMath.CalcPositions(isCircle, widgets.Count, cols, rows, startX, startY, sx, sy,
                 cx, cy, radius, startAngle, endAngle);

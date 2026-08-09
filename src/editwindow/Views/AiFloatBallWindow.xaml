@@ -1,0 +1,21 @@
+<Window x:Class="NavigatorHMI.Views.AiFloatBallWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="AI" Width="46" Height="46" WindowStyle="None" ResizeMode="NoResize"
+        Topmost="True" ShowInTaskbar="False" AllowsTransparency="True" Background="Transparent"
+        WindowStartupLocation="Manual" FontSize="12">
+    <Button x:Name="Fab" Width="46" Height="46" Background="#2D2D30" Foreground="White" BorderThickness="0" Cursor="Hand"
+            PreviewMouseLeftButtonDown="Fab_MouseDown" PreviewMouseMove="Fab_MouseMove" PreviewMouseLeftButtonUp="Fab_MouseUp">
+        <Button.Template>
+            <ControlTemplate TargetType="Button">
+                <Border x:Name="Bd" CornerRadius="23" Background="{TemplateBinding Background}" BorderBrush="#555" BorderThickness="1">
+                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Bd" Property="Background" Value="#3E3E42"/></Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate>
+        </Button.Template>
+        <TextBlock Text="AI" FontWeight="Bold" FontSize="16"/>
+    </Button>
+</Window>

@@ -134,4 +134,134 @@ namespace NavigatorHMI.CommandLayer
         public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
             => CommandResult.Ok(new { users = project.Users.Select(u => new { u.UserName, u.GroupName }).ToArray() });
     }
+
+    // ═══ P2-1 用户组 CRUD（弹窗编辑/增删组/右键菜单用） ═══
+
+    /// <summary>create_group：新建用户组（预设三组外的自定义组）。</summary>
+    public class CreateGroupHandler : ICommandHandler
+    {
+        public CommandDefinition Definition => new()
+        {
+            Name = "create_group", Description = "新建用户组",
+            Parameters = new()
+            {
+                ["group_name"] = new() { Type = "string", Required = true, Description = "组名" },
+                ["permissions"] = new() { Type = "string", DefaultValue = "", Description = "权限列表（逗号分隔枚举名：ScreenEdit/AlarmAck/UserManage/SystemSettings；空=全禁）" },
+            }
+        };
+
+        public ValidationResult Validate(Dictionary<string, object?> p)
+        {
+            if (!p.ContainsKey("group_name") || string.IsNullOrWhiteSpace(p["group_name"]?.ToString()))
+                return ValidationResult.Fail("缺少必填参数: group_name");
+            var err = UserGroupHandlers.ParsePermissions(p.GetValueOrDefault("permissions")?.ToString());
+            return err == null ? ValidationResult.Fail("INVALID_PARAM: 权限名非法（ScreenEdit/AlarmAck/UserManage/SystemSettings）") : ValidationResult.Ok;
+        }
+
+        public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
+        {
+            var name = p["group_name"]!.ToString()!.Trim();
+            if (project.Groups.Any(g => g.Name == name))
+                return CommandResult.Fail("DUPLICATE", $"用户组 \"{name}\" 已存在");
+            var perms = UserGroupHandlers.ParsePermissions(p.GetValueOrDefault("permissions")?.ToString()) ?? new();
+            var g = new UserGroup { Name = name };
+            g.Permissions.AddRange(perms);
+            project.Groups.Add(g);
+            return CommandResult.Ok(new { group_name = name, permissions = perms.Count });
+        }
+    }
+
+    /// <summary>update_group：更新用户组（改名/改权限；permissions 非空才覆盖）。</summary>
+    public class UpdateGroupHandler : ICommandHandler
+    {
+        public CommandDefinition Definition => new()
+        {
+            Name = "update_group", Description = "更新用户组（改名/改权限）",
+            Parameters = new()
+            {
+                ["group_name"] = new() { Type = "string", Required = true, Description = "要修改的组名" },
+                ["new_group_name"] = new() { Type = "string", DefaultValue = "", Description = "新组名（留空=不改）" },
+                ["permissions"] = new() { Type = "string", DefaultValue = "", Description = "权限列表（逗号分隔；留空=不改）" },
+            }
+        };
+
+        public ValidationResult Validate(Dictionary<string, object?> p)
+        {
+            if (!p.ContainsKey("group_name") || string.IsNullOrWhiteSpace(p["group_name"]?.ToString()))
+                return ValidationResult.Fail("缺少必填参数: group_name");
+            var err = UserGroupHandlers.ParsePermissions(p.GetValueOrDefault("permissions")?.ToString());
+            return err == null ? ValidationResult.Fail("INVALID_PARAM: 权限名非法（ScreenEdit/AlarmAck/UserManage/SystemSettings）") : ValidationResult.Ok;
+        }
+
+        public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
+        {
+            var name = p["group_name"]!.ToString()!.Trim();
+            var g = project.Groups.FirstOrDefault(x => x.Name == name);
+            if (g == null) return CommandResult.Fail("NOT_FOUND", $"用户组 \"{name}\" 不存在");
+            var newName = p.GetValueOrDefault("new_group_name")?.ToString()?.Trim();
+            if (!string.IsNullOrEmpty(newName) && newName != name)
+            {
+                if (project.Groups.Any(x => x.Name == newName))
+                    return CommandResult.Fail("DUPLICATE", $"用户组 \"{newName}\" 已存在");
+                g.Name = newName;
+            }
+            if (p.ContainsKey("permissions"))   // 显式提供才覆盖（空串=清空；未提供=不改——与 update_user 约定一致）
+            {
+                var perms = UserGroupHandlers.ParsePermissions(p["permissions"]?.ToString()) ?? new();
+                g.Permissions.Clear();
+                g.Permissions.AddRange(perms);
+            }
+            return CommandResult.Ok(new { group_name = g.Name });
+        }
+    }
+
+    /// <summary>delete_group：删除用户组（预设三组不可删；有用户引用拒绝）。</summary>
+    public class DeleteGroupHandler : ICommandHandler
+    {
+        public CommandDefinition Definition => new()
+        {
+            Name = "delete_group", Description = "删除用户组（预设三组不可删；有用户引用拒绝）",
+            Parameters = new()
+            {
+                ["group_name"] = new() { Type = "string", Required = true, Description = "组名" },
+            }
+        };
+
+        public ValidationResult Validate(Dictionary<string, object?> p)
+            => !p.ContainsKey("group_name") || string.IsNullOrWhiteSpace(p["group_name"]?.ToString())
+                ? ValidationResult.Fail("缺少必填参数: group_name")
+                : ValidationResult.Ok;
+
+        public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
+        {
+            var name = p["group_name"]!.ToString()!.Trim();
+            if (name is "管理员" or "操作员" or "访客")
+                return CommandResult.Fail("BLOCKED", $"预设组 \"{name}\" 不可删除");
+            var g = project.Groups.FirstOrDefault(x => x.Name == name);
+            if (g == null) return CommandResult.Fail("NOT_FOUND", $"用户组 \"{name}\" 不存在");
+            if (project.Users.Any(u => u.GroupName == name))
+                return CommandResult.Fail("BLOCKED", $"用户组 \"{name}\" 仍被用户引用，不能删除");
+            project.Groups.Remove(g);
+            return CommandResult.Ok(new { group_name = name });
+        }
+    }
+
+    /// <summary>P2-1 用户组权限解析辅助（字符串→枚举列表；非法返回错误文本）。</summary>
+    public static class UserGroupHandlers
+    {
+        /// <summary>解析逗号分隔权限名；空/空白返回空列表；含非法名返回 null（调用方报 INVALID_PARAM）。</summary>
+        public static List<UserPermission>? ParsePermissions(string? raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return new();
+            var result = new List<UserPermission>();
+            foreach (var part in raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                if (int.TryParse(part, out _)) return null;   // 拒绝纯数字串（防 "2" 解析为 AlarmAck 绕过非法名校验）
+                if (Enum.TryParse<UserPermission>(part, true, out var perm) && Enum.IsDefined(perm))
+                { if (!result.Contains(perm)) result.Add(perm); }
+                else return null;
+            }
+            return result;
+        }
+    }
 }

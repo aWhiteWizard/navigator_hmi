@@ -45,11 +45,9 @@ namespace NavigatorHMI.CommandLayer.Handlers
             project.Screens.Add(new Screen { Name = "全局画面", Type = ScreenType.Template, Width = width, Height = height, IsGlobal = true, ShowInNav = false });
             project.Screens.Add(new Screen { Name = "世界地图", Type = ScreenType.WorldMap, Width = width, Height = height, ShowInNav = true });
 
-            // W3b：预置用户组（管理员全权/操作员报警确认·画面编辑/访客默认全禁——DESIGN-WINDOWS.md §用户节点）
+            // W3b/P1-10：预置用户组（统一入口 CommandService.EnsureDefaultGroups）
             project.Groups.Clear();
-            project.Groups.Add(new UserGroup { Name = "管理员", Permissions = { UserPermission.ScreenEdit, UserPermission.AlarmAck, UserPermission.UserManage, UserPermission.SystemSettings } });
-            project.Groups.Add(new UserGroup { Name = "操作员", Permissions = { UserPermission.AlarmAck, UserPermission.ScreenEdit } });
-            project.Groups.Add(new UserGroup { Name = "访客" });
+            CommandService.EnsureDefaultGroups(project);
 
             ProjectFileService.Save(project, project.ProjectFilePath);
             return CommandResult.Ok(new { project_path = project.ProjectFilePath, screens = 2 });

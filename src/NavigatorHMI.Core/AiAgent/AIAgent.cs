@@ -121,8 +121,16 @@ namespace NavigatorHMI.AiAgent
             TrimHistory();   // 裁剪旧轮次，防会话无限增长
             _retriedPrompt = false;   // 每次新指令重置未命中重试机会
             _retryRollbackIndex = 0;   // 回滚点入口统一复位（含重试失败路径，防下一轮误删历史）
-            _history.Add(new ChatMessage("user", userInput ?? ""));
+            _history.Add(new ChatMessage("user", InjectCurrentScreen(userInput ?? "")));   // P1-9：注入当前画面（实时跟随切换）
             return await RunLoopAsync(ct);
+        }
+
+        /// <summary>P1-9：用户消息前注入当前画面上下文（实时读命令层，每轮跟随切换；不污染 system 规则、无历史残留）。</summary>
+        private string InjectCurrentScreen(string userInput)
+        {
+            var cur = _commands.CurrentScreenName;
+            if (string.IsNullOrWhiteSpace(cur)) return userInput;
+            return $"[当前画面：{cur}] {userInput}";
         }
 
         /// <summary>新建会话：清空历史，仅保留 system 规则消息（GUI「新建会话」调用）。</summary>
@@ -268,7 +276,7 @@ namespace NavigatorHMI.AiAgent
             "7. 用户只是提问/闲聊/感谢，或全部操作已完成时，直接用中文回复，不要再调用工具。\n" +
             "8. 涉及设备连接、部署、删除画面等破坏性或外部操作时，先确认用户意图再执行。\n" +
             "9. 复杂指令（多画面/多控件/阵列等）可一次调用多个工具，加快完成。\n" +
-            "9b. 画面名直接用（无需加「画面」后缀）：用户说「在世界地图中放置」= 画面「世界地图」；「放在画面中心/居中」= add_widget 传 center=true（画面中心坐标）。注意「全局画面」本身含「画面」二字——用户说「在全局画面放」= 画面「全局画面」（用全名，不是去掉后缀）。\n" +
+            "9b. 画面名直接用（无需加「画面」后缀）：用户说「在世界地图中放置」= 画面「世界地图」；「放在画面中心/居中」= add_widget 传 center=true（画面中心坐标）；「阵列以画面中心为起点/从中心开始」= array_layout 传 center_start=true。注意「全局画面」本身含「画面」二字——用户说「在全局画面放」= 画面「全局画面」（用全名，不是去掉后缀）。\n" +
             "10. 控件与列表：用户让 image/frame/文本列表控件\"按列表显示/显示列表内容/绑定列表\"时，用 set_property 的 listRef 属性" +
             "绑定到列表名（列表不存在则先 create_list）；不要用 imagePath 设单张静态图代替（只有明确要求显示某一张固定图时才设 imagePath）。\n" +
             "11. Text 控件已下线：新建文本输入控件请用 IOField（widget_type=iofield）；旧工程已存在的 Text 控件只读兼容展示，不要新建 text 类型控件。\n" +

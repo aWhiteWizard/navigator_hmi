@@ -433,11 +433,7 @@
             <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropBinding}" Content="{Binding}"/>
             <Separator Margin="4,2"/>
-            <TextBlock Text="状态" Style="{StaticResource PropGroupHeader}"/>
-            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <Label Grid.Column="0" Content="IsOn:" Style="{StaticResource PropLabel}"/>
-                <CheckBox Grid.Column="1" IsChecked="{Binding SwitchIsOn}" VerticalAlignment="Center"/>
-            </Grid>
+            <TextBlock Text="文本" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="OnText:" Style="{StaticResource PropLabel}"/>
                 <TextBox Grid.Column="1" Text="{Binding SwitchOnText, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" KeyDown="PropField_KeyDown" />
@@ -590,11 +586,7 @@
             <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropBinding}" Content="{Binding}"/>
             <Separator Margin="4,2"/>
-            <TextBlock Text="状态" Style="{StaticResource PropGroupHeader}"/>
-            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <Label Grid.Column="0" Content="Checked:" Style="{StaticResource PropLabel}"/>
-                <CheckBox Grid.Column="1" IsChecked="{Binding CheckBoxIsChecked}" VerticalAlignment="Center"/>
-            </Grid>
+            <TextBlock Text="文本" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Text:" Style="{StaticResource PropLabel}"/>
                 <TextBox Grid.Column="1" Text="{Binding CheckBoxText, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" KeyDown="PropField_KeyDown" />
@@ -823,7 +815,7 @@
             </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="格式:" Style="{StaticResource PropLabel}"/>
-                <ComboBox Grid.Column="1" SelectedItem="{Binding DateTimeFormat, UpdateSourceTrigger=PropertyChanged}" IsEditable="True" Style="{StaticResource PropComboBox}" ToolTip="DateTime 格式（可编辑输入自定义；选中项为常用格式）">
+                <ComboBox Grid.Column="1" Text="{Binding DateTimeFormat, UpdateSourceTrigger=PropertyChanged}" IsEditable="True" Style="{StaticResource PropComboBox}" ToolTip="DateTime 格式（可编辑输入自定义；选中项为常用格式）">
                                         <ComboBoxItem Content="yyyy-MM-dd HH:mm:ss"/><ComboBoxItem Content="yyyy-MM-dd"/><ComboBoxItem Content="HH:mm:ss"/><ComboBoxItem Content="yyyy/MM/dd HH:mm:ss"/><ComboBoxItem Content="yyyy年MM月dd日"/><ComboBoxItem Content="HH:mm"/></ComboBox>
             </Grid>
         </StackPanel></DataTemplate>
@@ -1049,6 +1041,13 @@
                 <Button ToolTip="底对齐" Click="AlignBottom_Click" Width="28" Height="28" Padding="0">
                     <Path Data="M5,4 L5,16 M9,8 L9,16 M13,6 L13,16 M4,16 L16,16" Stroke="#444444" StrokeThickness="1.5" Stretch="Uniform" Margin="4" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Button>
+            </ToolBar>
+
+            <ToolBar x:Name="TbAi" Width="70" Height="32" Margin="0,0,2,0"
+                     PreviewMouseLeftButtonDown="Toolbar_MouseDown" Cursor="Hand">
+                <ToggleButton x:Name="AiBallToggle" ToolTip="AI 悬浮窗（开/关）" Width="28" Height="28"
+                              Checked="AiBallToggle_Checked" Unchecked="AiBallToggle_Unchecked">🛰</ToggleButton>
+                <Button ToolTip="AI 设置" Click="AiSettings_Click" Width="28" Height="28">⚙</Button>
             </ToolBar>
 
             </WrapPanel>
@@ -1597,27 +1596,26 @@
                                                     <RowDefinition Height="Auto"/>
                                                 </Grid.RowDefinitions>
                                                 <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
-                                                    <TextBlock Text="用户名:" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                                    <TextBox Text="{Binding DataContext.NewUserName, RelativeSource={RelativeSource AncestorType=Window}, UpdateSourceTrigger=PropertyChanged}" Width="110" Height="26" VerticalContentAlignment="Center" FontSize="12"/>
-                                                    <TextBlock Text="密码:" VerticalAlignment="Center" Margin="10,0,4,0"/>
-                                                    <TextBox Text="{Binding DataContext.NewUserPassword, RelativeSource={RelativeSource AncestorType=Window}, UpdateSourceTrigger=PropertyChanged}" Width="110" Height="26" VerticalContentAlignment="Center" FontSize="12"/>
-                                                    <TextBlock Text="组:" VerticalAlignment="Center" Margin="10,0,4,0"/>
-                                                    <ComboBox Width="90" Height="26" VerticalContentAlignment="Center" FontSize="12"
-                                                              ItemsSource="{Binding DataContext.UserGroups, RelativeSource={RelativeSource AncestorType=Window}}" DisplayMemberPath="Name"
-                                                              SelectedValue="{Binding DataContext.NewUserGroup, RelativeSource={RelativeSource AncestorType=Window}}" SelectedValuePath="Name"/>
-                                                    <Button Content="＋ 添加用户" Width="88" Height="26" Margin="10,0,0,0" Click="UserAdd_Click" ToolTip="创建用户（SHA256 哈希存储；组不存在拒绝）"/>
+                                                    <Button Content="＋ 添加用户" Width="110" Height="26" Click="UserAdd_Click" ToolTip="弹窗填写用户名/密码/所属组（P2-12：与变量管理器统一弹窗）"/>
+                                                    <Button Content="🗑 删除选中用户" Width="110" Height="26" Margin="8,0,0,0" Click="UserDelete_Click" ToolTip="删除选中用户（不能删除最后一个管理员）"/>
                                                 </StackPanel>
-                                                <DataGrid Grid.Row="1" ItemsSource="{Binding DataContext.UserAccounts, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding DataContext.SelectedUser, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                <DataGrid Grid.Row="1" x:Name="UsersGrid" ItemsSource="{Binding DataContext.UserAccounts, RelativeSource={RelativeSource AncestorType=Window}}" SelectedItem="{Binding DataContext.SelectedUser, RelativeSource={RelativeSource AncestorType=Window}}"
                                                           AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" HeadersVisibility="Column"
-                                                          GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12" RowHeight="26">
+                                                          GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12" RowHeight="26"
+                                                          MouseDoubleClick="UsersGrid_MouseDoubleClick">
+                                                    <DataGrid.ContextMenu>
+                                                        <ContextMenu>
+                                                            <MenuItem Header="复制" Click="UserCopy_Click"/>
+                                                            <MenuItem Header="粘贴" Click="UserPaste_Click"/>
+                                                            <Separator/>
+                                                            <MenuItem Header="删除" Click="UserDelete_Click"/>
+                                                        </ContextMenu>
+                                                    </DataGrid.ContextMenu>
                                                     <DataGrid.Columns>
                                                         <DataGridTextColumn Header="用户名" Binding="{Binding UserName}" Width="*"/>
                                                         <DataGridTextColumn Header="所属组" Binding="{Binding GroupName}" Width="*"/>
                                                     </DataGrid.Columns>
                                                 </DataGrid>
-                                                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,4,0,0">
-                                                    <Button Content="🗑 删除选中用户" Width="110" Height="26" Click="UserDelete_Click" ToolTip="删除选中用户（不能删除最后一个管理员）"/>
-                                                </StackPanel>
                                             </Grid>
                                         </TabItem>
                                         <!-- 页 1：用户组策略（组权限） -->
@@ -1625,18 +1623,32 @@
                                             <Grid Margin="2">
                                                 <Grid.RowDefinitions>
                                                     <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
                                                     <RowDefinition Height="*"/>
                                                 </Grid.RowDefinitions>
-                                                <TextBlock Grid.Row="0" Text="预置组：管理员（全权）/ 操作员（报警确认·画面编辑）/ 访客（默认全禁）。权限按所属组判定（运行时 FW 执行）。" FontSize="11" Foreground="Gray" Margin="0,0,0,4" TextWrapping="Wrap"/>
-                                                <DataGrid Grid.Row="1" ItemsSource="{Binding DataContext.UserGroups, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                <TextBlock Grid.Row="0" Text="预置组：管理员（全权）/ 操作员（报警确认·画面编辑）/ 访客（默认全禁）——不可删除可复制。双击组行编辑；右键复制/粘贴/删除。" FontSize="11" Foreground="Gray" Margin="0,0,0,4" TextWrapping="Wrap" IsHitTestVisible="False"/>
+                                                <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,4">
+                                                    <Button Content="＋ 新建组" Width="90" Height="26" Click="GroupAdd_Click"/>
+                                                    <Button Content="删除选中组" Width="96" Height="26" Margin="8,0,0,0" Click="GroupDelete_Click"/>
+                                                </StackPanel>
+                                                <DataGrid x:Name="GroupsGrid" Grid.Row="2" ItemsSource="{Binding DataContext.UserGroups, RelativeSource={RelativeSource AncestorType=Window}}"
                                                           AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" HeadersVisibility="Column"
-                                                          GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12" RowHeight="26">
+                                                          GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12" RowHeight="26"
+                                                          MouseDoubleClick="GroupsGrid_MouseDoubleClick">
+                                                    <DataGrid.ContextMenu>
+                                                        <ContextMenu>
+                                                            <MenuItem Header="复制" Click="GroupCopy_Click"/>
+                                                            <MenuItem Header="粘贴" Click="GroupPaste_Click"/>
+                                                            <Separator/>
+                                                            <MenuItem Header="删除" Click="GroupDelete_Click"/>
+                                                        </ContextMenu>
+                                                    </DataGrid.ContextMenu>
                                                     <DataGrid.Columns>
                                                         <DataGridTextColumn Header="组名" Binding="{Binding Name}" Width="140"/>
                                                         <DataGridTemplateColumn Header="权限">
                                                             <DataGridTemplateColumn.CellTemplate>
                                                                 <DataTemplate>
-                                                                    <TextBlock Text="{Binding Permissions, StringFormat={}{0}}" TextTrimming="CharacterEllipsis"/>
+                                                                    <TextBlock Text="{Binding PermissionDisplay}" TextTrimming="CharacterEllipsis"/>
                                                                 </DataTemplate>
                                                             </DataGridTemplateColumn.CellTemplate>
                                                         </DataGridTemplateColumn>
@@ -1916,23 +1928,7 @@
             </avalon:LayoutRoot>
         </avalon:DockingManager>
 
-        <!-- ═══ AI 助手：悬浮按钮 + 右侧侧边栏（本地 LLM Function Calling）═══ -->
-        <Button Grid.RowSpan="99" Width="46" Height="46" HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                Margin="0,0,16,26" Command="{Binding ToggleAiPanelCommand}" ToolTip="AI 助手（拖动可移动位置）"
-                Background="#2D2D30" Foreground="White" BorderThickness="0" Cursor="Hand"
-                PreviewMouseLeftButtonDown="AiFab_MouseDown" PreviewMouseMove="AiFab_MouseMove" PreviewMouseLeftButtonUp="AiFab_MouseUp">
-            <Button.Template>
-                <ControlTemplate TargetType="Button">
-                    <Border x:Name="Bd" CornerRadius="23" Background="{TemplateBinding Background}" BorderBrush="#555" BorderThickness="1">
-                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    </Border>
-                    <ControlTemplate.Triggers>
-                        <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Bd" Property="Background" Value="#3E3E42"/></Trigger>
-                    </ControlTemplate.Triggers>
-                </ControlTemplate>
-            </Button.Template>
-            <TextBlock Text="AI" FontWeight="Bold" FontSize="16"/>
-        </Button>
+        <!-- ═══ AI 助手：右侧侧边栏（本地 LLM Function Calling）；悬浮球独立窗（AiFloatBallWindow，P3-6）═══ -->
 
         <Grid Grid.RowSpan="99" Width="380" HorizontalAlignment="Right" Margin="0,0,0,0"
               Visibility="{Binding IsAiPanelOpen, Converter={StaticResource BoolToVisibilityConverter}}">
@@ -2059,19 +2055,6 @@
                                 <TextBlock Text="模型" VerticalAlignment="Center" Foreground="#555555" FontSize="12"/>
                                 <ComboBox Grid.Column="1" ItemsSource="{Binding AiModels}" SelectedItem="{Binding SelectedAiModel}"
                                           DisplayMemberPath="Label" Height="26" FontSize="12"/>
-                            </Grid>
-                            <Grid Margin="0,0,0,6" Visibility="{Binding IsLocalAiModel, Converter={StaticResource BoolToVisibilityConverter}}">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="74"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="模型路径" VerticalAlignment="Center" Foreground="#555555" FontSize="12"/>
-                                <TextBox Grid.Column="1" Text="{Binding AiLocalModelPath, UpdateSourceTrigger=LostFocus}" Height="26"
-                                         FontSize="12" VerticalContentAlignment="Center"
-                                         ToolTip="本地 GGUF 文件路径；留空自动查找仓库 models/ 目录"/>
-                                <Button Grid.Column="2" Content="浏览…" Height="26" Margin="6,0,0,0" Padding="8,0"
-                                        Click="AiBrowseModel_Click" Background="#2D2D30" Foreground="White" BorderThickness="0" Cursor="Hand"/>
                             </Grid>
                             <Grid>
                                 <Grid.ColumnDefinitions>

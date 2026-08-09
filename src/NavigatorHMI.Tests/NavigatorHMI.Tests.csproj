@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net8.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\NavigatorHMI.Core\NavigatorHMI.Core.csproj" />
+    <ProjectReference Include="..\editwindow\NavigatorHMI.csproj" />
   </ItemGroup>
 
   <ItemGroup>

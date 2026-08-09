@@ -24,7 +24,23 @@ namespace NavigatorHMI.CommandLayer
         public bool IsConnected { get; private set; } = false;
 
         /// <summary>替换当前工程引用（open_project 等命令使用）。</summary>
-        public void ReplaceProject(HMIProject newProject) { lock (_lock) { _project = newProject; } }
+        public void ReplaceProject(HMIProject newProject)
+        {
+            lock (_lock)
+            {
+                _project = newProject;
+                EnsureDefaultGroups(_project);   // P1-10：替换路径（CLI open/SaveAs）也预置三组（幂等）
+            }
+        }
+
+        /// <summary>P1-10：预置默认用户组（管理员全权/操作员报警确认·画面编辑/访客全禁）。创建工程与打开旧工程统一入口。</summary>
+        public static void EnsureDefaultGroups(HMIProject project)
+        {
+            if (project.Groups.Count > 0) return;
+            project.Groups.Add(new UserGroup { Name = "管理员", Permissions = { UserPermission.ScreenEdit, UserPermission.AlarmAck, UserPermission.UserManage, UserPermission.SystemSettings } });
+            project.Groups.Add(new UserGroup { Name = "操作员", Permissions = { UserPermission.AlarmAck, UserPermission.ScreenEdit } });
+            project.Groups.Add(new UserGroup { Name = "访客" });
+        }
 
         /// <summary>设置设备连接状态（仅供内部 connect 命令执行后调用）。</summary>
         internal void SetConnected(bool connected) { lock (_lock) { IsConnected = connected; } }
@@ -36,6 +52,7 @@ namespace NavigatorHMI.CommandLayer
         public CommandService(HMIProject project)
         {
             _project = project;
+            EnsureDefaultGroups(_project);   // P1-10：打开旧工程时 Groups 为空自动预置三组（创建工程路径 CreateProjectHandler 已预置，不重复）
             _handlers = new()
             {
                 // ── 工程操作 ──
@@ -102,6 +119,9 @@ namespace NavigatorHMI.CommandLayer
                 ["update_user"]     = new UpdateUserHandler(),
                 ["delete_user"]     = new DeleteUserHandler(),
                 ["list_users"]      = new ListUsersHandler(),
+                ["create_group"]    = new CreateGroupHandler(),
+                ["update_group"]    = new UpdateGroupHandler(),
+                ["delete_group"]    = new DeleteGroupHandler(),
 
                 // ── 设备操作 ──
                 ["configure_device"] = new ConfigureDeviceHandler(),

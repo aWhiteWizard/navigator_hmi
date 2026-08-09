@@ -455,8 +455,83 @@ namespace NavigatorHMI.Views
                 _listManagerVM.PasteItem(ListType.Image, v);
         }
 
-        /// <summary>W3b 用户面板：添加用户（走 VM AddUserCommand）。</summary>
-        private void UserAdd_Click(object sender, RoutedEventArgs e) => _viewModel.AddUserCommand();
+        /// <summary>P2-1 用户组：新建组弹窗。</summary>
+        private void GroupAdd_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new GroupEditDialog { Owner = this };
+            if (dlg.ShowDialog() == true)
+                _viewModel.AddGroupCommand(dlg.GroupName.Trim(), dlg.GetPermissions());
+        }
+
+        /// <summary>P2-1 用户组：双击行编辑弹窗。</summary>
+        private void GroupsGrid_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (sender is not System.Windows.Controls.DataGrid dg || dg.SelectedItem is not UserGroup g) return;
+            var dlg = new GroupEditDialog { Owner = this };
+            dlg.Prefill(g.Name, g.Permissions);
+            if (dlg.ShowDialog() == true)
+                _viewModel.UpdateGroupCommand(g.Name, dlg.GroupName.Trim(), dlg.GetPermissions());
+        }
+
+        /// <summary>P2-1 用户组：删除选中（按钮/右键；预设组命令层 BLOCKED）。</summary>
+        private void GroupDelete_Click(object sender, RoutedEventArgs e)
+        {
+            var g = FindGroup(sender);
+            if (g != null) _viewModel.DeleteGroupCommand(g.Name);
+        }
+
+        /// <summary>P2-1 用户组：复制选中组。</summary>
+        private void GroupCopy_Click(object sender, RoutedEventArgs e)
+        {
+            var g = FindGroup(sender);
+            if (g != null) _viewModel.CopyGroupCommand(g.Name);
+        }
+
+        /// <summary>P2-1 用户组：粘贴组副本。</summary>
+        private void GroupPaste_Click(object sender, RoutedEventArgs e) => _viewModel.PasteGroupCommand();
+
+        /// <summary>从 sender（按钮/菜单项）溯源到组表格并取选中组。</summary>
+        private UserGroup? FindGroup(object sender)
+        {
+            var fe = sender as System.Windows.FrameworkElement;
+            if (fe?.DataContext is UserGroup g) return g;   // 菜单项：DataContext=右键行组
+            var grid = FindName("GroupsGrid") as System.Windows.Controls.DataGrid;
+            return grid?.SelectedItem as UserGroup;
+        }
+        /// <summary>P2-12 用户：添加用户弹窗（用户名+密码+组下拉）。</summary>
+        private void UserAdd_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new UserEditDialog(_viewModel.UserGroups) { Owner = this };
+            if (dlg.ShowDialog() == true)
+                _viewModel.AddUserCommand(dlg.UserName.Trim(), dlg.Password, dlg.SelectedGroup);
+        }
+
+        /// <summary>P2-12 用户：双击行编辑弹窗（用户名+密码+组）。</summary>
+        private void UsersGrid_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (sender is not System.Windows.Controls.DataGrid dg || dg.SelectedItem is not UserAccount u) return;
+            var dlg = new UserEditDialog(_viewModel.UserGroups) { Owner = this };
+            dlg.Prefill(u.UserName, u.GroupName);
+            if (dlg.ShowDialog() == true)
+                _viewModel.UpdateUserCommand(u.UserName, dlg.UserName.Trim(), dlg.Password, dlg.SelectedGroup);
+        }
+
+        /// <summary>P2-12 用户：复制选中用户。</summary>
+        private void UserCopy_Click(object sender, RoutedEventArgs e)
+        {
+            var u = FindUser(sender);
+            if (u != null) _viewModel.CopyUserCommand(u.UserName);
+        }
+
+        /// <summary>P2-12 用户：粘贴用户副本。</summary>
+        private void UserPaste_Click(object sender, RoutedEventArgs e) => _viewModel.PasteUserCommand();
+
+        /// <summary>从 sender 溯源到用户表格并取选中用户。</summary>
+        private UserAccount? FindUser(object sender)
+        {
+            if ((sender as System.Windows.FrameworkElement)?.DataContext is UserAccount u) return u;   // 菜单项
+            return (FindName("UsersGrid") as System.Windows.Controls.DataGrid)?.SelectedItem as UserAccount;
+        }
 
         /// <summary>W3b 用户面板：删除选中用户（走 VM DeleteUserCommand——最后管理员保护）。</summary>
         private void UserDelete_Click(object sender, RoutedEventArgs e) => _viewModel.DeleteUserCommand();
@@ -1077,9 +1152,61 @@ namespace NavigatorHMI.Views
                 _viewModel.PropertyChanged += ViewModel_PropertyChanged;
             }
 
+            SetupAiFloatBall();   // P3-6：独立 Topmost 悬浮窗（默认显示；P3-11 工具栏开关控制）
+            AiBallToggle.IsChecked = true;   // P3-11：统一在 Loaded 置开（不在 XAML 初值触发——避免 InitializeComponent 期间双重创建）
+
             System.Diagnostics.Debug.WriteLine($"✅ EditWindow 加载完成");
             System.Diagnostics.Debug.WriteLine($"   CurrentScreen: {_viewModel?.CurrentScreen?.Name}");
             System.Diagnostics.Debug.WriteLine($"   Widgets 数量: {_viewModel?.CurrentScreen?.Widgets?.Count}");
+        }
+
+        /// <summary>P3-6 悬浮球独立窗：创建 Topmost 无边框窗 + 点击回调打开侧边栏 + 跟随主窗口移动/最小化。</summary>
+        private AiFloatBallWindow? _aiFloatBall;
+        private double _aiBallOffsetX, _aiBallOffsetY;
+
+        /// <summary>P3-11 工具栏悬浮窗开关：开 → 显示悬浮球（未创建则创建）。</summary>
+        private void AiBallToggle_Checked(object sender, RoutedEventArgs e)
+        {
+            if (_aiFloatBall == null) SetupAiFloatBall();
+            else _aiFloatBall.Show();
+        }
+
+        /// <summary>P3-11 工具栏悬浮窗开关：关 → 隐藏悬浮球。</summary>
+        private void AiBallToggle_Unchecked(object sender, RoutedEventArgs e)
+            => _aiFloatBall?.Hide();
+        private void SetupAiFloatBall()
+        {
+            if (_aiFloatBall != null) { _aiFloatBall.Show(); return; }   // 幂等：已创建则直接显示（防重复创建）
+            _aiFloatBall = new AiFloatBallWindow
+            {
+                Left = Left + ActualWidth - 66,
+                Top = Top + ActualHeight - 72,
+            };
+            _aiBallOffsetX = _aiFloatBall.Left - Left;
+            _aiBallOffsetY = _aiFloatBall.Top - Top;
+            _aiFloatBall.OnBallClick = () =>
+            {
+                if (_viewModel.ToggleAiPanelCommand.CanExecute(null))
+                    _viewModel.ToggleAiPanelCommand.Execute(null);
+            };
+            _aiFloatBall.Show();
+            LocationChanged += EditWindow_LocationChanged;
+            StateChanged += EditWindow_StateChanged;
+        }
+
+        private void EditWindow_LocationChanged(object? sender, EventArgs e)
+        {
+            if (_aiFloatBall == null || WindowState == WindowState.Minimized) return;
+            _aiFloatBall.Left = Left + _aiBallOffsetX;
+            _aiFloatBall.Top = Top + _aiBallOffsetY;
+        }
+
+        private void EditWindow_StateChanged(object? sender, EventArgs e)
+        {
+            if (_aiFloatBall == null) return;
+            // P3-11：恢复显示需参考工具栏开关状态（关闭后最小化还原不应重新显示）
+            _aiFloatBall.Visibility = WindowState == WindowState.Minimized ? Visibility.Hidden
+                : (AiBallToggle.IsChecked == true ? Visibility.Visible : Visibility.Hidden);
         }
 
         private void EditWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
@@ -1102,6 +1229,8 @@ namespace NavigatorHMI.Views
         private void EditWindow_Closed(object? sender, EventArgs e)
         {
             _clockTimer.Stop();   // D6：关闭停止画布时钟
+            _aiFloatBall?.Close();   // P3-6：窗口真正关闭后才关悬浮窗（取消保存时不误关）
+            _aiFloatBall = null;
             if (SelectorHelper.ResizeDragStarted == _resizeDragStartedCallback)
                 SelectorHelper.ResizeDragStarted = null;
             if (SelectorHelper.GetCanvasSize == _getCanvasSizeCallback)
@@ -1753,6 +1882,12 @@ namespace NavigatorHMI.Views
             }
 
             if (e.Key == Key.Z && Keyboard.Modifiers == ModifierKeys.Control && !shift
+                && _viewModel.UserActive && IsFocusInManagerControl())
+            { _viewModel.UndoUser(); e.Handled = true; return; }   // 用户/组撤销（用户面板焦点优先于列表）
+            if (((e.Key == Key.Y && ctrl) || (e.Key == Key.Z && ctrl && shift))
+                && _viewModel.UserActive && IsFocusInManagerControl())
+            { _viewModel.RedoUser(); e.Handled = true; return; }   // 用户/组重做
+            if (e.Key == Key.Z && Keyboard.Modifiers == ModifierKeys.Control && !shift
                 && IsFocusInManagerControl())
             { _listManagerVM.UndoList(); e.Handled = true; return; }   // 列表项撤销（焦点在列表管理器时拦截，空栈也不穿透到画面撤销）
             if (((e.Key == Key.Y && ctrl) || (e.Key == Key.Z && ctrl && shift))
@@ -2015,7 +2150,7 @@ namespace NavigatorHMI.Views
         {
             while (child != null)
             {
-                if (child is System.Windows.Controls.Button) return true;
+                if (child is System.Windows.Controls.Primitives.ButtonBase) return true;   // P3-11：覆盖 Button/ToggleButton/RepeatButton（🛰 开关不被工具栏拖拽拦截）
                 child = VisualTreeHelper.GetParent(child);
             }
             return false;
@@ -2747,59 +2882,6 @@ namespace NavigatorHMI.Views
             return false;
         }
 
-        /// <summary>
-        /// CLI 输入框回车事件：执行命令并显示结果。
-        /// </summary>
-        private bool _aiFabDragging;
-        private Point _aiFabMouseDownPos;
-        private Thickness _aiFabDownMargin;
-
-        /// <summary>AI 悬浮按钮：按下记录起点并捕获鼠标（不立即移动；拖动/点击在 Move/Up 判定）。</summary>
-        private void AiFab_MouseDown(object sender, MouseButtonEventArgs e)
-        {
-            if (sender is not System.Windows.Controls.Button btn) return;
-            _aiFabDragging = false;
-            _aiFabMouseDownPos = e.GetPosition(this);
-            _aiFabDownMargin = btn.Margin;
-            btn.CaptureMouse();
-            e.Handled = true;
-        }
-
-        private void AiFab_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (sender is not System.Windows.Controls.Button btn || !btn.IsMouseCaptured) return;
-            var pos = e.GetPosition(this);
-            var dx = pos.X - _aiFabMouseDownPos.X;
-            var dy = pos.Y - _aiFabMouseDownPos.Y;
-            if (!_aiFabDragging && (Math.Abs(dx) > 5 || Math.Abs(dy) > 5))
-            {
-                // 超过阈值进入拖动：从右下角定位切到自由定位，基准=按下点（防跳变）
-                _aiFabDragging = true;
-                btn.HorizontalAlignment = HorizontalAlignment.Left;
-                btn.VerticalAlignment = VerticalAlignment.Top;
-                btn.Margin = new Thickness(_aiFabMouseDownPos.X - btn.ActualWidth / 2, _aiFabMouseDownPos.Y - btn.ActualHeight / 2, 0, 0);
-                _aiFabDownMargin = btn.Margin;
-            }
-            if (_aiFabDragging)
-            {
-                btn.Margin = new Thickness(_aiFabDownMargin.Left + dx, _aiFabDownMargin.Top + dy, 0, 0);
-            }
-            e.Handled = true;
-        }
-
-        private void AiFab_MouseUp(object sender, MouseButtonEventArgs e)
-        {
-            if (sender is not System.Windows.Controls.Button btn) return;
-            var pos = e.GetPosition(this);
-            var moved = Math.Abs(pos.X - _aiFabMouseDownPos.X) + Math.Abs(pos.Y - _aiFabMouseDownPos.Y);
-            var wasDragging = _aiFabDragging;
-            _aiFabDragging = false;
-            btn.ReleaseMouseCapture();
-            // 位移小于阈值视为点击：手动触发开关面板（Preview 阶段 Handled 抑制了 ButtonBase Click）
-            if (!wasDragging && moved < 10 && _viewModel.ToggleAiPanelCommand.CanExecute(null))
-                _viewModel.ToggleAiPanelCommand.Execute(null);
-            e.Handled = true;
-        }
 
         private void AiInput_KeyDown(object sender, KeyEventArgs e)
         {
@@ -2860,21 +2942,6 @@ namespace NavigatorHMI.Views
             }
         }
 
-        /// <summary>AI 设置区「浏览…」：选择本地 GGUF 模型文件。</summary>
-        private void AiBrowseModel_Click(object sender, RoutedEventArgs e)
-        {
-            var dlg = new Microsoft.Win32.OpenFileDialog
-            {
-                Title = "选择本地模型（.gguf）",
-                Filter = "GGUF 模型 (*.gguf)|*.gguf|所有文件 (*.*)|*.*",
-                CheckFileExists = true,
-            };
-            if (dlg.ShowDialog() == true)
-            {
-                _viewModel.AiLocalModelPath = dlg.FileName;
-                _viewModel.RebuildAiAgentPublic();   // 路径变更立即重建（下次发送生效）
-            }
-        }
 
         private void CliInput_KeyDown(object sender, KeyEventArgs e)
         {
