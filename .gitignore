@@ -27,6 +27,7 @@ bin/
 
 # 大文件（本地模型/离线包，禁止进仓库）
 models/
+!src/NavigatorHMI.Core/Models/
 *.gguf
 *.nupkg
 
