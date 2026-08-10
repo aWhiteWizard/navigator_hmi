@@ -63,9 +63,9 @@ namespace NavigatorHMI.CommandLayer
             Parameters = new()
             {
                 ["user_name"] = new() { Type = "string", Required = true, Description = "要修改的用户名" },
-                ["new_user_name"] = new() { Type = "string", DefaultValue = "", Description = "新用户名（留空=不改）" },
-                ["new_password"] = new() { Type = "string", DefaultValue = "", Description = "新密码（留空=不改）" },
-                ["new_group_name"] = new() { Type = "string", DefaultValue = "", Description = "新所属组（留空=不改）" },
+                ["new_user_name"] = new() { Type = "string", DefaultValue = "", Description = "新用户名（留空=不改）", KeepInCompact = true },
+                ["new_password"] = new() { Type = "string", DefaultValue = "", Description = "新密码（留空=不改）", KeepInCompact = true },
+                ["new_group_name"] = new() { Type = "string", DefaultValue = "", Description = "新所属组（留空=不改）", KeepInCompact = true },
             }
         };
 
@@ -146,7 +146,7 @@ namespace NavigatorHMI.CommandLayer
             Parameters = new()
             {
                 ["group_name"] = new() { Type = "string", Required = true, Description = "组名" },
-                ["permissions"] = new() { Type = "string", DefaultValue = "", Description = "权限列表（逗号分隔枚举名：ScreenEdit/AlarmAck/UserManage/SystemSettings；空=全禁）" },
+                ["permissions"] = new() { Type = "string", DefaultValue = "", Description = "权限列表（逗号分隔枚举名：ScreenEdit/AlarmAck/UserManage/SystemSettings；空=全禁）", KeepInCompact = true },
             }
         };
 
@@ -180,8 +180,8 @@ namespace NavigatorHMI.CommandLayer
             Parameters = new()
             {
                 ["group_name"] = new() { Type = "string", Required = true, Description = "要修改的组名" },
-                ["new_group_name"] = new() { Type = "string", DefaultValue = "", Description = "新组名（留空=不改）" },
-                ["permissions"] = new() { Type = "string", DefaultValue = "", Description = "权限列表（逗号分隔；留空=不改）" },
+                ["new_group_name"] = new() { Type = "string", DefaultValue = "", Description = "新组名（留空=不改）", KeepInCompact = true },
+                ["permissions"] = new() { Type = "string", DefaultValue = "", Description = "权限列表（逗号分隔；留空=不改）", KeepInCompact = true },
             }
         };
 

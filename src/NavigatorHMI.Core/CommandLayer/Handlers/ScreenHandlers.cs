@@ -19,9 +19,9 @@ namespace NavigatorHMI.CommandLayer.Handlers
             Parameters = new()
             {
                 ["name"] = new() { Type = "string", Required = true, Description = "画面名称" },
-                ["type"] = new() { Type = "enum", DefaultValue = "custom", EnumValues = new[] { "custom", "template", "worldmap" }, Description = "画面类型" },
-                ["width"] = new() { Type = "int", DefaultValue = 800, Description = "宽度" },
-                ["height"] = new() { Type = "int", DefaultValue = 480, Description = "高度" },
+                ["type"] = new() { Type = "enum", DefaultValue = "custom", EnumValues = new[] { "custom", "template", "worldmap" }, Description = "画面类型", KeepInCompact = true },
+                ["width"] = new() { Type = "int", DefaultValue = 800, Description = "宽度", KeepInCompact = true },
+                ["height"] = new() { Type = "int", DefaultValue = 480, Description = "高度", KeepInCompact = true },
             }
         };
 

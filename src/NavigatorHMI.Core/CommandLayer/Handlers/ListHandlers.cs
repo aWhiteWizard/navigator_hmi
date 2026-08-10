@@ -73,8 +73,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
             Parameters = new()
             {
                 ["name"] = new() { Type = "string", Required = true, Description = "原列表名" },
-                ["new_name"] = new() { Type = "string", Description = "新列表名（重命名）" },
-                ["items"] = new() { Type = "string", Description = "预设值列表，用 | 分隔（提供则整体替换）" },
+                ["new_name"] = new() { Type = "string", Description = "新列表名（重命名）", KeepInCompact = true },
+                ["items"] = new() { Type = "string", Description = "预设值列表，用 | 分隔（提供则整体替换）", KeepInCompact = true },
             }
         };
         public ValidationResult Validate(Dictionary<string, object?> p)

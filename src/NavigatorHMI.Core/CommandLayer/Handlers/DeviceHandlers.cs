@@ -192,9 +192,9 @@ namespace NavigatorHMI.CommandLayer.Handlers
             Parameters = new()
             {
                 ["name"] = new() { Type = "string", Required = true, Description = "原设备名" },
-                ["new_name"] = new() { Type = "string", Description = "新设备名（重命名）" },
-                ["protocol"] = new() { Type = "enum", EnumValues = new[] { "ModbusRTU", "ModbusTCP", "MQTT" }, Description = "通信协议" },
-                ["connection_info"] = new() { Type = "string", Description = "连接信息 (JSON)" },
+                ["new_name"] = new() { Type = "string", Description = "新设备名（重命名）", KeepInCompact = true },
+                ["protocol"] = new() { Type = "enum", EnumValues = new[] { "ModbusRTU", "ModbusTCP", "MQTT" }, Description = "通信协议", KeepInCompact = true },
+                ["connection_info"] = new() { Type = "string", Description = "连接信息 (JSON)", KeepInCompact = true },
             }
         };
         public ValidationResult Validate(Dictionary<string, object?> p)

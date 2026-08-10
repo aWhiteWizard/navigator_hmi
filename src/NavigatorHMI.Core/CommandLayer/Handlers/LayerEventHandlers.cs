@@ -41,7 +41,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 ["widget_name"] = new() { Type = "string", Required = true },
                 ["event"] = new() { Type = "enum", Required = true, EnumValues = EventBindingCommon.AllEventTypes },
                 ["action"] = new() { Type = "enum", Required = true, EnumValues = EventBindingCommon.AllActionTypes },
-                ["params"] = new() { Type = "dict", Required = false },
+                ["params"] = new() { Type = "dict", Required = false, KeepInCompact = true },
             }
         };
         public ValidationResult Validate(Dictionary<string, object?> p) => WidgetHelper.ValidateScreenWidget(p);

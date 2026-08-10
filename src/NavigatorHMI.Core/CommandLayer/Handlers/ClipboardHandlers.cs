@@ -50,8 +50,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
             Parameters = new()
             {
                 ["screen_name"] = new() { Type = "string", Required = true },
-                ["x"] = new() { Type = "double", Required = false, Description = "粘贴位置 X（默认原位置+20）" },
-                ["y"] = new() { Type = "double", Required = false, Description = "粘贴位置 Y（默认原位置+20）" },
+                ["x"] = new() { Type = "double", Required = false, Description = "粘贴位置 X（默认原位置+20）", KeepInCompact = true },
+                ["y"] = new() { Type = "double", Required = false, Description = "粘贴位置 Y（默认原位置+20）", KeepInCompact = true },
             }
         };
 

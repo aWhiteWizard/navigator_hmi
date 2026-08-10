@@ -13,8 +13,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
             {
                 ["name"] = new() { Type = "string", Required = true, Description = "工程名称" },
                 ["path"] = new() { Type = "string", Required = true, Description = "工程保存路径" },
-                ["width"] = new() { Type = "int", DefaultValue = 800, Description = "设备屏幕宽度" },
-                ["height"] = new() { Type = "int", DefaultValue = 480, Description = "设备屏幕高度" },
+                ["width"] = new() { Type = "int", DefaultValue = 800, Description = "设备屏幕宽度", KeepInCompact = true },
+                ["height"] = new() { Type = "int", DefaultValue = 480, Description = "设备屏幕高度", KeepInCompact = true },
             }
         };
         /// <inheritdoc/>

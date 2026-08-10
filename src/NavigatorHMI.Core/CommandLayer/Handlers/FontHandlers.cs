@@ -13,11 +13,11 @@ namespace NavigatorHMI.CommandLayer.Handlers
             Description = "设置工厂默认字体（全局配置，新建控件时生效）",
             Parameters = new()
             {
-                ["font_family"] = new() { Type = "string", Required = false, Description = "字体族" },
-                ["font_size"] = new() { Type = "double", Required = false, Description = "字号" },
-                ["font_weight"] = new() { Type = "enum", Required = false, EnumValues = new[] { "Normal", "Bold" }, Description = "字重" },
-                ["font_style"] = new() { Type = "enum", Required = false, EnumValues = new[] { "Normal", "Italic" }, Description = "字型" },
-                ["text_decoration"] = new() { Type = "enum", Required = false, EnumValues = new[] { "None", "Underline" }, Description = "下划线" },
+                ["font_family"] = new() { Type = "string", Required = false, Description = "字体族", KeepInCompact = true },
+                ["font_size"] = new() { Type = "double", Required = false, Description = "字号", KeepInCompact = true },
+                ["font_weight"] = new() { Type = "enum", Required = false, EnumValues = new[] { "Normal", "Bold" }, Description = "字重", KeepInCompact = true },
+                ["font_style"] = new() { Type = "enum", Required = false, EnumValues = new[] { "Normal", "Italic" }, Description = "字型", KeepInCompact = true },
+                ["text_decoration"] = new() { Type = "enum", Required = false, EnumValues = new[] { "None", "Underline" }, Description = "下划线", KeepInCompact = true },
             }
         };
 
