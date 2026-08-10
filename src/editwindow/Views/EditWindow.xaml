@@ -958,7 +958,7 @@
     <Grid>
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
 
-        <Menu Grid.Row="0" HorizontalAlignment="Left">
+        <Menu x:Name="MainMenu" Grid.Row="0" HorizontalAlignment="Left">
             <MenuItem Header="文件">
                 <MenuItem Header="新建"/><MenuItem Header="打开"/>
                 <MenuItem Header="保存" Command="Save"/><MenuItem Header="另存为"/>

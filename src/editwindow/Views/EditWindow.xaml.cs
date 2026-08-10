@@ -1352,6 +1352,11 @@ namespace NavigatorHMI.Views
 
         private void EditWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
         {
+            // 关闭窗口前清理菜单悬停状态：关闭所有子菜单 + 移出焦点/高亮。
+            // WPF MenuItem 悬停 400ms 定时器（SetTimerToOpenHierarchy）在窗口销毁期间触发会
+            // FocusOrSelect → PushMenuMode(null) 崩溃（"关闭工程"即此路径）；先关菜单停定时器治本。
+            CloseAllMenus();
+
             if (_skipClosingCheck)
             {
                 _skipClosingCheck = false;
@@ -1362,6 +1367,27 @@ namespace NavigatorHMI.Views
             {
                 e.Cancel = true;
             }
+        }
+
+        /// <summary>
+        /// 关闭顶部菜单所有子菜单并失焦（防窗口销毁期 MenuItem 悬停定时器竞态崩溃）。
+        /// 注：仅遍历顶层 MenuItem（当前 XAML 无嵌套子菜单；若未来加"最近打开"等嵌套子菜单需改递归）。
+        /// </summary>
+        private void CloseAllMenus()
+        {
+            if (MainMenu != null)
+            {
+                foreach (var obj in MainMenu.Items)
+                {
+                    if (obj is MenuItem mi)
+                    {
+                        mi.IsSubmenuOpen = false;   // 关闭子菜单触发 WPF 内部停悬停定时器
+                    }
+                }
+            }
+            // 画布右键菜单同路径：销毁前关闭，防打开状态销毁竞态
+            if (TreeContextMenu.IsOpen) TreeContextMenu.IsOpen = false;
+            Focus();   // 焦点移出菜单到窗口
         }
 
         /// <summary>

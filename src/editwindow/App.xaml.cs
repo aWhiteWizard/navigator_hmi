@@ -21,6 +21,21 @@ namespace NavigatorHMI
     {
         protected override void OnStartup(StartupEventArgs e)
         {
+            // WPF 已知竞态兜底：窗口销毁期间顶部 MenuItem 的悬停定时器（SetTimerToOpenHierarchy）
+            // 触发 FocusOrSelect → InputManager.PushMenuMode(menuSite=null) 抛 ArgumentNullException
+            // （"关闭工程"= this.Close() 销毁 EditWindow 时，菜单子项处于悬停待展开状态即踩中）。
+            // 窗口已在销毁，该 UI 操作可安全丢弃——精确匹配防掩盖其他 ArgumentNullException。
+            DispatcherUnhandledException += (_, args) =>
+            {
+                var ex = args.Exception;
+                if (ex is ArgumentNullException
+                    && (ex.Message?.Contains("menuSite") == true
+                        || ex.StackTrace?.Contains("PushMenuMode") == true))
+                {
+                    System.Diagnostics.Trace.WriteLine($"[App] 忽略 WPF 菜单销毁期竞态异常: {ex.Message}");
+                    args.Handled = true;
+                }
+            };
             base.OnStartup(e);
 
             // 解析命令行参数
