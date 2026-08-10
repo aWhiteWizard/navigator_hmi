@@ -751,6 +751,9 @@ namespace NavigatorHMI.ViewModels
         }
 
         private Screen _currentScreen;
+        /// <summary>当前画面是否为世界地图（地图底图显示/鼠标穿透）。</summary>
+        public bool IsWorldMapActive => _currentScreen?.Type == ScreenType.WorldMap;
+
         public Screen CurrentScreen
         {
             get => _currentScreen;
@@ -761,6 +764,7 @@ namespace NavigatorHMI.ViewModels
                 var oldScreen = _currentScreen;
                 _currentScreen = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(IsWorldMapActive));   // 世界地图画面：地图底图可见性
 
                 // E11：画面切换同步 current_screen 命令的运行时画面（AI 感知当前画面）
                 CommandService.CurrentScreenName = value?.Name;
@@ -1049,8 +1053,9 @@ namespace NavigatorHMI.ViewModels
             TreeRoots.Add(BuildAlarmRootNode());
             TreeRoots.Add(BuildUserRootNode());
 
-            // 默认选中全局画面
-            CurrentScreen = project.Screens.First(s => s.Type == ScreenType.WorldMap);
+            // 默认选中世界地图画面（旧工程缺 WorldMap 时兜底退回全局画面——FirstOrDefault 防抛异常）
+            CurrentScreen = project.Screens.FirstOrDefault(s => s.Type == ScreenType.WorldMap)
+                ?? project.Screens.FirstOrDefault(s => s.Type == ScreenType.Template);
 
             UndoCommand = new RelayCommand(
                 () =>

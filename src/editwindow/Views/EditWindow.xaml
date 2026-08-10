@@ -8,6 +8,7 @@
         xmlns:vm="clr-namespace:NavigatorHMI.ViewModels"
         xmlns:h="clr-namespace:NavigatorHMI.Views.Helpers"
         xmlns:avalon="https://github.com/Dirkster99/AvalonDock"
+        xmlns:mapsui="clr-namespace:Mapsui.UI.Wpf;assembly=Mapsui.UI.Wpf"
         mc:Ignorable="d"
         WindowState="Maximized"
         Closing="EditWindow_Closing"
@@ -1410,10 +1411,26 @@
                                         </Style>
                                     </Border.Style>
                                     <Grid>
-                                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                                    <!-- 世界地图底图（Mapsui）：仅 WorldMap 画面显示；置底层，画布透明后透出；鼠标穿透到地图（平移缩放） -->
+                                    <mapsui:MapControl x:Name="WorldMapControl" Panel.ZIndex="0"
+                                            Visibility="{Binding DataContext.IsWorldMapActive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}"
+                                            IsHitTestVisible="{Binding DataContext.IsWorldMapActive, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=False}"/>
+                                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                                                  IsHitTestVisible="{Binding DataContext.IsWorldMapActive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBoolConverter}}">
                                         <Canvas x:Name="DrawingCanvas" HorizontalAlignment="Left" VerticalAlignment="Top"
-                                                Background="{StaticResource DotGridBrush}" Width="{Binding DeviceWidth}" Height="{Binding DeviceHeight}"
+                                                Width="{Binding DeviceWidth}" Height="{Binding DeviceHeight}"
                                                 Focusable="True" MouseDown="Canvas_MouseDown">
+                                            <Canvas.Style>
+                                                <Style TargetType="Canvas">
+                                                    <Setter Property="Background" Value="{StaticResource DotGridBrush}"/>
+                                                    <Style.Triggers>
+                                                        <!-- 世界地图画面：画布背景透明让地图透出；控件仍渲染（鼠标穿透由上层 ScrollViewer IsHitTestVisible 控制） -->
+                                                        <DataTrigger Binding="{Binding DataContext.IsWorldMapActive, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                                                            <Setter Property="Background" Value="Transparent"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Canvas.Style>
                                             <!-- 框选矩形 -->
                                             <Rectangle x:Name="MarqueeRect" Stroke="{StaticResource SelectionBlueBrush}" StrokeThickness="2" Fill="#300000FF"
                                                        Visibility="Collapsed" IsHitTestVisible="False" Panel.ZIndex="1001"/>

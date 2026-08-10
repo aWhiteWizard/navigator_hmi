@@ -1206,6 +1206,18 @@ namespace NavigatorHMI.Views
                 _viewModel.PropertyChanged += ViewModel_PropertyChanged;
             }
 
+            // 世界地图底图（Mapsui）：初始化在线 OSM 图层（POC 看效果；离线 MBTiles 后续替换）
+            try
+            {
+                var map = new Mapsui.Map();
+                map.Layers.Add(Mapsui.Tiling.OpenStreetMap.CreateTileLayer());
+                WorldMapControl.Map = map;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.WriteLine($"[WorldMap] Mapsui 初始化异常: {ex.Message}");
+            }
+
             AiBallToggle.IsChecked = true;   // 任务11：🛰 开关状态置开（内嵌球 XAML 默认可见）
 
             System.Diagnostics.Debug.WriteLine($"✅ EditWindow 加载完成");
@@ -1320,6 +1332,7 @@ namespace NavigatorHMI.Views
                 TagResolver.CurrentProject = null;
             _viewModel.AiMessages.CollectionChanged -= AiMessages_CollectionChanged;   // 退订自动滚动（防关闭后无效回调）
             _viewModel.Dispose();   // 释放 AI 后端（CloudLLMBackend 的 HttpClient/Authorization）
+            try { WorldMapControl?.Dispose(); } catch { }   // 释放 Mapsui MapControl（HttpClient/瓦片缓存）
         }
 
         #endregion
