@@ -32,7 +32,9 @@ namespace NavigatorHMI.ViewModels
         FrameWidget,
         ProgressBarWidget,
         DateTimeWidget,
-        WindowWidget
+        WindowWidget,
+        PolygonWidget,   // 世界地图批 3：多边形
+        PointWidget      // 世界地图批 3：点控件
     }
 
     /// <summary>
@@ -291,6 +293,8 @@ namespace NavigatorHMI.ViewModels
                          ProgressBarWidget => PropertyTargetType.ProgressBarWidget,
                          DateTimeWidget => PropertyTargetType.DateTimeWidget,
                          WindowWidget => PropertyTargetType.WindowWidget,
+                         PolygonWidget => PropertyTargetType.PolygonWidget,   // 世界地图批 3
+                         PointWidget => PropertyTargetType.PointWidget,       // 世界地图批 3
                          _ => PropertyTargetType.None
                      };
                      OnPropertyChanged(nameof(SelectedObjectType));
@@ -341,6 +345,8 @@ namespace NavigatorHMI.ViewModels
                     RefreshWindowDeviceTags();   // 显式刷（模型默认 BoundDevice="" == VM 默认短路——setter 不触发，首选中不空）
                     RefreshRobotSlots();   // WindowBoundDevice setter 内已刷新变量列表（去重）
                     break;
+                case PolygonWidget pg: PolygonFillColor = pg.FillColor; PolygonStrokeColor = pg.StrokeColor; PolygonStrokeThickness = pg.StrokeThickness; break;
+                case PointWidget pt: PointLabel = pt.Label; PointFixedLngLat = pt.FixedPoint?.ToBaseValue() ?? ""; break;
                         }
 
                         // 绑定变量（基类通用属性，选中控件时同步下拉 + 刷新变量列表）
@@ -384,6 +390,10 @@ namespace NavigatorHMI.ViewModels
                     case nameof(Widget.X):
                         X = _selectedWidget.X;
                         break;
+                    case nameof(PolygonWidget.StrokeColor): PolygonStrokeColor = ((PolygonWidget)_selectedWidget).StrokeColor; break;
+                    case nameof(PolygonWidget.StrokeThickness): PolygonStrokeThickness = ((PolygonWidget)_selectedWidget).StrokeThickness; break;
+                    case nameof(PointWidget.Label): PointLabel = ((PointWidget)_selectedWidget).Label; break;
+                    case nameof(PointWidget.FixedPoint): PointFixedLngLat = ((PointWidget)_selectedWidget).FixedPoint?.ToBaseValue() ?? ""; break;
                     case nameof(Widget.BoundTag):
                         // CLI/Undo 等外部改模型 BoundTag → 面板实时同步（不触发命令）
                         _boundTag = ResolveBoundTarget(_selectedWidget.BoundTag);
@@ -452,7 +462,8 @@ namespace NavigatorHMI.ViewModels
                     if (_selectedWidget is WindowWidget wsb) WindowShowTitleBar = wsb.ShowTitleBar;
                     break;
                 case nameof(WindowWidget.FillColor):
-                    if (_selectedWidget is WindowWidget wfc) WindowFillColor = wfc.FillColor;
+                    if (_selectedWidget is PolygonWidget pgF) PolygonFillColor = pgF.FillColor;
+                    else if (_selectedWidget is WindowWidget wfc) WindowFillColor = wfc.FillColor;
                     break;
                 case nameof(WindowWidget.BorderColor):
                     if (_selectedWidget is WindowWidget wbc) WindowBorderColor = wbc.BorderColor;
@@ -545,6 +556,8 @@ namespace NavigatorHMI.ViewModels
         public bool IsFrameWidget => _selectedWidget is FrameWidget;
         public bool IsProgressBarWidget => _selectedWidget is ProgressBarWidget;
         public bool IsDateTimeWidget => _selectedWidget is DateTimeWidget;
+        public bool IsPolygonWidget => _selectedWidget is PolygonWidget;
+        public bool IsPointWidget => _selectedWidget is PointWidget;
          private PropertyTargetType _selectedObjectType;
          /// <summary>当前选中对象的类型，供 XAML DataTemplate 切换使用。</summary>
          public PropertyTargetType SelectedObjectType
@@ -1390,6 +1403,25 @@ namespace NavigatorHMI.ViewModels
         public double LineY2 { get => _lineY2; set { if (!double.IsFinite(value)) value = _lineY2; if (_selectedWidget is LineWidget ln) value = Math.Min(Math.Max(0, value), ln.Height); if (Math.Abs(_lineY2 - value) > 0.001) { if (!_syncingFromModel) BeforeModify?.Invoke(); _lineY2 = value; OnPropertyChanged(); if (_selectedWidget is LineWidget ln3) ln3.Y2 = value; } } }
         private string _lineStrokeColor = "#000000";
         public string LineStrokeColor { get => _lineStrokeColor; set { if (_lineStrokeColor != value) { _lineStrokeColor = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is LineWidget ln) ln.StrokeColor = value; } } }
+
+        // ── Polygon 属性（世界地图批 3）──
+        private string _polygonFillColor = "#30FFFFFF";
+        /// <summary>多边形填充色。</summary>
+        public string PolygonFillColor { get => _polygonFillColor; set { if (_polygonFillColor != value) { _polygonFillColor = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is PolygonWidget pg) pg.FillColor = value; } } }
+        private string _polygonStrokeColor = "#1E90FF";
+        /// <summary>多边形描边色。</summary>
+        public string PolygonStrokeColor { get => _polygonStrokeColor; set { if (_polygonStrokeColor != value) { _polygonStrokeColor = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is PolygonWidget pg) pg.StrokeColor = value; } } }
+        private double _polygonStrokeThickness = 1.5;
+        /// <summary>多边形描边粗细。</summary>
+        public double PolygonStrokeThickness { get => _polygonStrokeThickness; set { if (_polygonStrokeThickness != value) { _polygonStrokeThickness = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is PolygonWidget pg) pg.StrokeThickness = value; } } }
+
+        // ── Point 属性（世界地图批 3）──
+        private string _pointLabel = "";
+        /// <summary>点控件标签。</summary>
+        public string PointLabel { get => _pointLabel; set { if (_pointLabel != value) { _pointLabel = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is PointWidget pt) pt.Label = value; } } }
+        private string _pointFixedLngLat = "";
+        /// <summary>点控件经纬度固定值（DMS 括号格式；空 = 用绑定变量动态值）。非法输入忽略不落库。</summary>
+        public string PointFixedLngLat { get => _pointFixedLngLat; set { if (_pointFixedLngLat != value) { _pointFixedLngLat = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is PointWidget pt) pt.FixedPoint = GeoPoint.TryParse(value, out var gp) && gp != null ? gp : null; } } }
         private double _lineStrokeThickness = 1;
         public double LineStrokeThickness { get => _lineStrokeThickness; set { if (Math.Abs(_lineStrokeThickness - value) > 0.001) { _lineStrokeThickness = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is LineWidget ln) ln.StrokeThickness = value; } } }
 

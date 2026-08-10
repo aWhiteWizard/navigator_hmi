@@ -69,6 +69,8 @@ namespace NavigatorHMI.Views
         // 两点式绘制（Line/Circle/Rectangle）
         private Point _drawStartPoint;
         private bool _isDrawingPreview;
+        /// <summary>多边形连续点击收集的顶点（世界地图批 3：Polygon 模式左键加点、右键闭合）。</summary>
+        private readonly List<System.Windows.Point> _polygonPoints = new();
         private System.Windows.Shapes.Path? _drawPreviewPath;
 
         // CLI 命令历史
@@ -79,8 +81,29 @@ namespace NavigatorHMI.Views
         {
             // 世界地图画面：地图交互优先——画布右键位置记录短路（画布右键菜单挂 Canvas_MouseDown，世界地图时 Canvas 已穿透不触发）
             if (_viewModel?.IsWorldMapActive == true) return;
+            // 多边形绘制：右键闭合（≥3 点生成控件，退出添加模式）
+            if (_currentWidgetCreator is PolygonWidgetCreator && _polygonPoints.Count >= 3)
+            {
+                FinishPolygon(e.GetPosition(DrawingCanvas));
+                e.Handled = true;
+                return;
+            }
             // GetPosition 已返回逻辑坐标（LayoutTransform 逆变换），禁除缩放（双重除 bug）；_contextMenuPos 供粘贴定位
             _contextMenuPos = e.GetPosition(DrawingCanvas);
+        }
+
+        /// <summary>多边形闭合：以收集顶点生成 PolygonWidget（包围盒左上角为 X/Y），退出添加模式。</summary>
+        private void FinishPolygon(Point ignoredEnd)
+        {
+            if (_viewModel?.CurrentScreen == null || _currentWidgetCreator is not PolygonWidgetCreator pgc) return;
+            _viewModel.PushUndoSnapshot();
+            var poly = pgc.Create(_polygonPoints, _viewModel.CurrentScreen);
+            _viewModel.CurrentScreen.Widgets.Add(poly);
+            MarkProjectDirty();
+            _polygonPoints.Clear();
+            _isDrawingPreview = false;
+            ExitAddMode();
+            _dragBehavior.SuppressDragUntilMouseUp();
         }
 
         // widget的专职类
@@ -1786,6 +1809,17 @@ namespace NavigatorHMI.Views
                     Canvas.SetLeft(_drawPreviewPath, 0);
                     Canvas.SetTop(_drawPreviewPath, 0);
                     break;
+                case PolygonWidgetCreator:
+                {
+                    // 已收集顶点 + 当前鼠标橡皮筋线段（PathGeometry + PolyLineSegment）
+                    var fig = new System.Windows.Media.PathFigure { StartPoint = _polygonPoints[0], IsClosed = false };
+                    var segPts = new List<Point>(_polygonPoints.Skip(1)) { end };
+                    fig.Segments.Add(new System.Windows.Media.PolyLineSegment(segPts, true));
+                    _drawPreviewPath.Data = new System.Windows.Media.PathGeometry(new[] { fig });
+                    Canvas.SetLeft(_drawPreviewPath, 0);
+                    Canvas.SetTop(_drawPreviewPath, 0);
+                    break;
+                }
                 case CircleWidgetCreator:
                 {
                     double dx = end.X - _drawStartPoint.X;
@@ -1861,6 +1895,18 @@ namespace NavigatorHMI.Views
             // [修复] 命中 Adorner 缩放手柄（Thumb 或其内部模板元素）时，视为点击选中装饰器：
             // 保持选中状态不清除，让 Thumb 正常接收 MouseDown 进入拖拽缩放
             if (IsAdornerHit(e.OriginalSource as DependencyObject)) return;
+
+            // 多边形连续点击：左键收集顶点（第一点击起绘，后续加点，右键闭合）
+            if (_currentWidgetCreator is PolygonWidgetCreator)
+            {
+                if (_viewModel?.CurrentScreen == null) return;
+                var polygonPos = e.GetPosition(DrawingCanvas);
+                _polygonPoints.Add(polygonPos);
+                _isDrawingPreview = true;
+                ShowDrawPreview();
+                e.Handled = true;
+                return;
+            }
 
             // 两点式绘制：第二点击生成控件（优先响应，不受已有点击拦截影响）
             if (_currentWidgetCreator is ITwoPointCreator twoPoint && _isDrawingPreview)
@@ -2141,6 +2187,8 @@ namespace NavigatorHMI.Views
             if (_activeToolboxBtn != null && _activeToolboxOriginalContent != null)
                 _activeToolboxBtn.Content = _activeToolboxOriginalContent;
             HideDrawPreview();   // 清理两点式绘制残留状态
+            _polygonPoints.Clear();   // 清理多边形已收集顶点（切换工具防旧点残留）
+            _isDrawingPreview = false;
 
             // 进入新的添加模式
             _currentWidgetCreator = tag switch
@@ -2163,6 +2211,8 @@ namespace NavigatorHMI.Views
                 "UserView" => new WindowWidgetCreator(WindowType.UserView),
                 "AlarmView" => new WindowWidgetCreator(WindowType.AlarmView),
                 "RobotList" => new WindowWidgetCreator(WindowType.RobotList),
+                "Polygon" => new PolygonWidgetCreator(),
+                "Point" => new PointWidgetCreator(),
                 _ => null
             };
 
@@ -2179,6 +2229,8 @@ namespace NavigatorHMI.Views
         private void ExitAddMode()
         {
             _currentWidgetCreator = null;
+            _polygonPoints.Clear();
+            _isDrawingPreview = false;
             DrawingCanvas.Cursor = Cursors.Arrow;
             HideDrawPreview();
             if (_activeToolboxBtn != null && _activeToolboxOriginalContent != null)

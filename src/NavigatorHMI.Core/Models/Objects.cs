@@ -768,7 +768,7 @@ public class PointWidget : Widget
     private GeoPoint? _fixedPoint;
     /// <summary>经纬度固定值（组态写死；null 时用 BoundTag 绑定的 GPS 变量动态值）</summary>
     [ProtoMember(2)]
-    public GeoPoint? FixedPoint { get => _fixedPoint; set { _fixedPoint = value; OnPropertyChanged(); } }
+    public GeoPoint? FixedPoint { get => _fixedPoint; set { _fixedPoint = value; OnPropertyChanged(); OnPropertyChanged(nameof(DisplayText)); } }
 
     /// <summary>设计态显示文本：标签（若为空则显示经纬度 DMS）。</summary>
     [ProtoIgnore]

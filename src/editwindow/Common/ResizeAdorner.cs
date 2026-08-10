@@ -196,6 +196,19 @@ namespace NavigatorHMI.Common
                 newW = size;
                 newH = size;
             }
+            else if (_widget is PolygonWidget poly && poly.Points.Count > 0)
+            {
+                // 多边形：顶点相对坐标按边界框缩放比例同步（X/Y/Width/Height 仅命中框，形状跟随缩放）
+                double scaleX = oldW > 0 ? newW / oldW : 1;
+                double scaleY = oldH > 0 ? newH / oldH : 1;
+                foreach (var pt in poly.Points)
+                {
+                    pt.X *= scaleX;
+                    pt.Y *= scaleY;
+                }
+                // PointD 无 INPC：集合元素修改不触发绑定刷新——重赋值集合触发 Points setter 通知（wpf-property-sync-clamp 教训）
+                poly.Points = new List<PointD>(poly.Points);
+            }
 
             _widget.X = newX;
             _widget.Y = newY;
@@ -250,6 +263,16 @@ namespace NavigatorHMI.Common
             {
                 line.X2 = Math.Min(Math.Max(0, line.X2), w);
                 line.Y2 = Math.Min(Math.Max(0, line.Y2), h);
+            }
+            // Polygon：边界框钳制产生的 ΔX/ΔY 统一平移顶点（防形状与命中框错位）
+            else if (_widget is PolygonWidget poly && poly.Points.Count > 0)
+            {
+                double dx = x - _widget.X, dy = y - _widget.Y;
+                if (dx != 0 || dy != 0)
+                {
+                    foreach (var pt in poly.Points) { pt.X += dx; pt.Y += dy; }
+                    poly.Points = new List<PointD>(poly.Points);   // 无 INPC → 重赋值触发通知
+                }
             }
 
             _widget.X = x;

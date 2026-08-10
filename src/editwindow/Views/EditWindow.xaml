@@ -537,6 +537,44 @@
                 <TextBox Grid.Column="1" Text="{Binding EllipseStrokeThickness, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}" KeyDown="PropField_KeyDown" />
             </Grid></StackPanel></DataTemplate>
 
+        <!-- PolygonWidget 属性（世界地图批 3） -->
+        <DataTemplate x:Key="PropPolygon"><StackPanel>
+            <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropBinding}" Content="{Binding}"/>
+            <Separator Margin="4,2"/>
+            <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="FillColor:" Style="{StaticResource PropLabel}"/>
+                <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding PolygonFillColor, Mode=TwoWay}"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="StrokeColor:" Style="{StaticResource PropLabel}"/>
+                <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding PolygonStrokeColor, Mode=TwoWay}"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Thickness:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding PolygonStrokeThickness, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}" KeyDown="PropField_KeyDown" />
+            </Grid></StackPanel></DataTemplate>
+
+        <!-- PointWidget 属性（世界地图批 3） -->
+        <DataTemplate x:Key="PropPoint"><StackPanel>
+            <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropBinding}" Content="{Binding}"/>
+            <Separator Margin="4,2"/>
+            <TextBlock Text="标记" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="Label:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding PointLabel, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropText}" KeyDown="PropField_KeyDown" ToolTip="右上角标签（如 1号泵站）；空则显示经纬度"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="经纬度:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding PointFixedLngLat, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropText}" KeyDown="PropField_KeyDown" ToolTip="固定值（DMS 如 (E104°3'30&quot;, N30°40'20&quot;) 或小数度）；空 = 用绑定 GPS 变量动态值"/>
+            </Grid></StackPanel></DataTemplate>
+
         <!-- IOFieldWidget 属性 -->
         <DataTemplate x:Key="PropIOField"><StackPanel>
             <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
@@ -1172,6 +1210,9 @@
                                         <Button Content="Frame" Tag="Frame" Click="ToggleAddWidgetMode"/>
                                         <Button Content="ProgressBar" Tag="ProgressBar" Click="ToggleAddWidgetMode"/>
                                             <Button Content="DateTime" Tag="DateTime" Click="ToggleAddWidgetMode"/>
+                                        <!-- 世界地图批 3：图形控件 -->
+                                        <Button Content="Polygon" Tag="Polygon" Click="ToggleAddWidgetMode" ToolTip="多边形：连续左键放置顶点、右键闭合"/>
+                                        <Button Content="Point" Tag="Point" Click="ToggleAddWidgetMode" ToolTip="点控件：作业点标记（右上角标签）"/>
                                     </StackPanel></TabItem>
                                     <TabItem Header="窗口控件"><StackPanel Orientation="Vertical">
                                         <Button Content="User View" Tag="UserView" Click="ToggleAddWidgetMode" ToolTip="用户视图控件（头像/用户名/角色/模式/登录）"/>
@@ -1883,6 +1924,8 @@
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="ProgressBarWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropProgressBar}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="DateTimeWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropDateTime}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="WindowWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropWindow}"/></DataTrigger>
+                                                    <DataTrigger Binding="{Binding SelectedObjectType}" Value="PolygonWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropPolygon}"/></DataTrigger>
+                                                    <DataTrigger Binding="{Binding SelectedObjectType}" Value="PointWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropPoint}"/></DataTrigger>
                                                 </Style.Triggers>
                                             </Style></ContentControl.Style></ContentControl>
                                             <!-- 事件栏（DESIGN-EVENTS.md §4：选中控件且支持事件时显示可用事件 + 配置入口） -->

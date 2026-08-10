@@ -36,6 +36,8 @@ namespace NavigatorHMI.Views.Helpers
         public DataTemplate DateTimeTemplate { get; set; } = null!;
         public DataTemplate DefaultTemplate { get; set; } = null!;
     public DataTemplate WindowTemplate { get; set; } = null!;   // W4：窗口控件（UserView/AlarmView/RobotList）
+    public DataTemplate PolygonTemplate { get; set; } = null!;   // 世界地图批 3：多边形
+    public DataTemplate PointTemplate { get; set; } = null!;     // 世界地图批 3：点控件
 
         /// <summary>
         /// 根据 item 运行时类型选择对应的 DataTemplate。
@@ -62,6 +64,8 @@ namespace NavigatorHMI.Views.Helpers
                 ProgressBarWidget => ProgressBarTemplate,
                 DateTimeWidget => DateTimeTemplate,
                 WindowWidget => WindowTemplate,
+                PolygonWidget => PolygonTemplate,
+                PointWidget => PointTemplate,
                 RectangleWidget => DefaultTemplate,
                 _ => DefaultTemplate
             };
@@ -129,7 +133,9 @@ namespace NavigatorHMI.Views.Helpers
                 ProgressBarTemplate = CreateProgressBarTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
                 DateTimeTemplate = CreateDateTimeTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
                 DefaultTemplate = CreateRectangleTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
-                WindowTemplate = CreateWindowTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler)
+                WindowTemplate = CreateWindowTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
+                PolygonTemplate = CreatePolygonTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
+                PointTemplate = CreatePointTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler)
             };
 
             itemsControl.ItemTemplateSelector = selector;
@@ -157,11 +163,13 @@ namespace NavigatorHMI.Views.Helpers
             RoutedEventHandler click, MouseButtonEventHandler pmLBD, MouseButtonEventHandler mLBD,
             MouseEventHandler mMove, MouseButtonEventHandler mLBU,
             MouseButtonEventHandler pmRBD, MouseButtonEventHandler mRBU,
-            bool bindFillBackground = false)
+            bool bindFillBackground = false, bool transparentHitArea = false)
         {
             var border = new FrameworkElementFactory(typeof(Border));
             if (bindFillBackground)
                 border.SetBinding(Border.BackgroundProperty, new Binding("FillColor") { Converter = new ColorStringToBrushConverter() });
+            if (transparentHitArea)
+                border.SetValue(Border.BackgroundProperty, Brushes.Transparent);   // 纯命中不渲染（如 Point 标记边框外空白区可拖拽）
             border.SetBinding(Border.WidthProperty, new Binding("Width"));
             border.SetBinding(Border.HeightProperty, new Binding("Height"));
             border.SetBinding(SelectorHelper.IsSelectedProperty, new Binding("IsSelected") { Mode = BindingMode.TwoWay });
@@ -484,6 +492,48 @@ namespace NavigatorHMI.Views.Helpers
             dt.VisualTree = WrapWithBorder(rect, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU);
             return dt;
         }
+
+        /// <summary>世界地图批 3：多边形模板——Polygon 形状绑定顶点/颜色（Points 为相对坐标，Border W/H 仅命中框）。</summary>
+        private static DataTemplate CreatePolygonTemplate(RoutedEventHandler click, MouseButtonEventHandler pmLBD, MouseButtonEventHandler mLBD,
+            MouseEventHandler mMove, MouseButtonEventHandler mLBU, MouseButtonEventHandler pmRBD, MouseButtonEventHandler mRBU)
+        {
+            var dt = new DataTemplate();
+            var canvas = new FrameworkElementFactory(typeof(Canvas));
+            var poly = new FrameworkElementFactory(typeof(Polygon));
+            poly.SetBinding(Polygon.PointsProperty, new Binding("Points") { Converter = new PointCollectionConverter() });
+            poly.SetBinding(Polygon.FillProperty, new Binding("FillColor") { Converter = new ColorStringToBrushConverter() });
+            poly.SetBinding(Polygon.StrokeProperty, new Binding("StrokeColor") { Converter = new ColorStringToBrushConverter() });
+            poly.SetBinding(Polygon.StrokeThicknessProperty, new Binding("StrokeThickness"));
+            canvas.AppendChild(poly);
+            dt.VisualTree = WrapWithBorder(canvas, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU);
+            return dt;
+        }
+
+        /// <summary>世界地图批 3：点控件模板——红色圆点标记 + 右上角标签（DisplayText = 标签或经纬度 DMS）。</summary>
+        private static DataTemplate CreatePointTemplate(RoutedEventHandler click, MouseButtonEventHandler pmLBD, MouseButtonEventHandler mLBD,
+            MouseEventHandler mMove, MouseButtonEventHandler mLBU, MouseButtonEventHandler pmRBD, MouseButtonEventHandler mRBU)
+        {
+            var dt = new DataTemplate();
+            var canvas = new FrameworkElementFactory(typeof(Canvas));
+            var mark = new FrameworkElementFactory(typeof(Ellipse));
+            mark.SetValue(Ellipse.WidthProperty, 12.0);
+            mark.SetValue(Ellipse.HeightProperty, 12.0);
+            mark.SetValue(Ellipse.FillProperty, Brushes.Red);
+            mark.SetValue(Ellipse.StrokeProperty, Brushes.White);
+            mark.SetValue(Ellipse.StrokeThicknessProperty, 1.5);
+            mark.SetValue(Canvas.LeftProperty, 6.0);
+            mark.SetValue(Canvas.TopProperty, 6.0);
+            var label = new FrameworkElementFactory(typeof(TextBlock));
+            label.SetBinding(TextBlock.TextProperty, new Binding("DisplayText"));
+            label.SetValue(TextBlock.FontSizeProperty, 11.0);
+            label.SetValue(TextBlock.ForegroundProperty, Brushes.Black);
+            label.SetValue(Canvas.LeftProperty, 15.0);
+            label.SetValue(Canvas.TopProperty, 0.0);
+            canvas.AppendChild(mark);
+            canvas.AppendChild(label);
+            dt.VisualTree = WrapWithBorder(canvas, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU, transparentHitArea: true);
+            return dt;
+        }
     }
 
     /// <summary>
@@ -522,6 +572,22 @@ namespace NavigatorHMI.Views.Helpers
     public class ZeroConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture) => 0.0;
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+            => throw new NotImplementedException();
+    }
+
+    /// <summary>List&lt;PointD&gt; → PointCollection（多边形顶点渲染；相对坐标直接转换）。</summary>
+    public class PointCollectionConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            var pts = new PointCollection();
+            if (value is System.Collections.IEnumerable list)
+                foreach (var item in list)
+                    if (item is PointD pd)
+                        pts.Add(new Point(pd.X, pd.Y));
+            return pts;
+        }
         public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
             => throw new NotImplementedException();
     }
