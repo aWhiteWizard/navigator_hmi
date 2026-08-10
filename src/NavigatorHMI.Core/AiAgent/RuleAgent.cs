@@ -44,7 +44,7 @@ namespace NavigatorHMI.AiAgent
             (@"^\s*(?:删除|移除)控件(?<widget>.+?)\s*$", "delete_widget", new() { ["widget"] = "widget_name" }, new() { ["screen_name"] = "全局画面" }),
 
             // ── 变量 ──
-            (@"^\s*(?:创建|新建|增加|添加)变量[:：]?(?<name>.+?)(?:\s+(?:类型|type)\s*[:：]?\s*(?<data_type>BOOL|INT16|UINT16|INT32|FLOAT|STRING|DATETIME|日期时间))?\s*$",
+            (@"^\s*(?:创建|新建|增加|添加)变量[:：]?(?<name>.+?)(?:\s+(?:类型|type)\s*[:：]?\s*(?<data_type>BOOL|INT16|UINT16|INT32|FLOAT|STRING|DATETIME|GPS|日期时间|经纬度))?\s*$",
                 "create_tag", Map("name", "data_type"), new() { ["data_type"] = "FLOAT" }),   // 未指定类型默认 FLOAT（组匹配时覆盖）
             (@"^\s*(?:删除|移除)变量[:：]?(?<name>.+?)\s*$", "delete_tag", Map("name"), null),
             (@"^\s*把?(?<widget>.+?)绑定(?:到)?变量[:：]?(?<tag>.+?)\s*$", "bind_tag", new() { ["widget"] = "widget_name", ["tag"] = "tag_name" }, new() { ["screen_name"] = "全局画面" }),
@@ -143,6 +143,7 @@ namespace NavigatorHMI.AiAgent
             ["图片"] = "image", ["图像"] = "image",
             ["列表"] = "textlist", ["文本列表"] = "textlist",
             ["日期时间"] = "datetime", ["时间"] = "datetime",
+            ["经纬度"] = "gps", ["gps"] = "gps",
             ["矩形"] = "rectangle", ["方块"] = "rectangle",
             ["圆形"] = "circle", ["圆"] = "circle",
             ["椭圆"] = "ellipse",

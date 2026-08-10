@@ -14,7 +14,9 @@ namespace NavigatorHMI.Common
         /// <summary>布尔类型（开关/复选框控件）。</summary>
         Bool,
         /// <summary>日期时间类型（DateTime 控件）。</summary>
-        DateTime
+        DateTime,
+        /// <summary>经纬度类型（线/多边形/点/圆圆心等图形类控件）。</summary>
+        Geo
     }
 
     /// <summary>
@@ -35,6 +37,9 @@ namespace NavigatorHMI.Common
         /// <summary>DateTime 控件允许的变量类型（仅 DATETIME）。</summary>
         public static bool IsDateTimeCompatible(TagDataType t) => t == TagDataType.DATETIME;
 
+        /// <summary>图形类控件（线/多边形/点/圆圆心）允许的变量类型（仅 GPS 经纬度）。</summary>
+        public static bool IsGeoCompatible(TagDataType t) => t == TagDataType.GPS;
+
         /// <summary>控件类型 → 变量类型要求。新增控件类型显式声明（默认 Any 属已知放宽，非静默漏配）。</summary>
         public static TagRequirement GetRequirement(Widget widget) => widget switch
         {
@@ -52,6 +57,8 @@ namespace NavigatorHMI.Common
             ImageWidget or FrameWidget or TextListWidget => TagRequirement.Numeric,
             // 日期时间控件：仅绑 DATETIME 变量
             DateTimeWidget => TagRequirement.DateTime,
+            // 图形类控件（世界地图批 2）：线/多边形/点/圆圆心——仅绑 GPS 经纬度变量（动态移动），其余控件禁止
+            LineWidget or CircleWidget or PolygonWidget or PointWidget => TagRequirement.Geo,
             _ => TagRequirement.Any,
         };
 
@@ -59,6 +66,9 @@ namespace NavigatorHMI.Common
         public static string? Check(Widget widget, Tag tag)
         {
             var req = GetRequirement(widget);
+            // 需求 C：GPS 变量仅图形类控件（线/多边形/点/圆）可绑，其余控件一律拒绝（含默认 Any 分支）
+            if (tag.DataType == TagDataType.GPS && req != TagRequirement.Geo)
+                return $"变量 \"{tag.Name}\" 类型 GPS 不能绑定 {widget.GetType().Name}（仅线/多边形/点/圆可绑）";
             return req switch
             {
                 TagRequirement.None => $"该控件（{widget.GetType().Name}）不支持绑定变量",
@@ -70,6 +80,8 @@ namespace NavigatorHMI.Common
                     $"变量 \"{tag.Name}\" 类型 {tag.DataType} 不能绑定日期时间控件（仅支持 DATETIME）",
                 TagRequirement.Bool when !IsBoolCompatible(tag.DataType) =>
                     $"变量 \"{tag.Name}\" 类型 {tag.DataType} 不能绑定开关/复选框（需 BOOL）",
+                TagRequirement.Geo when !IsGeoCompatible(tag.DataType) =>
+                    $"变量 \"{tag.Name}\" 类型 {tag.DataType} 不能绑定图形控件（仅支持 GPS 经纬度）",
                 _ => null,
             };
         }

@@ -214,9 +214,13 @@ namespace NavigatorHMI.Views
             if (baseValue.Length > 0 && dt != TagDataType.STRING
              && dt != TagDataType.DATETIME
              && dt != TagDataType.BOOL   // #4：BOOL 走下拉恒合法（false/true）
+             && dt != TagDataType.GPS    // 世界地图批 2：GPS 基准值用 GeoPoint 校验（DMS/小数度），与命令层 BaseValueValidator 对齐
              && !double.TryParse(baseValue, System.Globalization.NumberStyles.Float,
                     System.Globalization.CultureInfo.InvariantCulture, out _))
             { ShowError("数字类型变量的基准值必须是数字（如 25.5 / 1）"); return; }
+            if (baseValue.Length > 0 && dt == TagDataType.GPS
+             && !NavigatorHMI.Common.GeoPoint.TryParse(baseValue, out _))
+            { ShowError("GPS 变量的基准值必须是经纬度（如 (E104°3'30\", N30°40'20\") 或 104.0583, 30.6722）"); return; }
             if (baseValue.Length > 0 && dt == TagDataType.DATETIME
              && !DateTime.TryParse(baseValue, out _)
              && !IsZeroDateText(baseValue))

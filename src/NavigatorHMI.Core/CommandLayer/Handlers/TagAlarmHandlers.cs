@@ -11,7 +11,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
             Parameters = new()
             {
                 ["name"] = new() { Type = "string", Required = true, Description = "变量名" },
-                ["data_type"] = new() { Type = "enum", Required = true, EnumValues = new[] { "BOOL", "INT16", "UINT16", "INT32", "FLOAT", "STRING", "DATETIME" }, Description = "数据类型" },
+                ["data_type"] = new() { Type = "enum", Required = true, EnumValues = new[] { "BOOL", "INT16", "UINT16", "INT32", "FLOAT", "STRING", "DATETIME", "GPS" }, Description = "数据类型" },
                 ["source"] = new() { Type = "string", DefaultValue = "", Description = "数据来源 (modbus:// 或 mqtt://)，空/缺省 = 内部变量", KeepInCompact = true },
                 ["unit"] = new() { Type = "string", DefaultValue = "", Description = "工程单位", KeepInCompact = true },
                 ["scan_interval"] = new() { Type = "int", DefaultValue = 100, Description = "采集周期 ms", KeepInCompact = true },
@@ -50,7 +50,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
             if (bvErr != null) return CommandResult.Fail("INVALID_PARAM", bvErr);
             // 任务8：DATETIME 变量未提供基准值 → 默认全 0 字面（0000:00:00 00:00:00，年月日冒号分隔）
             // D4/#4：数字变量未提供基准值 → 默认 0（FLOAT 用 0.0；整数用 0；BOOL 用 false）
-            var baseValue = p.GetValueOrDefault("base_value")?.ToString() ?? "";
+            var baseValue = BaseValueValidator.Normalize(p.GetValueOrDefault("base_value")?.ToString() ?? "", dt);
             if (dt == TagDataType.DATETIME && string.IsNullOrEmpty(baseValue)) baseValue = "0000:00:00 00:00:00";
             else if (string.IsNullOrEmpty(baseValue) && dt is TagDataType.FLOAT) baseValue = "0.0";
             else if (string.IsNullOrEmpty(baseValue) && dt is TagDataType.INT16 or TagDataType.UINT16 or TagDataType.INT32) baseValue = "0";
@@ -442,7 +442,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
             {
                 ["name"] = new() { Type = "string", Required = true, Description = "原变量名" },
                 ["new_name"] = new() { Type = "string", Description = "新变量名（重命名）", KeepInCompact = true },
-                ["data_type"] = new() { Type = "enum", EnumValues = new[] { "BOOL", "INT16", "UINT16", "INT32", "FLOAT", "STRING", "DATETIME" }, Description = "数据类型", KeepInCompact = true },
+                ["data_type"] = new() { Type = "enum", EnumValues = new[] { "BOOL", "INT16", "UINT16", "INT32", "FLOAT", "STRING", "DATETIME", "GPS" }, Description = "数据类型", KeepInCompact = true },
                 ["source"] = new() { Type = "string", Description = "数据来源；未提供=保留现值，空串=清空为内部变量 (modbus:// 或 mqtt://)", KeepInCompact = true },
                 ["unit"] = new() { Type = "string", Description = "工程单位", KeepInCompact = true },
                 ["scan_interval"] = new() { Type = "int", Description = "采集周期 ms", KeepInCompact = true },
@@ -507,7 +507,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 {
                     var bvErr = BaseValueValidator.Check(raw, targetType);
                     if (bvErr != null) return CommandResult.Fail("INVALID_PARAM", bvErr);
-                    newBaseValue = raw;
+                    newBaseValue = BaseValueValidator.Normalize(raw, targetType);
                     if (targetType == TagDataType.BOOL) newBaseValue = raw.ToLowerInvariant();   // #4：BOOL 归一存储（True/TRUE→true）
                 }
             }
@@ -527,6 +527,9 @@ namespace NavigatorHMI.CommandLayer.Handlers
                     var bvErr = BaseValueValidator.Check(tag.BaseValue, targetType);
                     if (bvErr != null)
                         return CommandResult.Fail("INVALID_PARAM", $"改为 {targetType} 后现有基准值 '{tag.BaseValue}' 不合法，请同时提供合法 base_value");
+                    // GPS 是首个"合法但需归一"类型：旧值（如小数度）改类型到 GPS 时归 DMS 括号格式，与 create_tag 存储格式一致
+                    if (targetType == TagDataType.GPS)
+                        newBaseValue = BaseValueValidator.Normalize(tag.BaseValue, targetType);
                 }
             }
 
@@ -580,10 +583,15 @@ internal static class BaseValueValidator
             TagDataType.INT32 => int.TryParse(s, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _),
             TagDataType.BOOL => bool.TryParse(s, out _),   // #4：BOOL 基准值只能填 false/true（bool.TryParse 含大小写；不再接受 "1"/"0"）
             TagDataType.DATETIME => DateTime.TryParse(s, out _) || IsZeroDateLiteral(s),   // 任意有效日期时间（yyyy-MM-dd HH:mm:ss 等）；任务8：全 0 字面（0000:00:00 00:00:00，0000 年无效）放行
+            TagDataType.GPS => GeoPoint.TryParse(s, out _),   // 经纬度：DMS（E104°3'30", N30°40'20"）或小数度，经度±180/纬度±90，前缀-位置匹配
             _ => true,   // STRING 等任意文本
         };
         return ok ? null : $"base_value 不是合法的 {dt} 数值: '{raw}'";
     }
+
+    /// <summary>归一化基准值存储：GPS 小数度输入自动转 DMS 括号格式（"104.0583, 30.6722" → "(E104°3'30\", N30°40'20\")"）；其余类型原样。</summary>
+    public static string Normalize(string raw, TagDataType dt)
+        => dt == TagDataType.GPS && GeoPoint.TryParse(raw, out var gp) && gp != null ? gp.ToBaseValue() : raw;
 
     /// <summary>任务8：全 0 日期字面（仅 0/数字/冒号/空格/横线/斜杠，无任何非 0 数字）——0000 年 TryParse 失败，需字面放行。</summary>
     internal static bool IsZeroDateLiteral(string? s)

@@ -11,7 +11,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
             Parameters = new()
             {
                 ["screen_name"] = new() { Type = "string", Required = true },
-                ["widget_type"] = new() { Type = "enum", Required = true, EnumValues = new[] { "button", "text", "rectangle", "label", "image", "numeric", "switch", "line", "circle", "ellipse", "iofield", "checkbox", "textlist", "textbox", "frame", "progressbar", "datetime", "window", "userview", "alarmview", "robotlist" }, Description = "控件类型（textbox 为 textlist 兼容别名；datetime 为日期时间控件；window 为窗口控件——用 --window-type 指定；userview/alarmview/robotlist 为三独立窗口控件）" },
+                ["widget_type"] = new() { Type = "enum", Required = true, EnumValues = new[] { "button", "text", "rectangle", "label", "image", "numeric", "switch", "line", "circle", "ellipse", "iofield", "checkbox", "textlist", "textbox", "frame", "progressbar", "datetime", "window", "userview", "alarmview", "robotlist", "polygon", "point" }, Description = "控件类型（textbox 为 textlist 兼容别名；datetime 为日期时间控件；window 为窗口控件——用 --window-type 指定；userview/alarmview/robotlist 为三独立窗口控件；polygon/point 为世界地图图形控件）" },
                 ["x"] = new() { Type = "int", DefaultValue = 100, KeepInCompact = true },   // #3：AI 创建控件可指定位置
                 ["y"] = new() { Type = "int", DefaultValue = 100, KeepInCompact = true },   // #3：AI 创建控件可指定位置
                 ["width"] = new() { Type = "int", DefaultValue = 100, KeepInCompact = true },   // 🟡：AI 创建控件可指定尺寸
@@ -19,6 +19,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 ["bound_tag"] = new() { Type = "string", DefaultValue = "", Description = "绑定变量（可选，创建后立即绑定）" },
                 ["window_type"] = new() { Type = "enum", DefaultValue = "userview", EnumValues = new[] { "userview", "alarmview", "robotlist" }, Description = "window 类型的窗口种类（W1：UserView/AlarmView/RobotList）" },
                 ["center"] = new() { Type = "bool", DefaultValue = false, KeepInCompact = true, Description = "true 时置于画面中心（忽略 x/y；AI 指令「放在中心」用）" },
+                ["label"] = new() { Type = "string", DefaultValue = "", Description = "point 控件右上角标签" },
             }
         };
         public ValidationResult Validate(Dictionary<string, object?> parameters)
@@ -28,7 +29,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
             // 控件类型枚举校验（防未知类型静默走 default 创建 Button——静默失败比报错更危险）
             var wt = parameters["widget_type"]!.ToString()!;
             if (wt is not ("button" or "text" or "rectangle" or "label" or "image" or "numeric" or "switch" or "line"
-                or "circle" or "ellipse" or "iofield" or "checkbox" or "textlist" or "textbox" or "frame" or "progressbar" or "datetime" or "window" or "userview" or "alarmview" or "robotlist"))
+                or "circle" or "ellipse" or "iofield" or "checkbox" or "textlist" or "textbox" or "frame" or "progressbar" or "datetime" or "window" or "userview" or "alarmview" or "robotlist" or "polygon" or "point"))
                 return ValidationResult.Fail($"未知控件类型: {wt}");
             // W1：window 类型校验 window_type 白名单（防未知类型静默创建 UserView）
             if (wt == "window")
@@ -70,6 +71,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 "frame" => new FrameWidget(),
                 "progressbar" => new ProgressBarWidget(),
                 "datetime" => new DateTimeWidget { Text = "2026-01-01 00:00:00" },
+                "polygon" => new PolygonWidget(),
+                "point" => new PointWidget(),
                 "userview" => CreateWindow(parameters, "userview"),
                 "alarmview" => CreateWindow(parameters, "alarmview"),
                 "robotlist" => CreateWindow(parameters, "robotlist"),
@@ -81,6 +84,9 @@ namespace NavigatorHMI.CommandLayer.Handlers
             if (parameters.GetValueOrDefault("center") is true)   // 置于画面中心（忽略 x/y；AI 指令「放在中心」）
             { widget.X = (screen.Width - widget.Width) / 2; widget.Y = (screen.Height - widget.Height) / 2; }
             widget.ObjectName = $"{widgetType}_{screen.Widgets.Count + 1}";
+            // point 可选标签（右上角）；polygon 顶点由后续绘制/参数设置（批 3 GUI 交互绘制）
+            if (widget is PointWidget pw && parameters.TryGetValue("label", out var lbl) && lbl != null)
+                pw.Label = lbl.ToString() ?? "";
             // 可选：创建后立即绑定变量（拖拽生成绑定控件用）；类型兼容校验
             var boundTag = parameters.GetValueOrDefault("bound_tag")?.ToString() ?? "";
             if (boundTag.Length > 0)

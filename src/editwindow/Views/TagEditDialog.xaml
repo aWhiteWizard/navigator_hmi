@@ -38,6 +38,7 @@
                 <ComboBoxItem Content="FLOAT"/>
                 <ComboBoxItem Content="STRING"/>
                 <ComboBoxItem Content="DATETIME"/>
+                <ComboBoxItem Content="GPS"/>
             </ComboBox>
 
             <!-- 来源：下拉选择「内部变量」或通讯设备；选中设备后填写地址/主题 -->
