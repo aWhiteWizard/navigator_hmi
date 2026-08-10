@@ -39,5 +39,28 @@ namespace NavigatorHMI.Common
         /// </summary>
         [ProtoMember(7)]
         public bool ShowGlobalOverlay { get; set; } = false;
+
+        /// <summary>作业点列表（绑经纬度变量或固定值；视口自适应按这些点包围盒计算）。</summary>
+        [ProtoMember(8)]
+        public List<MapWorkPoint> WorkPoints { get; set; } = new();
+    }
+
+    /// <summary>
+    /// 世界地图作业点。绑经纬度变量（GPS 类型，动态移动）或写固定值（<see cref="FixedPoint"/>）——二选一。
+    /// </summary>
+    [ProtoContract]
+    public class MapWorkPoint
+    {
+        /// <summary>作业点名称（如 "1号泵站"）</summary>
+        [ProtoMember(1)]
+        public string Name { get; set; } = "";
+
+        /// <summary>经纬度固定值（组态写死；有 BoundTag 时以变量动态值为准）</summary>
+        [ProtoMember(2)]
+        public GeoPoint? FixedPoint { get; set; }
+
+        /// <summary>绑定的经纬度变量名（GPS 类型；为空 = 用 FixedPoint 固定值）</summary>
+        [ProtoMember(3)]
+        public string BoundTag { get; set; } = "";
     }
 }

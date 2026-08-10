@@ -131,6 +131,8 @@ namespace NavigatorHMI.Common
 [ProtoInclude(114, typeof(EllipseWidget))]
 [ProtoInclude(115, typeof(DateTimeWidget))]
 [ProtoInclude(116, typeof(WindowWidget))]
+[ProtoInclude(117, typeof(PolygonWidget))]
+[ProtoInclude(118, typeof(PointWidget))]
 public abstract class Widget : INotifyPropertyChanged
 {
     private double _x;
@@ -678,6 +680,16 @@ public class LineWidget : Widget
     /// <summary>线条粗细（像素）</summary>
     [ProtoMember(4)]
     public double StrokeThickness { get => _strokeThickness; set { _strokeThickness = Math.Round(value, 3); OnPropertyChanged(); } }
+
+    private GeoPoint? _geoStart;
+    /// <summary>起点经纬度（世界地图模式端点；固定值，绑 GPS 变量时用 BoundTag 动态值）</summary>
+    [ProtoMember(5)]
+    public GeoPoint? GeoStart { get => _geoStart; set { _geoStart = value; OnPropertyChanged(); } }
+
+    private GeoPoint? _geoEnd;
+    /// <summary>终点经纬度（世界地图模式端点；固定值）</summary>
+    [ProtoMember(6)]
+    public GeoPoint? GeoEnd { get => _geoEnd; set { _geoEnd = value; OnPropertyChanged(); } }
 }
 
 /// <summary>
@@ -700,6 +712,92 @@ public class CircleWidget : Widget
     /// <summary>边框粗细（像素）</summary>
     [ProtoMember(3)]
     public double StrokeThickness { get => _strokeThickness; set { _strokeThickness = Math.Round(value, 3); OnPropertyChanged(); } }
+
+    private GeoPoint? _geoCenter;
+    /// <summary>圆心经纬度（世界地图模式；固定值，绑 GPS 变量时圆心随变量移动）</summary>
+    [ProtoMember(4)]
+    public GeoPoint? GeoCenter { get => _geoCenter; set { _geoCenter = value; OnPropertyChanged(); } }
+}
+
+/// <summary>
+/// 多边形控件。顶点列表按序闭合 → 封闭图形（边框 + 半透明填充）。
+/// 普通画面：顶点为画面坐标（<see cref="Points"/>）；世界地图模式：顶点可为经纬度（<see cref="GeoPoints"/>）。
+/// 不绑变量不变色（填充/描边颜色独立配置）。
+/// </summary>
+[ProtoContract]
+public class PolygonWidget : Widget
+{
+    private List<PointD> _points = new();
+    /// <summary>顶点列表（画面坐标，按序闭合）</summary>
+    [ProtoMember(1)]
+    public List<PointD> Points { get => _points; set { _points = value; OnPropertyChanged(); } }
+
+    private List<GeoPoint>? _geoPoints;
+    /// <summary>顶点经纬度列表（世界地图模式；null/空 = 画面坐标模式）</summary>
+    [ProtoMember(2)]
+    public List<GeoPoint>? GeoPoints { get => _geoPoints; set { _geoPoints = value; OnPropertyChanged(); } }
+
+    private string _fillColor = "#30FFFFFF";
+    /// <summary>填充颜色（CSS 格式；半透明默认——闭合区域填充不遮挡底图）</summary>
+    [ProtoMember(3)]
+    public string FillColor { get => _fillColor; set { _fillColor = value; OnPropertyChanged(); } }
+
+    private string _strokeColor = "#1E90FF";
+    /// <summary>描边颜色（CSS 格式）</summary>
+    [ProtoMember(4)]
+    public string StrokeColor { get => _strokeColor; set { _strokeColor = value; OnPropertyChanged(); } }
+
+    private double _strokeThickness = 1.5;
+    /// <summary>描边粗细（像素）</summary>
+    [ProtoMember(5)]
+    public double StrokeThickness { get => _strokeThickness; set { _strokeThickness = Math.Round(value, 3); OnPropertyChanged(); } }
+}
+
+/// <summary>
+/// 点控件（作业点标记）。右上角可输入标签；坐标经纬度绑 GPS 变量（动态）或固定值（组态写死）——二选一。
+/// 普通画面按画面坐标（X/Y）放置；世界地图模式按经纬度定位（<see cref="FixedPoint"/> 或 BoundTag 动态值）。
+/// </summary>
+[ProtoContract]
+public class PointWidget : Widget
+{
+    private string _label = "";
+    /// <summary>右上角标签文本（如站点名）</summary>
+    [ProtoMember(1)]
+    public string Label { get => _label; set { _label = value; OnPropertyChanged(); OnPropertyChanged(nameof(DisplayText)); } }
+
+    private GeoPoint? _fixedPoint;
+    /// <summary>经纬度固定值（组态写死；null 时用 BoundTag 绑定的 GPS 变量动态值）</summary>
+    [ProtoMember(2)]
+    public GeoPoint? FixedPoint { get => _fixedPoint; set { _fixedPoint = value; OnPropertyChanged(); } }
+
+    /// <summary>设计态显示文本：标签（若为空则显示经纬度 DMS）。</summary>
+    [ProtoIgnore]
+    public override string DisplayText
+    {
+        get
+        {
+            if (!string.IsNullOrEmpty(Label)) return Label;
+            if (FixedPoint != null) return FixedPoint.ToDmsString();
+            return "";
+        }
+    }
+}
+
+/// <summary>
+/// 画面坐标点（protobuf 可序列化）。用于多边形顶点等控件坐标集合。
+/// </summary>
+[ProtoContract]
+public class PointD
+{
+    [ProtoMember(1)]
+    public double X { get; set; }
+
+    [ProtoMember(2)]
+    public double Y { get; set; }
+
+    public PointD() { }
+
+    public PointD(double x, double y) { X = x; Y = y; }
 }
 
 /// <summary>
