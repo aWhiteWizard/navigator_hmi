@@ -57,18 +57,16 @@ namespace NavigatorHMI.Common
             ImageWidget or FrameWidget or TextListWidget => TagRequirement.Numeric,
             // 日期时间控件：仅绑 DATETIME 变量
             DateTimeWidget => TagRequirement.DateTime,
-            // 图形类控件（世界地图批 2）：线/多边形/点/圆圆心——仅绑 GPS 经纬度变量（动态移动），其余控件禁止
-            LineWidget or CircleWidget or PolygonWidget or PointWidget => TagRequirement.Geo,
             _ => TagRequirement.Any,
         };
 
         /// <summary>校验控件与变量类型兼容（不兼容返回失败信息，null = 兼容）。</summary>
         public static string? Check(Widget widget, Tag tag)
         {
+            // P1 修订：GPS 变量不再可绑任何控件——仅世界地图作业点/作业范围点绑定（作业点 GUI 独立校验）
+            if (tag.DataType == TagDataType.GPS)
+                return $"变量 \"{tag.Name}\" 类型 GPS 不能绑定 {widget.GetType().Name}（GPS 仅世界地图作业点/作业范围点可绑定）";
             var req = GetRequirement(widget);
-            // 需求 C：GPS 变量仅图形类控件（线/多边形/点/圆）可绑，其余控件一律拒绝（含默认 Any 分支）
-            if (tag.DataType == TagDataType.GPS && req != TagRequirement.Geo)
-                return $"变量 \"{tag.Name}\" 类型 GPS 不能绑定 {widget.GetType().Name}（仅线/多边形/点/圆可绑）";
             return req switch
             {
                 TagRequirement.None => $"该控件（{widget.GetType().Name}）不支持绑定变量",
@@ -80,8 +78,6 @@ namespace NavigatorHMI.Common
                     $"变量 \"{tag.Name}\" 类型 {tag.DataType} 不能绑定日期时间控件（仅支持 DATETIME）",
                 TagRequirement.Bool when !IsBoolCompatible(tag.DataType) =>
                     $"变量 \"{tag.Name}\" 类型 {tag.DataType} 不能绑定开关/复选框（需 BOOL）",
-                TagRequirement.Geo when !IsGeoCompatible(tag.DataType) =>
-                    $"变量 \"{tag.Name}\" 类型 {tag.DataType} 不能绑定图形控件（仅支持 GPS 经纬度）",
                 _ => null,
             };
         }

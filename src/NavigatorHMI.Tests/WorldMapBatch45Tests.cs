@@ -109,28 +109,5 @@ namespace NavigatorHMI.Tests
             Assert.Equal(0, poly.Points[0].X);   // 首个顶点 = 相对原点
             Assert.Equal(50, poly.Points[2].X);
         }
-
-        // ── 批 3a 遗留：PointWidget 通知 DisplayText ──
-
-        [Fact]
-        public void PointWidget_标签变化通知DisplayText()
-        {
-            var pt = new PointWidget();
-            var notified = false;
-            pt.PropertyChanged += (_, e2) => { if (e2.PropertyName == nameof(PointWidget.DisplayText)) notified = true; };
-            pt.Label = "1号泵站";
-            Assert.True(notified);
-        }
-
-        [Fact]
-        public void PointWidget_固定经纬度变化通知DisplayText()
-        {
-            var pt = new PointWidget();
-            var notified = false;
-            pt.PropertyChanged += (_, e2) => { if (e2.PropertyName == nameof(PointWidget.DisplayText)) notified = true; };
-            pt.FixedPoint = new GeoPoint(104.0583, 30.6722);
-            Assert.True(notified);
-            Assert.Equal("E104°3'30\", N30°40'20\"", pt.DisplayText);   // 无标签时显示经纬度 DMS
-        }
     }
 }

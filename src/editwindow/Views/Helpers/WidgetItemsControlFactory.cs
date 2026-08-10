@@ -37,7 +37,6 @@ namespace NavigatorHMI.Views.Helpers
         public DataTemplate DefaultTemplate { get; set; } = null!;
     public DataTemplate WindowTemplate { get; set; } = null!;   // W4：窗口控件（UserView/AlarmView/RobotList）
     public DataTemplate PolygonTemplate { get; set; } = null!;   // 世界地图批 3：多边形
-    public DataTemplate PointTemplate { get; set; } = null!;     // 世界地图批 3：点控件
 
         /// <summary>
         /// 根据 item 运行时类型选择对应的 DataTemplate。
@@ -65,7 +64,6 @@ namespace NavigatorHMI.Views.Helpers
                 DateTimeWidget => DateTimeTemplate,
                 WindowWidget => WindowTemplate,
                 PolygonWidget => PolygonTemplate,
-                PointWidget => PointTemplate,
                 RectangleWidget => DefaultTemplate,
                 _ => DefaultTemplate
             };
@@ -134,8 +132,7 @@ namespace NavigatorHMI.Views.Helpers
                 DateTimeTemplate = CreateDateTimeTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
                 DefaultTemplate = CreateRectangleTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
                 WindowTemplate = CreateWindowTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
-                PolygonTemplate = CreatePolygonTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
-                PointTemplate = CreatePointTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler)
+                PolygonTemplate = CreatePolygonTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler)
             };
 
             itemsControl.ItemTemplateSelector = selector;
@@ -506,32 +503,6 @@ namespace NavigatorHMI.Views.Helpers
             poly.SetBinding(Polygon.StrokeThicknessProperty, new Binding("StrokeThickness"));
             canvas.AppendChild(poly);
             dt.VisualTree = WrapWithBorder(canvas, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU);
-            return dt;
-        }
-
-        /// <summary>世界地图批 3：点控件模板——红色圆点标记 + 右上角标签（DisplayText = 标签或经纬度 DMS）。</summary>
-        private static DataTemplate CreatePointTemplate(RoutedEventHandler click, MouseButtonEventHandler pmLBD, MouseButtonEventHandler mLBD,
-            MouseEventHandler mMove, MouseButtonEventHandler mLBU, MouseButtonEventHandler pmRBD, MouseButtonEventHandler mRBU)
-        {
-            var dt = new DataTemplate();
-            var canvas = new FrameworkElementFactory(typeof(Canvas));
-            var mark = new FrameworkElementFactory(typeof(Ellipse));
-            mark.SetValue(Ellipse.WidthProperty, 12.0);
-            mark.SetValue(Ellipse.HeightProperty, 12.0);
-            mark.SetValue(Ellipse.FillProperty, Brushes.Red);
-            mark.SetValue(Ellipse.StrokeProperty, Brushes.White);
-            mark.SetValue(Ellipse.StrokeThicknessProperty, 1.5);
-            mark.SetValue(Canvas.LeftProperty, 6.0);
-            mark.SetValue(Canvas.TopProperty, 6.0);
-            var label = new FrameworkElementFactory(typeof(TextBlock));
-            label.SetBinding(TextBlock.TextProperty, new Binding("DisplayText"));
-            label.SetValue(TextBlock.FontSizeProperty, 11.0);
-            label.SetValue(TextBlock.ForegroundProperty, Brushes.Black);
-            label.SetValue(Canvas.LeftProperty, 15.0);
-            label.SetValue(Canvas.TopProperty, 0.0);
-            canvas.AppendChild(mark);
-            canvas.AppendChild(label);
-            dt.VisualTree = WrapWithBorder(canvas, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU, transparentHitArea: true);
             return dt;
         }
     }

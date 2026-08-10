@@ -72,7 +72,6 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 "progressbar" => new ProgressBarWidget(),
                 "datetime" => new DateTimeWidget { Text = "2026-01-01 00:00:00" },
                 "polygon" => new PolygonWidget(),
-                "point" => new PointWidget(),
                 "userview" => CreateWindow(parameters, "userview"),
                 "alarmview" => CreateWindow(parameters, "alarmview"),
                 "robotlist" => CreateWindow(parameters, "robotlist"),
@@ -84,9 +83,6 @@ namespace NavigatorHMI.CommandLayer.Handlers
             if (parameters.GetValueOrDefault("center") is true)   // 置于画面中心（忽略 x/y；AI 指令「放在中心」）
             { widget.X = (screen.Width - widget.Width) / 2; widget.Y = (screen.Height - widget.Height) / 2; }
             widget.ObjectName = $"{widgetType}_{screen.Widgets.Count + 1}";
-            // point 可选标签（右上角）；polygon 顶点由后续绘制/参数设置（批 3 GUI 交互绘制）
-            if (widget is PointWidget pw && parameters.TryGetValue("label", out var lbl) && lbl != null)
-                pw.Label = lbl.ToString() ?? "";
             // 可选：创建后立即绑定变量（拖拽生成绑定控件用）；类型兼容校验
             var boundTag = parameters.GetValueOrDefault("bound_tag")?.ToString() ?? "";
             if (boundTag.Length > 0)

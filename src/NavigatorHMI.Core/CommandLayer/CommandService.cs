@@ -92,6 +92,13 @@ namespace NavigatorHMI.CommandLayer
                 ["remove_event"]    = new RemoveEventHandler(),
                 ["update_event"]    = new UpdateEventHandler(),
 
+                // ── 世界地图（P9：作业点/作业范围点/地图配置的 AI/CLI 入口）──
+                ["add_work_point"]      = new AddWorkPointHandler(),
+                ["delete_work_point"]   = new DeleteWorkPointHandler(),
+                ["add_work_range_point"] = new AddWorkRangePointHandler(),
+                ["clear_work_range"]    = new ClearWorkRangeHandler(),
+                ["update_world_map"]    = new UpdateWorldMapHandler(),
+
                 // ── 剪贴板 ──
                 ["copy_widget"]     = new CopyWidgetHandler(),
                 ["paste_widget"]    = new PasteWidgetHandler(),

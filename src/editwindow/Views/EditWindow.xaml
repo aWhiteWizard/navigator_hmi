@@ -191,25 +191,42 @@
                 <Label Grid.Column="0" Content="显示全局:" Style="{StaticResource PropLabel}"/>
                 <CheckBox Grid.Column="1" IsChecked="{Binding WorldMapShowGlobalOverlay}" VerticalAlignment="Center" ToolTip="勾选后世界地图上叠加显示全局画面内容（设备端运行时同步生效）"/>
             </Grid>
-            <!-- 批 4：世界地图作业点（列表 + 添加/删除；视口自适应按作业点包围盒） -->
+            <!-- P5：锁定预览（运行时禁交互 + 组态模拟） + 视口自适应 -->
+            <TextBlock Text="预览与视口" Style="{StaticResource PropGroupHeader}" Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}"/>
+            <Grid Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}"><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="锁定预览:" Style="{StaticResource PropLabel}"/>
+                <CheckBox Grid.Column="1" IsChecked="{Binding WorldMapViewLocked}" VerticalAlignment="Center" ToolTip="勾选后模拟运行预览：地图禁平移/缩放，点击地图空白处执行「点击切换画面」事件"/>
+            </Grid>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="4,2" Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}">
+                <Button Content="⛶ 视口自适应" Click="WorldMapZoomToBox_Click" Padding="8,2" FontSize="11" ToolTip="按作业点/作业范围点包围盒缩放地图视口（ZoomToBox）"/>
+            </StackPanel>
+            <!-- P4：世界地图作业点/作业范围点（表格行内编辑；两列互斥；末行输入自动补行） -->
             <TextBlock Text="作业点" Style="{StaticResource PropGroupHeader}" Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}"/>
             <StackPanel Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}">
-                <ListBox ItemsSource="{Binding WorldMapWorkPoints}" SelectedItem="{Binding SelectedWorkPoint}" DisplayMemberPath="Name" Height="70" Margin="4,2" ToolTip="作业点列表（进入世界地图时视口自适应按包围盒计算）；选中后点删除"/>
-                <Grid Margin="4,2"><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                    <Label Grid.Column="0" Content="名称:" Style="{StaticResource PropLabel}"/>
-                    <TextBox Grid.Column="1" Text="{Binding WorkPointName, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
-                </Grid>
-                <Grid Margin="4,2"><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                    <Label Grid.Column="0" Content="经纬度:" Style="{StaticResource PropLabel}"/>
-                    <TextBox Grid.Column="1" Text="{Binding WorkPointLngLat, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" ToolTip="固定值（DMS 如 (E104°3'30&quot;, N30°40'20&quot;) 或小数度）；与绑定变量二选一"/>
-                </Grid>
-                <Grid Margin="4,2"><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                    <Label Grid.Column="0" Content="绑变量:" Style="{StaticResource PropLabel}"/>
-                    <TextBox Grid.Column="1" Text="{Binding WorkPointBoundTag, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" ToolTip="绑定 GPS 变量名（动态移动）；与固定经纬度二选一"/>
-                </Grid>
+                <DataGrid ItemsSource="{Binding WorkPointRows}" SelectedItem="{Binding SelectedWorkPointRow}" CanUserAddRows="True" AutoGenerateColumns="False"
+                          Height="110" Margin="4,2" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                          SelectionMode="Single" ToolTip="末行空白行输入自动补行；经纬度(固定)与绑定变量二选一（互斥）">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="名称" Binding="{Binding Name, UpdateSourceTrigger=LostFocus}" Width="80"/>
+                        <DataGridTextColumn Header="经纬度(固定)" Binding="{Binding LngLat, UpdateSourceTrigger=LostFocus}" Width="*"/>
+                        <DataGridTextColumn Header="绑定变量" Binding="{Binding BoundTag, UpdateSourceTrigger=LostFocus}" Width="70"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+                <Button Content="🗑 删除选中作业点" Click="DeleteWorkPointRow_Click" Padding="8,2" HorizontalAlignment="Right" Margin="4,2" FontSize="11"/>
+            </StackPanel>
+            <TextBlock Text="作业范围" Style="{StaticResource PropGroupHeader}" Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}"/>
+            <StackPanel Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}">
+                <DataGrid ItemsSource="{Binding WorkRangeRows}" SelectedItem="{Binding SelectedWorkRangeRow}" CanUserAddRows="True" AutoGenerateColumns="False"
+                          Height="90" Margin="4,2" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                          SelectionMode="Single" ToolTip="作业范围围栏顶点；地图右键「设置作业范围」可加点">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="经纬度(固定)" Binding="{Binding LngLat, UpdateSourceTrigger=LostFocus}" Width="*"/>
+                        <DataGridTextColumn Header="绑定变量" Binding="{Binding BoundTag, UpdateSourceTrigger=LostFocus}" Width="70"/>
+                    </DataGrid.Columns>
+                </DataGrid>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="4,2">
-                    <Button Content="添加" Click="AddWorkPoint_Click" Padding="8,2" Margin="0,0,6,0"/>
-                    <Button Content="删除" Click="DeleteWorkPoint_Click" Padding="8,2"/>
+                    <Button Content="📍 地图加点" Click="StartEditWorkRange_Click" Padding="8,2" Margin="0,0,6,0" FontSize="11"/>
+                    <Button Content="🗑 删除选中" Click="DeleteWorkRangeRow_Click" Padding="8,2" FontSize="11"/>
                 </StackPanel>
             </StackPanel>
         </StackPanel></DataTemplate>
@@ -577,24 +594,17 @@
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Thickness:" Style="{StaticResource PropLabel}"/>
                 <TextBox Grid.Column="1" Text="{Binding PolygonStrokeThickness, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}" KeyDown="PropField_KeyDown" />
-            </Grid></StackPanel></DataTemplate>
-
-        <!-- PointWidget 属性（世界地图批 3） -->
-        <DataTemplate x:Key="PropPoint"><StackPanel>
-            <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
-            <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
-            <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
-            <ContentControl ContentTemplate="{StaticResource PropBinding}" Content="{Binding}"/>
-            <Separator Margin="4,2"/>
-            <TextBlock Text="标记" Style="{StaticResource PropGroupHeader}"/>
-            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <Label Grid.Column="0" Content="Label:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding PointLabel, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropText}" KeyDown="PropField_KeyDown" ToolTip="右上角标签（如 1号泵站）；空则显示经纬度"/>
             </Grid>
-            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <Label Grid.Column="0" Content="经纬度:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding PointFixedLngLat, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropText}" KeyDown="PropField_KeyDown" ToolTip="固定值（DMS 如 (E104°3'30&quot;, N30°40'20&quot;) 或小数度）；空 = 用绑定 GPS 变量动态值"/>
-            </Grid></StackPanel></DataTemplate>
+            <!-- P6：多边形端点列表（顶点画面坐标，创建时确定；只读展示） -->
+            <TextBlock Text="端点" Style="{StaticResource PropGroupHeader}"/>
+            <ListBox ItemsSource="{Binding PolygonPoints}" Height="80" Margin="4,2" ToolTip="多边形顶点列表（画面坐标；绘制时确定，暂不支持行内编辑）">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock><Run Text="("/><Run Text="{Binding X, Mode=OneWay, StringFormat={}{0:0.#}}"/><Run Text=", "/><Run Text="{Binding Y, Mode=OneWay, StringFormat={}{0:0.#}}"/><Run Text=")"/></TextBlock>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </StackPanel></DataTemplate>
 
         <!-- IOFieldWidget 属性 -->
         <DataTemplate x:Key="PropIOField"><StackPanel>
@@ -981,8 +991,10 @@
 
         <Menu x:Name="MainMenu" Grid.Row="0" HorizontalAlignment="Left">
             <MenuItem Header="文件">
-                <MenuItem Header="新建"/><MenuItem Header="打开"/>
-                <MenuItem Header="保存" Command="Save"/><MenuItem Header="另存为"/>
+                <MenuItem Header="新建" Click="NewProject_Click" InputGestureText="Ctrl+N"/>
+                <MenuItem Header="打开" Click="OpenProject_Click" InputGestureText="Ctrl+O"/>
+                <MenuItem Header="保存" Click="SaveCurrentProject_Click" InputGestureText="Ctrl+S"/>
+                <MenuItem Header="另存为" Click="SaveAsProject_Click"/>
                 <MenuItem Header="关闭工程" Click="CloseCurrentProject_Click"/>
             </MenuItem>
             <MenuItem Header="编辑">
@@ -1215,25 +1227,27 @@
                             </avalon:LayoutAnchorable>
                             <avalon:LayoutAnchorable Title="控件面板" ContentId="toolbox">
                                 <TabControl TabStripPlacement="Top">
-                                    <TabItem Header="一般控件"><StackPanel Orientation="Vertical">
-                                        <Button Content="Label" Tag="Label" Click="ToggleAddWidgetMode"/>
-                                        <Button x:Name="AddButtonModeBtn" Content="Button" Tag="Button" Click="ToggleAddWidgetMode"/>
-                                                                                <Button Content="Rectangle" Tag="Rectangle" Click="ToggleAddWidgetMode"/>
+                                    <TabItem Header="图形装饰"><StackPanel Orientation="Vertical">
+                                        <Button Content="Rectangle" Tag="Rectangle" Click="ToggleAddWidgetMode"/>
                                         <Button Content="Line" Tag="Line" Click="ToggleAddWidgetMode"/>
                                         <Button Content="Circle" Tag="Circle" Click="ToggleAddWidgetMode"/>
                                         <Button Content="Ellipse" Tag="Ellipse" Click="ToggleAddWidgetMode"/>
+                                        <Button Content="Polygon" Tag="Polygon" Click="ToggleAddWidgetMode" ToolTip="多边形：连续左键放置顶点、右键闭合"/>
+                                    </StackPanel></TabItem>
+                                    <TabItem Header="交互"><StackPanel Orientation="Vertical">
+                                        <Button Content="Button" Tag="Button" Click="ToggleAddWidgetMode"/>
+                                        <Button Content="Switch" Tag="Switch" Click="ToggleAddWidgetMode"/>
+                                        <Button Content="CheckBox" Tag="CheckBox" Click="ToggleAddWidgetMode"/>
+                                        <Button Content="IOField" Tag="IOField" Click="ToggleAddWidgetMode"/>
+                                    </StackPanel></TabItem>
+                                    <TabItem Header="数据绑定显示"><StackPanel Orientation="Vertical">
+                                        <Button Content="Label" Tag="Label" Click="ToggleAddWidgetMode"/>
                                         <Button Content="Image" Tag="Image" Click="ToggleAddWidgetMode"/>
                                         <Button Content="Numeric" Tag="Numeric" Click="ToggleAddWidgetMode"/>
-                                        <Button Content="Switch" Tag="Switch" Click="ToggleAddWidgetMode"/>
-                                        <Button Content="IOField" Tag="IOField" Click="ToggleAddWidgetMode"/>
-                                        <Button Content="CheckBox" Tag="CheckBox" Click="ToggleAddWidgetMode"/>
                                         <Button Content="TextList" Tag="TextList" Click="ToggleAddWidgetMode"/>
                                         <Button Content="Frame" Tag="Frame" Click="ToggleAddWidgetMode"/>
                                         <Button Content="ProgressBar" Tag="ProgressBar" Click="ToggleAddWidgetMode"/>
-                                            <Button Content="DateTime" Tag="DateTime" Click="ToggleAddWidgetMode"/>
-                                        <!-- 世界地图批 3：图形控件 -->
-                                        <Button Content="Polygon" Tag="Polygon" Click="ToggleAddWidgetMode" ToolTip="多边形：连续左键放置顶点、右键闭合"/>
-                                        <Button Content="Point" Tag="Point" Click="ToggleAddWidgetMode" ToolTip="点控件：作业点标记（右上角标签）"/>
+                                        <Button Content="DateTime" Tag="DateTime" Click="ToggleAddWidgetMode"/>
                                     </StackPanel></TabItem>
                                     <TabItem Header="窗口控件"><StackPanel Orientation="Vertical">
                                         <Button Content="User View" Tag="UserView" Click="ToggleAddWidgetMode" ToolTip="用户视图控件（头像/用户名/角色/模式/登录）"/>
@@ -1419,6 +1433,18 @@
                                         </StackPanel>
                                     </Border>
                                 </Popup>
+                                <!-- 世界地图右键菜单（P3）：非绘制模式右键 → 属性/事件配置/设置作业范围/清除作业范围；绘制模式右键仍闭合多边形 -->
+                                <Popup x:Name="WorldMapContextMenu" Placement="Absolute" StaysOpen="False" AllowsTransparency="True">
+                                    <Border Background="White" BorderBrush="LightGray" BorderThickness="1" CornerRadius="4" Padding="2">
+                                        <StackPanel>
+                                            <Button Content="📋 属性" Click="WorldMapProperty_Click" Width="110" Height="28" Margin="2" ToolTip="选中世界地图画面，属性面板显示作业点/作业范围配置"/>
+                                            <Button Content="⚡ 事件配置" Click="WorldMapEventConfig_Click" Width="110" Height="28" Margin="2" ToolTip="配置点击地图空白处切换画面事件"/>
+                                            <Separator/>
+                                            <Button Content="📌 设置作业范围" Click="StartEditWorkRange_Click" Width="110" Height="28" Margin="2" ToolTip="进入加点模式：点击地图加经纬度点，ESC/右键退出"/>
+                                            <Button Content="🗑 清除作业范围" Click="ClearWorkRange_Click" Width="110" Height="28" Margin="2"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Popup>
                                 <!-- 树节点右键菜单（复制/剪切/粘贴/删除/重命名；与画布菜单分开，避免共用 Popup 内容错位） -->
                                 <Popup x:Name="TreeScreenMenu" Placement="Absolute" StaysOpen="True" AllowsTransparency="True">
                                     <Border Background="White" BorderBrush="LightGray" BorderThickness="1" CornerRadius="4" Padding="2">
@@ -1481,6 +1507,10 @@
                                                     Width="{Binding DeviceWidth}" Height="{Binding DeviceHeight}"
                                                     Visibility="{Binding DataContext.IsWorldMapActive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}"
                                                     IsHitTestVisible="{Binding DataContext.IsWorldMapActive, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=False}"/>
+                                            <!-- 作业点/作业范围点 overlay（P2）：经纬度 → 屏幕坐标换算后定位；不命中不挡地图交互 -->
+                                            <Canvas x:Name="WorkPointsOverlay" Panel.ZIndex="1" IsHitTestVisible="False"
+                                                    Width="{Binding DeviceWidth}" Height="{Binding DeviceHeight}"
+                                                    Visibility="{Binding DataContext.IsWorldMapActive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}"/>
                                             <Canvas x:Name="DrawingCanvas" HorizontalAlignment="Left" VerticalAlignment="Top"
                                                     Width="{Binding DeviceWidth}" Height="{Binding DeviceHeight}"
                                                     IsHitTestVisible="{Binding DataContext.IsWorldMapActive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBoolConverter}, FallbackValue=True}"
@@ -1946,7 +1976,6 @@
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="DateTimeWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropDateTime}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="WindowWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropWindow}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="PolygonWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropPolygon}"/></DataTrigger>
-                                                    <DataTrigger Binding="{Binding SelectedObjectType}" Value="PointWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropPoint}"/></DataTrigger>
                                                 </Style.Triggers>
                                             </Style></ContentControl.Style></ContentControl>
                                             <!-- 事件栏（DESIGN-EVENTS.md §4：选中控件且支持事件时显示可用事件 + 配置入口） -->

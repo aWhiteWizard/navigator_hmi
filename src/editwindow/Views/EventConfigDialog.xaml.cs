@@ -10,12 +10,14 @@ namespace NavigatorHMI.Views
     {
         private readonly EventConfigViewModel _vm;
 
-        public EventConfigDialog(HMIProject project, Widget widget, EventType evt, CommandLayer.ICommandService commands)
+        public EventConfigDialog(HMIProject project, Widget? widget, EventType evt, CommandLayer.ICommandService commands)
         {
             InitializeComponent();
             _vm = new EventConfigViewModel(project, widget, evt, commands);
             DataContext = _vm;
-            Title = $"事件配置 - {EventMapping.EventName(evt)}（{widget.ObjectName}）";
+            Title = widget != null
+                ? $"事件配置 - {EventMapping.EventName(evt)}（{widget.ObjectName}）"
+                : $"事件配置 - {EventMapping.EventName(evt)}（世界地图点击切换）";
         }
 
         private void AddFunction_Click(object sender, RoutedEventArgs e)

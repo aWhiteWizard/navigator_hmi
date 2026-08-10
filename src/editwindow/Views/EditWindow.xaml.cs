@@ -71,8 +71,8 @@ namespace NavigatorHMI.Views
         private bool _isDrawingPreview;
         /// <summary>多边形连续点击收集的顶点（世界地图批 3：Polygon 模式左键加点、右键闭合）。</summary>
         private readonly List<System.Windows.Point> _polygonPoints = new();
-        /// <summary>世界地图模式多边形收集的经纬度顶点（批 4：与 _polygonPoints 同序一一对应）。</summary>
-        private readonly List<GeoPoint> _polygonGeoPoints = new();
+        /// <summary>作业范围加点编辑模式（P3/P4）：地图点击加经纬度点，ESC/右键退出。</summary>
+        private bool _isEditingWorkRange;
         private System.Windows.Shapes.Path? _drawPreviewPath;
 
         // CLI 命令历史
@@ -83,10 +83,20 @@ namespace NavigatorHMI.Views
         {
             // 世界地图画面：地图交互优先——画布右键位置记录短路（画布右键菜单挂 Canvas_MouseDown，世界地图时 Canvas 已穿透不触发）
             if (_viewModel?.IsWorldMapActive == true) return;
-            // 多边形绘制：右键闭合（≥3 点生成控件，退出添加模式）
-            if (_currentWidgetCreator is PolygonWidgetCreator && _polygonPoints.Count >= 3)
+            // 多边形绘制：右键闭合（≥3 点生成控件，退出添加模式）；不足 3 点退出绘制（P6：短路防弹画布菜单）
+            if (_currentWidgetCreator is PolygonWidgetCreator)
             {
-                FinishPolygon(e.GetPosition(DrawingCanvas));
+                if (_polygonPoints.Count >= 3)
+                {
+                    FinishPolygon(e.GetPosition(DrawingCanvas));
+                }
+                else
+                {
+                    _polygonPoints.Clear();
+                    _isDrawingPreview = false;
+                    HideDrawPreview();
+                    ExitAddMode();
+                }
                 e.Handled = true;
                 return;
             }
@@ -225,6 +235,11 @@ namespace NavigatorHMI.Views
             _propertyViewModel.OverlayChanged = () => RefreshGlobalGhost();
             // 勾选写 WorldMapConfig（POCO 不在脏订阅范围）→ 显式标脏（防关闭静默丢失）
             _propertyViewModel.DirtyRequested = MarkProjectDirty;
+            // P4：作业点/作业范围点行编辑 → overlay 实时刷新（表格改动立即反映到地图）
+            _propertyViewModel.WorldMapPointsChanged = () => UpdateAllGeoWidgets();
+            // P5：锁定预览勾选变化 → 地图交互开关（ViewLocked 时点击/滚轮短路在事件处理器内实现）
+            _propertyViewModel.WorldMapViewLockChanged = () => UpdateAllGeoWidgets();
+            _propertyViewModel.WorldMapZoomToBoxRequested = () => { if (_viewModel?.IsWorldMapActive == true) TryFitWorldMapViewport(); };
             // 缩放手柄：拖拽开始 Push 撤销快照 + 画布尺寸提供器（缩放钳制）
             _resizeDragStartedCallback = () => _viewModel.PushUndoSnapshot();
             _getCanvasSizeCallback = () => new Size(_propertyViewModel.CanvasWidth, _propertyViewModel.CanvasHeight);
@@ -272,6 +287,7 @@ namespace NavigatorHMI.Views
                 CloseIfOutsideClick(TreeContextMenu, clicked);
                 CloseIfOutsideClick(TreeScreenMenu, clicked);
                 CloseIfOutsideClick(WidgetContextMenu, clicked);
+                CloseIfOutsideClick(WorldMapContextMenu, clicked);
             };
             // 10. 初始化属性窗口
             _selectionManager.WidgetSelected += OnWidgetSelected;
@@ -1269,6 +1285,7 @@ namespace NavigatorHMI.Views
                 WorldMapControl.PreviewMouseLeftButtonDown += WorldMap_PreviewMouseLeftButtonDown;
                 WorldMapControl.PreviewMouseRightButtonDown += WorldMap_PreviewMouseRightButtonDown;   // 隧道先于 Mapsui 内部处理，防右键被吞
                 WorldMapControl.MouseMove += WorldMap_MouseMove;
+                WorldMapControl.PreviewMouseWheel += WorldMap_PreviewMouseWheel;   // P5：ViewLocked 禁缩放（滚轮）
                 // 视口变化（平移/缩放）→ 重算含 Geo 控件屏幕位置（固定点位/多边形/线/圆跟随经纬度）
                 map.Navigator.ViewportChanged += (_, _) =>
                 {
@@ -1309,47 +1326,86 @@ namespace NavigatorHMI.Views
             return MapViewportMath.GeoToScreen(vp.CenterX, vp.CenterY, vp.Resolution, vp.Width, vp.Height, geo);
         }
 
-        /// <summary>世界地图 + 绘制工具激活时左键：Point 单点创建 / Polygon 收集顶点（经纬度）。</summary>
+        /// <summary>世界地图 + 绘制工具激活时左键：Polygon 收集顶点（经纬度）；作业范围编辑模式：点击加点；ViewLocked：模拟点击切换。</summary>
         private void WorldMap_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (_viewModel?.IsWorldMapActive != true) return;
-            if (_currentWidgetCreator is not (PointWidgetCreator or PolygonWidgetCreator)) return;
+
+            // P5：锁定预览 → 禁平移缩放，点击执行「点击切换画面」事件（设计态模拟）
+            if (_viewModel.CurrentProject?.WorldMap?.ViewLocked == true)
+            {
+                HandleWorldMapViewLockedClick();
+                e.Handled = true;
+                return;
+            }
+
+            if (_currentWidgetCreator is not PolygonWidgetCreator && !_isEditingWorkRange) return;
             var pos = e.GetPosition(WorldMapControl);
             var geo = ScreenToGeo(pos);
             if (geo == null) return;
 
-            if (_currentWidgetCreator is PointWidgetCreator)
+            if (_isEditingWorkRange)
             {
-                if (_viewModel?.CurrentScreen == null) return;
-                _viewModel.PushUndoSnapshot();
-                var pt = new PointWidget
+                // P3/P4：作业范围加点（无名称；仅阻止相邻重复点——防误双击；非相邻重复允许（围栏首尾闭合场景））
+                var wm = _viewModel.CurrentProject?.WorldMap;
+                if (wm != null)
                 {
-                    X = pos.X - 12, Y = pos.Y - 12, Width = 24, Height = 24,
-                    FixedPoint = geo,
-                    ObjectName = $"point_{_viewModel.CurrentScreen.Widgets.Count + 1}",
-                };
-                _viewModel.CurrentScreen.Widgets.Add(pt);
-                MarkProjectDirty();
-                ExitAddMode();
-                _dragBehavior.SuppressDragUntilMouseUp();
+                    var last = wm.WorkRangePoints.Count > 0 ? wm.WorkRangePoints[^1].FixedPoint : null;
+                    if (last != null && Math.Abs(last.Longitude - geo.Longitude) < 1e-9 && Math.Abs(last.Latitude - geo.Latitude) < 1e-9)
+                    {
+                        e.Handled = true;
+                        return;
+                    }
+                    wm.WorkRangePoints.Add(new WorkRangePoint { FixedPoint = geo });
+                    MarkProjectDirty();
+                    UpdateAllGeoWidgets();
+                }
+                e.Handled = true;
+                return;
             }
-            else if (_currentWidgetCreator is PolygonWidgetCreator)
+
+            if (_currentWidgetCreator is PolygonWidgetCreator)
             {
-                _polygonGeoPoints.Add(geo);
-                _polygonPoints.Add(pos);   // 预览 + 闭合用屏幕坐标（与经纬度同序）
+                _polygonPoints.Add(pos);   // 预览 + 闭合用屏幕坐标
                 _isDrawingPreview = true;
                 ShowDrawPreview();
             }
             e.Handled = true;   // 阻止地图平移
         }
 
-        /// <summary>世界地图多边形绘制：右键闭合（≥3 点 → GeoPoints=经纬度 + Points=屏幕相对坐标）；不足 3 点退出绘制。</summary>
+        /// <summary>世界地图右键：ViewLocked → 短路；作业范围编辑模式 → 退出；Polygon 绘制 → 闭合（≥3 点）/退出（不足）；其他 → 弹地图右键菜单（P3）。</summary>
         private void WorldMap_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (_viewModel?.IsWorldMapActive != true || _currentWidgetCreator is not PolygonWidgetCreator) return;
+            if (_viewModel?.IsWorldMapActive != true) return;
+
+            // P5：锁定预览 → 右键不放菜单（模拟运行态无菜单）
+            if (_viewModel.CurrentProject?.WorldMap?.ViewLocked == true)
+            {
+                e.Handled = true;
+                return;
+            }
+
+            if (_isEditingWorkRange)
+            {
+                ExitWorkRangeEditMode();
+                e.Handled = true;
+                return;
+            }
+
+            if (_currentWidgetCreator is not PolygonWidgetCreator)
+            {
+                // 非绘制模式：地图右键菜单（属性/事件配置/设置作业范围/清除作业范围）
+                var scrPos = e.GetPosition(this);
+                WorldMapContextMenu.HorizontalOffset = scrPos.X + 5;
+                WorldMapContextMenu.VerticalOffset = scrPos.Y + 5;
+                WorldMapContextMenu.IsOpen = true;
+                e.Handled = true;
+                return;
+            }
+
             if (_polygonPoints.Count < 3)
             {
-                _polygonPoints.Clear(); _polygonGeoPoints.Clear();
+                _polygonPoints.Clear();
                 HideDrawPreview(); ExitAddMode();
                 e.Handled = true;
                 return;
@@ -1362,17 +1418,95 @@ namespace NavigatorHMI.Views
             {
                 X = minX, Y = minY,
                 Width = Math.Max(maxX - minX, 1), Height = Math.Max(maxY - minY, 1),
-                GeoPoints = new List<GeoPoint>(_polygonGeoPoints),
                 ObjectName = $"polygon_{_viewModel.CurrentScreen.Widgets.Count + 1}",
             };
             foreach (var p in _polygonPoints) poly.Points.Add(new PointD(p.X - minX, p.Y - minY));
             _viewModel.CurrentScreen.Widgets.Add(poly);
             MarkProjectDirty();
-            _polygonPoints.Clear(); _polygonGeoPoints.Clear();
+            _polygonPoints.Clear();
             _isDrawingPreview = false;
             ExitAddMode();
             _dragBehavior.SuppressDragUntilMouseUp();
             e.Handled = true;
+        }
+
+        /// <summary>P5：ViewLocked 时滚轮缩放拦截（禁缩放）。</summary>
+        private void WorldMap_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (_viewModel?.CurrentProject?.WorldMap?.ViewLocked == true)
+                e.Handled = true;
+        }
+
+        /// <summary>P5：锁定预览点击 → 执行 WorldMapConfig.Events 的 onClick screen_switch 动作（设计态模拟运行时点击切换）。</summary>
+        private void HandleWorldMapViewLockedClick()
+        {
+            var project = _viewModel?.CurrentProject;
+            var wm = project?.WorldMap;
+            if (wm?.ViewLocked != true) return;
+            var evt = wm.Events.FirstOrDefault(ev => ev.Type == EventType.onClick);
+            if (evt == null) return;
+            foreach (var action in evt.Actions)
+            {
+                if (action.Type == ActionType.screen_switch
+                    && action.Parameters.TryGetValue("screen_name", out var target) && !string.IsNullOrWhiteSpace(target))
+                {
+                    var screen = project.Screens.FirstOrDefault(s => s.Name == target.Trim());
+                    if (screen != null) { _viewModel.ActivateScreen(screen); }
+                    break;
+                }
+            }
+        }
+
+        /// <summary>P5：属性面板「视口自适应」按钮 → ZoomToBox 框选（VM 回调）。</summary>
+        private void WorldMapZoomToBox_Click(object sender, RoutedEventArgs e) => _propertyViewModel.WorldMapZoomToBox();
+
+        /// <summary>进入作业范围加点编辑模式：地图点击加经纬度、ESC/右键退出（P3/P4）。</summary>
+        private void StartEditWorkRange_Click(object sender, RoutedEventArgs e)
+        {
+            WorldMapContextMenu.IsOpen = false;
+            if (_viewModel?.CurrentProject?.WorldMap == null) return;
+            _isEditingWorkRange = true;
+            WorldMapControl.Cursor = Cursors.Cross;
+            // 地图禁拖动由 Preview 隧道事件 e.Handled=true 实现（WorldMap_PreviewMouseLeftButtonDown 加点分支先于 Mapsui 内部处理）
+            System.Diagnostics.Trace.WriteLine("[WorldMap] 进入作业范围加点编辑模式：点击地图加经纬度，ESC/右键退出");
+        }
+
+        /// <summary>退出作业范围加点编辑模式（右键/ESC；不清除已加点）。</summary>
+        private void ExitWorkRangeEditMode()
+        {
+            if (!_isEditingWorkRange) return;
+            _isEditingWorkRange = false;
+            WorldMapControl.Cursor = Cursors.Arrow;
+            UpdateAllGeoWidgets();
+        }
+
+        /// <summary>地图右键菜单：属性 → 选中世界地图画面（属性面板显示作业点/范围配置）。</summary>
+        private void WorldMapProperty_Click(object sender, RoutedEventArgs e)
+        {
+            WorldMapContextMenu.IsOpen = false;
+            var wmScreen = _viewModel?.CurrentProject?.Screens.FirstOrDefault(s => s.Type == ScreenType.WorldMap);
+            if (wmScreen != null) _propertyViewModel.SelectedScreen = wmScreen;
+        }
+
+        /// <summary>地图右键菜单：事件配置 → 打开地图级点击切换事件对话框（P3/P5）。</summary>
+        private void WorldMapEventConfig_Click(object sender, RoutedEventArgs e)
+        {
+            WorldMapContextMenu.IsOpen = false;
+            if (_currentProject == null) return;
+            var dlg = new EventConfigDialog(_currentProject, null, EventType.onClick, _viewModel.CommandService) { Owner = this };
+            if (dlg.ShowDialog() == true) MarkProjectDirty();
+        }
+
+        /// <summary>地图右键菜单：清除作业范围（清空 WorkRangePoints + 刷新 overlay）。</summary>
+        private void ClearWorkRange_Click(object sender, RoutedEventArgs e)
+        {
+            WorldMapContextMenu.IsOpen = false;
+            var wm = _viewModel?.CurrentProject?.WorldMap;
+            if (wm == null || wm.WorkRangePoints.Count == 0) return;
+            _viewModel.PushUndoSnapshot();
+            wm.WorkRangePoints.Clear();
+            MarkProjectDirty();
+            UpdateAllGeoWidgets();
         }
 
         /// <summary>世界地图多边形绘制：橡皮筋预览（屏幕坐标——MapControl 与画布同容器同尺寸，坐标一致）。</summary>
@@ -1409,18 +1543,6 @@ namespace NavigatorHMI.Views
                 }
                 else if (wp.FixedPoint != null) geos.Add(wp.FixedPoint);
             }
-            // 2) 当前画面控件 Geo（多边形顶点/点固定值/线两端/圆圆心）
-            if (_viewModel?.CurrentScreen != null)
-                foreach (var w in _viewModel.CurrentScreen.Widgets)
-                {
-                    switch (w)
-                    {
-                        case PolygonWidget pg when pg.GeoPoints != null: geos.AddRange(pg.GeoPoints); break;
-                        case PointWidget ptw when ptw.FixedPoint != null: geos.Add(ptw.FixedPoint); break;
-                        case LineWidget ln: if (ln.GeoStart != null) geos.Add(ln.GeoStart); if (ln.GeoEnd != null) geos.Add(ln.GeoEnd); break;
-                        case CircleWidget ci when ci.GeoCenter != null: geos.Add(ci.GeoCenter); break;
-                    }
-                }
 
             if (geos.Count == 0)
             {
@@ -1446,81 +1568,126 @@ namespace NavigatorHMI.Views
             return true;
         }
 
-        /// <summary>重算含 Geo 的控件屏幕位置（经纬度 → 屏幕）：Point(固定值/绑变量)/Polygon(GeoPoints)/Line(两端)/Circle(圆心)。视口变化与 1Hz 动态点位共用。</summary>
+        /// <summary>overlay 刷新节流：视口拖动高频触发 ViewportChanged 时合并刷新（80ms 防抖），避免每帧全量重建 marker（审查优化）。</summary>
+        private DispatcherTimer? _overlayThrottleTimer;
+        private bool _overlayRefreshQueued;
+
+        /// <summary>重算世界地图作业点/作业范围点 overlay（经纬度 → 屏幕坐标换算后定位 marker）。视口变化与 1Hz 动态点位共用。</summary>
         private void UpdateAllGeoWidgets()
         {
-            if (_viewModel?.CurrentScreen == null || _viewModel.CurrentProject == null) return;
-            foreach (var w in _viewModel.CurrentScreen.Widgets)
-            {
-                switch (w)
-                {
-                    case PointWidget pt:
-                    {
-                        GeoPoint? geo = null;
-                        if (!string.IsNullOrEmpty(w.BoundTag))
-                        {
-                            var tag = _viewModel.CurrentProject.Tags.FirstOrDefault(t => t.Name == w.BoundTag);
-                            if (tag?.DataType == TagDataType.GPS) geo = GeoPoint.TryParse(tag.BaseValue, out var g) ? g : null;
-                        }
-                        geo ??= pt.FixedPoint;   // 绑变量优先（动态），否则固定值
-                        var scr = geo != null ? GeoToScreen(geo) : null;
-                        if (scr != null) { pt.X = scr.Value.X - 12; pt.Y = scr.Value.Y - 12; }
-                        break;
-                    }
-                    case PolygonWidget pg when pg.GeoPoints is { Count: > 0 }:
-                    {
-                        var scrs = new List<Point>();
-                        foreach (var g in pg.GeoPoints) { var s = GeoToScreen(g); if (s != null) scrs.Add(s.Value); }
-                        if (scrs.Count == 0) break;
-                        double minX = scrs.Min(p => p.X), minY = scrs.Min(p => p.Y);
-                        double maxX = scrs.Max(p => p.X), maxY = scrs.Max(p => p.Y);
-                        pg.X = minX; pg.Y = minY;
-                        pg.Width = Math.Max(maxX - minX, 1); pg.Height = Math.Max(maxY - minY, 1);
-                        pg.Points = scrs.Select(p => new PointD(p.X - minX, p.Y - minY)).ToList();
-                        break;
-                    }
-                    case LineWidget ln when ln.GeoStart != null && ln.GeoEnd != null:
-                    {
-                        var s1 = GeoToScreen(ln.GeoStart); var s2 = GeoToScreen(ln.GeoEnd);
-                        if (s1 == null || s2 == null) break;
-                        ln.X = s1.Value.X; ln.Y = s1.Value.Y;
-                        ln.X2 = s2.Value.X - s1.Value.X; ln.Y2 = s2.Value.Y - s1.Value.Y;
-                        ln.Width = Math.Max(Math.Abs(ln.X2), 1); ln.Height = Math.Max(Math.Abs(ln.Y2), 1);   // 命中框与渲染同步（模板 Border 绑 Width/Height）
-                        break;
-                    }
-                    case CircleWidget ci when ci.GeoCenter != null:
-                    {
-                        var sc = GeoToScreen(ci.GeoCenter);
-                        if (sc != null) { ci.X = sc.Value.X - ci.Width / 2; ci.Y = sc.Value.Y - ci.Height / 2; }
-                        break;
-                    }
-                }
-            }
+            if (_overlayRefreshQueued) return;   // 节流中：跳过本次，防抖后合并刷新
+            _overlayRefreshQueued = true;
+            _overlayThrottleTimer ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(80) };
+            _overlayThrottleTimer.Stop();
+            _overlayThrottleTimer.Tick -= OverlayThrottle_Tick;
+            _overlayThrottleTimer.Tick += OverlayThrottle_Tick;
+            _overlayThrottleTimer.Start();
         }
 
-        /// <summary>GPS 动态点位（设计态模拟，1Hz）：绑 GPS 变量的 PointWidget 按变量基准值实时更新位置。</summary>
-        private void UpdateDynamicGeoWidgets()
+        private void OverlayThrottle_Tick(object? sender, EventArgs e)
         {
-            if (_viewModel?.CurrentScreen == null || _viewModel.CurrentProject == null) return;
-            foreach (var w in _viewModel.CurrentScreen.Widgets)
+            _overlayThrottleTimer?.Stop();
+            _overlayRefreshQueued = false;
+            RefreshWorkPointOverlayNow();
+        }
+
+        /// <summary>实际刷新 overlay（节流 tick / 显式调用时执行）。</summary>
+        private void RefreshWorkPointOverlayNow()
+        {
+            var project = _viewModel?.CurrentProject;
+            if (project?.WorldMap == null || WorkPointsOverlay == null) return;
+            if (_viewModel.IsWorldMapActive != true) { WorkPointsOverlay.Children.Clear(); return; }
+            WorkPointsOverlay.Children.Clear();
+            var map = WorldMapControl?.Map;
+            if (map == null) return;
+            var vp = map.Navigator.Viewport;
+            if (vp.Width <= 0 || vp.Height <= 0 || !(vp.Resolution > 0)) return;   // NaN 守卫：视口未初始化（首帧 Collapsed/NaN）不渲染
+
+            var wm = project.WorldMap;
+            foreach (var wp in wm.WorkPoints)
             {
-                if (w is PointWidget pt && !string.IsNullOrEmpty(w.BoundTag))
-                {
-                    var tag = _viewModel.CurrentProject.Tags.FirstOrDefault(t => t.Name == w.BoundTag);
-                    if (tag?.DataType == TagDataType.GPS && GeoPoint.TryParse(tag.BaseValue, out var geo) && geo != null)
-                    {
-                        var scr = GeoToScreen(geo);
-                        if (scr != null) { pt.X = scr.Value.X - 12; pt.Y = scr.Value.Y - 12; }
-                    }
-                }
+                var geo = ResolveWorkPointGeo(project, wp.BoundTag, wp.FixedPoint);
+                if (geo == null) continue;
+                var scr = GeoToScreen(geo);
+                if (scr == null) continue;
+                AddWorkPointMarker(scr.Value, wp.Name, isRangePoint: false);
+            }
+            foreach (var rp in wm.WorkRangePoints)
+            {
+                var geo = ResolveWorkPointGeo(project, rp.BoundTag, rp.FixedPoint);
+                if (geo == null) continue;
+                var scr = GeoToScreen(geo);
+                if (scr == null) continue;
+                AddWorkPointMarker(scr.Value, null, isRangePoint: true);
             }
         }
 
-        /// <summary>属性面板：添加作业点（VM 校验后落库 + 标脏）。</summary>
-        private void AddWorkPoint_Click(object sender, RoutedEventArgs e) => _propertyViewModel.AddWorkPoint();
+        /// <summary>作业点经纬度解析：绑 GPS 变量优先（取基准值，1Hz 模拟动态），否则固定值。</summary>
+        private static GeoPoint? ResolveWorkPointGeo(HMIProject project, string boundTag, GeoPoint? fixedPoint)
+        {
+            if (!string.IsNullOrEmpty(boundTag))
+            {
+                var t = project.Tags.FirstOrDefault(x => x.Name == boundTag);
+                if (t?.DataType == TagDataType.GPS && GeoPoint.TryParse(t.BaseValue, out var g) && g != null) return g;
+            }
+            return fixedPoint;
+        }
 
-        /// <summary>属性面板：删除选中作业点（落库 + 标脏）。</summary>
-        private void DeleteWorkPoint_Click(object sender, RoutedEventArgs e) => _propertyViewModel.DeleteWorkPoint();
+        /// <summary>添加单个 marker 到 overlay：作业点 = 红点 + 名称标签；作业范围点 = 蓝色小方块（无名称）。</summary>
+        private void AddWorkPointMarker(Point scr, string? name, bool isRangePoint)
+        {
+            var mark = new System.Windows.Shapes.Ellipse();
+            if (isRangePoint)
+            {
+                mark.Width = 10; mark.Height = 10;
+                mark.Fill = Brushes.DodgerBlue; mark.Stroke = Brushes.White; mark.StrokeThickness = 1.5;
+                Canvas.SetLeft(mark, scr.X - 5); Canvas.SetTop(mark, scr.Y - 5);
+            }
+            else
+            {
+                mark.Width = 12; mark.Height = 12;
+                mark.Fill = Brushes.Red; mark.Stroke = Brushes.White; mark.StrokeThickness = 1.5;
+                Canvas.SetLeft(mark, scr.X - 6); Canvas.SetTop(mark, scr.Y - 6);
+            }
+            WorkPointsOverlay.Children.Add(mark);
+
+            if (!isRangePoint && !string.IsNullOrEmpty(name))
+            {
+                var label = new TextBlock
+                {
+                    Text = name,
+                    FontSize = 11,
+                    Foreground = Brushes.Black,
+                    Background = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255)),
+                    Padding = new Thickness(2, 0, 2, 0),
+                };
+                Canvas.SetLeft(label, scr.X + 8); Canvas.SetTop(label, scr.Y - 20);
+                WorkPointsOverlay.Children.Add(label);
+            }
+        }
+
+        /// <summary>GPS 动态点位（设计态模拟，1Hz）：绑 GPS 变量的作业点/范围点按变量基准值实时更新位置。</summary>
+        private void UpdateDynamicGeoWidgets() => UpdateAllGeoWidgets();
+
+        /// <summary>属性面板：删除选中作业点行（P4 表格）。</summary>
+        private void DeleteWorkPointRow_Click(object sender, RoutedEventArgs e)
+        {
+            if (_propertyViewModel.SelectedWorkPointRow != null)
+            {
+                _propertyViewModel.DeleteWorkPointRow(_propertyViewModel.SelectedWorkPointRow);
+                e.Handled = true;
+            }
+        }
+
+        /// <summary>属性面板：删除选中作业范围点行（P4 表格）。</summary>
+        private void DeleteWorkRangeRow_Click(object sender, RoutedEventArgs e)
+        {
+            if (_propertyViewModel.SelectedWorkRangeRow != null)
+            {
+                _propertyViewModel.DeleteWorkRangeRow(_propertyViewModel.SelectedWorkRangeRow);
+                e.Handled = true;
+            }
+        }
 
         #endregion
 
@@ -1639,6 +1806,8 @@ namespace NavigatorHMI.Views
             }
             // 画布右键菜单同路径：销毁前关闭，防打开状态销毁竞态
             if (TreeContextMenu.IsOpen) TreeContextMenu.IsOpen = false;
+            if (WorldMapContextMenu.IsOpen) WorldMapContextMenu.IsOpen = false;
+            _overlayThrottleTimer?.Stop();   // 审查复核：关窗停 overlay 节流 timer，防残留 tick 访问已销毁 MapControl
             Focus();   // 焦点移出菜单到窗口
         }
 
@@ -1985,6 +2154,10 @@ namespace NavigatorHMI.Views
 
             // 重置两点式绘制状态（切换画面时防止跨画面残留）
             HideDrawPreview();
+
+            // P2：世界地图画面切换/重载后刷新作业点 overlay（视口未初始化时 ViewportChanged 不触发）
+            if (_viewModel?.IsWorldMapActive == true) UpdateAllGeoWidgets();
+            else if (_isEditingWorkRange) ExitWorkRangeEditMode();   // 切出世界地图 → 退出作业范围编辑模式
 
             // 订阅模型脏标记（任意控件属性变化 → 标题加 * 并在关闭时提醒保存）
             SubscribeModelDirty(screen);
@@ -2381,8 +2554,13 @@ namespace NavigatorHMI.Views
             }
             else if (e.Key == Key.Escape)
             {
-                // ESC 退出添加模式（含两点式绘制中途取消）
-                if (_currentWidgetCreator != null)
+                // ESC 退出添加模式（含两点式绘制中途取消）；作业范围加点编辑模式优先退出
+                if (_isEditingWorkRange)
+                {
+                    ExitWorkRangeEditMode();
+                    e.Handled = true;
+                }
+                else if (_currentWidgetCreator != null)
                 {
                     ExitAddMode();
                     e.Handled = true;
@@ -2472,7 +2650,6 @@ namespace NavigatorHMI.Views
                 _activeToolboxBtn.Content = _activeToolboxOriginalContent;
             HideDrawPreview();   // 清理两点式绘制残留状态
             _polygonPoints.Clear();   // 清理多边形已收集顶点（切换工具防旧点残留）
-            _polygonGeoPoints.Clear();
             _isDrawingPreview = false;
 
             // 进入新的添加模式
@@ -2497,7 +2674,6 @@ namespace NavigatorHMI.Views
                 "AlarmView" => new WindowWidgetCreator(WindowType.AlarmView),
                 "RobotList" => new WindowWidgetCreator(WindowType.RobotList),
                 "Polygon" => new PolygonWidgetCreator(),
-                "Point" => new PointWidgetCreator(),
                 _ => null
             };
 
@@ -2515,7 +2691,6 @@ namespace NavigatorHMI.Views
         {
             _currentWidgetCreator = null;
             _polygonPoints.Clear();
-            _polygonGeoPoints.Clear();
             _isDrawingPreview = false;
             DrawingCanvas.Cursor = Cursors.Arrow;
             HideDrawPreview();
@@ -3291,10 +3466,44 @@ namespace NavigatorHMI.Views
 
         private void NewProject_Click(object sender, RoutedEventArgs e)
         {
-            _skipClosingCheck = true;
+            // P7/#22：未保存检查 + 显式回欢迎窗（欢迎窗已关时防 App 因所有窗口关闭而退出）
+            if (!TryCloseProject(false))
+                return;
             _isProjectDirty = false;
+
+            WelComeWindow welcome = new WelComeWindow();
+            welcome.Show();
+
+            _skipClosingCheck = true;
             Close();
-            // 关闭后由 App.xaml.cs 的 ShutdownMode/启动逻辑回到 WelcomeWindow
+        }
+
+        /// <summary>P7：文件菜单「打开」——OpenFileDialog 选 .hmiproj → 新 EditWindow 加载（对齐欢迎窗打开路径）。</summary>
+        private void OpenProject_Click(object sender, RoutedEventArgs e)
+        {
+            if (!TryCloseProject(false))
+                return;
+
+            var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "工程文件|*.hmiproj", DefaultExt = ".hmiproj" };
+            if (dlg.ShowDialog() != true) return;
+            try
+            {
+                using var fs = new FileStream(dlg.FileName, FileMode.Open);
+                var project = Serializer.Deserialize<HMIProject>(fs);
+                project.ProjectFilePath = dlg.FileName;
+                project.LastModifiedTime = DateTime.Now;
+                RecentProjectManager.Instance.AddRecentProject(dlg.FileName);
+
+                _isProjectDirty = false;
+                _skipClosingCheck = true;
+                var editWindow = new EditWindow(project);
+                editWindow.Show();
+                Close();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"打开工程失败：{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
         private void SaveAsProject_Click(object sender, RoutedEventArgs e)
         {

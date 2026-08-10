@@ -14,7 +14,7 @@ namespace NavigatorHMI.ViewModels
     public class EventConfigViewModel : INotifyPropertyChanged
     {
         private readonly HMIProject _project;
-        private readonly Widget _widget;
+        private readonly Widget? _widget;   // null = 世界地图级事件（WorldMapConfig.Events，P3 地图右键）
         private readonly EventType _eventType;
 
         /// <summary>本事件全部可用动作（添加函数下拉）。</summary>
@@ -165,21 +165,22 @@ namespace NavigatorHMI.ViewModels
         /// <summary>报警名列表。</summary>
         public IReadOnlyList<string> AlarmNames { get; }
 
-        public EventConfigViewModel(HMIProject project, Widget widget, EventType evt, ICommandService commands)
+        public EventConfigViewModel(HMIProject project, Widget? widget, EventType evt, ICommandService commands)
         {
             _project = project;
             _widget = widget;
             _eventType = evt;
             Commands = commands.GetAvailableCommands().OrderBy(c => c.Name).ToList();
             SelectedFunctionGroupActionName = FunctionGroupActionNames.FirstOrDefault();   // 初始选中第一个函数（tag_write）
-            var screen = project.Screens.FirstOrDefault(s => s.Widgets.Contains(widget));
+            var screen = widget != null ? project.Screens.FirstOrDefault(s => s.Widgets.Contains(widget)) : null;
             ScreenNames = project.Screens.Where(s => !s.Name.Contains("全局")).Select(s => s.Name).ToList();
             WidgetNames = screen?.Widgets.Select(w => w.ObjectName).ToList() ?? new List<string>();
             TagNames = project.Tags.Select(t => t.Name).ToList();
             AlarmNames = project.Alarms.Select(a => a.Name).ToList();
 
-            // 载入现有 Actions（同一事件的）
-            var we = widget.Events.FirstOrDefault(e => e.Type == evt);
+            // 载入现有 Actions（同一事件的）；地图级事件存 WorldMapConfig.Events
+            var events = widget != null ? widget.Events : (project.WorldMap?.Events ?? new());
+            var we = events.FirstOrDefault(e => e.Type == evt);
             if (we != null)
                 foreach (var a in we.Actions)
                     Functions.Add(new ActionEditVM(a, this));
@@ -200,20 +201,21 @@ namespace NavigatorHMI.ViewModels
             if (SelectedFunction == vm) SelectedFunction = Functions.ElementAtOrDefault(Math.Max(0, idx - 1));
         }
 
-        /// <summary>保存：写回 widget.Events（替换同事件 Actions）。</summary>
+        /// <summary>保存：写回 widget.Events 或 WorldMapConfig.Events（替换同事件 Actions）。</summary>
         public void Save()
         {
             foreach (var f in Functions) f.Commit();
-            var we = _widget.Events.FirstOrDefault(e => e.Type == _eventType);
+            var events = _widget != null ? _widget.Events : (_project.WorldMap?.Events ?? new());
+            var we = events.FirstOrDefault(e => e.Type == _eventType);
             if (Functions.Count == 0)
             {
-                if (we != null) _widget.Events.Remove(we);
+                if (we != null) events.Remove(we);
                 return;
             }
             if (we == null)
             {
                 we = new WidgetEvent { Type = _eventType };
-                _widget.Events.Add(we);
+                events.Add(we);
             }
             we.Actions.Clear();
             we.Actions.AddRange(Functions.Select(f => f.Build()));

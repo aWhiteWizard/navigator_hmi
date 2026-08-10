@@ -81,8 +81,7 @@ enum WidgetType {
   W_PROGRESS_BAR = 14;
   W_DATETIME = 15;
   W_WINDOW = 16;
-  W_POLYGON = 17;   // 多边形（顶点画面坐标 points=64 或经纬度 geo_points=63）
-  W_POINT = 18;     // 点控件（标签 label=62 + 经纬度固定值 fixed_lng/lat=60/61）
+  W_POLYGON = 17;   // 多边形（顶点画面坐标 points=64）
 }
 
 enum EventType {
@@ -146,7 +145,7 @@ message HMIProject {
   NavPosition navigation_position = 14;
   string start_screen = 15;
   repeated ListDef lists = 16;
-  int32 format_version = 17;   // 契约版本（当前=1；FW 端解析后校验，不匹配拒绝加载）
+  int32 format_version = 17;   // 契约版本（当前=2；FW 端解析后校验，不匹配拒绝加载；2 = 世界地图重构契约）
   // W1 用户系统
   repeated UserAccount users = 18;
   repeated UserGroup groups = 19;
@@ -233,18 +232,8 @@ message Widget {
   bool card_show_location = 51; // RobotList 显示位置
   string bound_device = 52;     // RobotList 绑定设备名
   repeated RobotSlotBinding robot_slots = 53;   // RobotList 机器人绑定组
-  // ── 地图几何（54+，世界地图批 2 契约：线/圆/点/多边形经纬度；追加字段向后兼容） ──
-  double geo_start_lng = 54;   // Line 起点经度（GeoStart）
-  double geo_start_lat = 55;   // Line 起点纬度
-  double geo_end_lng = 56;     // Line 终点经度（GeoEnd）
-  double geo_end_lat = 57;     // Line 终点纬度
-  double geo_center_lng = 58;  // Circle 圆心经度（GeoCenter）
-  double geo_center_lat = 59;  // Circle 圆心纬度
-  double fixed_lng = 60;       // Point 固定经度（FixedPoint）
-  double fixed_lat = 61;       // Point 固定纬度
-  string label = 62;           // Point 右上角标签
-  repeated GeoPoint geo_points = 63;   // Polygon 顶点经纬度（世界地图模式）
-  repeated PointD points = 64;         // Polygon 顶点画面坐标（普通画面模式）
+  // ── 多边形（64）──
+  repeated PointD points = 64;         // Polygon 顶点画面坐标
 }
 
 message WidgetEvent {
@@ -308,6 +297,9 @@ message WorldMapConfig {
   int32 zoom_level = 6;
   bool show_global_overlay = 7;
   repeated MapWorkPoint work_points = 8;   // 作业点列表（视口自适应按包围盒计算）
+  repeated WorkRangePoint work_range_points = 9;   // 作业范围点（围栏顶点，无名称）
+  repeated WidgetEvent events = 10;                // 世界地图点击切换事件（组态配置，运行时点击地图空白处触发）
+  bool view_locked = 11;                           // 锁定预览（运行时禁交互/禁平移缩放）
 }
 
 // 经纬度点（WGS84 小数度；PC 端 GeoPoint）
@@ -327,6 +319,12 @@ message MapWorkPoint {
   string name = 1;
   GeoPoint fixed_point = 2;
   string bound_tag = 3;
+}
+
+// 世界地图作业范围点（围栏顶点）：绑经纬度变量（GPS）或固定值（二选一），无名称
+message WorkRangePoint {
+  GeoPoint fixed_point = 1;
+  string bound_tag = 2;
 }
 
 message UserAccount {

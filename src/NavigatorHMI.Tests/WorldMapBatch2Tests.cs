@@ -26,16 +26,6 @@ namespace NavigatorHMI.Tests
             Assert.IsType<NavigatorHMI.Common.PolygonWidget>(s.Widgets[0]);
         }
 
-        [Fact]
-        public void addWidget_point带标签创建成功()
-        {
-            var (svc, p, s) = Create();
-            var r = svc.Execute("add_widget", new Dictionary<string, object?> { ["screen_name"] = "主", ["widget_type"] = "point", ["label"] = "1号泵站" });
-            Assert.True(r.Success);
-            var pw = Assert.IsType<NavigatorHMI.Common.PointWidget>(s.Widgets[0]);
-            Assert.Equal("1号泵站", pw.Label);
-        }
-
         // ═══ GPS 变量创建与基准值校验（create_tag）═══
 
         [Fact]
@@ -70,28 +60,18 @@ namespace NavigatorHMI.Tests
             Assert.Equal("(E104°3'30\", N30°40'20\")", p.Tags[0].BaseValue);
         }
 
-        // ═══ TagCompatibility：图形类可绑 GPS，其余禁止 ═══
+        // ═══ TagCompatibility（P1 修订）：GPS 变量不再可绑任何控件——仅世界地图作业点/作业范围点绑定 ═══
 
         [Theory]
         [InlineData("line")]
         [InlineData("circle")]
         [InlineData("polygon")]
-        [InlineData("point")]
-        public void 图形类控件_绑GPS通过(string type)
-        {
-            var (svc, p, s) = Create();
-            svc.Execute("create_tag", new Dictionary<string, object?> { ["name"] = "位置", ["data_type"] = "GPS" });
-            var r = svc.Execute("add_widget", new Dictionary<string, object?> { ["screen_name"] = "主", ["widget_type"] = type, ["bound_tag"] = "位置" });
-            Assert.True(r.Success);
-        }
-
-        [Theory]
         [InlineData("button")]
         [InlineData("text")]
         [InlineData("numeric")]
         [InlineData("switch")]
         [InlineData("rectangle")]
-        public void 非图形类控件_绑GPS拒绝(string type)
+        public void 任意控件_绑GPS拒绝(string type)
         {
             var (svc, p, s) = Create();
             svc.Execute("create_tag", new Dictionary<string, object?> { ["name"] = "位置", ["data_type"] = "GPS" });
@@ -101,13 +81,13 @@ namespace NavigatorHMI.Tests
         }
 
         [Fact]
-        public void 图形类控件_绑非GPS拒绝()
+        public void 图形类控件_绑非GPS数值允许()
         {
+            // P1 后 Line/Circle/Polygon 无经纬度字段，与普通图形控件一致：绑非 GPS 数值变量允许（Any）
             var (svc, p, s) = Create();
             svc.Execute("create_tag", new Dictionary<string, object?> { ["name"] = "温度", ["data_type"] = "FLOAT" });
-            var r = svc.Execute("add_widget", new Dictionary<string, object?> { ["screen_name"] = "主", ["widget_type"] = "point", ["bound_tag"] = "温度" });
-            Assert.False(r.Success);
-            Assert.Equal("INVALID_TYPE", r.ErrorCode);
+            var r = svc.Execute("add_widget", new Dictionary<string, object?> { ["screen_name"] = "主", ["widget_type"] = "polygon", ["bound_tag"] = "温度" });
+            Assert.True(r.Success);
         }
 
         // ═══ 改类型到 GPS 的旧值归一（双入口一致：create 归一 / update 改类型归一）═══

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -33,8 +34,7 @@ namespace NavigatorHMI.ViewModels
         ProgressBarWidget,
         DateTimeWidget,
         WindowWidget,
-        PolygonWidget,   // 世界地图批 3：多边形
-        PointWidget      // 世界地图批 3：点控件
+        PolygonWidget   // 世界地图批 3：多边形
     }
 
     /// <summary>
@@ -226,7 +226,8 @@ namespace NavigatorHMI.ViewModels
                         ScreenWidth = value.Width;
                         ScreenHeight = value.Height;
                         WorldMapShowGlobalOverlay = value.Type == ScreenType.WorldMap && Project?.WorldMap?.ShowGlobalOverlay == true;
-                        RefreshWorldMapWorkPoints();   // 批 4：作业点列表同步
+                        WorldMapViewLocked = Project?.WorldMap?.ViewLocked == true;   // P5：锁定预览勾选同步
+                        RefreshWorldMapWorkPoints();   // P4：作业点/作业范围点表格同步
                         }
                         finally { _syncingFromModel = false; }
                     }
@@ -295,7 +296,6 @@ namespace NavigatorHMI.ViewModels
                          DateTimeWidget => PropertyTargetType.DateTimeWidget,
                          WindowWidget => PropertyTargetType.WindowWidget,
                          PolygonWidget => PropertyTargetType.PolygonWidget,   // 世界地图批 3
-                         PointWidget => PropertyTargetType.PointWidget,       // 世界地图批 3
                          _ => PropertyTargetType.None
                      };
                      OnPropertyChanged(nameof(SelectedObjectType));
@@ -347,7 +347,6 @@ namespace NavigatorHMI.ViewModels
                     RefreshRobotSlots();   // WindowBoundDevice setter 内已刷新变量列表（去重）
                     break;
                 case PolygonWidget pg: PolygonFillColor = pg.FillColor; PolygonStrokeColor = pg.StrokeColor; PolygonStrokeThickness = pg.StrokeThickness; break;
-                case PointWidget pt: PointLabel = pt.Label; PointFixedLngLat = pt.FixedPoint?.ToBaseValue() ?? ""; break;
                         }
 
                         // 绑定变量（基类通用属性，选中控件时同步下拉 + 刷新变量列表）
@@ -357,6 +356,7 @@ namespace NavigatorHMI.ViewModels
                         RefreshListOptions(value);
                         // 无条件通知（切换选中控件时 setter 可能值相等短路——不得依赖其副作用）
                         OnPropertyChanged(nameof(IsValueEditable));
+                        OnPropertyChanged(nameof(PolygonPoints));   // P6：多边形端点列表刷新
                         }
                         finally { _syncingFromModel = false; }
                     }
@@ -393,8 +393,6 @@ namespace NavigatorHMI.ViewModels
                         break;
                     case nameof(PolygonWidget.StrokeColor): PolygonStrokeColor = ((PolygonWidget)_selectedWidget).StrokeColor; break;
                     case nameof(PolygonWidget.StrokeThickness): PolygonStrokeThickness = ((PolygonWidget)_selectedWidget).StrokeThickness; break;
-                    case nameof(PointWidget.Label): PointLabel = ((PointWidget)_selectedWidget).Label; break;
-                    case nameof(PointWidget.FixedPoint): PointFixedLngLat = ((PointWidget)_selectedWidget).FixedPoint?.ToBaseValue() ?? ""; break;
                     case nameof(Widget.BoundTag):
                         // CLI/Undo 等外部改模型 BoundTag → 面板实时同步（不触发命令）
                         _boundTag = ResolveBoundTarget(_selectedWidget.BoundTag);
@@ -558,7 +556,8 @@ namespace NavigatorHMI.ViewModels
         public bool IsProgressBarWidget => _selectedWidget is ProgressBarWidget;
         public bool IsDateTimeWidget => _selectedWidget is DateTimeWidget;
         public bool IsPolygonWidget => _selectedWidget is PolygonWidget;
-        public bool IsPointWidget => _selectedWidget is PointWidget;
+        /// <summary>P6：多边形端点列表（只读展示，创建时确定）。</summary>
+        public List<PointD>? PolygonPoints => (_selectedWidget as PolygonWidget)?.Points;
          private PropertyTargetType _selectedObjectType;
          /// <summary>当前选中对象的类型，供 XAML DataTemplate 切换使用。</summary>
          public PropertyTargetType SelectedObjectType
@@ -688,74 +687,158 @@ namespace NavigatorHMI.ViewModels
         /// <summary>当前选中是否为世界地图画面（属性面板据此显示「全局叠加」勾选入口）。</summary>
         public bool IsWorldMapScreen => _selectedScreen?.Type == ScreenType.WorldMap;
 
-        // ── 世界地图作业点（批 4：WorkPoints 列表管理；视口自适应用其包围盒）──
+        // ── 世界地图作业点/作业范围点（P4：DataGrid 表格 + 行内编辑；两列互斥；末行输入自动补行）──
 
-        public ObservableCollection<MapWorkPoint> WorldMapWorkPoints { get; } = new();
+        /// <summary>作业点表格行（DataGrid 数据源；新增行提交时由 CollectionChanged 挂入模型）。</summary>
+        public ObservableCollection<WorkPointRowVM> WorkPointRows { get; } = new();
 
-        private MapWorkPoint? _selectedWorkPoint;
-        /// <summary>作业点列表选中项。</summary>
-        public MapWorkPoint? SelectedWorkPoint { get => _selectedWorkPoint; set { _selectedWorkPoint = value; OnPropertyChanged(); } }
+        /// <summary>作业范围点表格行。</summary>
+        public ObservableCollection<WorkRangeRowVM> WorkRangeRows { get; } = new();
 
-        private string _workPointName = "";
-        /// <summary>新作业点名称。</summary>
-        public string WorkPointName { get => _workPointName; set { _workPointName = value; OnPropertyChanged(); } }
+        private WorkPointRowVM? _selectedWorkPointRow;
+        /// <summary>作业点表格选中行（DataGrid SelectedItem 双向绑定）。</summary>
+        public WorkPointRowVM? SelectedWorkPointRow { get => _selectedWorkPointRow; set { _selectedWorkPointRow = value; OnPropertyChanged(); } }
 
-        private string _workPointLngLat = "";
-        /// <summary>新作业点经纬度（DMS 或小数度；与绑定变量二选一）。</summary>
-        public string WorkPointLngLat { get => _workPointLngLat; set { _workPointLngLat = value; OnPropertyChanged(); } }
+        private WorkRangeRowVM? _selectedWorkRangeRow;
+        /// <summary>作业范围表格选中行。</summary>
+        public WorkRangeRowVM? SelectedWorkRangeRow { get => _selectedWorkRangeRow; set { _selectedWorkRangeRow = value; OnPropertyChanged(); } }
 
-        private string _workPointBoundTag = "";
-        /// <summary>新作业点绑定 GPS 变量（与固定经纬度二选一）。</summary>
-        public string WorkPointBoundTag { get => _workPointBoundTag; set { _workPointBoundTag = value; OnPropertyChanged(); } }
+        /// <summary>作业点/范围点变更 → overlay 刷新回调（EditWindow 注入 → UpdateAllGeoWidgets）。</summary>
+        public Action? WorldMapPointsChanged { get; set; }
 
-        /// <summary>从工程 WorldMapConfig 同步作业点列表（选中画面时装载）。</summary>
+        /// <summary>从工程 WorldMapConfig 同步作业点/作业范围点表格（选中画面时装载）。</summary>
         private void RefreshWorldMapWorkPoints()
         {
-            WorldMapWorkPoints.Clear();
-            if (Project?.WorldMap == null) return;
-            foreach (var wp in Project.WorldMap.WorkPoints) WorldMapWorkPoints.Add(wp);
+            WorkPointRows.CollectionChanged -= WorkPointRows_CollectionChanged;
+            WorkPointRows.Clear();
+            if (Project?.WorldMap != null)
+                foreach (var wp in Project.WorldMap.WorkPoints)
+                    WorkPointRows.Add(new WorkPointRowVM(wp, OnWorkPointRowChanged, IsGpsTag));
+            WorkPointRows.CollectionChanged += WorkPointRows_CollectionChanged;
+            RefreshWorkMapRangePoints();
         }
 
-        /// <summary>添加作业点：名称 +（绑定 GPS 变量 或 固定经纬度）二选一；非法输入静默忽略。</summary>
-        public void AddWorkPoint()
+        /// <summary>从工程 WorldMapConfig 同步作业范围点表格。</summary>
+        private void RefreshWorkMapRangePoints()
         {
-            if (string.IsNullOrWhiteSpace(WorkPointName)) return;
-            var wp = new MapWorkPoint { Name = WorkPointName.Trim() };
-            if (!string.IsNullOrWhiteSpace(WorkPointBoundTag))
-            {
-                var tag = Project?.Tags.FirstOrDefault(t => t.Name == WorkPointBoundTag.Trim());
-                if (tag?.DataType != TagDataType.GPS) return;   // 绑定变量必须存在且为 GPS 类型（否则运行时被跳过）
-                wp.BoundTag = WorkPointBoundTag.Trim();
-                wp.FixedPoint = null;
-            }
-            else if (GeoPoint.TryParse(WorkPointLngLat, out var geo) && geo != null)
-            {
-                wp.FixedPoint = geo;
-                wp.BoundTag = "";
-            }
-            else return;
-            if (Project != null)
-            {
-                Project.WorldMap ??= new WorldMapConfig();
-                Project.WorldMap.WorkPoints.Add(wp);
-                WorldMapWorkPoints.Add(wp);
-                DirtyRequested?.Invoke();
-                WorkPointName = ""; WorkPointLngLat = ""; WorkPointBoundTag = "";
-            }
+            WorkRangeRows.CollectionChanged -= WorkRangeRows_CollectionChanged;
+            WorkRangeRows.Clear();
+            if (Project?.WorldMap != null)
+                foreach (var rp in Project.WorldMap.WorkRangePoints)
+                    WorkRangeRows.Add(new WorkRangeRowVM(rp, OnWorkPointRowChanged, IsGpsTag));
+            WorkRangeRows.CollectionChanged += WorkRangeRows_CollectionChanged;
         }
 
-        /// <summary>删除选中作业点。</summary>
-        public void DeleteWorkPoint()
+        /// <summary>绑定变量必须存在且为 GPS 类型（对齐批 4 添加校验）。</summary>
+        private bool IsGpsTag(string name)
+            => Project?.Tags.Any(t => t.Name == name && t.DataType == TagDataType.GPS) == true;
+
+        /// <summary>行编辑/增删 → 标脏 + overlay 刷新。</summary>
+        private void OnWorkPointRowChanged()
         {
-            if (SelectedWorkPoint == null || Project?.WorldMap == null) return;
-            Project.WorldMap.WorkPoints.Remove(SelectedWorkPoint);
-            WorldMapWorkPoints.Remove(SelectedWorkPoint);
-            SelectedWorkPoint = null;
             DirtyRequested?.Invoke();
+            WorldMapPointsChanged?.Invoke();
+        }
+
+        /// <summary>DataGrid 新行提交（末行输入自动补行）：非空行才挂入模型；空行/半空行直接丢弃（P6-审查修复）。</summary>
+        private void WorkPointRows_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (e.Action != NotifyCollectionChangedAction.Add || e.NewItems == null) return;
+            foreach (WorkPointRowVM row in e.NewItems)
+            {
+                if (Project == null) continue;
+                // 校验：名称/经纬度/绑定变量至少一项非空，否则视为误触空行丢弃
+                if (string.IsNullOrWhiteSpace(row.Name) && string.IsNullOrWhiteSpace(row.LngLat) && string.IsNullOrWhiteSpace(row.BoundTag))
+                {
+                    WorkPointRows.Remove(row);
+                    continue;
+                }
+                Project.WorldMap ??= new WorldMapConfig();
+                if (!Project.WorldMap.WorkPoints.Contains(row.Model))
+                {
+                    BeforeModify?.Invoke();   // 修改前快照（新增可撤销）
+                    Project.WorldMap.WorkPoints.Add(row.Model);
+                    OnWorkPointRowChanged();
+                }
+            }
+        }
+
+        /// <summary>DataGrid 新行提交（作业范围）：非空行才挂入模型；空行丢弃。</summary>
+        private void WorkRangeRows_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (e.Action != NotifyCollectionChangedAction.Add || e.NewItems == null) return;
+            foreach (WorkRangeRowVM row in e.NewItems)
+            {
+                if (Project == null) continue;
+                if (string.IsNullOrWhiteSpace(row.LngLat) && string.IsNullOrWhiteSpace(row.BoundTag))
+                {
+                    WorkRangeRows.Remove(row);
+                    continue;
+                }
+                Project.WorldMap ??= new WorldMapConfig();
+                if (!Project.WorldMap.WorkRangePoints.Contains(row.Model))
+                {
+                    BeforeModify?.Invoke();   // 修改前快照（新增可撤销）
+                    Project.WorldMap.WorkRangePoints.Add(row.Model);
+                    OnWorkPointRowChanged();
+                }
+            }
+        }
+
+        /// <summary>删除作业点行（按钮；修改前快照可撤销）。</summary>
+        public void DeleteWorkPointRow(WorkPointRowVM row)
+        {
+            if (row?.Model == null || Project?.WorldMap == null) return;
+            BeforeModify?.Invoke();
+            Project.WorldMap.WorkPoints.Remove(row.Model);
+            WorkPointRows.Remove(row);
+            OnWorkPointRowChanged();
+        }
+
+        /// <summary>删除作业范围点行（按钮；修改前快照可撤销）。</summary>
+        public void DeleteWorkRangeRow(WorkRangeRowVM row)
+        {
+            if (row?.Model == null || Project?.WorldMap == null) return;
+            BeforeModify?.Invoke();
+            Project.WorldMap.WorkRangePoints.Remove(row.Model);
+            WorkRangeRows.Remove(row);
+            OnWorkPointRowChanged();
         }
 
         /// <summary>全局叠加配置变化回调（EditWindow 注入 → 局部刷新虚影层，不动主层与选中）。</summary>
         public Action? OverlayChanged { get; set; }
+
+        // ── P5：世界地图锁定预览 + 视口自适应 ──
+
+        private bool _worldMapViewLocked;
+        /// <summary>锁定预览：勾选后运行时禁平移缩放/点击切换（设计态同步模拟：地图禁交互，点击执行 Events）。</summary>
+        public bool WorldMapViewLocked
+        {
+            get => _worldMapViewLocked;
+            set
+            {
+                if (_worldMapViewLocked != value)
+                {
+                    _worldMapViewLocked = value;
+                    if (!_syncingFromModel && Project?.WorldMap != null)
+                    {
+                        Project.WorldMap.ViewLocked = value;
+                        DirtyRequested?.Invoke();
+                        WorldMapViewLockChanged?.Invoke();   // EditWindow 注入 → 切换地图交互
+                    }
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        /// <summary>锁定预览勾选变化回调（EditWindow 注入 → 地图禁交互/恢复）。</summary>
+        public Action? WorldMapViewLockChanged { get; set; }
+
+        /// <summary>视口自适应请求回调（EditWindow 注入 → TryFitWorldMapViewport）。</summary>
+        public Action? WorldMapZoomToBoxRequested { get; set; }
+
+        /// <summary>按钮：视口自适应（ZoomToBox 按作业点包围盒框选）。</summary>
+        public void WorldMapZoomToBox() => WorldMapZoomToBoxRequested?.Invoke();
 
         /// <summary>工程标脏回调（EditWindow 注入 → MarkProjectDirty；WorldMapConfig 是 POCO 不在订阅范围，勾选必须显式标脏防关闭静默丢失）。</summary>
         public Action? DirtyRequested { get; set; }
@@ -1482,13 +1565,6 @@ namespace NavigatorHMI.ViewModels
         /// <summary>多边形描边粗细。</summary>
         public double PolygonStrokeThickness { get => _polygonStrokeThickness; set { if (_polygonStrokeThickness != value) { _polygonStrokeThickness = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is PolygonWidget pg) pg.StrokeThickness = value; } } }
 
-        // ── Point 属性（世界地图批 3）──
-        private string _pointLabel = "";
-        /// <summary>点控件标签。</summary>
-        public string PointLabel { get => _pointLabel; set { if (_pointLabel != value) { _pointLabel = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is PointWidget pt) pt.Label = value; } } }
-        private string _pointFixedLngLat = "";
-        /// <summary>点控件经纬度固定值（DMS 括号格式；空 = 用绑定变量动态值）。非法输入忽略不落库。</summary>
-        public string PointFixedLngLat { get => _pointFixedLngLat; set { if (_pointFixedLngLat != value) { _pointFixedLngLat = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is PointWidget pt) pt.FixedPoint = GeoPoint.TryParse(value, out var gp) && gp != null ? gp : null; } } }
         private double _lineStrokeThickness = 1;
         public double LineStrokeThickness { get => _lineStrokeThickness; set { if (Math.Abs(_lineStrokeThickness - value) > 0.001) { _lineStrokeThickness = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is LineWidget ln) ln.StrokeThickness = value; } } }
 
@@ -1671,5 +1747,84 @@ namespace NavigatorHMI.ViewModels
         {
             _owner = owner; _index = index; Label = label; _selectedTag = tag;
         }
+    }
+
+    /// <summary>作业点表格行（P4）：名称 + 经纬度(固定) + 绑定变量；两列互斥（写固定值清绑定变量，反之亦然）。</summary>
+    public class WorkPointRowVM : INotifyPropertyChanged
+    {
+        private readonly Action? _onChanged;
+        private readonly Func<string, bool>? _tagValidator;
+        public MapWorkPoint Model { get; }
+        public WorkPointRowVM(MapWorkPoint model, Action? onChanged, Func<string, bool>? tagValidator)
+        { Model = model; _onChanged = onChanged; _tagValidator = tagValidator; }
+        public WorkPointRowVM() : this(new MapWorkPoint(), null, null) { }   // DataGrid 新行占位（提交时由 CollectionChanged 挂入模型）
+
+        public string Name { get => Model.Name; set { var v = value ?? ""; if (Model.Name != v) { Model.Name = v; _onChanged?.Invoke(); OnPropertyChanged(); } } }
+        public string LngLat
+        {
+            get => Model.FixedPoint?.ToBaseValue() ?? "";
+            set
+            {
+                if (string.IsNullOrWhiteSpace(value)) return;
+                if (!GeoPoint.TryParse(value, out var g) || g == null) return;   // 非法经纬度忽略（静默，不落库）
+                Model.FixedPoint = g; Model.BoundTag = "";   // 两列互斥：写固定值清绑定变量
+                _onChanged?.Invoke(); OnPropertyChanged(); OnPropertyChanged(nameof(BoundTag));
+            }
+        }
+        public string BoundTag
+        {
+            get => Model.BoundTag;
+            set
+            {
+                var v = value?.Trim() ?? "";
+                if (v.Length > 0 && (_tagValidator == null || !_tagValidator(v))) return;   // 变量必须存在且为 GPS 类型
+                if (Model.BoundTag != v)
+                {
+                    Model.BoundTag = v; Model.FixedPoint = null;   // 两列互斥：写绑定变量清固定值
+                    _onChanged?.Invoke(); OnPropertyChanged(); OnPropertyChanged(nameof(LngLat));
+                }
+            }
+        }
+        public event PropertyChangedEventHandler? PropertyChanged;
+        private void OnPropertyChanged([CallerMemberName] string? n = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
+    }
+
+    /// <summary>作业范围点表格行（P4）：经纬度(固定) + 绑定变量；两列互斥；无名称。</summary>
+    public class WorkRangeRowVM : INotifyPropertyChanged
+    {
+        private readonly Action? _onChanged;
+        private readonly Func<string, bool>? _tagValidator;
+        public WorkRangePoint Model { get; }
+        public WorkRangeRowVM(WorkRangePoint model, Action? onChanged, Func<string, bool>? tagValidator)
+        { Model = model; _onChanged = onChanged; _tagValidator = tagValidator; }
+        public WorkRangeRowVM() : this(new WorkRangePoint(), null, null) { }   // DataGrid 新行占位
+
+        public string LngLat
+        {
+            get => Model.FixedPoint?.ToBaseValue() ?? "";
+            set
+            {
+                if (string.IsNullOrWhiteSpace(value)) return;
+                if (!GeoPoint.TryParse(value, out var g) || g == null) return;
+                Model.FixedPoint = g; Model.BoundTag = "";   // 两列互斥
+                _onChanged?.Invoke(); OnPropertyChanged(); OnPropertyChanged(nameof(BoundTag));
+            }
+        }
+        public string BoundTag
+        {
+            get => Model.BoundTag;
+            set
+            {
+                var v = value?.Trim() ?? "";
+                if (v.Length > 0 && (_tagValidator == null || !_tagValidator(v))) return;
+                if (Model.BoundTag != v)
+                {
+                    Model.BoundTag = v; Model.FixedPoint = null;   // 两列互斥
+                    _onChanged?.Invoke(); OnPropertyChanged(); OnPropertyChanged(nameof(LngLat));
+                }
+            }
+        }
+        public event PropertyChangedEventHandler? PropertyChanged;
+        private void OnPropertyChanged([CallerMemberName] string? n = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
     }
 }
