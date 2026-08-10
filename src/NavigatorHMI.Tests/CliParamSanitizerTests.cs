@@ -1,0 +1,119 @@
+using NavigatorHMI.Common;
+using Xunit;
+
+namespace NavigatorHMI.Tests
+{
+    /// <summary>CLI/GUI 共用参数净化 CliParamSanitizer 单测（三级分类：路径/标识符/自由文本）。</summary>
+    public class CliParamSanitizerTests
+    {
+        // ── 路径类 ──
+
+        [Theory]
+        [InlineData("..\\secret.hmiproj")]
+        [InlineData("D:\\..\\x.hmiproj")]
+        [InlineData("a/../../b")]
+        public void 路径类_含双点拒绝(string value)
+        {
+            Assert.NotNull(CliParamSanitizer.Validate("path", value));
+            Assert.NotNull(CliParamSanitizer.Validate("file", value));
+            Assert.NotNull(CliParamSanitizer.Validate("output", value));
+        }
+
+        [Theory]
+        [InlineData("sub\\screen1.hmiproj")]
+        [InlineData("./data/x.hmiproj")]
+        public void 路径类_相对路径放行(string value)
+        {
+            Assert.Null(CliParamSanitizer.Validate("path", value));
+        }
+
+        [Fact]
+        public void 路径类_绝对路径拒绝()
+        {
+            Assert.NotNull(CliParamSanitizer.Validate("path", "D:\\data\\x.hmiproj"));   // path 非豁免
+            Assert.NotNull(CliParamSanitizer.Validate("file", "/etc/passwd"));
+        }
+
+        [Fact]
+        public void project_绝对路径豁免_但双点仍拦()
+        {
+            Assert.Null(CliParamSanitizer.Validate("project", "D:\\任意目录\\x.hmiproj"));
+            Assert.NotNull(CliParamSanitizer.Validate("project", "D:\\..\\x.hmiproj"));
+        }
+
+        [Fact]
+        public void connection_绝对路径豁免_但双点仍拦()
+        {
+            Assert.Null(CliParamSanitizer.Validate("connection", "{\"port\":\"/dev/ttyUSB0\"}"));
+            Assert.NotNull(CliParamSanitizer.Validate("connection", "{\"path\":\"..\"}"));
+        }
+
+        // ── 标识符类 ──
+
+        [Theory]
+        [InlineData("name", "a..b")]
+        [InlineData("name", "a/b")]
+        [InlineData("screen", "x\\y")]
+        [InlineData("tag", "a..b")]
+        [InlineData("widget", "a/b")]
+        [InlineData("new-name", "..")]
+        [InlineData("user-name", "a\\b")]
+        [InlineData("mode", "a..b")]
+        public void 标识符类_拦双点或分隔符(string key, string value)
+        {
+            Assert.NotNull(CliParamSanitizer.Validate(key, value));
+        }
+
+        [Theory]
+        [InlineData("name", "Tank1_Temp")]
+        [InlineData("screen", "主画面")]
+        [InlineData("widget", "button_1")]
+        [InlineData("ip", "192.168.1.100")]
+        [InlineData("mode", "copy")]
+        public void 标识符类_正常标识符放行(string key, string value)
+        {
+            Assert.Null(CliParamSanitizer.Validate(key, value));
+        }
+
+        // ── 自由文本类 ──
+
+        [Fact]
+        public void 自由文本_含双点拒绝()
+        {
+            Assert.NotNull(CliParamSanitizer.Validate("description", "路径 ..\\x"));
+            Assert.NotNull(CliParamSanitizer.Validate("message", "升级.. 失败"));
+            Assert.NotNull(CliParamSanitizer.Validate("items", "a|..\\b"));
+            Assert.NotNull(CliParamSanitizer.Validate("base-value", ".."));
+        }
+
+        [Fact]
+        public void 自由文本_含分隔符放行()
+        {
+            Assert.Null(CliParamSanitizer.Validate("description", "图片 C:\\img\\a.png 正常"));
+            Assert.Null(CliParamSanitizer.Validate("items", "C:\\a.png|D:\\b.png"));
+        }
+
+        // ── 未知 key（颜色/数值等静态分类不覆盖）──
+
+        [Theory]
+        [InlineData("color", "#FF0000")]
+        [InlineData("color", "..")]      // 未知 key 不在任何分类白名单 → 放行（与既有行为一致：静态分类无法覆盖）
+        [InlineData("threshold", "25.5")]
+        [InlineData("x", "1/2\\3..4")]
+        public void 未知key_按自由文本语义放行(string key, string value)
+        {
+            Assert.Null(CliParamSanitizer.Validate(key, value));
+        }
+
+        // ── 错误消息包含参数名与原始值 ──
+
+        [Fact]
+        public void 错误消息_含参数名与原始值()
+        {
+            var err = CliParamSanitizer.Validate("name", "a..b");
+            Assert.NotNull(err);
+            Assert.Contains("--name", err);
+            Assert.Contains("a..b", err);
+        }
+    }
+}

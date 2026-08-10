@@ -71,9 +71,10 @@
 
             <TextBlock Grid.Row="8" Grid.Column="0" VerticalAlignment="Center"><Run Text="基准值:"/><Run Text="（可选）" Foreground="Gray" FontSize="10"/></TextBlock>
             <Grid Grid.Row="8" Grid.Column="1">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                <TextBox Grid.Column="0" x:Name="BaseValueBox" ToolTip="设计态预览值：数字变量填数字，图片变量填路径（BOOL 类型请用右侧下拉）"/>
-                <ComboBox Grid.Column="1" x:Name="BoolBaseBox" Width="80" Visibility="Collapsed" SelectedIndex="0">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <!-- BOOL 与数字共用 * 列（Visibility 互斥切换，BoolBaseBox 占满列宽与其他输入框一致） -->
+                <TextBox Grid.Column="0" x:Name="BaseValueBox" ToolTip="设计态预览值：数字变量填数字，图片变量填路径（BOOL 类型请用下拉选择）"/>
+                <ComboBox Grid.Column="0" x:Name="BoolBaseBox" Visibility="Collapsed" SelectedIndex="0">
                     <ComboBoxItem Content="false"/><ComboBoxItem Content="true"/>
                 </ComboBox>
             </Grid>

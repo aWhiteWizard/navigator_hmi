@@ -3352,34 +3352,14 @@ namespace NavigatorHMI.Views
             return CommandResult.Ok(names);
         }
 
-        /// <summary>参数安全净化（等效于 CLI 端 SanitizeParam 三级分类）。</summary>
+        /// <summary>参数安全净化（三级分类，逻辑统一在 <see cref="NavigatorHMI.Common.CliParamSanitizer"/>，与 CLI 端逐 key 一致）。</summary>
         private static void SanitizeCliParams(Dictionary<string, string> opts)
         {
             foreach (var kv in opts.ToList())
             {
                 var (key, value) = (kv.Key, kv.Value);
-                bool hasUpDir = value.Contains("..");
-                bool hasSep = value.Contains('/') || value.Contains('\\');
-                bool isPathParam = key is "path" or "project" or "file" or "output" or "connection" or "source";
-                bool isNameParam = key is "name" or "screen" or "widget" or "widgets" or "tag" or "key" or "new-name" or "user-name" or "new-user-name" or "new-group-name" or "event" or "action" or "nic" or "protocol" or "severity" or "direction" or "mode" or "ip" or "device_ip";
-                // value 语义由 --key 决定（颜色/文本/路径/数值），静态分类无法覆盖：
-                // 归自由文本类仅拦 '..'（imagePath 值含 / 或 \ 是合法的相对/绝对路径）
-                // ⚠️ 白名单须与 Program.cs SanitizeParam 逐 key 同步（cli-param-sanitize §5/§6）：新增自由文本 key 时两端同改
-                bool isFreeText = key is "description" or "message" or "params" or "model" or "value" or "font-family" or "base-value" or "items";
-
-                if (isPathParam)
-                {
-                    if (hasUpDir) throw new ArgumentException($"参数 --{key} 包含 '..' : {value}");
-                    if (Path.IsPathRooted(value) && key is not ("connection" or "project")) throw new ArgumentException($"参数 --{key} 不允许绝对路径: {value}");   // #5：project 豁免绝对路径（与 Program.cs SanitizeParam 同步——两端白名单逐 key 一致）
-                }
-                else if (isNameParam && (hasUpDir || hasSep))
-                {
-                    throw new ArgumentException($"参数 --{key} 包含非法字符: {value}");
-                }
-                else if (isFreeText && hasUpDir)
-                {
-                    throw new ArgumentException($"参数 --{key} 包含 '..' : {value}");
-                }
+                var err = NavigatorHMI.Common.CliParamSanitizer.Validate(key, value);
+                if (err != null) throw new ArgumentException(err);
             }
         }
 
