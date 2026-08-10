@@ -682,7 +682,7 @@ public class LineWidget : Widget
     public double StrokeThickness { get => _strokeThickness; set { _strokeThickness = Math.Round(value, 3); OnPropertyChanged(); } }
 
     private GeoPoint? _geoStart;
-    /// <summary>起点经纬度（世界地图模式端点；固定值，绑 GPS 变量时用 BoundTag 动态值）</summary>
+    /// <summary>起点经纬度（世界地图模式端点；仅固定值——动态绑定由 PointWidget/作业点支持）</summary>
     [ProtoMember(5)]
     public GeoPoint? GeoStart { get => _geoStart; set { _geoStart = value; OnPropertyChanged(); } }
 
@@ -714,7 +714,7 @@ public class CircleWidget : Widget
     public double StrokeThickness { get => _strokeThickness; set { _strokeThickness = Math.Round(value, 3); OnPropertyChanged(); } }
 
     private GeoPoint? _geoCenter;
-    /// <summary>圆心经纬度（世界地图模式；固定值，绑 GPS 变量时圆心随变量移动）</summary>
+    /// <summary>圆心经纬度（世界地图模式；仅固定值——动态绑定由 PointWidget/作业点支持）</summary>
     [ProtoMember(4)]
     public GeoPoint? GeoCenter { get => _geoCenter; set { _geoCenter = value; OnPropertyChanged(); } }
 }

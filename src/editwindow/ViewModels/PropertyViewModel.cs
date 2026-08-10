@@ -226,6 +226,7 @@ namespace NavigatorHMI.ViewModels
                         ScreenWidth = value.Width;
                         ScreenHeight = value.Height;
                         WorldMapShowGlobalOverlay = value.Type == ScreenType.WorldMap && Project?.WorldMap?.ShowGlobalOverlay == true;
+                        RefreshWorldMapWorkPoints();   // 批 4：作业点列表同步
                         }
                         finally { _syncingFromModel = false; }
                     }
@@ -686,6 +687,72 @@ namespace NavigatorHMI.ViewModels
 
         /// <summary>当前选中是否为世界地图画面（属性面板据此显示「全局叠加」勾选入口）。</summary>
         public bool IsWorldMapScreen => _selectedScreen?.Type == ScreenType.WorldMap;
+
+        // ── 世界地图作业点（批 4：WorkPoints 列表管理；视口自适应用其包围盒）──
+
+        public ObservableCollection<MapWorkPoint> WorldMapWorkPoints { get; } = new();
+
+        private MapWorkPoint? _selectedWorkPoint;
+        /// <summary>作业点列表选中项。</summary>
+        public MapWorkPoint? SelectedWorkPoint { get => _selectedWorkPoint; set { _selectedWorkPoint = value; OnPropertyChanged(); } }
+
+        private string _workPointName = "";
+        /// <summary>新作业点名称。</summary>
+        public string WorkPointName { get => _workPointName; set { _workPointName = value; OnPropertyChanged(); } }
+
+        private string _workPointLngLat = "";
+        /// <summary>新作业点经纬度（DMS 或小数度；与绑定变量二选一）。</summary>
+        public string WorkPointLngLat { get => _workPointLngLat; set { _workPointLngLat = value; OnPropertyChanged(); } }
+
+        private string _workPointBoundTag = "";
+        /// <summary>新作业点绑定 GPS 变量（与固定经纬度二选一）。</summary>
+        public string WorkPointBoundTag { get => _workPointBoundTag; set { _workPointBoundTag = value; OnPropertyChanged(); } }
+
+        /// <summary>从工程 WorldMapConfig 同步作业点列表（选中画面时装载）。</summary>
+        private void RefreshWorldMapWorkPoints()
+        {
+            WorldMapWorkPoints.Clear();
+            if (Project?.WorldMap == null) return;
+            foreach (var wp in Project.WorldMap.WorkPoints) WorldMapWorkPoints.Add(wp);
+        }
+
+        /// <summary>添加作业点：名称 +（绑定 GPS 变量 或 固定经纬度）二选一；非法输入静默忽略。</summary>
+        public void AddWorkPoint()
+        {
+            if (string.IsNullOrWhiteSpace(WorkPointName)) return;
+            var wp = new MapWorkPoint { Name = WorkPointName.Trim() };
+            if (!string.IsNullOrWhiteSpace(WorkPointBoundTag))
+            {
+                var tag = Project?.Tags.FirstOrDefault(t => t.Name == WorkPointBoundTag.Trim());
+                if (tag?.DataType != TagDataType.GPS) return;   // 绑定变量必须存在且为 GPS 类型（否则运行时被跳过）
+                wp.BoundTag = WorkPointBoundTag.Trim();
+                wp.FixedPoint = null;
+            }
+            else if (GeoPoint.TryParse(WorkPointLngLat, out var geo) && geo != null)
+            {
+                wp.FixedPoint = geo;
+                wp.BoundTag = "";
+            }
+            else return;
+            if (Project != null)
+            {
+                Project.WorldMap ??= new WorldMapConfig();
+                Project.WorldMap.WorkPoints.Add(wp);
+                WorldMapWorkPoints.Add(wp);
+                DirtyRequested?.Invoke();
+                WorkPointName = ""; WorkPointLngLat = ""; WorkPointBoundTag = "";
+            }
+        }
+
+        /// <summary>删除选中作业点。</summary>
+        public void DeleteWorkPoint()
+        {
+            if (SelectedWorkPoint == null || Project?.WorldMap == null) return;
+            Project.WorldMap.WorkPoints.Remove(SelectedWorkPoint);
+            WorldMapWorkPoints.Remove(SelectedWorkPoint);
+            SelectedWorkPoint = null;
+            DirtyRequested?.Invoke();
+        }
 
         /// <summary>全局叠加配置变化回调（EditWindow 注入 → 局部刷新虚影层，不动主层与选中）。</summary>
         public Action? OverlayChanged { get; set; }

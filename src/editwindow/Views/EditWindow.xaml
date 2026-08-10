@@ -191,6 +191,27 @@
                 <Label Grid.Column="0" Content="显示全局:" Style="{StaticResource PropLabel}"/>
                 <CheckBox Grid.Column="1" IsChecked="{Binding WorldMapShowGlobalOverlay}" VerticalAlignment="Center" ToolTip="勾选后世界地图上叠加显示全局画面内容（设备端运行时同步生效）"/>
             </Grid>
+            <!-- 批 4：世界地图作业点（列表 + 添加/删除；视口自适应按作业点包围盒） -->
+            <TextBlock Text="作业点" Style="{StaticResource PropGroupHeader}" Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}"/>
+            <StackPanel Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}">
+                <ListBox ItemsSource="{Binding WorldMapWorkPoints}" SelectedItem="{Binding SelectedWorkPoint}" DisplayMemberPath="Name" Height="70" Margin="4,2" ToolTip="作业点列表（进入世界地图时视口自适应按包围盒计算）；选中后点删除"/>
+                <Grid Margin="4,2"><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <Label Grid.Column="0" Content="名称:" Style="{StaticResource PropLabel}"/>
+                    <TextBox Grid.Column="1" Text="{Binding WorkPointName, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"/>
+                </Grid>
+                <Grid Margin="4,2"><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <Label Grid.Column="0" Content="经纬度:" Style="{StaticResource PropLabel}"/>
+                    <TextBox Grid.Column="1" Text="{Binding WorkPointLngLat, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" ToolTip="固定值（DMS 如 (E104°3'30&quot;, N30°40'20&quot;) 或小数度）；与绑定变量二选一"/>
+                </Grid>
+                <Grid Margin="4,2"><Grid.ColumnDefinitions><ColumnDefinition Width="60"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <Label Grid.Column="0" Content="绑变量:" Style="{StaticResource PropLabel}"/>
+                    <TextBox Grid.Column="1" Text="{Binding WorkPointBoundTag, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" ToolTip="绑定 GPS 变量名（动态移动）；与固定经纬度二选一"/>
+                </Grid>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="4,2">
+                    <Button Content="添加" Click="AddWorkPoint_Click" Padding="8,2" Margin="0,0,6,0"/>
+                    <Button Content="删除" Click="DeleteWorkPoint_Click" Padding="8,2"/>
+                </StackPanel>
+            </StackPanel>
         </StackPanel></DataTemplate>
         <DataTemplate x:Key="PropButton"><StackPanel>
             <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
