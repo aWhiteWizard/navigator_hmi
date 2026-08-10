@@ -1206,11 +1206,18 @@ namespace NavigatorHMI.Views
                 _viewModel.PropertyChanged += ViewModel_PropertyChanged;
             }
 
-            // 世界地图底图（Mapsui）：初始化在线 OSM 图层（POC 看效果；离线 MBTiles 后续替换）
+            // 世界地图底图（Mapsui）：POC 用高德在线瓦片（国内可达；OSM 在本网络环境不通）。
+            // 产品化：WorldMapConfig.TileSource=="amap" 高德在线 / =="offline" 离线 MBTiles（后续接配置）
             try
             {
                 var map = new Mapsui.Map();
-                map.Layers.Add(Mapsui.Tiling.OpenStreetMap.CreateTileLayer());
+                var tileSource = new BruTile.Web.HttpTileSource(
+                    new BruTile.Predefined.GlobalSphericalMercator(),
+                    "https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}",
+                    new[] { "1", "2", "3", "4" },
+                    "amap", null, null, null,
+                    req => req.Headers.UserAgent.ParseAdd("NavigatorHMI/1.0 (工业组态软件; 世界地图)"));   // BruTile 6 requestModifier 为 Action（void）
+                map.Layers.Add(new Mapsui.Tiling.Layers.TileLayer(tileSource) { Name = "高德地图" });
                 WorldMapControl.Map = map;
             }
             catch (Exception ex)
