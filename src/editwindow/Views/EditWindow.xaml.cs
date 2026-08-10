@@ -1216,7 +1216,7 @@ namespace NavigatorHMI.Views
                     "https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}",
                     new[] { "1", "2", "3", "4" },
                     "amap", null, null, null,
-                    req => req.Headers.UserAgent.ParseAdd("NavigatorHMI/1.0 (工业组态软件; 世界地图)"));   // BruTile 6 requestModifier 为 Action（void）
+                    req => req.Headers.UserAgent.ParseAdd("NavigatorHMI/1.0 (Industrial HMI Config Tool)"));   // BruTile 6 requestModifier 为 Action（void）；UA 必须纯 ASCII（中文头值 HttpClient 拒绝——读图定位）
                 map.Layers.Add(new Mapsui.Tiling.Layers.TileLayer(tileSource) { Name = "高德地图" });
                 WorldMapControl.Map = map;
             }
