@@ -1411,20 +1411,23 @@
                                         </Style>
                                     </Border.Style>
                                     <Grid>
-                                    <!-- 世界地图底图（Mapsui）：仅 WorldMap 画面显示；置底层，画布透明后透出；鼠标穿透到地图（平移缩放） -->
-                                    <mapsui:MapControl x:Name="WorldMapControl" Panel.ZIndex="0"
-                                            Visibility="{Binding DataContext.IsWorldMapActive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}"
-                                            IsHitTestVisible="{Binding DataContext.IsWorldMapActive, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=False}"/>
-                                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
-                                                  IsHitTestVisible="{Binding DataContext.IsWorldMapActive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBoolConverter}}">
-                                        <Canvas x:Name="DrawingCanvas" HorizontalAlignment="Left" VerticalAlignment="Top"
-                                                Width="{Binding DeviceWidth}" Height="{Binding DeviceHeight}"
-                                                Focusable="True" MouseDown="Canvas_MouseDown">
+                                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                                        <!-- 世界地图底图（Mapsui）：仅 WorldMap 画面显示；与画布同尺寸同位置叠放（ScrollViewer 内滚动跟随），
+                                             画布透明 + 世界地图时画布穿透 → 地图透出且可交互（平移缩放）；非世界地图时 Collapsed 不显示不命中 -->
+                                        <Grid Width="{Binding DeviceWidth}" Height="{Binding DeviceHeight}">
+                                            <mapsui:MapControl x:Name="WorldMapControl" Panel.ZIndex="0"
+                                                    Width="{Binding DeviceWidth}" Height="{Binding DeviceHeight}"
+                                                    Visibility="{Binding DataContext.IsWorldMapActive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}"
+                                                    IsHitTestVisible="{Binding DataContext.IsWorldMapActive, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=False}"/>
+                                            <Canvas x:Name="DrawingCanvas" HorizontalAlignment="Left" VerticalAlignment="Top"
+                                                    Width="{Binding DeviceWidth}" Height="{Binding DeviceHeight}"
+                                                    IsHitTestVisible="{Binding DataContext.IsWorldMapActive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseBoolConverter}, FallbackValue=True}"
+                                                    Focusable="True" MouseDown="Canvas_MouseDown">
                                             <Canvas.Style>
                                                 <Style TargetType="Canvas">
                                                     <Setter Property="Background" Value="{StaticResource DotGridBrush}"/>
                                                     <Style.Triggers>
-                                                        <!-- 世界地图画面：画布背景透明让地图透出；控件仍渲染（鼠标穿透由上层 ScrollViewer IsHitTestVisible 控制） -->
+                                                        <!-- 世界地图画面：画布背景透明让地图透出；控件仍渲染（鼠标穿透由 Canvas IsHitTestVisible 反相控制） -->
                                                         <DataTrigger Binding="{Binding DataContext.IsWorldMapActive, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
                                                             <Setter Property="Background" Value="Transparent"/>
                                                         </DataTrigger>
@@ -1444,10 +1447,11 @@
                                             <ctrl:ArrayGuideOverlay x:Name="ArrayGuideOverlay"
                                                   Visibility="Collapsed" IsHitTestVisible="False" Panel.ZIndex="1004"/>
                                         </Canvas>
+                                        </Grid>
                                     </ScrollViewer>
                                     <!-- 缩放比例 -->
                                     <TextBlock x:Name="ZoomLabel" Text="100%" HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                                               Foreground="Gray" FontSize="12" Margin="0,0,8,4"/>
+                                               Foreground="Gray" FontSize="12" Margin="0,0,8,4" IsHitTestVisible="False"/>
                                     </Grid>
                                 </Border>
                                 <!-- 变量管理器内容（画布 Tab 激活时显示，与画布同一位置切换）

@@ -77,6 +77,8 @@ namespace NavigatorHMI.Views
 
         private void Canvas_PreviewRightButtonDown(object sender, MouseButtonEventArgs e)
         {
+            // 世界地图画面：地图交互优先——画布右键位置记录短路（画布右键菜单挂 Canvas_MouseDown，世界地图时 Canvas 已穿透不触发）
+            if (_viewModel?.IsWorldMapActive == true) return;
             // GetPosition 已返回逻辑坐标（LayoutTransform 逆变换），禁除缩放（双重除 bug）；_contextMenuPos 供粘贴定位
             _contextMenuPos = e.GetPosition(DrawingCanvas);
         }
@@ -1012,6 +1014,8 @@ namespace NavigatorHMI.Views
         /// <summary>画布悬停：接受变量拖拽（Copy 光标）。</summary>
         private void Canvas_DragOver(object sender, DragEventArgs e)
         {
+            // 世界地图画面：地图交互优先——不接受拖放（防拖变量到地图误创建控件）
+            if (_viewModel?.IsWorldMapActive == true) { e.Effects = DragDropEffects.None; return; }
             if (IsTagDrag(e, out _)) { e.Effects = DragDropEffects.Copy; e.Handled = true; }
             else e.Effects = DragDropEffects.None;
         }
@@ -1019,6 +1023,7 @@ namespace NavigatorHMI.Views
         /// <summary>画布放下 → 生成绑定该变量的 IO Field（add_widget + bound_tag 一步落库）。</summary>
         private void Canvas_Drop(object sender, DragEventArgs e)
         {
+            if (_viewModel?.IsWorldMapActive == true) return;   // 世界地图画面：地图交互优先，不接受拖放
             if (!IsTagDrag(e, out var tags)) return;
             if (_viewModel.CurrentScreen == null) return;
             // GetPosition(DrawingCanvas) 经 LayoutTransform 逆变换已返回逻辑坐标，禁再次除缩放（双重除 bug）
@@ -1218,6 +1223,18 @@ namespace NavigatorHMI.Views
                     "amap", null, null, null,
                     req => req.Headers.UserAgent.ParseAdd("NavigatorHMI/1.0 (Industrial HMI Config Tool)"));   // BruTile 6 requestModifier 为 Action（void）；UA 必须纯 ASCII（中文头值 HttpClient 拒绝——读图定位）
                 map.Layers.Add(new Mapsui.Tiling.Layers.TileLayer(tileSource) { Name = "高德地图" });
+
+                // 最小/最大缩放限制：高德 webrd 瓦片有效范围 z3~z19（低于 z3 无瓦片→空白，POC 实测问题②；ResZoom = Web Mercator 每像素米数）
+                double ResZoom(int z) => 156543.03392804097 / Math.Pow(2, z);
+                map.Navigator.OverrideZoomBounds = new Mapsui.MMinMax(ResZoom(19), ResZoom(3));
+
+                // 初始视图：中国区域 z6（POC 默认，避免打开即空白/无瓦片级别；批 4 视口自适应后由作业点包围盒决定）
+                map.ViewportInitialized += (_, _) =>
+                {
+                    var (mx, my) = Mapsui.Projections.SphericalMercator.FromLonLat(104.06, 30.67);
+                    map.Navigator.CenterOnAndZoomTo(new Mapsui.MPoint(mx, my), ResZoom(6), 0, Mapsui.Animations.Easing.Linear);
+                };
+
                 WorldMapControl.Map = map;
             }
             catch (Exception ex)
@@ -1678,7 +1695,9 @@ namespace NavigatorHMI.Views
         /// 画布点击事件：在点击位置创建 Widget（添加模式下），或清除选中状态。
         /// </summary>
         private void Canvas_MouseMove(object sender, MouseEventArgs e)
-        {            
+        {
+            // 世界地图画面：画布编辑短路（框选/两点式预览不启动），事件到达 MapControl 平移
+            if (_viewModel?.IsWorldMapActive == true) return;
             // 两点式绘制预览更新
             if (_isDrawingPreview)
             {
@@ -1708,6 +1727,12 @@ namespace NavigatorHMI.Views
 
         private void Canvas_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
+            // 世界地图画面：地图交互优先——短路但保留泄漏状态兜底清理
+            if (_viewModel?.IsWorldMapActive == true)
+            {
+                _dragBehavior.ClearLeakState();
+                return;
+            }
             // 容器层无条件清理泄漏候选状态（pending + 粘性标志）
             // 注意：不清 _isDragging——widget 冒泡 up 负责拖拽收尾（光标恢复 + 捕获释放），
             // capture 保证 up 必路由到捕获元素，此处兜底不失效。
@@ -1822,6 +1847,9 @@ namespace NavigatorHMI.Views
 
         private void Canvas_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
+            // 世界地图画面：地图交互优先（平移/缩放）——画布框选/添加模式短路，事件自然到达 MapControl
+            if (_viewModel?.IsWorldMapActive == true) return;
+
             // 画布交互：聚焦画布（方向键微移判定用；延后执行避免干扰本次点击的选中/拖拽逻辑）
             Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
             {
