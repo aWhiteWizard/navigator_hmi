@@ -29,6 +29,7 @@ enum TagDataType {
   TAG_FLOAT = 4;
   TAG_STRING = 5;
   TAG_DATETIME = 6;
+  TAG_GPS = 7;   // 经纬度（基准值 DMS 格式 "(E104°3'30\", N30°40'20\")"；仅图形类控件可绑定）
 }
 
 enum AlarmType {
@@ -80,6 +81,8 @@ enum WidgetType {
   W_PROGRESS_BAR = 14;
   W_DATETIME = 15;
   W_WINDOW = 16;
+  W_POLYGON = 17;   // 多边形（顶点画面坐标 points=64 或经纬度 geo_points=63）
+  W_POINT = 18;     // 点控件（标签 label=62 + 经纬度固定值 fixed_lng/lat=60/61）
 }
 
 enum EventType {
@@ -230,6 +233,18 @@ message Widget {
   bool card_show_location = 51; // RobotList 显示位置
   string bound_device = 52;     // RobotList 绑定设备名
   repeated RobotSlotBinding robot_slots = 53;   // RobotList 机器人绑定组
+  // ── 地图几何（54+，世界地图批 2 契约：线/圆/点/多边形经纬度；追加字段向后兼容） ──
+  double geo_start_lng = 54;   // Line 起点经度（GeoStart）
+  double geo_start_lat = 55;   // Line 起点纬度
+  double geo_end_lng = 56;     // Line 终点经度（GeoEnd）
+  double geo_end_lat = 57;     // Line 终点纬度
+  double geo_center_lng = 58;  // Circle 圆心经度（GeoCenter）
+  double geo_center_lat = 59;  // Circle 圆心纬度
+  double fixed_lng = 60;       // Point 固定经度（FixedPoint）
+  double fixed_lat = 61;       // Point 固定纬度
+  string label = 62;           // Point 右上角标签
+  repeated GeoPoint geo_points = 63;   // Polygon 顶点经纬度（世界地图模式）
+  repeated PointD points = 64;         // Polygon 顶点画面坐标（普通画面模式）
 }
 
 message WidgetEvent {
@@ -292,6 +307,26 @@ message WorldMapConfig {
   string tile_source = 5;      // 离线/在线瓦片源
   int32 zoom_level = 6;
   bool show_global_overlay = 7;
+  repeated MapWorkPoint work_points = 8;   // 作业点列表（视口自适应按包围盒计算）
+}
+
+// 经纬度点（WGS84 小数度；PC 端 GeoPoint）
+message GeoPoint {
+  double longitude = 1;
+  double latitude = 2;
+}
+
+// 画面坐标点（PC 端 PointD，多边形顶点用）
+message PointD {
+  double x = 1;
+  double y = 2;
+}
+
+// 世界地图作业点：绑经纬度变量（GPS）或固定值（二选一）
+message MapWorkPoint {
+  string name = 1;
+  GeoPoint fixed_point = 2;
+  string bound_tag = 3;
 }
 
 message UserAccount {

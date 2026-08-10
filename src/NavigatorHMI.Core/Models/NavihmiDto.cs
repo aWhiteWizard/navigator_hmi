@@ -8,7 +8,9 @@ namespace NavigatorHMI.Common
         Button = 0, Text = 1, Label = 2, Rectangle = 3, Image = 4, NumericDisplay = 5,
         Switch = 6, Line = 7, Circle = 8, Ellipse = 9, IOField = 10,
         CheckBox = 11, TextList = 12, Frame = 13, ProgressBar = 14, DateTime = 15,
-        Window = 16   // W1：窗口控件（UserView/AlarmView/RobotList）
+        Window = 16,   // W1：窗口控件（UserView/AlarmView/RobotList）
+        Polygon = 17,  // 多边形（世界地图批 2）
+        Point = 18     // 点控件（世界地图批 2）
     }
 
     /// <summary>
@@ -121,5 +123,17 @@ namespace NavigatorHMI.Common
         [ProtoMember(51)] public bool CardShowLocation { get; set; }
         [ProtoMember(52)] public string BoundDevice { get; set; } = "";
         [ProtoMember(53)] public List<RobotSlotBinding> RobotSlots { get; set; } = new();
+        // ── 地图几何（54-64，世界地图批 2：线/圆/点/多边形经纬度；与 proto 对齐） ──
+        [ProtoMember(54)] public double GeoStartLng { get; set; }   // Line 起点经度（GeoStart）
+        [ProtoMember(55)] public double GeoStartLat { get; set; }
+        [ProtoMember(56)] public double GeoEndLng { get; set; }     // Line 终点经度（GeoEnd）
+        [ProtoMember(57)] public double GeoEndLat { get; set; }
+        [ProtoMember(58)] public double GeoCenterLng { get; set; }  // Circle 圆心经度（GeoCenter）
+        [ProtoMember(59)] public double GeoCenterLat { get; set; }
+        [ProtoMember(60)] public double FixedLng { get; set; }      // Point 固定经度（FixedPoint）
+        [ProtoMember(61)] public double FixedLat { get; set; }
+        [ProtoMember(62)] public string Label { get; set; } = "";   // Point 右上角标签
+        [ProtoMember(63)] public List<GeoPoint> GeoPoints { get; set; } = new();  // Polygon 顶点经纬度（世界地图模式）
+        [ProtoMember(64)] public List<PointD> Points { get; set; } = new();       // Polygon 顶点画面坐标（普通画面模式）
     }
 }

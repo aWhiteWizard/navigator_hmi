@@ -166,10 +166,13 @@ namespace NavigatorHMI.Common
                 case LineWidget ln:
                     dto.Type = NavihmiWidgetType.Line; dto.X2 = ln.X2; dto.Y2 = ln.Y2;
                     dto.StrokeColor = ln.StrokeColor; dto.StrokeThickness = ln.StrokeThickness;
+                    if (ln.GeoStart != null) { dto.GeoStartLng = ln.GeoStart.Longitude; dto.GeoStartLat = ln.GeoStart.Latitude; }
+                    if (ln.GeoEnd != null) { dto.GeoEndLng = ln.GeoEnd.Longitude; dto.GeoEndLat = ln.GeoEnd.Latitude; }
                     break;
                 case CircleWidget ci:
                     dto.Type = NavihmiWidgetType.Circle;
                     dto.FillColor = ci.FillColor; dto.StrokeColor = ci.StrokeColor; dto.StrokeThickness = ci.StrokeThickness;
+                    if (ci.GeoCenter != null) { dto.GeoCenterLng = ci.GeoCenter.Longitude; dto.GeoCenterLat = ci.GeoCenter.Latitude; }
                     break;
                 case EllipseWidget el:
                     dto.Type = NavihmiWidgetType.Ellipse;
@@ -201,6 +204,15 @@ namespace NavigatorHMI.Common
                     break;
                 case DateTimeWidget dt:
                     dto.Type = NavihmiWidgetType.DateTime; dto.DtText = dt.Text; dto.DtFormat = dt.Format;
+                    break;
+                case PolygonWidget pg:
+                    dto.Type = NavihmiWidgetType.Polygon;
+                    dto.FillColor = pg.FillColor; dto.StrokeColor = pg.StrokeColor; dto.StrokeThickness = pg.StrokeThickness;
+                    dto.Points = pg.Points; dto.GeoPoints = pg.GeoPoints ?? new();
+                    break;
+                case PointWidget pt:
+                    dto.Type = NavihmiWidgetType.Point; dto.Label = pt.Label;
+                    if (pt.FixedPoint != null) { dto.FixedLng = pt.FixedPoint.Longitude; dto.FixedLat = pt.FixedPoint.Latitude; }
                     break;
                 case WindowWidget ww:
                     dto.Type = NavihmiWidgetType.Window; dto.WindowType = (int)ww.Type;
