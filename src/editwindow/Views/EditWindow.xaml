@@ -195,7 +195,7 @@
             <TextBlock Text="预览与视口" Style="{StaticResource PropGroupHeader}" Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}"/>
             <Grid Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}"><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="锁定预览:" Style="{StaticResource PropLabel}"/>
-                <CheckBox Grid.Column="1" IsChecked="{Binding WorldMapViewLocked}" VerticalAlignment="Center" ToolTip="勾选后模拟运行预览：地图禁平移/缩放，点击地图空白处执行「点击切换画面」事件"/>
+                <CheckBox Grid.Column="1" IsChecked="{Binding WorldMapViewLocked}" VerticalAlignment="Center" ToolTip="勾选后预览锁定：地图禁平移/缩放（滚轮无效）；右键菜单仍可弹；点击切换画面事件由设备端（FW 运行时）执行"/>
             </Grid>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="4,2" Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}">
                 <Button Content="⛶ 视口自适应" Click="WorldMapZoomToBox_Click" Padding="8,2" FontSize="11" ToolTip="按作业点/作业范围点包围盒缩放地图视口（ZoomToBox）"/>

@@ -848,7 +848,8 @@ namespace NavigatorHMI.ViewModels
         // ── P5：世界地图锁定预览 + 视口自适应 ──
 
         private bool _worldMapViewLocked;
-        /// <summary>锁定预览：勾选后运行时禁平移缩放/点击切换（设计态同步模拟：地图禁交互，点击执行 Events）。</summary>
+        /// <summary>锁定预览：勾选后设计态地图禁平移缩放（左键/滚轮短路）；右键菜单仍可弹（配置不受锁）。
+        /// 运行时点击切换画面由 FW 端执行，设计态不模拟（2026-08-11 需求变更 B）。</summary>
         public bool WorldMapViewLocked
         {
             get => _worldMapViewLocked;
@@ -857,8 +858,9 @@ namespace NavigatorHMI.ViewModels
                 if (_worldMapViewLocked != value)
                 {
                     _worldMapViewLocked = value;
-                    if (!_syncingFromModel && Project?.WorldMap != null)
+                    if (!_syncingFromModel && Project != null)
                     {
+                        Project.WorldMap ??= new WorldMapConfig();   // 懒创建：WorldMap 未初始化（未放过点）时勾选也要落库（Check 5-1 根因）
                         Project.WorldMap.ViewLocked = value;
                         DirtyRequested?.Invoke();
                         WorldMapViewLockChanged?.Invoke();   // EditWindow 注入 → 切换地图交互

@@ -140,6 +140,21 @@ namespace NavigatorHMI.Tests
             Assert.True(p.WorldMap.ViewLocked);
         }
 
+        [Fact]
+        public void updateWorldMap_WorldMap未初始化时落库()
+        {
+            // P6：Check 5-1 根因回归——WorldMap 为 null（新建工程未放过点）时 view_locked 也要落库
+            // （FindWorldMap 的 ??= 初始化 + GUI WorldMapViewLocked setter 同款 ??=；此前勾选仅停留 UI 临时态）
+            var p = new HMIProject { Name = "P" };
+            p.Screens.Add(new Screen { Name = "世界地图", Type = ScreenType.WorldMap, Width = 800, Height = 480 });
+            Assert.Null(p.WorldMap);
+            var svc = new CommandService(p);
+            var r = svc.Execute("update_world_map", new Dictionary<string, object?> { ["screen_name"] = "世界地图", ["view_locked"] = "true" });
+            Assert.True(r.Success);
+            Assert.NotNull(p.WorldMap);
+            Assert.True(p.WorldMap.ViewLocked);
+        }
+
         // ═══ 地图级事件（add_event 缺省 widget_name）═══
 
         [Fact]

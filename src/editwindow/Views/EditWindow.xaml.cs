@@ -1338,15 +1338,16 @@ namespace NavigatorHMI.Views
             return MapViewportMath.GeoToScreen(vp.CenterX, vp.CenterY, vp.Resolution, vp.Width, vp.Height, geo);
         }
 
-        /// <summary>世界地图 + 绘制工具激活时左键：Polygon 收集顶点（经纬度）；作业范围编辑模式：点击加点；ViewLocked：模拟点击切换。</summary>
+        /// <summary>世界地图左键：ViewLocked → 短路禁平移（不模拟点击切换——需求变更 B：切换仅 FW 端执行）；
+        /// 作业范围编辑模式：点击加点；Polygon 绘制：收集顶点。</summary>
         private void WorldMap_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (_viewModel?.IsWorldMapActive != true) return;
 
-            // P5：锁定预览 → 禁平移缩放，点击执行「点击切换画面」事件（设计态模拟）
+            // P5/P6：锁定预览 → 短路禁平移（左键不落到 Mapsui 拖动）；点击切换画面事件由 FW 运行时执行，设计态不模拟。
+            // 注：锁定短路同时禁作业范围加点/多边形绘制（锁定 = 整体禁编辑地图，有意为之）
             if (_viewModel.CurrentProject?.WorldMap?.ViewLocked == true)
             {
-                HandleWorldMapViewLockedClick();
                 e.Handled = true;
                 return;
             }
@@ -1385,17 +1386,11 @@ namespace NavigatorHMI.Views
             e.Handled = true;   // 阻止地图平移
         }
 
-        /// <summary>世界地图右键：ViewLocked → 短路；作业范围编辑模式 → 退出；Polygon 绘制 → 闭合（≥3 点）/退出（不足）；其他 → 弹地图右键菜单（P3）。</summary>
+        /// <summary>世界地图右键：作业范围编辑模式 → 退出；Polygon 绘制 → 闭合（≥3 点）/退出（不足）；其他 → 弹地图右键菜单（P3）。
+        /// 锁定预览（ViewLocked）不短路右键——菜单照弹，配置不受锁（2026-08-11 需求变更 A）。</summary>
         private void WorldMap_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (_viewModel?.IsWorldMapActive != true) return;
-
-            // P5：锁定预览 → 右键不放菜单（模拟运行态无菜单）
-            if (_viewModel.CurrentProject?.WorldMap?.ViewLocked == true)
-            {
-                e.Handled = true;
-                return;
-            }
 
             if (_isEditingWorkRange)
             {
@@ -1447,26 +1442,6 @@ namespace NavigatorHMI.Views
         {
             if (_viewModel?.CurrentProject?.WorldMap?.ViewLocked == true)
                 e.Handled = true;
-        }
-
-        /// <summary>P5：锁定预览点击 → 执行 WorldMapConfig.Events 的 onClick screen_switch 动作（设计态模拟运行时点击切换）。</summary>
-        private void HandleWorldMapViewLockedClick()
-        {
-            var project = _viewModel?.CurrentProject;
-            var wm = project?.WorldMap;
-            if (wm?.ViewLocked != true) return;
-            var evt = wm.Events.FirstOrDefault(ev => ev.Type == EventType.onClick);
-            if (evt == null) return;
-            foreach (var action in evt.Actions)
-            {
-                if (action.Type == ActionType.screen_switch
-                    && action.Parameters.TryGetValue("screen_name", out var target) && !string.IsNullOrWhiteSpace(target))
-                {
-                    var screen = project.Screens.FirstOrDefault(s => s.Name == target.Trim());
-                    if (screen != null) { _viewModel.ActivateScreen(screen); }
-                    break;
-                }
-            }
         }
 
         /// <summary>P5：属性面板「视口自适应」按钮 → ZoomToBox 框选（VM 回调）。</summary>
