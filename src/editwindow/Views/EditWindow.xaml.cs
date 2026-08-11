@@ -55,6 +55,7 @@ namespace NavigatorHMI.Views
         private bool _skipClosingCheck = false;
         /// <summary>缩放手柄静态回调引用（Closing 时比较清理，防闭包泄漏）。</summary>
         private Action? _resizeDragStartedCallback;
+        private Action? _resizeDragCompletedCallback;   // C12-12：缩放结束回调（字段化供 EditWindow_Closed 清理——静态回调闭包泄漏防护）
         /// <summary>画布尺寸回调引用（Closing 时比较清理）。</summary>
         private Func<Size>? _getCanvasSizeCallback;
 
@@ -200,7 +201,8 @@ namespace NavigatorHMI.Views
                 _selectionManager,
                 _widgetContextMenuHandler.Show,
                 () => _viewModel.PushUndoSnapshot(),
-                () => _currentWidgetCreator != null);  // 添加/绘制模式标志
+                () => _currentWidgetCreator != null,  // 添加/绘制模式标志
+                () => _propertyViewModel.RefreshPolygonPointRowsDisplay());  // C12-12：拖拽结束 → 多边形顶点表格实时刷新
 
             // 6. 订阅事件
             WeakReferenceMessenger.Default.Register<ScreenAddedMessage>(this, OnScreenAdded);
@@ -259,6 +261,9 @@ namespace NavigatorHMI.Views
             _getCanvasSizeCallback = () => new Size(_propertyViewModel.CanvasWidth, _propertyViewModel.CanvasHeight);
             SelectorHelper.ResizeDragStarted = _resizeDragStartedCallback;
             SelectorHelper.GetCanvasSize = _getCanvasSizeCallback;
+            // C12-12：缩放结束 → 多边形顶点表格实时刷新（缩放平移顶点后表格不再陈旧）
+            _resizeDragCompletedCallback = () => _propertyViewModel.RefreshPolygonPointRowsDisplay();
+            SelectorHelper.ResizeDragCompleted = _resizeDragCompletedCallback;
             // 选中变化（单选/多选/清空）→ 同步属性面板多选状态
             _selectionManager.SelectionChanged += SyncSelectionToPropertyPanel;
 
@@ -1872,6 +1877,8 @@ namespace NavigatorHMI.Views
             _clockTimer.Stop();   // D6：关闭停止画布时钟
             if (SelectorHelper.ResizeDragStarted == _resizeDragStartedCallback)
                 SelectorHelper.ResizeDragStarted = null;
+            if (SelectorHelper.ResizeDragCompleted == _resizeDragCompletedCallback)
+                SelectorHelper.ResizeDragCompleted = null;   // C12-12：静态回调清理（防闭包持有已关闭窗口）
             if (SelectorHelper.GetCanvasSize == _getCanvasSizeCallback)
                 SelectorHelper.GetCanvasSize = null;
             // 清理设计态变量解析器静态引用（防窗口关闭后工程驻留内存）
@@ -2673,6 +2680,7 @@ namespace NavigatorHMI.Views
             // 不触发全量 LoadCanvas（会清空选中）：Widget.X/Y setter 的 PropertyChanged
             // 已驱动 Canvas.Left/Top 绑定自动更新位置，选中状态（TwoWay 绑定）保持不变
             _selectionManager.UpdateSelectionUI();   // 确保选中装饰器跟随新位置
+            _propertyViewModel.RefreshPolygonPointRowsDisplay();   // C12-12：方向键微移平移顶点后表格实时刷新
         }
 
         /// <summary>粘贴到当前画布中心附近（快捷键 Ctrl+V；右键菜单粘贴用 PasteWidget_Click）。</summary>

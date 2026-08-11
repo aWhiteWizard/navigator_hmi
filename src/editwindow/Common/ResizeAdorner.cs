@@ -65,9 +65,10 @@ namespace NavigatorHMI.Common
             System.Diagnostics.Debug.WriteLine($"🎯 Resize 开始: {_widget.ObjectName}, X={_widget.X}, Y={_widget.Y}, W={_widget.Width}, H={_widget.Height}");
         }
 
-        /// <summary>缩放手柄拖拽结束（诊断用）。</summary>
+        /// <summary>缩放手柄拖拽结束：通知刷新（C12-12——多边形缩放平移顶点后端点表格实时更新）。</summary>
         private void Thumb_DragCompleted(object sender, DragCompletedEventArgs e)
         {
+            SelectorHelper.ResizeDragCompleted?.Invoke();
             System.Diagnostics.Debug.WriteLine($"🎯 Resize 完成: {_widget.ObjectName}, X={_widget.X}, Y={_widget.Y}, W={_widget.Width}, H={_widget.Height}");
         }
 

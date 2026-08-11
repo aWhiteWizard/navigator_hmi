@@ -39,11 +39,12 @@ namespace NavigatorHMI.Views.Behaviors
         private readonly Action<Widget, Point>? _onRightClickCallback;
         private readonly Action? _pushUndoCallback;
         private readonly Func<bool>? _isAddMode;   // 添加/绘制模式标志（绘制模式下不启动拖拽）
+        private readonly Action? _onDragEndCallback;   // C12-12：拖拽结束回调（多边形顶点表格实时刷新）
 
         public WidgetDragBehavior(Canvas canvas, Func<EditWindowViewModel> viewModelProvider,
             Action markDirtyCallback, Action<Cursor> setCursorCallback,
             WidgetSelectionManager selectionManager, Action<Widget, Point>? onRightClickCallback = null,
-            Action? pushUndoCallback = null, Func<bool>? isAddMode = null)
+            Action? pushUndoCallback = null, Func<bool>? isAddMode = null, Action? onDragEndCallback = null)
         {
             _canvas = canvas;
             _viewModelProvider = viewModelProvider;
@@ -53,6 +54,7 @@ namespace NavigatorHMI.Views.Behaviors
             _onRightClickCallback = onRightClickCallback;
             _pushUndoCallback = pushUndoCallback;
             _isAddMode = isAddMode;
+            _onDragEndCallback = onDragEndCallback;
         }
 
         /// <summary>沿视觉树向上查找 Thumb（ResizeAdorner 的缩放手柄）。命中则返回，未命中返回 null。</summary>
@@ -239,11 +241,13 @@ namespace NavigatorHMI.Views.Behaviors
             _setCursorCallback(Cursors.Arrow);
             _isDragging = false;
             _draggingWidgets.Clear();
+            _onDragEndCallback?.Invoke();   // C12-12：拖拽结束（多边形平移顶点后表格实时刷新）
         }
 
         internal void OnPreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (sender is not FrameworkElement fe || fe.DataContext is not Widget widget) return;
+            bool wasDragging = _isDragging;
             _isDragging = false;
             _draggingWidgets.Clear();
             RestoreDragCursor();
@@ -254,6 +258,7 @@ namespace NavigatorHMI.Views.Behaviors
             _selectionManager.ResetDoubleClickDetection();
             fe.ReleaseMouseCapture();
             _setCursorCallback(Cursors.Arrow);
+            if (wasDragging) _onDragEndCallback?.Invoke();   // C12-12：拖拽中断（顶点已平移）后表格实时刷新
             _selectionManager.SelectWidgetSilent(widget);
             e.Handled = true;
         }

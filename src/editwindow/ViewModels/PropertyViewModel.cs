@@ -658,6 +658,13 @@ namespace NavigatorHMI.ViewModels
         {
             for (int i = 0; i < PolygonPointRows.Count; i++) PolygonPointRows[i].Index = i + 1;
         }
+
+        /// <summary>C12-12：拖拽/缩放结束后刷新顶点表格显示值（PointD 无 INPC、行 VM 直读模型——外部改动模型后需显式通知；
+        /// 原表格只在选中时 RefreshPolygonPointRows 重建，拖拽/缩放后显示陈旧）。</summary>
+        public void RefreshPolygonPointRowsDisplay()
+        {
+            foreach (var row in PolygonPointRows) row.RefreshValues();
+        }
          private PropertyTargetType _selectedObjectType;
          /// <summary>当前选中对象的类型，供 XAML DataTemplate 切换使用。</summary>
          public PropertyTargetType SelectedObjectType
@@ -2072,5 +2079,12 @@ namespace NavigatorHMI.ViewModels
         }
         public event PropertyChangedEventHandler? PropertyChanged;
         private void OnPropertyChanged([CallerMemberName] string? n = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
+
+        /// <summary>C12-12：外部改动模型（拖拽/缩放平移顶点）后刷新显示值（PointD 无 INPC，行 VM 直读模型需显式通知）。</summary>
+        public void RefreshValues()
+        {
+            OnPropertyChanged(nameof(X));
+            OnPropertyChanged(nameof(Y));
+        }
     }
 }
