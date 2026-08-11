@@ -2630,7 +2630,12 @@ namespace NavigatorHMI.Views
                 case Key.Up: dy = -step; break;
                 case Key.Down: dy = step; break;
             }
-            foreach (var w in selected) { w.X += dx; w.Y += dy; }
+            foreach (var w in selected)
+            {
+                // P7：多边形顶点为画布绝对坐标——方向键微移同步平移顶点（防表格数据陈旧/重选跳回）
+                if (w is PolygonWidget poly && (dx != 0 || dy != 0)) poly.TranslatePoints(dx, dy);
+                w.X += dx; w.Y += dy;
+            }
             // 不触发全量 LoadCanvas（会清空选中）：Widget.X/Y setter 的 PropertyChanged
             // 已驱动 Canvas.Left/Top 绑定自动更新位置，选中状态（TwoWay 绑定）保持不变
             _selectionManager.UpdateSelectionUI();   // 确保选中装饰器跟随新位置
