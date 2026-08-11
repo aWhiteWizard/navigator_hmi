@@ -1145,7 +1145,9 @@ namespace NavigatorHMI.ViewModels
                     TagRequirement.Bool => TagCompatibility.IsBoolCompatible(t.DataType),
                     TagRequirement.Geo => TagCompatibility.IsGeoCompatible(t.DataType),
                     TagRequirement.None => false,   // 禁止绑定：无变量可选
-                    _ => true,
+                    // Any（普通控件）：排除 GPS——GPS 仅作业点/作业范围点可绑（与 TagCompatibility.Check 的 P1 修订
+                    // 一刀切拒绝一致），不下拉显示避免"能选但选了被拒"（Check 1-2 用户实测）；历史非法绑定由下方保留项兜底不静默解绑
+                    _ => t.DataType != TagDataType.GPS,
                 };
                 if (ok)
                 {
@@ -1236,12 +1238,26 @@ namespace NavigatorHMI.ViewModels
                         ["widget_name"] = _selectedWidget.ObjectName,
                         ["tag_name"] = tagName,
                     });
-                    // 失败（如变量已被删）：回滚 UI 选中态并提示，防静默不一致
+                    // 失败（如变量已被删/GPS 非法绑定）：回滚 UI 选中态并提示，防静默不一致
                     if (!result.Success)
                     {
                         _boundTag = ResolveBoundTarget(_selectedWidget.BoundTag);
-                        OnPropertyChanged(nameof(BoundTag));
-                        OnPropertyChanged(nameof(IsValueEditable));
+                        // 回弹通知经 Dispatcher 延后一次：ComboBox 失配回写/绑定管道与 MessageBox 模态循环错开，
+                        // 确保下拉即时回到旧选中（Check 1-2：同步通知实测不刷新，关面板重开才恢复）
+                        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+                        if (dispatcher != null)
+                        {
+                            dispatcher.BeginInvoke(new Action(() =>
+                            {
+                                OnPropertyChanged(nameof(BoundTag));
+                                OnPropertyChanged(nameof(IsValueEditable));
+                            }));
+                        }
+                        else
+                        {
+                            OnPropertyChanged(nameof(BoundTag));
+                            OnPropertyChanged(nameof(IsValueEditable));
+                        }
                         OnModifyFailed?.Invoke();   // 弹出已推但未生效的空撤销快照
                         System.Windows.MessageBox.Show(result.ErrorMessage ?? "绑定变量失败", "绑定",
                             System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
