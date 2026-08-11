@@ -375,15 +375,27 @@ namespace NavigatorHMI.Views
             if (e.Key == Key.Delete) { DeviceDelete_Click(sender, null); e.Handled = true; }
             else if (e.Key == Key.A && Keyboard.Modifiers == ModifierKeys.Control) { DeviceGrid.SelectAll(); e.Handled = true; }
         }
-        /// <summary>打开事件配置对话框（属性面板事件栏 [配置…] 按钮）。</summary>
+        /// <summary>打开事件配置对话框（属性面板事件栏 [配置…] 按钮）。选中控件 → 控件级事件；选中世界地图画面 → 地图级 onClick 事件。</summary>
         private void OpenEventConfig_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is FrameworkElement fe && fe.Tag is EventType evt
-                && PropertyVM.SelectedWidget is Widget w)
+            if (sender is not FrameworkElement fe || fe.Tag is not EventType evt) return;
+            if (PropertyVM.SelectedWidget is Widget w)
             {
                 var dlg = new EventConfigDialog(_currentProject, w, evt, _viewModel.CommandService) { Owner = this };
-                dlg.ShowDialog();
-                PropertyVM.RefreshEventBar(w);   // 配置后刷新事件栏状态
+                if (dlg.ShowDialog() == true)
+                {
+                    MarkProjectDirty();   // WidgetEvent.Actions 就地修改不触发订阅 → 显式标脏防静默丢配置
+                    PropertyVM.RefreshEventBar(w);   // 配置后刷新事件栏状态
+                }
+            }
+            else if (PropertyVM.IsWorldMapScreen)
+            {
+                var dlg = new EventConfigDialog(_currentProject, null, evt, _viewModel.CommandService) { Owner = this };
+                if (dlg.ShowDialog() == true)
+                {
+                    MarkProjectDirty();
+                    PropertyVM.RefreshWorldMapEventBar();   // 配置后刷新事件栏计数
+                }
             }
         }
         /// <summary>表格行复制剪贴板（Ctrl+C 深拷贝选中行，Ctrl+V 粘贴新建行副本）。</summary>
@@ -1494,7 +1506,11 @@ namespace NavigatorHMI.Views
             WorldMapContextMenu.IsOpen = false;
             if (_currentProject == null) return;
             var dlg = new EventConfigDialog(_currentProject, null, EventType.onClick, _viewModel.CommandService) { Owner = this };
-            if (dlg.ShowDialog() == true) MarkProjectDirty();
+            if (dlg.ShowDialog() == true)
+            {
+                MarkProjectDirty();
+                if (PropertyVM.IsWorldMapScreen) PropertyVM.RefreshWorldMapEventBar();   // 属性面板事件栏计数同步
+            }
         }
 
         /// <summary>地图右键菜单：清除作业范围（清空 WorkRangePoints + 刷新 overlay）。</summary>

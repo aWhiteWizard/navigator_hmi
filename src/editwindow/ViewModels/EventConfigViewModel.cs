@@ -179,7 +179,7 @@ namespace NavigatorHMI.ViewModels
             AlarmNames = project.Alarms.Select(a => a.Name).ToList();
 
             // 载入现有 Actions（同一事件的）；地图级事件存 WorldMapConfig.Events
-            var events = widget != null ? widget.Events : (project.WorldMap?.Events ?? new());
+            var events = widget != null ? widget.Events : (project.WorldMap ??= new WorldMapConfig()).Events;
             var we = events.FirstOrDefault(e => e.Type == evt);
             if (we != null)
                 foreach (var a in we.Actions)
@@ -205,7 +205,7 @@ namespace NavigatorHMI.ViewModels
         public void Save()
         {
             foreach (var f in Functions) f.Commit();
-            var events = _widget != null ? _widget.Events : (_project.WorldMap?.Events ?? new());
+            var events = _widget != null ? _widget.Events : (_project.WorldMap ??= new WorldMapConfig()).Events;
             var we = events.FirstOrDefault(e => e.Type == _eventType);
             if (Functions.Count == 0)
             {

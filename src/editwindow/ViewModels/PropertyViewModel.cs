@@ -66,6 +66,20 @@ namespace NavigatorHMI.ViewModels
             }
             OnPropertyChanged(nameof(EventRows));
         }
+
+        /// <summary>刷新事件栏（世界地图画面选中时调用）：地图级事件仅 onClick（点击切换画面，P2 属性面板入口）。
+        /// 事件存 WorldMapConfig.Events；WorldMap 未初始化（未放过点）时先 ??= 初始化再读，防临时列表不落库。</summary>
+        public void RefreshWorldMapEventBar()
+        {
+            EventRows.Clear();
+            var project = Project;
+            if (project == null) { EventBarVisible = false; return; }
+            project.WorldMap ??= new WorldMapConfig();
+            EventBarVisible = true;
+            var existing = project.WorldMap.Events.FirstOrDefault(e => e.Type == EventType.onClick);
+            EventRows.Add(new EventRowVM(EventType.onClick) { ActionCount = existing?.Actions.Count ?? 0 });
+            OnPropertyChanged(nameof(EventRows));
+        }
         private Widget? _selectedWidget;
         private Screen? _selectedScreen;
         private Screen? _currentScreen;  // 当前编辑的画面，用于 ObjectName 重复检测
@@ -231,6 +245,9 @@ namespace NavigatorHMI.ViewModels
                         }
                         finally { _syncingFromModel = false; }
                     }
+                    // 事件栏：世界地图画面显示地图级 onClick 事件（属性面板入口）；普通画面选中时不显示事件栏
+                    if (value != null && value.Type == ScreenType.WorldMap) RefreshWorldMapEventBar();
+                    else { EventBarVisible = false; EventRows.Clear(); }
                     OnPropertyChanged();
                     OnPropertyChanged(nameof(IsScreenSelected));
                     OnPropertyChanged(nameof(IsWidgetSelected));
