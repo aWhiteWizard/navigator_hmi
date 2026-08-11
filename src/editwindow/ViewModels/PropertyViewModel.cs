@@ -588,24 +588,40 @@ namespace NavigatorHMI.ViewModels
             ReindexPolygonPointRows();
         }
 
-        /// <summary>DataGrid 新行提交（末行输入自动补行）：已编辑行才挂入模型；未编辑空行丢弃（Dispatcher 延迟移除防 CheckReentrancy 重入崩溃，同 P1）。</summary>
+        /// <summary>DataGrid 新行 Add：未编辑空行不移除、不挂模型（双击 placeholder 时行尚未输入——C12-1 同源），
+        /// 是否保留由 RowEditEnding 提交时判定（CommitNewPolygonPointRow）；仅代码路径 Add 的已编辑行在此挂入模型。</summary>
         private void PolygonPointRows_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
             if (e.Action != NotifyCollectionChangedAction.Add || e.NewItems == null) return;
             foreach (PolygonPointRowVM row in e.NewItems)
             {
                 if (_selectedWidget is not PolygonWidget pg) continue;
-                if (!row.Edited)   // 未编辑（未输入任何坐标）→ 误触空行丢弃
-                {
-                    RemoveRowDeferred(PolygonPointRows, row);
-                    continue;
-                }
+                if (!row.Edited) continue;   // 未编辑 → 交提交判定
                 if (!pg.Points.Contains(row.Model))
                 {
                     BeforeModify?.Invoke();   // 修改前快照（新增可撤销）
                     pg.Points.Add(row.Model);
                     OnPolygonPointRowChanged();
                 }
+            }
+            ReindexPolygonPointRows();
+        }
+
+        /// <summary>DataGrid 新行提交（RowEditEnding Commit，C12-1 同源）：已编辑（输入过坐标）→ 挂入模型；未编辑 → 移除空行。</summary>
+        public void CommitNewPolygonPointRow(PolygonPointRowVM row)
+        {
+            if (row == null) return;
+            if (!row.Edited)
+            {
+                RemoveRowDeferred(PolygonPointRows, row);
+                return;
+            }
+            if (_selectedWidget is not PolygonWidget pg) return;
+            if (!pg.Points.Contains(row.Model))
+            {
+                BeforeModify?.Invoke();   // 修改前快照（新增可撤销）
+                pg.Points.Add(row.Model);
+                OnPolygonPointRowChanged();
             }
             ReindexPolygonPointRows();
         }
@@ -824,20 +840,18 @@ namespace NavigatorHMI.ViewModels
             WorldMapPointsChanged?.Invoke();
         }
 
-        /// <summary>DataGrid 新行提交（末行输入自动补行）：非空行才挂入模型；空行/半空行直接丢弃（P6-审查修复）。
-        /// 丢弃用 Dispatcher 延迟移除——CollectionChanged 处理器内同步改同一集合触发 CheckReentrancy 重入崩溃（2026-08-11 Check 实测）。</summary>
+        /// <summary>DataGrid 新行 Add（双击 placeholder 进入编辑时 DataGrid 同步 Add 空行，此刻用户尚未输入——C12-1）：
+        /// 空行不移除、不挂模型，是否保留由 RowEditEnding 提交时判定（CommitNewWorkPointRow）；仅代码路径显式 Add 的非空行在此挂入模型。
+        /// （2026-08-11 修复的 CollectionChanged 重入崩溃由 RemoveRowDeferred 延迟移除兜底。）</summary>
         private void WorkPointRows_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
             if (e.Action != NotifyCollectionChangedAction.Add || e.NewItems == null) return;
             foreach (WorkPointRowVM row in e.NewItems)
             {
                 if (Project == null) continue;
-                // 校验：名称/经纬度/绑定变量至少一项非空，否则视为误触空行丢弃（延迟到事件处理器返回后移除）
+                // 双击 placeholder 触发 Add 时行必空（DataGrid 先 Add 后编辑）→ 移交提交判定，不在此移除
                 if (string.IsNullOrWhiteSpace(row.Name) && string.IsNullOrWhiteSpace(row.LngLat) && string.IsNullOrWhiteSpace(row.BoundTag))
-                {
-                    RemoveRowDeferred(WorkPointRows, row);
                     continue;
-                }
                 Project.WorldMap ??= new WorldMapConfig();
                 if (!Project.WorldMap.WorkPoints.Contains(row.Model))
                 {
@@ -848,7 +862,28 @@ namespace NavigatorHMI.ViewModels
             }
         }
 
-        /// <summary>DataGrid 新行提交（作业范围）：非空行才挂入模型；空行丢弃（延迟移除防 CheckReentrancy）。</summary>
+        /// <summary>DataGrid 新行提交（RowEditEnding Commit，C12-1）：有输入 → 保留行并挂入模型（DataGrid 自动另起新空白行）；
+        /// 无输入 → 移除该行（延迟移除防 CheckReentrancy）。空行判定从 CollectionChanged Add 移到此处——Add 时行必空，判定必然误杀。</summary>
+        public void CommitNewWorkPointRow(WorkPointRowVM row)
+        {
+            if (row == null) return;
+            bool empty = string.IsNullOrWhiteSpace(row.Name) && string.IsNullOrWhiteSpace(row.LngLat) && string.IsNullOrWhiteSpace(row.BoundTag);
+            if (empty)
+            {
+                RemoveRowDeferred(WorkPointRows, row);
+                return;
+            }
+            if (Project == null) return;
+            Project.WorldMap ??= new WorldMapConfig();
+            if (!Project.WorldMap.WorkPoints.Contains(row.Model))
+            {
+                BeforeModify?.Invoke();   // 修改前快照（新增可撤销）
+                Project.WorldMap.WorkPoints.Add(row.Model);
+                OnWorkPointRowChanged();
+            }
+        }
+
+        /// <summary>DataGrid 新行 Add（作业范围）：空行不移除（移交提交判定）；仅代码路径 Add 的非空行挂入模型。</summary>
         private void WorkRangeRows_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
             if (e.Action != NotifyCollectionChangedAction.Add || e.NewItems == null) return;
@@ -856,10 +891,7 @@ namespace NavigatorHMI.ViewModels
             {
                 if (Project == null) continue;
                 if (string.IsNullOrWhiteSpace(row.LngLat) && string.IsNullOrWhiteSpace(row.BoundTag))
-                {
-                    RemoveRowDeferred(WorkRangeRows, row);
                     continue;
-                }
                 Project.WorldMap ??= new WorldMapConfig();
                 if (!Project.WorldMap.WorkRangePoints.Contains(row.Model))
                 {
@@ -867,6 +899,26 @@ namespace NavigatorHMI.ViewModels
                     Project.WorldMap.WorkRangePoints.Add(row.Model);
                     OnWorkPointRowChanged();
                 }
+            }
+        }
+
+        /// <summary>DataGrid 新行提交（作业范围，C12-1 同 WorkPoint）：有输入 → 挂入模型；无输入 → 移除。</summary>
+        public void CommitNewWorkRangeRow(WorkRangeRowVM row)
+        {
+            if (row == null) return;
+            bool empty = string.IsNullOrWhiteSpace(row.LngLat) && string.IsNullOrWhiteSpace(row.BoundTag);
+            if (empty)
+            {
+                RemoveRowDeferred(WorkRangeRows, row);
+                return;
+            }
+            if (Project == null) return;
+            Project.WorldMap ??= new WorldMapConfig();
+            if (!Project.WorldMap.WorkRangePoints.Contains(row.Model))
+            {
+                BeforeModify?.Invoke();   // 修改前快照（新增可撤销）
+                Project.WorldMap.WorkRangePoints.Add(row.Model);
+                OnWorkPointRowChanged();
             }
         }
 

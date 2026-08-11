@@ -205,7 +205,7 @@
             <StackPanel Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}">
                 <DataGrid ItemsSource="{Binding WorkPointRows}" SelectedItem="{Binding SelectedWorkPointRow}" CanUserAddRows="True" AutoGenerateColumns="False"
                           Height="110" Margin="4,2" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
-                          SelectionMode="Single" ToolTip="末行空白行输入自动补行；经纬度(固定)与绑定变量二选一（互斥）">
+                          SelectionMode="Single" RowEditEnding="WorkPointGrid_RowEditEnding" ToolTip="末行空白行输入自动补行；经纬度(固定)与绑定变量二选一（互斥）">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="名称" Binding="{Binding Name, UpdateSourceTrigger=LostFocus}" Width="80"/>
                         <DataGridTextColumn Header="经纬度(固定)" Binding="{Binding LngLat, UpdateSourceTrigger=LostFocus}" Width="*"/>
@@ -218,7 +218,7 @@
             <StackPanel Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}">
                 <DataGrid ItemsSource="{Binding WorkRangeRows}" SelectedItem="{Binding SelectedWorkRangeRow}" CanUserAddRows="True" AutoGenerateColumns="False"
                           Height="90" Margin="4,2" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
-                          SelectionMode="Single" ToolTip="作业范围围栏顶点；地图右键「设置作业范围」可加点">
+                          SelectionMode="Single" RowEditEnding="WorkRangeGrid_RowEditEnding" ToolTip="作业范围围栏顶点；地图右键「设置作业范围」可加点">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="经纬度(固定)" Binding="{Binding LngLat, UpdateSourceTrigger=LostFocus}" Width="*"/>
                         <DataGridTextColumn Header="绑定变量" Binding="{Binding BoundTag, UpdateSourceTrigger=LostFocus}" Width="70"/>
@@ -597,7 +597,7 @@
             <TextBlock Text="端点（画布绝对坐标）" Style="{StaticResource PropGroupHeader}"/>
             <DataGrid ItemsSource="{Binding PolygonPointRows}" CanUserAddRows="True" AutoGenerateColumns="False"
                       Height="130" Margin="4,2" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
-                      SelectionMode="Single" ToolTip="顶点画布绝对坐标：行内编辑 X/Y、末行输入自动补行、删除后至少保留 3 点">
+                      SelectionMode="Single" RowEditEnding="PolygonPointGrid_RowEditEnding" ToolTip="顶点画布绝对坐标：行内编辑 X/Y、末行输入自动补行、删除后至少保留 3 点">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="#" Binding="{Binding Index}" IsReadOnly="True" Width="32"/>
                     <DataGridTextColumn Header="X" Binding="{Binding X, UpdateSourceTrigger=LostFocus}" Width="*"/>

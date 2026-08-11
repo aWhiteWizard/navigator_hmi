@@ -1688,6 +1688,28 @@ namespace NavigatorHMI.Views
             }
         }
 
+        /// <summary>C12-1：作业点表格新行提交（RowEditEnding Commit）——空行判定从 CollectionChanged Add 移到提交路径：
+        /// 双击 placeholder 进入编辑时 DataGrid 已同步 Add 空行（此时未输入），Add 时判定必然误杀；提交时才有用户输入。</summary>
+        private void WorkPointGrid_RowEditEnding(object sender, DataGridRowEditEndingEventArgs e)
+        {
+            if (e.EditAction != DataGridEditAction.Commit || !e.Row.IsNewItem) return;
+            if (e.Row.Item is WorkPointRowVM row) _propertyViewModel.CommitNewWorkPointRow(row);
+        }
+
+        /// <summary>C12-1：作业范围表格新行提交（同 WorkPoint 表格）。</summary>
+        private void WorkRangeGrid_RowEditEnding(object sender, DataGridRowEditEndingEventArgs e)
+        {
+            if (e.EditAction != DataGridEditAction.Commit || !e.Row.IsNewItem) return;
+            if (e.Row.Item is WorkRangeRowVM row) _propertyViewModel.CommitNewWorkRangeRow(row);
+        }
+
+        /// <summary>C12-1：多边形顶点表格新行提交（同 WorkPoint 表格；已编辑行挂模型、未编辑空行移除）。</summary>
+        private void PolygonPointGrid_RowEditEnding(object sender, DataGridRowEditEndingEventArgs e)
+        {
+            if (e.EditAction != DataGridEditAction.Commit || !e.Row.IsNewItem) return;
+            if (e.Row.Item is PolygonPointRowVM row) _propertyViewModel.CommitNewPolygonPointRow(row);
+        }
+
         /// <summary>属性面板：删除选中作业范围点行（P4 表格）。</summary>
         private void DeleteWorkRangeRow_Click(object sender, RoutedEventArgs e)
         {
