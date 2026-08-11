@@ -829,6 +829,9 @@ namespace NavigatorHMI.ViewModels
             WorkRangeRows.CollectionChanged += WorkRangeRows_CollectionChanged;
         }
 
+        /// <summary>C12-6/8：地图加点/清除后显式同步作业范围点表格（原刷新只挂在选中画面/切画面路径 → 地图操作后表格不实时）。</summary>
+        public void RefreshWorkRangeRows() => RefreshWorkMapRangePoints();
+
         /// <summary>绑定变量必须存在且为 GPS 类型（对齐批 4 添加校验）。</summary>
         private bool IsGpsTag(string name)
             => Project?.Tags.Any(t => t.Name == name && t.DataType == TagDataType.GPS) == true;

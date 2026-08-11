@@ -1390,6 +1390,7 @@ namespace NavigatorHMI.Views
                     wm.WorkRangePoints.Add(new WorkRangePoint { FixedPoint = geo });
                     MarkProjectDirty();
                     UpdateAllGeoWidgets();
+                    _propertyViewModel.RefreshWorkRangeRows();   // C12-6：地图加点后表格实时刷新（原只挂切画面路径）
                 }
                 e.Handled = true;
                 return;
@@ -1516,6 +1517,7 @@ namespace NavigatorHMI.Views
             wm.WorkRangePoints.Clear();
             MarkProjectDirty();
             UpdateAllGeoWidgets();
+            _propertyViewModel.RefreshWorkRangeRows();   // C12-8：清除后表格实时刷新（原只挂切画面路径）
         }
 
         /// <summary>世界地图多边形绘制：橡皮筋预览（屏幕坐标——MapControl 与画布同容器同尺寸，坐标一致）。</summary>
