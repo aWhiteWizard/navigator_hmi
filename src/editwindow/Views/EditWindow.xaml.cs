@@ -22,6 +22,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using Microsoft.Win32;
 using AvalonDock.Layout;
+using AvalonDock.Layout.Serialization;   // P10：XmlLayoutSerializer（Dirkster.AvalonDock）
 
 namespace NavigatorHMI.Views
 {
@@ -59,6 +60,10 @@ namespace NavigatorHMI.Views
 
         // 画布缩放
         private double _zoomLevel = 1.0;
+        /// <summary>P10：首次 Loaded 保存的 XAML 默认布局（内存流；「恢复默认布局」菜单从此恢复）。</summary>
+        private MemoryStream? _defaultLayout;
+        /// <summary>P10：布局序列化回调回填用——ContentId → 原始 Content（XAML 命名元素；Deserialize 重建 LayoutRoot 后重新挂载）。</summary>
+        private readonly Dictionary<string, object> _layoutContents = new();
         private ScaleTransform _canvasScale = new(1, 1);
 
 
@@ -1259,6 +1264,19 @@ namespace NavigatorHMI.Views
         private void EditWindow_Loaded(object sender, RoutedEventArgs e)
         {
             EnsureItemsControlInCanvas();
+
+            // P10：首次 Loaded 保存 XAML 默认布局（内存流），「恢复默认布局」菜单从此恢复
+            RegisterLayoutContents();   // 收集 ContentId → Content（反序列化回调回填用）
+            try
+            {
+                _defaultLayout = new MemoryStream();
+                new XmlLayoutSerializer(DockManager).Serialize(_defaultLayout);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.WriteLine($"[EditWindow] 保存默认布局失败: {ex.Message}");
+                _defaultLayout = null;
+            }
 
             if (_viewModel != null)
             {
@@ -3492,6 +3510,47 @@ namespace NavigatorHMI.Views
 
             _skipClosingCheck = true;
             Close();
+        }
+
+        /// <summary>P10：恢复默认布局（从首次 Loaded 保存的内存流 Deserialize——左栏项目窗口/控件面板上下排布；
+        /// 反序列化重建 LayoutRoot 后经 LayoutSerializationCallback 按 ContentId 回填 Content，防文档/面板空白）。</summary>
+        private void ResetLayout_Click(object sender, RoutedEventArgs e)
+        {
+            if (_defaultLayout == null) return;
+            try
+            {
+                _defaultLayout.Position = 0;
+                var serializer = new XmlLayoutSerializer(DockManager);
+                serializer.LayoutSerializationCallback += (_, args) =>
+                {
+                    var id = args.Model switch
+                    {
+                        LayoutAnchorable a => a.ContentId,
+                        LayoutDocument d => d.ContentId,
+                        _ => null
+                    };
+                    if (id != null && _layoutContents.TryGetValue(id, out var content))
+                        args.Content = content;
+                };
+                serializer.Deserialize(_defaultLayout);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.WriteLine($"[EditWindow] 恢复默认布局失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>P10：收集当前 LayoutRoot 中所有 Anchorable/Document 的 ContentId → Content（XAML 静态元素引用不变，反序列化回调复用）。</summary>
+        private void RegisterLayoutContents()
+        {
+            if (DockManager.Layout == null) return;
+            _layoutContents.Clear();
+            foreach (var anchorable in DockManager.Layout.Descendents().OfType<LayoutAnchorable>())
+                if (anchorable.Content != null && !string.IsNullOrEmpty(anchorable.ContentId))
+                    _layoutContents[anchorable.ContentId] = anchorable.Content;
+            foreach (var doc in DockManager.Layout.Descendents().OfType<LayoutDocument>())
+                if (doc.Content != null && !string.IsNullOrEmpty(doc.ContentId))
+                    _layoutContents[doc.ContentId] = doc.Content;
         }
 
         /// <summary>P7：文件菜单「打开」——OpenFileDialog 选 .hmiproj → 新 EditWindow 加载（对齐欢迎窗打开路径）。</summary>

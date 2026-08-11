@@ -1034,7 +1034,7 @@
                 <MenuItem Header="CLI 控制台" IsCheckable="True" IsChecked="True"
                           Click="ToggleAnchorable_Click" Tag="cli"/>
                 <Separator/>
-                <MenuItem Header="恢复默认布局"/>
+                <MenuItem Header="恢复默认布局" Click="ResetLayout_Click" ToolTip="恢复首次打开时的默认布局（左栏上下排布）"/>
             </MenuItem>
             <MenuItem Header="调试">
                 <MenuItem Header="生成" Click="BuildProject_Click" InputGestureText="F5"/>
@@ -1131,9 +1131,10 @@
                 <avalon:LayoutPanel Orientation="Vertical">
                     <avalon:LayoutPanel Orientation="Horizontal">
 
-                        <!-- 左侧: 项目树 + 控件面板 -->
-                        <avalon:LayoutAnchorablePane DockWidth="200">
-                            <avalon:LayoutAnchorable Title="项目窗口" ContentId="project">
+                        <!-- 左侧: 项目树 + 控件面板（P10：LayoutPanel(Vertical) 上下排布——上项目窗口 2*、下控件面板 1.5*，AvalonDock 自带分隔条可调） -->
+                        <avalon:LayoutPanel Orientation="Vertical" DockWidth="200">
+                            <avalon:LayoutAnchorablePane DockHeight="2*">
+                                <avalon:LayoutAnchorable Title="项目窗口" ContentId="project">
                                 <TreeView x:Name="ProjectTreeView" ItemsSource="{Binding TreeRoots}" MouseRightButtonDown="ProjectTree_RightClick" Background="Transparent"
                                           AllowDrop="True" DragOver="ProjectTree_DragOver" Drop="ProjectTree_Drop">
                                     <TreeView.Resources>
@@ -1232,6 +1233,8 @@
                                     </Style></TreeView.ItemContainerStyle>
                                 </TreeView>
                             </avalon:LayoutAnchorable>
+                            </avalon:LayoutAnchorablePane>
+                            <avalon:LayoutAnchorablePane DockHeight="1.5*">
                             <avalon:LayoutAnchorable Title="控件面板" ContentId="toolbox">
                                 <TabControl TabStripPlacement="Top">
                                     <TabItem Header="图形装饰"><StackPanel Orientation="Vertical">
@@ -1263,7 +1266,8 @@
                                     </StackPanel></TabItem>
                                 </TabControl>
                             </avalon:LayoutAnchorable>
-                        </avalon:LayoutAnchorablePane>
+                            </avalon:LayoutAnchorablePane>
+                        </avalon:LayoutPanel>
 
                         <!-- 中央: 画布 -->
                         <avalon:LayoutDocumentPane>
