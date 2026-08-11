@@ -208,8 +208,14 @@ namespace NavigatorHMI.Views.Behaviors
 
             foreach (var (w, sx, sy) in _draggingWidgets)
             {
-                w.X = Math.Max(0, Math.Min(sx + offsetX, maxW - w.Width));
-                w.Y = Math.Max(0, Math.Min(sy + offsetY, maxH - w.Height));
+                double newX = Math.Max(0, Math.Min(sx + offsetX, maxW - w.Width));
+                double newY = Math.Max(0, Math.Min(sy + offsetY, maxH - w.Height));
+                double dx = newX - w.X, dy = newY - w.Y;
+                // P7：多边形顶点为画布绝对坐标——拖动 = 整体平移全部顶点（X/Y 命中框同步）
+                if (w is PolygonWidget poly && (dx != 0 || dy != 0))
+                    poly.TranslatePoints(dx, dy);
+                w.X = newX;
+                w.Y = newY;
             }
             _markDirtyCallback();
         }

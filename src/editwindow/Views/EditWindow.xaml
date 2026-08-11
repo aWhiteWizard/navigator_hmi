@@ -575,10 +575,8 @@
                 <TextBox Grid.Column="1" Text="{Binding EllipseStrokeThickness, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}" KeyDown="PropField_KeyDown" />
             </Grid></StackPanel></DataTemplate>
 
-        <!-- PolygonWidget 属性（世界地图批 3） -->
+        <!-- PolygonWidget 属性（世界地图批 3；P7：X/Y/Width/Height 为顶点包围盒派生态，不再提供位置/尺寸编辑——位置由顶点表格/拖拽控制） -->
         <DataTemplate x:Key="PropPolygon"><StackPanel>
-            <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
-            <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropBinding}" Content="{Binding}"/>
             <Separator Margin="4,2"/>
@@ -595,15 +593,24 @@
                 <Label Grid.Column="0" Content="Thickness:" Style="{StaticResource PropLabel}"/>
                 <TextBox Grid.Column="1" Text="{Binding PolygonStrokeThickness, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}" KeyDown="PropField_KeyDown" />
             </Grid>
-            <!-- P6：多边形端点列表（顶点画面坐标，创建时确定；只读展示） -->
-            <TextBlock Text="端点" Style="{StaticResource PropGroupHeader}"/>
-            <ListBox ItemsSource="{Binding PolygonPoints}" Height="80" Margin="4,2" ToolTip="多边形顶点列表（画面坐标；绘制时确定，暂不支持行内编辑）">
-                <ListBox.ItemTemplate>
-                    <DataTemplate>
-                        <TextBlock><Run Text="("/><Run Text="{Binding X, Mode=OneWay, StringFormat={}{0:0.#}}"/><Run Text=", "/><Run Text="{Binding Y, Mode=OneWay, StringFormat={}{0:0.#}}"/><Run Text=")"/></TextBlock>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
+            <!-- P7：多边形端点（画布绝对坐标；行内编辑/末行补行/删除禁 <3 点；变更即时刷新画布并标脏） -->
+            <TextBlock Text="端点（画布绝对坐标）" Style="{StaticResource PropGroupHeader}"/>
+            <DataGrid ItemsSource="{Binding PolygonPointRows}" CanUserAddRows="True" AutoGenerateColumns="False"
+                      Height="130" Margin="4,2" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                      SelectionMode="Single" ToolTip="顶点画布绝对坐标：行内编辑 X/Y、末行输入自动补行、删除后至少保留 3 点">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="#" Binding="{Binding Index}" IsReadOnly="True" Width="32"/>
+                    <DataGridTextColumn Header="X" Binding="{Binding X, UpdateSourceTrigger=LostFocus}" Width="*"/>
+                    <DataGridTextColumn Header="Y" Binding="{Binding Y, UpdateSourceTrigger=LostFocus}" Width="*"/>
+                    <DataGridTemplateColumn Width="36">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Button Content="🗑" Click="DeletePolygonPointRow_Click" Tag="{Binding}" FontSize="10" Padding="2,0" ToolTip="删除该顶点（至少保留 3 点）"/>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
         </StackPanel></DataTemplate>
 
         <!-- IOFieldWidget 属性 -->

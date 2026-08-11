@@ -373,7 +373,7 @@ namespace NavigatorHMI.ViewModels
                         RefreshListOptions(value);
                         // 无条件通知（切换选中控件时 setter 可能值相等短路——不得依赖其副作用）
                         OnPropertyChanged(nameof(IsValueEditable));
-                        OnPropertyChanged(nameof(PolygonPoints));   // P6：多边形端点列表刷新
+                        RefreshPolygonPointRows();   // P7：多边形顶点可编辑表格刷新
                         }
                         finally { _syncingFromModel = false; }
                     }
@@ -573,8 +573,75 @@ namespace NavigatorHMI.ViewModels
         public bool IsProgressBarWidget => _selectedWidget is ProgressBarWidget;
         public bool IsDateTimeWidget => _selectedWidget is DateTimeWidget;
         public bool IsPolygonWidget => _selectedWidget is PolygonWidget;
-        /// <summary>P6：多边形端点列表（只读展示，创建时确定）。</summary>
-        public List<PointD>? PolygonPoints => (_selectedWidget as PolygonWidget)?.Points;
+        /// <summary>P7：多边形顶点可编辑表格行（画布绝对坐标；行内编辑/末行补行/删除禁 &lt;3 点）。</summary>
+        public ObservableCollection<PolygonPointRowVM> PolygonPointRows { get; } = new();
+
+        /// <summary>重建多边形顶点表格（选中多边形时调用）：按模型 Points 重建行（PointD 无 INPC，行直写模型 + 重赋值触发渲染刷新）。</summary>
+        public void RefreshPolygonPointRows()
+        {
+            PolygonPointRows.CollectionChanged -= PolygonPointRows_CollectionChanged;
+            PolygonPointRows.Clear();
+            if (_selectedWidget is PolygonWidget pg)
+                foreach (var pt in pg.Points)
+                    PolygonPointRows.Add(new PolygonPointRowVM(pt, OnPolygonPointRowChanged, BeforeModify));
+            PolygonPointRows.CollectionChanged += PolygonPointRows_CollectionChanged;
+            ReindexPolygonPointRows();
+        }
+
+        /// <summary>DataGrid 新行提交（末行输入自动补行）：已编辑行才挂入模型；未编辑空行丢弃（Dispatcher 延迟移除防 CheckReentrancy 重入崩溃，同 P1）。</summary>
+        private void PolygonPointRows_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (e.Action != NotifyCollectionChangedAction.Add || e.NewItems == null) return;
+            foreach (PolygonPointRowVM row in e.NewItems)
+            {
+                if (_selectedWidget is not PolygonWidget pg) continue;
+                if (!row.Edited)   // 未编辑（未输入任何坐标）→ 误触空行丢弃
+                {
+                    RemoveRowDeferred(PolygonPointRows, row);
+                    continue;
+                }
+                if (!pg.Points.Contains(row.Model))
+                {
+                    BeforeModify?.Invoke();   // 修改前快照（新增可撤销）
+                    pg.Points.Add(row.Model);
+                    OnPolygonPointRowChanged();
+                }
+            }
+            ReindexPolygonPointRows();
+        }
+
+        /// <summary>删除顶点行（按钮）：删除后不足 3 点拒绝（封闭图形至少 3 顶点）。</summary>
+        public void DeletePolygonPointRow(PolygonPointRowVM row)
+        {
+            if (_selectedWidget is not PolygonWidget pg || pg.Points.Count <= 3 || row.Model == null) return;
+            BeforeModify?.Invoke();
+            pg.Points.Remove(row.Model);
+            PolygonPointRows.Remove(row);
+            OnPolygonPointRowChanged();
+            ReindexPolygonPointRows();
+        }
+
+        /// <summary>顶点变化（行内编辑/增删）→ 包围盒重算（X/Y/W/H 派生态）+ 重赋值 Points 触发渲染刷新 + 标脏。</summary>
+        private void OnPolygonPointRowChanged()
+        {
+            if (_selectedWidget is not PolygonWidget pg) return;
+            if (pg.Points.Count > 0)
+            {
+                double minX = pg.Points.Min(p => p.X), minY = pg.Points.Min(p => p.Y);
+                double maxX = pg.Points.Max(p => p.X), maxY = pg.Points.Max(p => p.Y);
+                pg.X = minX; pg.Y = minY;
+                pg.Width = Math.Max(maxX - minX, 1); pg.Height = Math.Max(maxY - minY, 1);
+            }
+            pg.Points = new List<PointD>(pg.Points);   // PointD 无 INPC → 重赋值触发渲染刷新
+            OnPropertyChanged(nameof(IsPolygonWidget));
+            DirtyRequested?.Invoke();   // 顶点是 POCO 内 List，不在脏订阅范围 → 显式标脏
+        }
+
+        /// <summary>顶点表格行号（增删后重排）。</summary>
+        private void ReindexPolygonPointRows()
+        {
+            for (int i = 0; i < PolygonPointRows.Count; i++) PolygonPointRows[i].Index = i + 1;
+        }
          private PropertyTargetType _selectedObjectType;
          /// <summary>当前选中对象的类型，供 XAML DataTemplate 切换使用。</summary>
          public PropertyTargetType SelectedObjectType
@@ -1877,6 +1944,56 @@ namespace NavigatorHMI.ViewModels
                     Model.BoundTag = v; Model.FixedPoint = null;   // 两列互斥
                     _onChanged?.Invoke(); OnPropertyChanged(); OnPropertyChanged(nameof(LngLat));
                 }
+            }
+        }
+        public event PropertyChangedEventHandler? PropertyChanged;
+        private void OnPropertyChanged([CallerMemberName] string? n = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
+    }
+
+    /// <summary>多边形顶点表格行（P7）：X/Y 画布绝对坐标行内编辑；末行自动补行；删除禁 &lt;3 点。
+    /// 直写模型 PointD（无 INPC）——变更由 owner 的 OnPolygonPointRowChanged 重赋值 Points 触发渲染刷新。</summary>
+    public class PolygonPointRowVM : INotifyPropertyChanged
+    {
+        private readonly Action? _onChanged;
+        private readonly Action? _beforeModify;
+        public PointD Model { get; }
+        private int _index;
+        public int Index { get => _index; set { if (_index != value) { _index = value; OnPropertyChanged(); } } }
+        /// <summary>是否被编辑过（DataGrid 新行未输入任何坐标 = 未编辑 → 空行丢弃判定）。</summary>
+        public bool Edited { get; private set; }
+
+        public PolygonPointRowVM(PointD model, Action? onChanged, Action? beforeModify)
+        { Model = model; _onChanged = onChanged; _beforeModify = beforeModify; }
+        public PolygonPointRowVM() : this(new PointD(), null, null) { }   // DataGrid 新行占位（CanUserAddRows 无参构造）
+
+        public double X
+        {
+            get => Model.X;
+            set
+            {
+                var v = Math.Round(value, 3);
+                if (Model.X != v)
+                {
+                    _beforeModify?.Invoke();   // 行内编辑前快照（撤销粒度 = 单格编辑；新行未挂入模型时 null 安全）
+                    Model.X = v; _onChanged?.Invoke();
+                }
+                Edited = true;   // 只要用户提交过单元格即视为已编辑（含输入 0）
+                OnPropertyChanged();
+            }
+        }
+        public double Y
+        {
+            get => Model.Y;
+            set
+            {
+                var v = Math.Round(value, 3);
+                if (Model.Y != v)
+                {
+                    _beforeModify?.Invoke();
+                    Model.Y = v; _onChanged?.Invoke();
+                }
+                Edited = true;
+                OnPropertyChanged();
             }
         }
         public event PropertyChangedEventHandler? PropertyChanged;

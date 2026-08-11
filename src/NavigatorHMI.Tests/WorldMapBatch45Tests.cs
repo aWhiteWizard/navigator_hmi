@@ -96,18 +96,39 @@ namespace NavigatorHMI.Tests
         }
 
         [Fact]
-        public void PolygonCreator_顶点转相对坐标()
+        public void PolygonCreator_顶点存画布绝对坐标()
         {
             var creator = new PolygonWidgetCreator();
             var pts = new[] { new System.Windows.Point(100, 100), new System.Windows.Point(200, 100), new System.Windows.Point(150, 200) };
             var poly = creator.Create(pts, new Screen { Name = "s" });
+            // P7：顶点画布绝对坐标；X/Y/Width/Height = 顶点包围盒（派生态）
             Assert.Equal(100, poly.X);
             Assert.Equal(100, poly.Y);
             Assert.Equal(100, poly.Width);
             Assert.Equal(100, poly.Height);
             Assert.Equal(3, poly.Points.Count);
-            Assert.Equal(0, poly.Points[0].X);   // 首个顶点 = 相对原点
-            Assert.Equal(50, poly.Points[2].X);
+            Assert.Equal(100, poly.Points[0].X);   // 绝对坐标（不再相对原点）
+            Assert.Equal(200, poly.Points[1].X);
+            Assert.Equal(150, poly.Points[2].X);
+            Assert.Equal(200, poly.Points[2].Y);
+        }
+
+        [Fact]
+        public void PolygonTranslatePoints_整体平移顶点()
+        {
+            var poly = new PolygonWidget();
+            poly.Points.Add(new PointD(100, 100));
+            poly.Points.Add(new PointD(200, 100));
+            poly.Points.Add(new PointD(150, 200));
+            poly.TranslatePoints(50, -30);
+            Assert.Equal(150, poly.Points[0].X);
+            Assert.Equal(70, poly.Points[0].Y);
+            Assert.Equal(250, poly.Points[1].X);
+            Assert.Equal(200, poly.Points[2].X);
+            Assert.Equal(170, poly.Points[2].Y);
+            Assert.Equal(3, poly.Points.Count);   // 空列表平移不崩/不增项
+            poly.TranslatePoints(0, 0);
+            Assert.Equal(3, poly.Points.Count);
         }
     }
 }

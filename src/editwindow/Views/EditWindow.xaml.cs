@@ -1427,7 +1427,7 @@ namespace NavigatorHMI.Views
                 Width = Math.Max(maxX - minX, 1), Height = Math.Max(maxY - minY, 1),
                 ObjectName = $"polygon_{_viewModel.CurrentScreen.Widgets.Count + 1}",
             };
-            foreach (var p in _polygonPoints) poly.Points.Add(new PointD(p.X - minX, p.Y - minY));
+            foreach (var p in _polygonPoints) poly.Points.Add(new PointD(p.X, p.Y));   // P7：画布绝对坐标（不再 -minX/-minY）
             _viewModel.CurrentScreen.Widgets.Add(poly);
             MarkProjectDirty();
             _polygonPoints.Clear();
@@ -1676,6 +1676,16 @@ namespace NavigatorHMI.Views
             if (_propertyViewModel.SelectedWorkRangeRow != null)
             {
                 _propertyViewModel.DeleteWorkRangeRow(_propertyViewModel.SelectedWorkRangeRow);
+                e.Handled = true;
+            }
+        }
+
+        /// <summary>属性面板：删除多边形顶点行（P7 表格；删除后不足 3 点拒绝）。</summary>
+        private void DeletePolygonPointRow_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement fe && fe.Tag is PolygonPointRowVM row)
+            {
+                _propertyViewModel.DeletePolygonPointRow(row);
                 e.Handled = true;
             }
         }
@@ -2609,7 +2619,10 @@ namespace NavigatorHMI.Views
                 using var ms = new MemoryStream(data);
                 var w = Serializer.Deserialize<Widget>(ms);
                 // 相对中心粘贴：后续可改为光标位置
-                w.X += 20 / _zoomLevel; w.Y += 20 / _zoomLevel;
+                double dx = 20 / _zoomLevel, dy = 20 / _zoomLevel;
+                // P7：多边形顶点为画布绝对坐标——整体平移与 X/Y 同步（保持形状相对关系）
+                if (w is PolygonWidget poly && poly.Points.Count > 0) poly.TranslatePoints(dx, dy);
+                w.X += dx; w.Y += dy;
                 w.ObjectName = UniqueName(w.ObjectName);
                 _viewModel.CurrentScreen.Widgets.Add(w);
             }
@@ -3164,6 +3177,12 @@ namespace NavigatorHMI.Views
             {
                 using var ms = new MemoryStream(data);
                 var w = Serializer.Deserialize<Widget>(ms);
+                // P7：多边形顶点为画布绝对坐标——粘贴到菜单点 = 平移全部顶点（保持形状相对关系）
+                if (w is PolygonWidget poly && poly.Points.Count > 0)
+                {
+                    double minX = poly.Points.Min(p => p.X), minY = poly.Points.Min(p => p.Y);
+                    poly.TranslatePoints(_contextMenuPos.X - minX, _contextMenuPos.Y - minY);
+                }
                 w.X = _contextMenuPos.X; w.Y = _contextMenuPos.Y;
                 w.ObjectName = UniqueName(w.ObjectName);
                 _viewModel.CurrentScreen.Widgets.Add(w);
@@ -3180,7 +3199,10 @@ namespace NavigatorHMI.Views
             {
                 using var ms = new MemoryStream(data);
                 var w = Serializer.Deserialize<Widget>(ms);
-                w.X += 20 / _zoomLevel; w.Y += 20 / _zoomLevel;
+                double dx = 20 / _zoomLevel, dy = 20 / _zoomLevel;
+                // P7：多边形顶点为画布绝对坐标——整体平移与 X/Y 同步（保持形状相对关系）
+                if (w is PolygonWidget poly && poly.Points.Count > 0) poly.TranslatePoints(dx, dy);
+                w.X += dx; w.Y += dy;
                 w.ObjectName = UniqueName(w.ObjectName);
                 _viewModel.CurrentScreen.Widgets.Add(w);
             }

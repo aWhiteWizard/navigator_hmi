@@ -85,6 +85,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
             {
                 using var ms = new MemoryStream(data);
                 var w = Serializer.Deserialize<Widget>(ms);
+                // P7：多边形顶点为画布绝对坐标——整体平移与 X/Y 同步（保持形状相对关系）
+                if (w is PolygonWidget poly && poly.Points.Count > 0) poly.TranslatePoints(offsetX, offsetY);
                 w.X += offsetX;
                 w.Y += offsetY;
                 w.ObjectName = UniqueName(screen, w.ObjectName);

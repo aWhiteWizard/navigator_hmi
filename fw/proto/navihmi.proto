@@ -81,7 +81,7 @@ enum WidgetType {
   W_PROGRESS_BAR = 14;
   W_DATETIME = 15;
   W_WINDOW = 16;
-  W_POLYGON = 17;   // 多边形（顶点画面坐标 points=64）
+  W_POLYGON = 17;   // 多边形（顶点画布绝对坐标 points=64，相对画面原点；X/Y/Width/Height 为其包围盒）
 }
 
 enum EventType {
@@ -233,7 +233,7 @@ message Widget {
   string bound_device = 52;     // RobotList 绑定设备名
   repeated RobotSlotBinding robot_slots = 53;   // RobotList 机器人绑定组
   // ── 多边形（64）──
-  repeated PointD points = 64;         // Polygon 顶点画面坐标
+  repeated PointD points = 64;         // Polygon 顶点画布绝对坐标（相对画面原点；P7 语义）
 }
 
 message WidgetEvent {

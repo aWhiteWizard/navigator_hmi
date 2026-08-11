@@ -705,15 +705,24 @@ public class CircleWidget : Widget
 
 /// <summary>
 /// 多边形控件。顶点列表按序闭合 → 封闭图形（边框 + 半透明填充）。
-/// 顶点为画面坐标（<see cref="Points"/>）；不绑变量不变色（填充/描边颜色独立配置）。
+/// 顶点为画布绝对坐标（<see cref="Points"/>，相对画布原点）；X/Y/Width/Height 为顶点包围盒（派生态，命中框/选中框用）。
+/// 不绑变量不变色（填充/描边颜色独立配置）。
 /// </summary>
 [ProtoContract]
 public class PolygonWidget : Widget
 {
     private List<PointD> _points = new();
-    /// <summary>顶点列表（画面坐标，按序闭合）</summary>
+    /// <summary>顶点列表（画布绝对坐标，按序闭合；X/Y/Width/Height 为其包围盒）</summary>
     [ProtoMember(1)]
     public List<PointD> Points { get => _points; set { _points = value; OnPropertyChanged(); } }
+
+    /// <summary>整体平移全部顶点（画布绝对坐标语义；X/Y 由调用方同步——防双加）。PointD 无 INPC → 重赋值触发通知。</summary>
+    public void TranslatePoints(double dx, double dy)
+    {
+        if (_points.Count == 0) return;
+        foreach (var pt in _points) { pt.X += dx; pt.Y += dy; }
+        Points = new List<PointD>(_points);
+    }
 
     private string _fillColor = "#30FFFFFF";
     /// <summary>填充颜色（CSS 格式；半透明默认——闭合区域填充不遮挡底图）</summary>

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -490,7 +491,8 @@ namespace NavigatorHMI.Views.Helpers
             return dt;
         }
 
-        /// <summary>世界地图批 3：多边形模板——Polygon 形状绑定顶点/颜色（Points 为相对坐标，Border W/H 仅命中框）。</summary>
+        /// <summary>世界地图批 3：多边形模板——Polygon 形状绑定顶点/颜色（P7：Points 为画布绝对坐标，
+        /// converter 转相对包围盒偏移；Border W/H 命中框 = 包围盒）。</summary>
         private static DataTemplate CreatePolygonTemplate(RoutedEventHandler click, MouseButtonEventHandler pmLBD, MouseButtonEventHandler mLBD,
             MouseEventHandler mMove, MouseButtonEventHandler mLBU, MouseButtonEventHandler pmRBD, MouseButtonEventHandler mRBU)
         {
@@ -547,16 +549,25 @@ namespace NavigatorHMI.Views.Helpers
             => throw new NotImplementedException();
     }
 
-    /// <summary>List&lt;PointD&gt; → PointCollection（多边形顶点渲染；相对坐标直接转换）。</summary>
+    /// <summary>List&lt;PointD&gt; → PointCollection（多边形顶点渲染）。P7：顶点为画布绝对坐标，
+    /// 输出转相对包围盒偏移（减去 min）——ItemContainerStyle 的 Canvas.Left=X（包围盒左上）+ 相对点 = 绝对位置，防双加。</summary>
     public class PointCollectionConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
         {
             var pts = new PointCollection();
             if (value is System.Collections.IEnumerable list)
-                foreach (var item in list)
-                    if (item is PointD pd)
-                        pts.Add(new Point(pd.X, pd.Y));
+            {
+                var items = list.Cast<object>().ToList();
+                if (items.Count > 0 && items[0] is PointD)
+                {
+                    double minX = items.Cast<PointD>().Min(p => p.X);
+                    double minY = items.Cast<PointD>().Min(p => p.Y);
+                    foreach (PointD pd in items)
+                        pts.Add(new Point(pd.X - minX, pd.Y - minY));
+                    return pts;
+                }
+            }
             return pts;
         }
         public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
