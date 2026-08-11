@@ -34,6 +34,13 @@ namespace NavigatorHMI.Views
 
         private void Ok_Click(object sender, RoutedEventArgs e)
         {
+            // P8：保存前全参数校验（tag_write value 按目标变量类型/增量数值）——失败拦截并提示，不落库
+            var err = _vm.ValidateAll();
+            if (err != null)
+            {
+                System.Windows.MessageBox.Show(err, "参数校验未通过", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
             _vm.Save();
             DialogResult = true;
         }

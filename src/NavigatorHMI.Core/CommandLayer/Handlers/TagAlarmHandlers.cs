@@ -568,8 +568,9 @@ namespace NavigatorHMI.CommandLayer.Handlers
     }
 }
 
-/// <summary>base_value（设计态预览基准值）按变量类型校验：非空时必须能解析为对应类型的数值，防 AI/CLI 传垃圾字符串进工程文件。</summary>
-internal static class BaseValueValidator
+/// <summary>base_value（设计态预览基准值）按变量类型校验：非空时必须能解析为对应类型的数值，防 AI/CLI 传垃圾字符串进工程文件。
+/// P8：事件函数 value 校验复用同一规则（GPS→GeoPoint、数值→InvariantCulture、BOOL→true/false、DATETIME→DateTime/全 0 字面、STRING→任意）。</summary>
+public static class BaseValueValidator
 {
     public static string? Check(string? raw, TagDataType dt)
     {

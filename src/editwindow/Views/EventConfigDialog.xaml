@@ -8,20 +8,28 @@
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
         <local:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
-        <!-- 参数表单字段模板：TextBox / ComboBox / NumberBox -->
+        <!-- 参数表单字段模板：TextBox / ComboBox / NumberBox（P8：字段下方红字实时校验提示） -->
         <DataTemplate DataType="{x:Type vm:ParamFieldVM}">
             <Grid Margin="0,2">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="150"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="{Binding DisplayLabel}" VerticalAlignment="Center" ToolTip="{Binding Label}"/>
-                <ComboBox Grid.Column="1" ItemsSource="{Binding Options}" Text="{Binding Value}" IsEditable="True"
-                          Visibility="{Binding IsCombo, Converter={StaticResource BoolToVisibilityConverter}}"
-                          FontSize="12" Padding="2"/>
-                <TextBox Grid.Column="1" Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}"
-                         Visibility="{Binding IsCombo, Converter={StaticResource InverseBoolToVisibilityConverter}}"
-                         FontSize="12" VerticalContentAlignment="Center" Padding="2"/>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding DisplayLabel}" VerticalAlignment="Center" ToolTip="{Binding Label}"/>
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding Options}" Text="{Binding Value}" IsEditable="True"
+                              Visibility="{Binding IsCombo, Converter={StaticResource BoolToVisibilityConverter}}"
+                              FontSize="12" Padding="2"/>
+                    <TextBox Grid.Column="1" Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}"
+                             Visibility="{Binding IsCombo, Converter={StaticResource InverseBoolToVisibilityConverter}}"
+                             FontSize="12" VerticalContentAlignment="Center" Padding="2"/>
+                </Grid>
+                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ErrorText}" Foreground="Red" FontSize="10"
+                           TextWrapping="Wrap" Visibility="{Binding HasError, Converter={StaticResource BoolToVisibilityConverter}}"/>
             </Grid>
         </DataTemplate>
     </Window.Resources>

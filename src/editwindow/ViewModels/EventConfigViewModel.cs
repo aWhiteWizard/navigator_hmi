@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using NavigatorHMI.CommandLayer;
+using NavigatorHMI.CommandLayer.Handlers;   // P8：BaseValueValidator（按 DataType 校验函数值）
 using NavigatorHMI.Common;
 
 namespace NavigatorHMI.ViewModels
@@ -201,6 +202,17 @@ namespace NavigatorHMI.ViewModels
             if (SelectedFunction == vm) SelectedFunction = Functions.ElementAtOrDefault(Math.Max(0, idx - 1));
         }
 
+        /// <summary>P8：全函数校验（保存前调用）：返回第一个错误或 null。</summary>
+        public string? ValidateAll()
+        {
+            foreach (var f in Functions)
+            {
+                var err = f.Validate();
+                if (err != null) return err;
+            }
+            return null;
+        }
+
         /// <summary>保存：写回 widget.Events 或 WorldMapConfig.Events（替换同事件 Actions）。</summary>
         public void Save()
         {
@@ -297,9 +309,49 @@ namespace NavigatorHMI.ViewModels
                     : kind == "tag-numeric" ? _owner.TagNames.Where(n => TagCompatibility.IsNumericCompatible(_owner.TagOf(n))).ToList()
                     : kind == "alarm" ? _owner.AlarmNames : opts;
                 var pf = new ParamFieldVM(key, value, label, kind, opts2);
-                pf.PropertyChanged += (_, _) => OnPropertyChanged(nameof(Summary));
+                pf.PropertyChanged += (_, _) => OnActionParamChanged();
                 ActionParams.Add(pf);
             }
+        }
+
+        /// <summary>P8：参数表单任一字段变化 → 刷新摘要 + 全字段实时校验（tag_write 的 value 依赖 tag_name 目标类型）。</summary>
+        private void OnActionParamChanged()
+        {
+            OnPropertyChanged(nameof(Summary));
+            foreach (var f in ActionParams) RevalidateField(f);
+        }
+
+        /// <summary>P8：按字段语义校验——tag_write 的 value 按目标变量 DataType 校验（复用 BaseValueValidator）；
+        /// tag_add/tag_subtract 的 delta 必须为数值；其余字段放行。</summary>
+        private void RevalidateField(ParamFieldVM f)
+        {
+            if (Type == ActionType.tag_write && f.Key == "value")
+            {
+                var tagName = ActionParams.FirstOrDefault(x => x.Key == "tag_name")?.Value ?? "";
+                var dt = _owner.TagOf(tagName);   // TagOf 未知变量默认 BOOL——非法 tag_name 由变量下拉约束，此处仅防格式垃圾
+                f.ErrorText = BaseValueValidator.Check(f.Value, dt) ?? "";
+            }
+            else if (f.Key == "delta" && Type is ActionType.tag_add or ActionType.tag_subtract)
+            {
+                f.ErrorText = string.IsNullOrWhiteSpace(f.Value) ? ""
+                    : double.TryParse(f.Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var d) && double.IsFinite(d)
+                        ? "" : "增量必须是数值";
+            }
+            else f.ErrorText = "";
+        }
+
+        /// <summary>P8：整体校验（保存前调用）：先实时重校验全部字段，再检查必填语义（带 tag_name 的动作未选变量）。返回错误描述或 null。</summary>
+        public string? Validate()
+        {
+            foreach (var f in ActionParams) RevalidateField(f);
+            if (Type is ActionType.tag_write or ActionType.tag_add or ActionType.tag_subtract
+                or ActionType.tag_toggle or ActionType.set_bit or ActionType.reset_bit)
+            {
+                var tagName = ActionParams.FirstOrDefault(f => f.Key == "tag_name")?.Value;
+                if (string.IsNullOrWhiteSpace(tagName)) return $"{TypeName} 未选择变量";
+            }
+            var bad = ActionParams.FirstOrDefault(f => f.HasError);
+            return bad != null ? $"{TypeName} 参数「{bad.Key}」：{bad.ErrorText}" : null;
         }
 
         /// <summary>run_command：按命令元数据重建参数表单（清空重填——DESIGN C12 防串错）。</summary>
@@ -380,6 +432,15 @@ namespace NavigatorHMI.ViewModels
         public bool IsEmpty => string.IsNullOrEmpty(_value);
         public bool IsCombo => Options != null && Options.Count > 0;
         public bool IsNumber => Kind is "int" or "double";
+
+        /// <summary>P8：字段值校验错误（实时校验，非空则红字提示 + 保存拦截）。</summary>
+        private string _errorText = "";
+        public string ErrorText
+        {
+            get => _errorText;
+            set { if (_errorText != value) { _errorText = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasError)); } }
+        }
+        public bool HasError => !string.IsNullOrEmpty(_errorText);
 
         public ParamFieldVM(string key, string value, string? label, string kind = "string", IReadOnlyList<string>? options = null, bool required = false)
         {
