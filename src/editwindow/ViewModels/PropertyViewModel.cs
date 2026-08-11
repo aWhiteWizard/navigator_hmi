@@ -740,17 +740,18 @@ namespace NavigatorHMI.ViewModels
             WorldMapPointsChanged?.Invoke();
         }
 
-        /// <summary>DataGrid 新行提交（末行输入自动补行）：非空行才挂入模型；空行/半空行直接丢弃（P6-审查修复）。</summary>
+        /// <summary>DataGrid 新行提交（末行输入自动补行）：非空行才挂入模型；空行/半空行直接丢弃（P6-审查修复）。
+        /// 丢弃用 Dispatcher 延迟移除——CollectionChanged 处理器内同步改同一集合触发 CheckReentrancy 重入崩溃（2026-08-11 Check 实测）。</summary>
         private void WorkPointRows_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
             if (e.Action != NotifyCollectionChangedAction.Add || e.NewItems == null) return;
             foreach (WorkPointRowVM row in e.NewItems)
             {
                 if (Project == null) continue;
-                // 校验：名称/经纬度/绑定变量至少一项非空，否则视为误触空行丢弃
+                // 校验：名称/经纬度/绑定变量至少一项非空，否则视为误触空行丢弃（延迟到事件处理器返回后移除）
                 if (string.IsNullOrWhiteSpace(row.Name) && string.IsNullOrWhiteSpace(row.LngLat) && string.IsNullOrWhiteSpace(row.BoundTag))
                 {
-                    WorkPointRows.Remove(row);
+                    RemoveRowDeferred(WorkPointRows, row);
                     continue;
                 }
                 Project.WorldMap ??= new WorldMapConfig();
@@ -763,7 +764,7 @@ namespace NavigatorHMI.ViewModels
             }
         }
 
-        /// <summary>DataGrid 新行提交（作业范围）：非空行才挂入模型；空行丢弃。</summary>
+        /// <summary>DataGrid 新行提交（作业范围）：非空行才挂入模型；空行丢弃（延迟移除防 CheckReentrancy）。</summary>
         private void WorkRangeRows_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
             if (e.Action != NotifyCollectionChangedAction.Add || e.NewItems == null) return;
@@ -772,7 +773,7 @@ namespace NavigatorHMI.ViewModels
                 if (Project == null) continue;
                 if (string.IsNullOrWhiteSpace(row.LngLat) && string.IsNullOrWhiteSpace(row.BoundTag))
                 {
-                    WorkRangeRows.Remove(row);
+                    RemoveRowDeferred(WorkRangeRows, row);
                     continue;
                 }
                 Project.WorldMap ??= new WorldMapConfig();
@@ -782,6 +783,25 @@ namespace NavigatorHMI.ViewModels
                     Project.WorldMap.WorkRangePoints.Add(row.Model);
                     OnWorkPointRowChanged();
                 }
+            }
+        }
+
+        /// <summary>延迟移除误触空行：在 CollectionChanged 处理器内同步 Remove 同一集合会触发 CheckReentrancy 崩溃，
+        /// 改经 Dispatcher 在事件周期结束后移除；移除前复查行仍在集合中（防重复/已删）。</summary>
+        private static void RemoveRowDeferred<T>(ObservableCollection<T> rows, T row)
+        {
+            var dispatcher = System.Windows.Application.Current?.Dispatcher;
+            if (dispatcher != null)
+            {
+                dispatcher.BeginInvoke(() =>
+                {
+                    if (rows.Contains(row)) rows.Remove(row);
+                });
+            }
+            else
+            {
+                // 无 WPF Application（如单测环境）：集合修改不会伴随 DataGrid 重入，直接移除安全
+                if (rows.Contains(row)) rows.Remove(row);
             }
         }
 
