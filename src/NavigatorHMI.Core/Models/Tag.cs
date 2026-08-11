@@ -19,7 +19,7 @@ namespace NavigatorHMI.Common
         STRING,
         /// <summary>日期时间（显示/编辑控件用；格式 yyyy-MM-dd HH:mm:ss）</summary>
         DATETIME,
-        /// <summary>经纬度（GPS/定位；基准值 DMS 格式 "(E0°0'0\", N0°0'0\")"，见 <see cref="GeoPoint"/>；仅图形类控件可绑定）</summary>
+        /// <summary>经纬度（GPS/定位；基准值 DMS 格式 "(E0°0'0\", N0°0'0\")"，见 <see cref="GeoPoint"/>；仅作业点/作业范围点可绑定）</summary>
         GPS
     }
 

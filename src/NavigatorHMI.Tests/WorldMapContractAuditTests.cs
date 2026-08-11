@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using NavigatorHMI.CommandLayer;
 using NavigatorHMI.Common;
 using ProtoBuf;
 using Xunit;
@@ -78,6 +79,18 @@ namespace NavigatorHMI.Tests
             Assert.DoesNotContain("Point", Enum.GetNames<NavihmiWidgetType>());
             var includes = typeof(Widget).GetCustomAttributes<ProtoIncludeAttribute>().Select(a => a.KnownType);
             Assert.DoesNotContain(includes, t => t.Name == "PointWidget");
+        }
+
+        [Fact]
+        public void addWidget_point拒绝()
+        {
+            // P3：命令层 add_widget 校验不再接受 "point"（P1 已删除 Point 控件，防残留复活）
+            var p = new HMIProject { Name = "P" };
+            p.Screens.Add(new Screen { Name = "主", Width = 800, Height = 480 });
+            var svc = new CommandService(p);
+            var r = svc.Execute("add_widget", new Dictionary<string, object?> { ["screen_name"] = "主", ["widget_type"] = "point" });
+            Assert.False(r.Success);
+            Assert.Contains("未知控件类型", r.ErrorMessage);
         }
     }
 }

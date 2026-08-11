@@ -15,7 +15,7 @@ namespace NavigatorHMI.Tests
             return (svc, p, s);
         }
 
-        // ═══ add_widget 新控件（polygon/point）═══
+        // ═══ add_widget 新控件（polygon）═══
 
         [Fact]
         public void addWidget_polygon创建成功()
