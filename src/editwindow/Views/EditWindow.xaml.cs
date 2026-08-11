@@ -2265,7 +2265,16 @@ namespace NavigatorHMI.Views
         {
             _drawPreviewPath = DrawPreviewShape;
             _drawPreviewPath.Visibility = Visibility.Visible;
-            UpdateDrawPreview(_drawStartPoint);
+            if (_currentWidgetCreator is PolygonWidgetCreator && _polygonPoints.Count > 0)
+            {
+                // P12：多边形预览初始化为「末点 → 末点」零长度——_drawStartPoint 是两点式通用起点（残留旧值），
+                // 直接传入会让首点先闪一段到 (0,0) 的线段；鼠标移动后再正常橡皮筋
+                UpdateDrawPreview(_polygonPoints[^1]);
+            }
+            else
+            {
+                UpdateDrawPreview(_drawStartPoint);
+            }
         }
 
         /// <summary>更新预览形状：根据当前创建器类型绘制 Line/Rectangle/Ellipse。</summary>
