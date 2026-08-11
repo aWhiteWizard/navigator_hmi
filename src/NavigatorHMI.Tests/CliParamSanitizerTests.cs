@@ -48,6 +48,32 @@ namespace NavigatorHMI.Tests
             Assert.NotNull(CliParamSanitizer.Validate("connection", "{\"path\":\"..\"}"));
         }
 
+        [Fact]
+        public void source_绝对路径拒绝_相对放行_双点仍拦()
+        {
+            // source 为路径类但非豁免 key（P14 补充边界）
+            Assert.NotNull(CliParamSanitizer.Validate("source", "D:\\data\\x.png"));
+            Assert.NotNull(CliParamSanitizer.Validate("source", "..\\x.png"));
+            Assert.Null(CliParamSanitizer.Validate("source", "img\\x.png"));
+        }
+
+        [Fact]
+        public void connection_裸设备路径放行()
+        {
+            // connection 豁免绝对路径（P14）：裸串 /dev/ttyUSB0 与 JSON 内路径均放行；双点仍拦
+            Assert.Null(CliParamSanitizer.Validate("connection", "/dev/ttyUSB0"));
+            Assert.NotNull(CliParamSanitizer.Validate("connection", "/dev/../ttyUSB0"));
+        }
+
+        [Fact]
+        public void 路径类_纯双点拒绝()
+        {
+            // P14 边界：value 恰为 ".."（无分隔符场景）
+            Assert.NotNull(CliParamSanitizer.Validate("path", ".."));
+            Assert.NotNull(CliParamSanitizer.Validate("output", ".."));
+            Assert.NotNull(CliParamSanitizer.Validate("file", ".."));
+        }
+
         // ── 标识符类 ──
 
         [Theory]
