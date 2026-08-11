@@ -1011,6 +1011,16 @@ namespace NavigatorHMI.ViewModels
             }
         }
 
+        /// <summary>C12-2：世界地图数据变更（地图加点/清除等）前快照——WorldMap 配置独立于 Widgets 快照（UndoManager 双栈）。</summary>
+        public void PushWorldMapUndoSnapshot()
+        {
+            if (CurrentScreen?.Type == ScreenType.WorldMap && CurrentProject?.WorldMap != null)
+                _undoManager.PushWorldMapSnapshot(CurrentScreen, CurrentProject.WorldMap);
+        }
+
+        /// <summary>WorldMap 撤销/重做后触发地图与表格刷新（EditWindow 订阅：UpdateAllGeoWidgets + 作业点/范围点表格重载）。</summary>
+        public Action? WorldMapUndoRequested { get; set; }
+
         /// <summary>弹出最近一个撤销快照（命令失败时调用——防空快照污染撤销栈）。</summary>
         public void PopUndoSnapshot()
         {
@@ -1063,6 +1073,17 @@ namespace NavigatorHMI.ViewModels
                     // A12：列表栈非空时优先撤销列表项操作（列表操作粒度小、频率高，按钮/Ctrl+Z/菜单一致）
                     if (ListManager?.HasListUndo == true) { ListManager.UndoList(); return; }
                     if (CurrentScreen == null) return;
+                    // C12-2：世界地图画面优先撤销 WorldMap 数据（作业点/范围点；Widgets 快照不含 WorldMap）
+                    if (CurrentScreen.Type == ScreenType.WorldMap && CurrentProject?.WorldMap != null
+                        && _undoManager.HasWorldMapUndo(CurrentScreen))
+                    {
+                        if (_undoManager.UndoWorldMap(CurrentScreen, CurrentProject.WorldMap))
+                        {
+                            WorldMapUndoRequested?.Invoke();
+                            ProjectDirtyRequested?.Invoke();
+                            return;
+                        }
+                    }
                     var restored = _undoManager.Undo(CurrentScreen);
                     if (restored != null)
                     {
@@ -1080,6 +1101,17 @@ namespace NavigatorHMI.ViewModels
                     // A12：列表栈非空时优先重做列表项操作
                     if (ListManager?.HasListRedo == true) { ListManager.RedoList(); return; }
                     if (CurrentScreen == null) return;
+                    // C12-2：世界地图画面优先重做 WorldMap 数据
+                    if (CurrentScreen.Type == ScreenType.WorldMap && CurrentProject?.WorldMap != null
+                        && _undoManager.HasWorldMapRedo(CurrentScreen))
+                    {
+                        if (_undoManager.RedoWorldMap(CurrentScreen, CurrentProject.WorldMap))
+                        {
+                            WorldMapUndoRequested?.Invoke();
+                            ProjectDirtyRequested?.Invoke();
+                            return;
+                        }
+                    }
                     var restored = _undoManager.Redo(CurrentScreen);
                     if (restored != null)
                     {

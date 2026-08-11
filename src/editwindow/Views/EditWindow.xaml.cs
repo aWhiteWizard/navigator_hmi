@@ -244,6 +244,15 @@ namespace NavigatorHMI.Views
             _propertyViewModel.WorldMapPointsChanged = () => UpdateAllGeoWidgets();
             // P5：锁定预览勾选变化 → 地图交互开关（ViewLocked 时点击/滚轮短路在事件处理器内实现）
             _propertyViewModel.WorldMapViewLockChanged = () => UpdateAllGeoWidgets();
+            // C12-2：WorldMap 撤销/重做后刷新地图 overlay + 作业点/范围点表格（数据已由 UndoManager 写回模型）
+            _viewModel.WorldMapUndoRequested = () =>
+            {
+                UpdateAllGeoWidgets();
+                _propertyViewModel.RefreshWorkPointRows();
+                _propertyViewModel.RefreshWorkRangeRows();
+            };
+            // C12-2：作业点/范围点表格增删改/行编辑前快照 → WorldMap 独立撤销栈（原 BeforeModify 绑 Widgets 栈，快照不含 WorldMap）
+            _propertyViewModel.WorldMapBeforeModify = () => _viewModel.PushWorldMapUndoSnapshot();
             _propertyViewModel.WorldMapZoomToBoxRequested = () => { if (_viewModel?.IsWorldMapActive == true) TryFitWorldMapViewport(); };
             // 缩放手柄：拖拽开始 Push 撤销快照 + 画布尺寸提供器（缩放钳制）
             _resizeDragStartedCallback = () => _viewModel.PushUndoSnapshot();
@@ -1387,6 +1396,7 @@ namespace NavigatorHMI.Views
                         e.Handled = true;
                         return;
                     }
+                    _viewModel.PushWorldMapUndoSnapshot();   // C12-2：地图加点前快照（WorldMap 独立撤销栈）
                     wm.WorkRangePoints.Add(new WorkRangePoint { FixedPoint = geo });
                     MarkProjectDirty();
                     UpdateAllGeoWidgets();
@@ -1513,7 +1523,7 @@ namespace NavigatorHMI.Views
             WorldMapContextMenu.IsOpen = false;
             var wm = _viewModel?.CurrentProject?.WorldMap;
             if (wm == null || wm.WorkRangePoints.Count == 0) return;
-            _viewModel.PushUndoSnapshot();
+            _viewModel.PushWorldMapUndoSnapshot();   // C12-2：清除作业范围前快照（原 PushUndoSnapshot 只含 Widgets，对 WorldMap 无效）
             wm.WorkRangePoints.Clear();
             MarkProjectDirty();
             UpdateAllGeoWidgets();

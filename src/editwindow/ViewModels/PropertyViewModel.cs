@@ -806,6 +806,10 @@ namespace NavigatorHMI.ViewModels
         /// <summary>作业点/范围点变更 → overlay 刷新回调（EditWindow 注入 → UpdateAllGeoWidgets）。</summary>
         public Action? WorldMapPointsChanged { get; set; }
 
+        /// <summary>C12-2：WorldMap 数据修改前快照回调（EditWindow 注入 → PushWorldMapUndoSnapshot；表格增删改/行编辑专用——
+        /// 原 BeforeModify 绑 Widgets 栈，快照不含 WorldMap 数据，撤销无效）。</summary>
+        public Action? WorldMapBeforeModify { get; set; }
+
         /// <summary>从工程 WorldMapConfig 同步作业点/作业范围点表格（选中画面时装载）。</summary>
         private void RefreshWorldMapWorkPoints()
         {
@@ -813,7 +817,7 @@ namespace NavigatorHMI.ViewModels
             WorkPointRows.Clear();
             if (Project?.WorldMap != null)
                 foreach (var wp in Project.WorldMap.WorkPoints)
-                    WorkPointRows.Add(new WorkPointRowVM(wp, OnWorkPointRowChanged, IsGpsTag));
+                    WorkPointRows.Add(new WorkPointRowVM(wp, OnWorkPointRowChanged, IsGpsTag, WorldMapBeforeModify));
             WorkPointRows.CollectionChanged += WorkPointRows_CollectionChanged;
             RefreshWorkMapRangePoints();
         }
@@ -825,9 +829,12 @@ namespace NavigatorHMI.ViewModels
             WorkRangeRows.Clear();
             if (Project?.WorldMap != null)
                 foreach (var rp in Project.WorldMap.WorkRangePoints)
-                    WorkRangeRows.Add(new WorkRangeRowVM(rp, OnWorkPointRowChanged, IsGpsTag));
+                    WorkRangeRows.Add(new WorkRangeRowVM(rp, OnWorkPointRowChanged, IsGpsTag, WorldMapBeforeModify));
             WorkRangeRows.CollectionChanged += WorkRangeRows_CollectionChanged;
         }
+
+        /// <summary>从工程 WorldMapConfig 同步作业点/作业范围点表格（选中画面装载；撤销/重做后由 EditWindow 显式调用）。</summary>
+        public void RefreshWorkPointRows() => RefreshWorldMapWorkPoints();
 
         /// <summary>C12-6/8：地图加点/清除后显式同步作业范围点表格（原刷新只挂在选中画面/切画面路径 → 地图操作后表格不实时）。</summary>
         public void RefreshWorkRangeRows() => RefreshWorkMapRangePoints();
@@ -858,7 +865,7 @@ namespace NavigatorHMI.ViewModels
                 Project.WorldMap ??= new WorldMapConfig();
                 if (!Project.WorldMap.WorkPoints.Contains(row.Model))
                 {
-                    BeforeModify?.Invoke();   // 修改前快照（新增可撤销）
+                    WorldMapBeforeModify?.Invoke();   // C12-2：WorldMap 数据快照（原 BeforeModify 绑 Widgets 栈，快照不含 WorldMap）
                     Project.WorldMap.WorkPoints.Add(row.Model);
                     OnWorkPointRowChanged();
                 }
@@ -880,7 +887,7 @@ namespace NavigatorHMI.ViewModels
             Project.WorldMap ??= new WorldMapConfig();
             if (!Project.WorldMap.WorkPoints.Contains(row.Model))
             {
-                BeforeModify?.Invoke();   // 修改前快照（新增可撤销）
+                WorldMapBeforeModify?.Invoke();   // C12-2：WorldMap 数据快照
                 Project.WorldMap.WorkPoints.Add(row.Model);
                 OnWorkPointRowChanged();
             }
@@ -898,7 +905,7 @@ namespace NavigatorHMI.ViewModels
                 Project.WorldMap ??= new WorldMapConfig();
                 if (!Project.WorldMap.WorkRangePoints.Contains(row.Model))
                 {
-                    BeforeModify?.Invoke();   // 修改前快照（新增可撤销）
+                    WorldMapBeforeModify?.Invoke();   // C12-2：WorldMap 数据快照
                     Project.WorldMap.WorkRangePoints.Add(row.Model);
                     OnWorkPointRowChanged();
                 }
@@ -919,7 +926,7 @@ namespace NavigatorHMI.ViewModels
             Project.WorldMap ??= new WorldMapConfig();
             if (!Project.WorldMap.WorkRangePoints.Contains(row.Model))
             {
-                BeforeModify?.Invoke();   // 修改前快照（新增可撤销）
+                WorldMapBeforeModify?.Invoke();   // C12-2：WorldMap 数据快照
                 Project.WorldMap.WorkRangePoints.Add(row.Model);
                 OnWorkPointRowChanged();
             }
@@ -948,7 +955,7 @@ namespace NavigatorHMI.ViewModels
         public void DeleteWorkPointRow(WorkPointRowVM row)
         {
             if (row?.Model == null || Project?.WorldMap == null) return;
-            BeforeModify?.Invoke();
+            WorldMapBeforeModify?.Invoke();   // C12-2：WorldMap 数据快照（删除行可撤销）
             Project.WorldMap.WorkPoints.Remove(row.Model);
             WorkPointRows.Remove(row);
             OnWorkPointRowChanged();
@@ -958,7 +965,7 @@ namespace NavigatorHMI.ViewModels
         public void DeleteWorkRangeRow(WorkRangeRowVM row)
         {
             if (row?.Model == null || Project?.WorldMap == null) return;
-            BeforeModify?.Invoke();
+            WorldMapBeforeModify?.Invoke();   // C12-2：WorldMap 数据快照（删除行可撤销）
             Project.WorldMap.WorkRangePoints.Remove(row.Model);
             WorkRangeRows.Remove(row);
             OnWorkPointRowChanged();
@@ -1926,17 +1933,23 @@ namespace NavigatorHMI.ViewModels
         }
     }
 
-    /// <summary>作业点表格行（P4）：名称 + 经纬度(固定) + 绑定变量；两列互斥（写固定值清绑定变量，反之亦然）。</summary>
+    /// <summary>作业点表格行（P4）：名称 + 经纬度(固定) + 绑定变量；两列互斥（写固定值清绑定变量，反之亦然）。
+    /// 行内编辑修改前调 beforeModify（WorldMap 数据快照——C12-2：撤销粒度 = 单格编辑）。</summary>
     public class WorkPointRowVM : INotifyPropertyChanged
     {
         private readonly Action? _onChanged;
         private readonly Func<string, bool>? _tagValidator;
+        private readonly Action? _beforeModify;
         public MapWorkPoint Model { get; }
-        public WorkPointRowVM(MapWorkPoint model, Action? onChanged, Func<string, bool>? tagValidator)
-        { Model = model; _onChanged = onChanged; _tagValidator = tagValidator; }
-        public WorkPointRowVM() : this(new MapWorkPoint(), null, null) { }   // DataGrid 新行占位（提交时由 CollectionChanged 挂入模型）
+        public WorkPointRowVM(MapWorkPoint model, Action? onChanged, Func<string, bool>? tagValidator, Action? beforeModify)
+        { Model = model; _onChanged = onChanged; _tagValidator = tagValidator; _beforeModify = beforeModify; }
+        public WorkPointRowVM() : this(new MapWorkPoint(), null, null, null) { }   // DataGrid 新行占位（提交时由 RowEditEnding 挂入模型）
 
-        public string Name { get => Model.Name; set { var v = value ?? ""; if (Model.Name != v) { Model.Name = v; _onChanged?.Invoke(); OnPropertyChanged(); } } }
+        public string Name
+        {
+            get => Model.Name;
+            set { var v = value ?? ""; if (Model.Name != v) { _beforeModify?.Invoke(); Model.Name = v; _onChanged?.Invoke(); OnPropertyChanged(); } }
+        }
         public string LngLat
         {
             get => Model.FixedPoint?.ToBaseValue() ?? "";
@@ -1944,6 +1957,7 @@ namespace NavigatorHMI.ViewModels
             {
                 if (string.IsNullOrWhiteSpace(value)) return;
                 if (!GeoPoint.TryParse(value, out var g) || g == null) return;   // 非法经纬度忽略（静默，不落库）
+                _beforeModify?.Invoke();   // 行内编辑前快照
                 Model.FixedPoint = g; Model.BoundTag = "";   // 两列互斥：写固定值清绑定变量
                 _onChanged?.Invoke(); OnPropertyChanged(); OnPropertyChanged(nameof(BoundTag));
             }
@@ -1957,6 +1971,7 @@ namespace NavigatorHMI.ViewModels
                 if (v.Length > 0 && (_tagValidator == null || !_tagValidator(v))) return;   // 变量必须存在且为 GPS 类型
                 if (Model.BoundTag != v)
                 {
+                    _beforeModify?.Invoke();   // 行内编辑前快照
                     Model.BoundTag = v; Model.FixedPoint = null;   // 两列互斥：写绑定变量清固定值
                     _onChanged?.Invoke(); OnPropertyChanged(); OnPropertyChanged(nameof(LngLat));
                 }
@@ -1966,15 +1981,17 @@ namespace NavigatorHMI.ViewModels
         private void OnPropertyChanged([CallerMemberName] string? n = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(n));
     }
 
-    /// <summary>作业范围点表格行（P4）：经纬度(固定) + 绑定变量；两列互斥；无名称。</summary>
+    /// <summary>作业范围点表格行（P4）：经纬度(固定) + 绑定变量；两列互斥；无名称。
+    /// 行内编辑修改前调 beforeModify（WorldMap 数据快照——C12-2：撤销粒度 = 单格编辑）。</summary>
     public class WorkRangeRowVM : INotifyPropertyChanged
     {
         private readonly Action? _onChanged;
         private readonly Func<string, bool>? _tagValidator;
+        private readonly Action? _beforeModify;
         public WorkRangePoint Model { get; }
-        public WorkRangeRowVM(WorkRangePoint model, Action? onChanged, Func<string, bool>? tagValidator)
-        { Model = model; _onChanged = onChanged; _tagValidator = tagValidator; }
-        public WorkRangeRowVM() : this(new WorkRangePoint(), null, null) { }   // DataGrid 新行占位
+        public WorkRangeRowVM(WorkRangePoint model, Action? onChanged, Func<string, bool>? tagValidator, Action? beforeModify)
+        { Model = model; _onChanged = onChanged; _tagValidator = tagValidator; _beforeModify = beforeModify; }
+        public WorkRangeRowVM() : this(new WorkRangePoint(), null, null, null) { }   // DataGrid 新行占位
 
         public string LngLat
         {
@@ -1983,6 +2000,7 @@ namespace NavigatorHMI.ViewModels
             {
                 if (string.IsNullOrWhiteSpace(value)) return;
                 if (!GeoPoint.TryParse(value, out var g) || g == null) return;
+                _beforeModify?.Invoke();   // 行内编辑前快照
                 Model.FixedPoint = g; Model.BoundTag = "";   // 两列互斥
                 _onChanged?.Invoke(); OnPropertyChanged(); OnPropertyChanged(nameof(BoundTag));
             }
@@ -1996,6 +2014,7 @@ namespace NavigatorHMI.ViewModels
                 if (v.Length > 0 && (_tagValidator == null || !_tagValidator(v))) return;
                 if (Model.BoundTag != v)
                 {
+                    _beforeModify?.Invoke();   // 行内编辑前快照
                     Model.BoundTag = v; Model.FixedPoint = null;   // 两列互斥
                     _onChanged?.Invoke(); OnPropertyChanged(); OnPropertyChanged(nameof(LngLat));
                 }
