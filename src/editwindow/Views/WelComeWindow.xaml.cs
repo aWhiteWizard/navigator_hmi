@@ -157,6 +157,14 @@ namespace NavigatorHMI.Views
         }
         #endregion
 
+        /// <summary>P9：欢迎窗自动触发「新建工程」（EditWindow 菜单「新建」打开欢迎窗后 Dispatcher 延迟调用）。
+        /// 复用 CreateNewProject_Click 现有流转（Hide → NewProjectDialog.ShowDialog → 成功关窗/取消 Show 回），不易丢对象。</summary>
+        public void AutoCreateNewProject()
+        {
+            if (!IsVisible) return;   // 判活：延迟委托执行前用户已关闭/切换欢迎窗（打开最近工程等）→ 不再弹新建对话框
+            CreateNewProject_Click(this, new RoutedEventArgs());
+        }
+
         private void ClearInvalidProjects_Click(object sender, RoutedEventArgs e)
         {
             // 提示用户文件不存在，并询问是否从列表中移除

@@ -3486,6 +3486,9 @@ namespace NavigatorHMI.Views
 
             WelComeWindow welcome = new WelComeWindow();
             welcome.Show();
+            // P9：欢迎窗打开后自动触发「新建工程」对话框（Dispatcher 延迟到欢迎窗消息循环——复用 CreateNewProject_Click 流转，不易丢对象）
+            welcome.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background,
+                new Action(() => welcome.AutoCreateNewProject()));
 
             _skipClosingCheck = true;
             Close();
