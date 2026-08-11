@@ -245,10 +245,11 @@ namespace NavigatorHMI.Views
             // P4：作业点/作业范围点行编辑 → overlay 实时刷新（表格改动立即反映到地图）
             _propertyViewModel.WorldMapPointsChanged = () => UpdateAllGeoWidgets();
             // P5：锁定预览勾选变化 → 地图交互开关（ViewLocked 时点击/滚轮短路在事件处理器内实现）
-            _propertyViewModel.WorldMapViewLockChanged = () => UpdateAllGeoWidgets();
+            _propertyViewModel.WorldMapViewLockChanged = () => { ApplyWorldMapLock(); UpdateAllGeoWidgets(); };
             // C12-2：WorldMap 撤销/重做后刷新地图 overlay + 作业点/范围点表格（数据已由 UndoManager 写回模型）
             _viewModel.WorldMapUndoRequested = () =>
             {
+                ApplyWorldMapLock();   // 撤销/重做可能改 ViewLocked → 同步 Navigator 锁
                 UpdateAllGeoWidgets();
                 _propertyViewModel.RefreshWorkPointRows();
                 _propertyViewModel.RefreshWorkRangeRows();
@@ -1317,6 +1318,7 @@ namespace NavigatorHMI.Views
                 // 初始视图（批 4）：进入世界地图时视口自适应优先（作业点/控件 Geo 包围盒）；无 Geo 数据回退中国 z6
                 map.ViewportInitialized += (_, _) =>
                 {
+                    ApplyWorldMapLock();   // C12-10：初始化后按 ViewLocked 设置 Navigator 锁（打开工程即锁定）
                     if (!(_viewModel?.IsWorldMapActive == true && TryFitWorldMapViewport()))
                     {
                         var (mx, my) = Mapsui.Projections.SphericalMercator.FromLonLat(104.06, 30.67);
@@ -1476,6 +1478,17 @@ namespace NavigatorHMI.Views
         {
             if (_viewModel?.CurrentProject?.WorldMap?.ViewLocked == true)
                 e.Handled = true;
+        }
+
+        /// <summary>C12-10：按 ViewLocked 设置 Mapsui Navigator 锁（官方 PanLock/ZoomLock 禁平移/缩放——事件短路为冗余双保险；
+        /// 勾选切换/工程加载/撤销重做时调用）。</summary>
+        private void ApplyWorldMapLock()
+        {
+            var map = WorldMapControl?.Map;
+            if (map == null) return;
+            bool locked = _viewModel?.CurrentProject?.WorldMap?.ViewLocked == true;
+            map.Navigator.PanLock = locked;
+            map.Navigator.ZoomLock = locked;
         }
 
         /// <summary>P5：属性面板「视口自适应」按钮 → ZoomToBox 框选（VM 回调）。</summary>
