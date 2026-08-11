@@ -1433,8 +1433,10 @@
                                         </StackPanel>
                                     </Border>
                                 </Popup>
-                                <!-- 世界地图右键菜单（P3）：非绘制模式右键 → 属性/事件配置/设置作业范围/清除作业范围；绘制模式右键仍闭合多边形 -->
-                                <Popup x:Name="WorldMapContextMenu" Placement="Absolute" StaysOpen="False" AllowsTransparency="True">
+                                <!-- 世界地图右键菜单（P3）：非绘制模式右键 → 属性/事件配置/设置作业范围/清除作业范围；绘制模式右键仍闭合多边形。
+                                     StaysOpen=True（P4）：打开 Popup 的右键按下事件会被 StaysOpen=False 视为外部点击而立即关闭（闪现），
+                                     关闭完全由代码控制：外部点击 CloseIfOutsideClick / 菜单项 Click 置 IsOpen=false / 切画面 / 窗口销毁 -->
+                                <Popup x:Name="WorldMapContextMenu" Placement="Absolute" StaysOpen="True" AllowsTransparency="True">
                                     <Border Background="White" BorderBrush="LightGray" BorderThickness="1" CornerRadius="4" Padding="2">
                                         <StackPanel>
                                             <Button Content="📋 属性" Click="WorldMapProperty_Click" Width="110" Height="28" Margin="2" ToolTip="选中世界地图画面，属性面板显示作业点/作业范围配置"/>
