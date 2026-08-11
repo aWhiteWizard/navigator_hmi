@@ -145,7 +145,7 @@ message HMIProject {
   NavPosition navigation_position = 14;
   string start_screen = 15;
   repeated ListDef lists = 16;
-  int32 format_version = 17;   // 契约版本（当前=2；FW 端解析后校验，不匹配拒绝加载；2 = 世界地图重构契约）
+  int32 format_version = 17;   // 契约版本（当前=1；FW 端解析后校验，不匹配拒绝加载；1 = 世界地图重构契约；曾误升 2 后改回 P11）
   // W1 用户系统
   repeated UserAccount users = 18;
   repeated UserGroup groups = 19;

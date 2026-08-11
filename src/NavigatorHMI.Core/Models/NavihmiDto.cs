@@ -36,7 +36,8 @@ namespace NavigatorHMI.Common
         [ProtoMember(14)] public NavPosition NavigationPosition { get; set; }
         [ProtoMember(15)] public string StartScreen { get; set; } = "";
         [ProtoMember(16)] public List<ListDef> Lists { get; set; } = new();
-        [ProtoMember(17)] public int FormatVersion { get; set; } = 2;   // 契约版本（FW 端解析后校验，防旧产物静默错读）；2 = 世界地图重构（P1：PointWidget/geo_* 移除，新增 work_range_points/events/view_locked）
+        [ProtoMember(17)] public int FormatVersion { get; set; } = 1;   // 契约版本（FW 端解析后校验，防旧产物静默错读）；1 = 世界地图重构（P1：PointWidget/geo_* 移除，新增 work_range_points/events/view_locked）
+        // 注：世界地图重构时曾误升 2（P11 改回 1）——契约仍在演进且 FW 端尚未按 2 适配，版本号以本端为准；FW 适配时如需区分再升
         // W1 用户系统（18-20，与 proto users=18/groups=19/security=20 对齐）
         [ProtoMember(18)] public List<UserAccount> Users { get; set; } = new();
         [ProtoMember(19)] public List<UserGroup> Groups { get; set; } = new();
