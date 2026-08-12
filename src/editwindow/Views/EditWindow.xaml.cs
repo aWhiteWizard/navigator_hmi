@@ -4044,8 +4044,77 @@ namespace NavigatorHMI.Views
                 "create-list" => _viewModel.CommandService.Execute("create_list",
                     new() { ["name"] = opts.GetValueOrDefault("name", ""), ["type"] = opts.GetValueOrDefault("type", ""), ["items"] = opts.GetValueOrDefault("items", "") }),
                 "update-tag" => UpdateTag(opts),
+                // 续29/30：GUI CLI add-event 系参数映射（对齐独立 CLI AddEvent/RemoveEvent/UpdateEvent；
+                // 原走 ExecuteDefaultCommand 无 event/action 映射 + params 未解析字典 → COMMAND_CRASH）
+                "add-event" => AddEventFromGuiCli(opts),
+                "remove-event" => RemoveEventFromGuiCli(opts),
+                "update-event" => UpdateEventFromGuiCli(opts),
                 _ => ExecuteDefaultCommand(command, opts)
             };
+        }
+
+        /// <summary>GUI CLI add-event：--screen→screen_name、--widget→widget_name（可选，缺省+世界地图=地图级事件）、--event→event_type、--action→action_type、--params "k=v,k=v" 解析为字典；缺必填参数报错（对齐独立 CLI RequireVal）。</summary>
+        private CommandResult AddEventFromGuiCli(Dictionary<string, string> opts)
+        {
+            if (MissingRequired(opts, "screen", "event", "action") is { } err) return err;
+            return _viewModel.CommandService.Execute("add_event", new()
+            {
+                ["screen_name"] = opts.GetValueOrDefault("screen", ""),
+                ["widget_name"] = opts.GetValueOrDefault("widget", ""),
+                ["event_type"] = opts.GetValueOrDefault("event", ""),
+                ["action_type"] = opts.GetValueOrDefault("action", ""),
+                ["params"] = ParseCliParamsDict(opts),
+            });
+        }
+
+        /// <summary>GUI CLI remove-event：--action 指定仅移除该动作；否则移除整个事件（--event 必填、--action 可选，对齐独立 CLI RemoveEvent）。</summary>
+        private CommandResult RemoveEventFromGuiCli(Dictionary<string, string> opts)
+        {
+            if (MissingRequired(opts, "screen", "event") is { } err) return err;
+            return _viewModel.CommandService.Execute("remove_event", new()
+            {
+                ["screen_name"] = opts.GetValueOrDefault("screen", ""),
+                ["widget_name"] = opts.GetValueOrDefault("widget", ""),
+                ["event_type"] = opts.GetValueOrDefault("event", ""),
+                ["action_type"] = opts.GetValueOrDefault("action", ""),
+            });
+        }
+
+        /// <summary>GUI CLI update-event：更新事件下动作的参数（params 完整替换，对齐独立 CLI UpdateEvent）。</summary>
+        private CommandResult UpdateEventFromGuiCli(Dictionary<string, string> opts)
+        {
+            if (MissingRequired(opts, "screen", "event", "action") is { } err) return err;
+            return _viewModel.CommandService.Execute("update_event", new()
+            {
+                ["screen_name"] = opts.GetValueOrDefault("screen", ""),
+                ["widget_name"] = opts.GetValueOrDefault("widget", ""),
+                ["event_type"] = opts.GetValueOrDefault("event", ""),
+                ["action_type"] = opts.GetValueOrDefault("action", ""),
+                ["params"] = ParseCliParamsDict(opts),
+            });
+        }
+
+        /// <summary>GUI CLI 缺必填参数检查（对齐独立 CLI RequireVal 的缺参报错语义，逐个 key 报缺失）。</summary>
+        private static CommandResult? MissingRequired(Dictionary<string, string> opts, params string[] keys)
+        {
+            foreach (var k in keys)
+                if (string.IsNullOrWhiteSpace(opts.GetValueOrDefault(k, "")))
+                    return CommandResult.Fail("MISSING_PARAM", $"缺少必填参数: --{k}");
+            return null;
+        }
+
+        /// <summary>GUI CLI --params "k=v,k=v" 解析为 Dictionary（对齐独立 CLI AddEvent/UpdateEvent 的 raw 解析）。</summary>
+        private static Dictionary<string, string> ParseCliParamsDict(Dictionary<string, string> opts)
+        {
+            var raw = opts.GetValueOrDefault("params", "");
+            var dict = new Dictionary<string, string>();
+            if (!string.IsNullOrWhiteSpace(raw))
+                foreach (var kv in raw.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var parts = kv.Split('=', 2);
+                    if (parts.Length == 2) dict[parts[0].Trim()] = parts[1].Trim();
+                }
+            return dict;
         }
 
         /// <summary>GUI CLI array：OptIfProvided 语义（cols/rows 未提供不进字典 → 命令层自动计算，与独立 CLI Program.cs 对齐；防双入口漂移）。</summary>
