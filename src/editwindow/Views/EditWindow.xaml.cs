@@ -4018,7 +4018,7 @@ namespace NavigatorHMI.Views
                 "set-default-font" => _viewModel.CommandService.Execute("set_default_font",
                     new() { ["font_family"] = opts.GetValueOrDefault("font-family", ""), ["font_size"] = opts.GetValueOrDefault("font-size", ""), ["font_weight"] = opts.GetValueOrDefault("font-weight", ""), ["font_style"] = opts.GetValueOrDefault("font-style", ""), ["text_decoration"] = opts.GetValueOrDefault("text-decoration", "") }),
                 "add-widget" or "aw" => _viewModel.CommandService.Execute("add_widget",
-                    new() { ["screen_name"] = opts.GetValueOrDefault("screen", ""), ["widget_type"] = opts.GetValueOrDefault("type", "button"), ["x"] = opts.GetValueOrDefault("x", "0"), ["y"] = opts.GetValueOrDefault("y", "0"), ["width"] = opts.GetValueOrDefault("width", "100"), ["height"] = opts.GetValueOrDefault("height", "40") }),
+                    new() { ["screen_name"] = opts.GetValueOrDefault("screen", ""), ["widget_type"] = opts.GetValueOrDefault("type", "button"), ["x"] = opts.GetValueOrDefault("x", "100"), ["y"] = opts.GetValueOrDefault("y", "100"), ["width"] = opts.GetValueOrDefault("width", "100"), ["height"] = opts.GetValueOrDefault("height", "40"), ["center"] = opts.GetValueOrDefault("center", "false"), ["bound_tag"] = opts.GetValueOrDefault("bound-tag", ""), ["window_type"] = opts.GetValueOrDefault("window-type", "userview") }),
                 "compile" or "b" => _viewModel.CommandService.Execute("compile", new()),
                 "save" => _viewModel.CommandService.Execute("save_project", new()),
                 "create-tag" or "ct" => _viewModel.CommandService.Execute("create_tag",
@@ -4049,8 +4049,24 @@ namespace NavigatorHMI.Views
                 "add-event" => AddEventFromGuiCli(opts),
                 "remove-event" => RemoveEventFromGuiCli(opts),
                 "update-event" => UpdateEventFromGuiCli(opts),
+                // 续30 对齐审计：bind-event 原走 ExecuteDefaultCommand，params 未解析字典 → 强转崩溃；补专用分支对齐 CLI BindEvent
+                "bind-event" => BindEventFromGuiCli(opts),
                 _ => ExecuteDefaultCommand(command, opts)
             };
+        }
+
+        /// <summary>GUI CLI bind-event：为控件绑定事件-动作（对齐独立 CLI BindEvent：screen/widget/event/action 必填 + params 字典解析）。</summary>
+        private CommandResult BindEventFromGuiCli(Dictionary<string, string> opts)
+        {
+            if (MissingRequired(opts, "screen", "widget", "event", "action") is { } err) return err;
+            return _viewModel.CommandService.Execute("bind_event", new()
+            {
+                ["screen_name"] = opts.GetValueOrDefault("screen", ""),
+                ["widget_name"] = opts.GetValueOrDefault("widget", ""),
+                ["event"] = opts.GetValueOrDefault("event", ""),
+                ["action"] = opts.GetValueOrDefault("action", ""),
+                ["params"] = ParseCliParamsDict(opts),
+            });
         }
 
         /// <summary>GUI CLI add-event：--screen→screen_name、--widget→widget_name（可选，缺省+世界地图=地图级事件）、--event→event_type、--action→action_type、--params "k=v,k=v" 解析为字典；缺必填参数报错（对齐独立 CLI RequireVal）。</summary>
@@ -4182,6 +4198,12 @@ namespace NavigatorHMI.Views
         {
             "screen" => "screen_name", "widget" => "widget_name", "type" => "widget_type",
             "tag" => "tag_name", "file" => "file_path",
+            // 用户/组命令参数键（对齐 CLI OptMap/Require：user-name→user_name 等；缺映射时命令层拿不到必填参数）
+            "user-name" => "user_name", "new-user-name" => "new_user_name",
+            "new-password" => "new_password", "new-group-name" => "new_group_name",
+            "group-name" => "group_name",
+            // 控件命令参数键（对齐 CLI OptMap：add_widget 的 bound-tag/window-type）
+            "bound-tag" => "bound_tag", "window-type" => "window_type",
             // 布局命令参数键（与 CLI OptMap 对齐）：kebab → snake
             "start-x" => "start_x", "start-y" => "start_y",
             "spacing-x" => "spacing_x", "spacing-y" => "spacing_y",
