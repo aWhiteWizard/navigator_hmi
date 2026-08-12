@@ -1705,14 +1705,30 @@ namespace NavigatorHMI.Views
                 if (scr == null) continue;
                 AddWorkPointMarker(scr.Value, wp.Name, isRangePoint: false);
             }
+            // C12-3：作业范围闭合区域（≥3 个有效点 → 边界连线 + 半透明填充；IsHitTestVisible=false 不挡地图交互）
+            var rangePts = new List<Point>();
             foreach (var rp in wm.WorkRangePoints)
             {
                 var geo = ResolveWorkPointGeo(project, rp.BoundTag, rp.FixedPoint);
                 if (geo == null) continue;
                 var scr = GeoToScreen(geo);
                 if (scr == null) continue;
-                AddWorkPointMarker(scr.Value, null, isRangePoint: true);
+                rangePts.Add(scr.Value);
             }
+            if (rangePts.Count >= 3)
+            {
+                var poly = new System.Windows.Shapes.Polygon
+                {
+                    Points = new PointCollection(rangePts),
+                    Fill = new SolidColorBrush(Color.FromArgb(40, 30, 144, 255)),   // 半透明蓝填充
+                    Stroke = new SolidColorBrush(Color.FromArgb(200, 30, 144, 255)),
+                    StrokeThickness = 1.5,
+                    IsHitTestVisible = false,   // 区域不挡地图点击/拖拽
+                };
+                Canvas.SetLeft(poly, 0); Canvas.SetTop(poly, 0);
+                WorkPointsOverlay.Children.Add(poly);
+            }
+            foreach (var pt in rangePts) AddWorkPointMarker(pt, null, isRangePoint: true);
         }
 
         /// <summary>作业点经纬度解析：绑 GPS 变量优先（取基准值，1Hz 模拟动态），否则固定值。</summary>
