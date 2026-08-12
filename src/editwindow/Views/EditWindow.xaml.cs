@@ -82,6 +82,13 @@ namespace NavigatorHMI.Views
         private bool _isEditingWorkRange;
         private bool _isAddingWorkPoint;   // C12-9：作业点地图选点模式（点击地图追加作业点）
         private System.Windows.Shapes.Path? _drawPreviewPath;
+        // V-3a：marker 拖拽状态（地图上直接移动作业点/范围点——拖拽中只移视觉位置，MouseUp 提交模型）
+        private System.Windows.Shapes.Ellipse? _dragMarker;
+        private object? _dragModel;   // MapWorkPoint / WorkRangePoint
+        private Point _markerDragStart;
+        private bool _markerDragMoved;
+        // V-3b：选点模式十字光标旁经纬度跟随标签
+        private TextBlock? _cursorGeoLabel;
 
         // CLI 命令历史
         private readonly List<string> _cliHistory = new();
@@ -1385,8 +1392,9 @@ namespace NavigatorHMI.Views
             if (_viewModel?.IsWorldMapActive != true) return;
 
             // P5/P6：锁定预览 → 短路禁平移（左键不落到 Mapsui 拖动）；点击切换画面事件由 FW 运行时执行，设计态不模拟。
-            // 注：锁定短路同时禁作业范围加点/多边形绘制（锁定 = 整体禁编辑地图，有意为之）
-            if (_viewModel.CurrentProject?.WorldMap?.ViewLocked == true)
+            // V-3c：锁定仅禁平移缩放——加点/选点模式放行（允许放置新端点）；点击 marker（选中/拖拽查看）放行；其余保持短路
+            if (_viewModel.CurrentProject?.WorldMap?.ViewLocked == true
+                && !_isAddingWorkPoint && !_isEditingWorkRange && !IsWorkPointMarkerHit(e))
             {
                 e.Handled = true;
                 return;
@@ -1535,6 +1543,7 @@ namespace NavigatorHMI.Views
         {
             WorldMapContextMenu.IsOpen = false;
             if (_viewModel?.CurrentProject?.WorldMap == null) return;
+            ExitAddMode();   // V-3（审查 Nit4）：清 Polygon 绘制/工具箱状态，保证模式互斥（防两模式并存致橡皮筋预览冻结）
             _isEditingWorkRange = false;   // 互斥：退出作业范围加点模式
             _isAddingWorkPoint = true;
             WorldMapControl.Cursor = Cursors.Cross;
@@ -1547,6 +1556,7 @@ namespace NavigatorHMI.Views
             if (!_isAddingWorkPoint) return;
             _isAddingWorkPoint = false;
             WorldMapControl.Cursor = Cursors.Arrow;
+            RemoveCursorGeoLabel();   // V-3b：退出选点模式隐藏经纬度跟随
             UpdateAllGeoWidgets();
         }
 
@@ -1564,6 +1574,7 @@ namespace NavigatorHMI.Views
         {
             WorldMapContextMenu.IsOpen = false;
             if (_viewModel?.CurrentProject?.WorldMap == null) return;
+            ExitAddMode();   // V-3（审查 Nit4）：清 Polygon 绘制/工具箱状态，保证模式互斥
             _isAddingWorkPoint = false;   // 互斥：退出作业点选点模式（C12-9）
             _isEditingWorkRange = true;
             WorldMapControl.Cursor = Cursors.Cross;
@@ -1577,6 +1588,7 @@ namespace NavigatorHMI.Views
             if (!_isEditingWorkRange) return;
             _isEditingWorkRange = false;
             WorldMapControl.Cursor = Cursors.Arrow;
+            RemoveCursorGeoLabel();   // V-3b：退出选点模式隐藏经纬度跟随
             UpdateAllGeoWidgets();
         }
 
@@ -1614,10 +1626,18 @@ namespace NavigatorHMI.Views
             _propertyViewModel.RefreshWorkRangeRows();   // C12-8：清除后表格实时刷新（原只挂切画面路径）
         }
 
-        /// <summary>世界地图多边形绘制：橡皮筋预览（屏幕坐标——MapControl 与画布同容器同尺寸，坐标一致）。</summary>
+        /// <summary>世界地图多边形绘制：橡皮筋预览（屏幕坐标——MapControl 与画布同容器同尺寸，坐标一致）。
+        /// V-3b：选点模式（作业点/作业范围加点）十字光标旁实时经纬度（DMS 跟随）。</summary>
         private void WorldMap_MouseMove(object sender, MouseEventArgs e)
         {
-            if (_viewModel?.IsWorldMapActive != true || _currentWidgetCreator is not PolygonWidgetCreator) return;
+            if (_viewModel?.IsWorldMapActive != true) return;
+            if (_isAddingWorkPoint || _isEditingWorkRange)
+            {
+                UpdateCursorGeoLabel(e.GetPosition(WorldMapControl));
+                return;
+            }
+            RemoveCursorGeoLabel();
+            if (_currentWidgetCreator is not PolygonWidgetCreator) return;
             if (!_isDrawingPreview || _drawPreviewPath == null || _polygonPoints.Count == 0) return;
             var end = e.GetPosition(WorldMapControl);
             var fig = new System.Windows.Media.PathFigure { StartPoint = _polygonPoints[0], IsClosed = false };
@@ -1626,6 +1646,52 @@ namespace NavigatorHMI.Views
             _drawPreviewPath.Data = new System.Windows.Media.PathGeometry(new[] { fig });
             Canvas.SetLeft(_drawPreviewPath, 0);
             Canvas.SetTop(_drawPreviewPath, 0);
+        }
+
+        /// <summary>V-3b：选点模式十字光标旁实时经纬度（DMS 跟随标签，光标右下 14px）。</summary>
+        private void UpdateCursorGeoLabel(Point pos)
+        {
+            if (WorkPointsOverlay == null) return;
+            var geo = ScreenToGeo(pos);
+            if (geo == null) { RemoveCursorGeoLabel(); return; }
+            if (_cursorGeoLabel == null)
+            {
+                _cursorGeoLabel = new TextBlock
+                {
+                    FontSize = 11,
+                    Foreground = Brushes.Black,
+                    Background = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)),
+                    Padding = new Thickness(2, 1, 2, 1),
+                    IsHitTestVisible = false,
+                };
+                Panel.SetZIndex(_cursorGeoLabel, 5);   // 附加属性：置顶于 polygon/marker 之上
+                WorkPointsOverlay.Children.Add(_cursorGeoLabel);
+            }
+            _cursorGeoLabel.Text = geo.ToDmsString();
+            Canvas.SetLeft(_cursorGeoLabel, pos.X + 14);
+            Canvas.SetTop(_cursorGeoLabel, pos.Y + 14);
+        }
+
+        /// <summary>V-3b：移除十字光标经纬度跟随标签。</summary>
+        private void RemoveCursorGeoLabel()
+        {
+            if (_cursorGeoLabel != null)
+            {
+                WorkPointsOverlay?.Children.Remove(_cursorGeoLabel);
+                _cursorGeoLabel = null;
+            }
+        }
+
+        /// <summary>V-3c：点击位置是否命中作业点/范围点 marker（锁定短路放行判定；marker 带 Tag="workpoint-marker"）。</summary>
+        private static bool IsWorkPointMarkerHit(MouseButtonEventArgs e)
+        {
+            var src = e.OriginalSource as DependencyObject;
+            while (src != null)
+            {
+                if (src is FrameworkElement fe && fe.Tag as string == "workpoint-marker") return true;
+                src = System.Windows.Media.VisualTreeHelper.GetParent(src);
+            }
+            return false;
         }
 
         /// <summary>视口自适应：作业点 + 控件 Geo 包围盒（最小 1km + 10% padding）→ ZoomToBox；无 Geo 数据返回 false（调用方回退初始视图）。</summary>
@@ -1695,10 +1761,14 @@ namespace NavigatorHMI.Views
         /// <summary>实际刷新 overlay（节流 tick / 显式调用时执行）。</summary>
         private void RefreshWorkPointOverlayNow()
         {
+            // V-3a：拖拽中跳过重建——重建会移除拖拽中的 marker（WPF 自动释放捕获 → 拖拽静默中止 + 状态悬空）；
+            // 拖拽 MouseUp 提交后调 UpdateAllGeoWidgets 自然刷新
+            if (_dragMarker != null) return;
             var project = _viewModel?.CurrentProject;
             if (project?.WorldMap == null || WorkPointsOverlay == null) return;
             if (_viewModel.IsWorldMapActive != true) { WorkPointsOverlay.Children.Clear(); return; }
             WorkPointsOverlay.Children.Clear();
+            _cursorGeoLabel = null;   // V-3b：Clear 已移除跟随标签 → 引用置空（否则标签"永久消失"，MouseMove 时重建）
             var map = WorldMapControl?.Map;
             if (map == null) return;
             var vp = map.Navigator.Viewport;
@@ -1794,14 +1864,16 @@ namespace NavigatorHMI.Views
             if (geo != null) tt.AppendLine(geo.ToBaseValue());
             if (!string.IsNullOrEmpty(boundTag)) tt.Append($"绑定: {boundTag}");
             mark.ToolTip = tt.ToString().TrimEnd();
+            ToolTipService.SetInitialShowDelay(mark, 0);   // V-3d：悬停气泡无延时（鼠标放上即显示，原默认约 1 秒）
+            mark.Tag = "workpoint-marker";   // V-3c：锁定短路放行判定用（点击 marker 允许选中查看）
             WorkPointsOverlay.Children.Add(mark);
 
-            // V-2c：marker 点击 → 选中对应表格行（地图↔表格双向选择；加点模式由 Preview 短路优先，此处仅防意外）
+            // V-2c + V-3a：marker 点击 → 选中表格行（双向选择）+ 按住拖拽移动（锁定时禁拖——仅允许选中查看）
             if (workPoint != null || rangePoint != null)
             {
                 mark.MouseLeftButtonDown += (_, e) =>
                 {
-                    if (_isAddingWorkPoint || _isEditingWorkRange) return;   // 加点模式优先（Preview 短路已拦，双保险）
+                    if (_isAddingWorkPoint || _isEditingWorkRange) return;   // 加点模式优先（Preview 隧道短路已拦，双保险）
                     if (workPoint != null)
                     {
                         var row = _propertyViewModel.WorkPointRows.FirstOrDefault(r => r.Model == workPoint);
@@ -1812,7 +1884,53 @@ namespace NavigatorHMI.Views
                         var row = _propertyViewModel.WorkRangeRows.FirstOrDefault(r => r.Model == rangePoint);
                         if (row != null) _propertyViewModel.SelectedWorkRangeRow = row;
                     }
+                    // V-3a：拖拽准备（锁定下禁改位置，续26：锁=禁编辑地图位置）
+                    if (_viewModel?.CurrentProject?.WorldMap?.ViewLocked != true)
+                    {
+                        _dragMarker = mark;
+                        _dragModel = (object?)workPoint ?? rangePoint;
+                        _markerDragStart = e.GetPosition(WorldMapControl);
+                        _markerDragMoved = false;
+                        mark.CaptureMouse();
+                    }
                     e.Handled = true;   // 阻止地图拖动
+                };
+                mark.MouseMove += (_, e) =>
+                {
+                    if (_dragMarker != mark || !mark.IsMouseCaptured || _dragModel == null) return;
+                    var pos = e.GetPosition(WorldMapControl);
+                    if (!_markerDragMoved && (pos - _markerDragStart).Length < 4) return;   // 4px 阈值防点击误拖
+                    _markerDragMoved = true;
+                    Canvas.SetLeft(mark, pos.X - mark.Width / 2);   // 拖拽中只移视觉位置（不重建 overlay 保流畅）
+                    Canvas.SetTop(mark, pos.Y - mark.Height / 2);
+                };
+                mark.MouseLeftButtonUp += (_, e) =>
+                {
+                    if (_dragMarker != mark || _dragModel == null) return;
+                    mark.ReleaseMouseCapture();
+                    _dragMarker = null;
+                    var dragModel = _dragModel;
+                    _dragModel = null;   // 统一清理（与 _dragMarker 一起，防早退路径悬空）
+                    if (!_markerDragMoved) return;   // 未拖动 = 纯选中，不提交
+                    var wm = _viewModel?.CurrentProject?.WorldMap;
+                    var geo = ScreenToGeo(e.GetPosition(WorldMapControl));
+                    if (wm == null || geo == null) return;
+                    // V-3a（审查 Nit5）：提交前经纬度边界校验（防拖出地图范围写入无效 FixedPoint）
+                    if (geo.Latitude < -90 || geo.Latitude > 90 || geo.Longitude < -180 || geo.Longitude > 180) return;
+                    _viewModel.PushWorldMapUndoSnapshot();   // 拖拽提交前快照（C12-2 机制，WorldMap 独立撤销栈）
+                    if (dragModel is MapWorkPoint mwp)
+                    {
+                        mwp.FixedPoint = geo; mwp.BoundTag = "";   // 拖拽后固定经纬度优先（绑变量点转固定值）
+                        _propertyViewModel.RefreshWorkPointRows();
+                    }
+                    else if (dragModel is WorkRangePoint mrp)
+                    {
+                        mrp.FixedPoint = geo; mrp.BoundTag = "";
+                        _propertyViewModel.RefreshWorkRangeRows();
+                    }
+                    MarkProjectDirty();
+                    UpdateAllGeoWidgets();   // 全量刷新：视觉位置落定到新经纬度 + 表格同步
+                    e.Handled = true;
                 };
             }
 
