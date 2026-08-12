@@ -1705,23 +1705,24 @@ namespace NavigatorHMI.Views
             if (vp.Width <= 0 || vp.Height <= 0 || !(vp.Resolution > 0)) return;   // NaN 守卫：视口未初始化（首帧 Collapsed/NaN）不渲染
 
             var wm = project.WorldMap;
+            var selRow = _propertyViewModel.SelectedWorkPointRow;   // V-2a：表格选中行 → 图上选中态（Model 引用相等）
             foreach (var wp in wm.WorkPoints)
             {
                 var geo = ResolveWorkPointGeo(project, wp.BoundTag, wp.FixedPoint);
                 if (geo == null) continue;
                 var scr = GeoToScreen(geo);
                 if (scr == null) continue;
-                AddWorkPointMarker(scr.Value, wp.Name, isRangePoint: false, geo, wp.BoundTag);   // C12-5：气泡含名称/经纬度/绑定变量
+                AddWorkPointMarker(scr.Value, wp.Name, isRangePoint: false, geo, wp.BoundTag, workPoint: wp, isSelected: selRow?.Model == wp);   // C12-5：气泡含名称/经纬度/绑定变量
             }
             // C12-3：作业范围闭合区域（≥3 个有效点 → 边界连线 + 半透明填充；IsHitTestVisible=false 不挡地图交互）
-            var rangePts = new List<(Point Scr, GeoPoint Geo, string? Bound)>();
+            var rangePts = new List<(Point Scr, GeoPoint Geo, string? Bound, WorkRangePoint Model)>();
             foreach (var rp in wm.WorkRangePoints)
             {
                 var geo = ResolveWorkPointGeo(project, rp.BoundTag, rp.FixedPoint);
                 if (geo == null) continue;
                 var scr = GeoToScreen(geo);
                 if (scr == null) continue;
-                rangePts.Add((scr.Value, geo, rp.BoundTag));
+                rangePts.Add((scr.Value, geo, rp.BoundTag, rp));
             }
             if (rangePts.Count >= 3)
             {
@@ -1736,7 +1737,8 @@ namespace NavigatorHMI.Views
                 Canvas.SetLeft(poly, 0); Canvas.SetTop(poly, 0);
                 WorkPointsOverlay.Children.Add(poly);
             }
-            foreach (var rp in rangePts) AddWorkPointMarker(rp.Scr, null, isRangePoint: true, rp.Geo, rp.Bound);   // C12-5：范围点气泡含经纬度/绑定变量
+            var selRange = _propertyViewModel.SelectedWorkRangeRow;   // V-2a：范围点选中态
+            foreach (var rp in rangePts) AddWorkPointMarker(rp.Scr, null, isRangePoint: true, rp.Geo, rp.Bound, rangePoint: rp.Model, isSelected: selRange?.Model == rp.Model);   // C12-5：范围点气泡含经纬度/绑定变量
         }
 
         /// <summary>作业点经纬度解析：绑 GPS 变量优先（取基准值，1Hz 模拟动态），否则固定值。</summary>
@@ -1751,9 +1753,27 @@ namespace NavigatorHMI.Views
         }
 
         /// <summary>添加单个 marker 到 overlay：作业点 = 红点 + 名称标签；作业范围点 = 蓝色小方块（无名称）。
-        /// C12-5：悬停气泡（ToolTip）显示名称/经纬度/绑定变量——悬停有反馈后即可验证 C12-4 重复点拦截。</summary>
-        private void AddWorkPointMarker(Point scr, string? name, bool isRangePoint, GeoPoint? geo, string? boundTag)
+        /// C12-5：悬停气泡（ToolTip）显示名称/经纬度/绑定变量——悬停有反馈后即可验证 C12-4 重复点拦截。
+        /// V-2：isSelected → 点外围 18×18 虚线框（表格选中联动）；选中时显示经纬度（DMS，名字下方/范围点上方）；
+        /// marker 点击 → 选中对应表格行（双向选择，V-2c）。</summary>
+        private void AddWorkPointMarker(Point scr, string? name, bool isRangePoint, GeoPoint? geo, string? boundTag,
+            MapWorkPoint? workPoint = null, WorkRangePoint? rangePoint = null, bool isSelected = false)
         {
+            // V-2a：选中态 → 点外围 18×18 虚线框（包住红点/蓝点，颜色区分——作业点橙/范围点深蓝）
+            if (isSelected)
+            {
+                var box = new System.Windows.Shapes.Rectangle
+                {
+                    Width = 18, Height = 18,
+                    Stroke = new SolidColorBrush(isRangePoint ? Color.FromRgb(0, 90, 200) : Color.FromRgb(230, 120, 0)),
+                    StrokeThickness = 1.5,
+                    StrokeDashArray = new DoubleCollection { 3, 2 },
+                    IsHitTestVisible = false,   // 框不参与命中（点击仍命中内部 marker）
+                };
+                Canvas.SetLeft(box, scr.X - 9); Canvas.SetTop(box, scr.Y - 9);
+                WorkPointsOverlay.Children.Add(box);
+            }
+
             var mark = new System.Windows.Shapes.Ellipse();
             if (isRangePoint)
             {
@@ -1776,6 +1796,26 @@ namespace NavigatorHMI.Views
             mark.ToolTip = tt.ToString().TrimEnd();
             WorkPointsOverlay.Children.Add(mark);
 
+            // V-2c：marker 点击 → 选中对应表格行（地图↔表格双向选择；加点模式由 Preview 短路优先，此处仅防意外）
+            if (workPoint != null || rangePoint != null)
+            {
+                mark.MouseLeftButtonDown += (_, e) =>
+                {
+                    if (_isAddingWorkPoint || _isEditingWorkRange) return;   // 加点模式优先（Preview 短路已拦，双保险）
+                    if (workPoint != null)
+                    {
+                        var row = _propertyViewModel.WorkPointRows.FirstOrDefault(r => r.Model == workPoint);
+                        if (row != null) _propertyViewModel.SelectedWorkPointRow = row;   // DataGrid 绑定联动 + SelectionChanged 自动滚动
+                    }
+                    else if (rangePoint != null)
+                    {
+                        var row = _propertyViewModel.WorkRangeRows.FirstOrDefault(r => r.Model == rangePoint);
+                        if (row != null) _propertyViewModel.SelectedWorkRangeRow = row;
+                    }
+                    e.Handled = true;   // 阻止地图拖动
+                };
+            }
+
             if (!isRangePoint && !string.IsNullOrEmpty(name))
             {
                 var label = new TextBlock
@@ -1789,6 +1829,37 @@ namespace NavigatorHMI.Views
                 };
                 Canvas.SetLeft(label, scr.X + 8); Canvas.SetTop(label, scr.Y - 20);
                 WorkPointsOverlay.Children.Add(label);
+
+                // V-2b：选中作业点 → 名字标签下方追加实际经纬度（DMS；范围点无名字 → 点上方直接显示）
+                if (isSelected && geo != null)
+                {
+                    var geoLabel = new TextBlock
+                    {
+                        Text = geo.ToDmsString(),
+                        FontSize = 10,
+                        Foreground = Brushes.DarkSlateGray,
+                        Background = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)),
+                        Padding = new Thickness(2, 0, 2, 0),
+                        IsHitTestVisible = false,
+                    };
+                    Canvas.SetLeft(geoLabel, scr.X + 8); Canvas.SetTop(geoLabel, scr.Y - 6);   // 名字下方
+                    WorkPointsOverlay.Children.Add(geoLabel);
+                }
+            }
+            else if (isSelected && geo != null)
+            {
+                // V-2b：范围点选中 → 点上方显示经纬度（DMS）
+                var geoLabel = new TextBlock
+                {
+                    Text = geo.ToDmsString(),
+                    FontSize = 10,
+                    Foreground = Brushes.DarkSlateGray,
+                    Background = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255)),
+                    Padding = new Thickness(2, 0, 2, 0),
+                    IsHitTestVisible = false,
+                };
+                Canvas.SetLeft(geoLabel, scr.X + 8); Canvas.SetTop(geoLabel, scr.Y - 18);
+                WorkPointsOverlay.Children.Add(geoLabel);
             }
         }
 
@@ -1813,11 +1884,25 @@ namespace NavigatorHMI.Views
             if (e.Row.Item is WorkPointRowVM row) _propertyViewModel.CommitNewWorkPointRow(row);
         }
 
+        /// <summary>V-2c：表格选中变化 → 滚动到该行（marker 点击经 SelectedItem 绑定触发，用户点表格同样适用；选中态由 setter → overlay 刷新联动）。</summary>
+        private void WorkPointGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.DataGrid dg && dg.SelectedItem != null)
+                dg.ScrollIntoView(dg.SelectedItem);
+        }
+
         /// <summary>C12-1：作业范围表格新行提交（同 WorkPoint 表格）。</summary>
         private void WorkRangeGrid_RowEditEnding(object sender, DataGridRowEditEndingEventArgs e)
         {
             if (e.EditAction != DataGridEditAction.Commit || !e.Row.IsNewItem) return;
             if (e.Row.Item is WorkRangeRowVM row) _propertyViewModel.CommitNewWorkRangeRow(row);
+        }
+
+        /// <summary>V-2c：作业范围表格选中变化 → 滚动到该行（同 WorkPointGrid）。</summary>
+        private void WorkRangeGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.DataGrid dg && dg.SelectedItem != null)
+                dg.ScrollIntoView(dg.SelectedItem);
         }
 
         /// <summary>C12-1：多边形顶点表格新行提交（同 WorkPoint 表格；已编辑行挂模型、未编辑空行移除）。</summary>

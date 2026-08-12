@@ -803,12 +803,12 @@ namespace NavigatorHMI.ViewModels
         public ObservableCollection<WorkRangeRowVM> WorkRangeRows { get; } = new();
 
         private WorkPointRowVM? _selectedWorkPointRow;
-        /// <summary>作业点表格选中行（DataGrid SelectedItem 双向绑定）。</summary>
-        public WorkPointRowVM? SelectedWorkPointRow { get => _selectedWorkPointRow; set { _selectedWorkPointRow = value; OnPropertyChanged(); } }
+        /// <summary>作业点表格选中行（DataGrid SelectedItem 双向绑定）。V-2a：选中变化 → overlay 刷新（图上选中态联动）。</summary>
+        public WorkPointRowVM? SelectedWorkPointRow { get => _selectedWorkPointRow; set { if (_selectedWorkPointRow == value) return; _selectedWorkPointRow = value; OnPropertyChanged(); WorldMapPointsChanged?.Invoke(); } }
 
         private WorkRangeRowVM? _selectedWorkRangeRow;
-        /// <summary>作业范围表格选中行。</summary>
-        public WorkRangeRowVM? SelectedWorkRangeRow { get => _selectedWorkRangeRow; set { _selectedWorkRangeRow = value; OnPropertyChanged(); } }
+        /// <summary>作业范围表格选中行。V-2a：选中变化 → overlay 刷新（图上选中态联动）。</summary>
+        public WorkRangeRowVM? SelectedWorkRangeRow { get => _selectedWorkRangeRow; set { if (_selectedWorkRangeRow == value) return; _selectedWorkRangeRow = value; OnPropertyChanged(); WorldMapPointsChanged?.Invoke(); } }
 
         /// <summary>作业点/范围点变更 → overlay 刷新回调（EditWindow 注入 → UpdateAllGeoWidgets）。</summary>
         public Action? WorldMapPointsChanged { get; set; }
