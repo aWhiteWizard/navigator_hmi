@@ -339,7 +339,7 @@ namespace NavigatorHMI.ViewModels
                             case ImageWidget img: ImagePath = img.ImagePath; ImageFillColor = img.FillColor; ImageListRef = img.ListRef; ImageDefaultIndex = img.DefaultIndex; break;
                             case NumericDisplayWidget nd: NumericFontSize = nd.FontSize; NumericTextColor = nd.TextColor; NumericFillColor = nd.FillColor; NumericValue = nd.Value; NumericFontFamily = nd.FontFamily; NumericFontWeight = nd.FontWeight; NumericFontStyle = nd.FontStyle; NumericTextDecoration = nd.TextDecoration; break;
                             case SwitchWidget sw: SwitchIsOn = sw.IsOn; SwitchOnText = sw.OnText; SwitchOffText = sw.OffText; SwitchFontFamily = sw.FontFamily; SwitchFontSize = sw.FontSize; SwitchFontWeight = sw.FontWeight; SwitchFontStyle = sw.FontStyle; SwitchTextDecoration = sw.TextDecoration; SwitchTextColor = sw.TextColor; SwitchFillColor = sw.FillColor; break;
-                            case LineWidget line: LineX2 = line.X2; LineY2 = line.Y2; LineStrokeColor = line.StrokeColor; LineStrokeThickness = line.StrokeThickness; break;
+                            case LineWidget line: LineX2 = Math.Round(line.X2, 3); LineY2 = Math.Round(line.Y2, 3); LineStrokeColor = line.StrokeColor; LineStrokeThickness = line.StrokeThickness; break;   // C12-11：直线端点 3 位小数
                             case CircleWidget c: CircleFillColor = c.FillColor; CircleStrokeColor = c.StrokeColor; CircleStrokeThickness = c.StrokeThickness; break;
                             case EllipseWidget el: EllipseFillColor = el.FillColor; EllipseStrokeColor = el.StrokeColor; EllipseStrokeThickness = el.StrokeThickness; break;
                             case IOFieldWidget io: IOFieldContent = io.Content; IOFieldIsReadOnly = io.IsReadOnly; IOFieldFillColor = io.FillColor; IOFieldTextColor = io.TextColor; IOFieldFontFamily = io.FontFamily; IOFieldFontSize = io.FontSize; IOFieldFontWeight = io.FontWeight; IOFieldFontStyle = io.FontStyle; IOFieldTextDecoration = io.TextDecoration; break;
@@ -465,10 +465,10 @@ namespace NavigatorHMI.ViewModels
                     RefreshDuplicateCheck();
                     break;
                 case nameof(LineWidget.X2):
-                    if (_selectedWidget is LineWidget line1) LineX2 = line1.X2;
+                    if (_selectedWidget is LineWidget line1) LineX2 = Math.Round(line1.X2, 3);   // C12-11：3 位小数
                     break;
                 case nameof(LineWidget.Y2):
-                    if (_selectedWidget is LineWidget line2) LineY2 = line2.Y2;
+                    if (_selectedWidget is LineWidget line2) LineY2 = Math.Round(line2.Y2, 3);   // C12-11：3 位小数
                     break;
                 // W4：WindowWidget 外部改模型 → 面板实时同步（CLI/Undo）
                 case nameof(WindowWidget.Title):
@@ -1035,13 +1035,14 @@ namespace NavigatorHMI.ViewModels
         private double _x;
         public double X
         {
-            get => _x;
+            get => Math.Round(_x, 3);   // C12-11：点坐标显示统一 3 位小数（圆心/矩形顶点/位置）
             set
             {
                 if (_selectedWidget != null)
                 {
                     if (!double.IsFinite(value)) value = _x;   // 防 NaN/Infinity
                     value = Math.Max(0, Math.Min(value, CanvasWidth - _selectedWidget.Width));   // 0 ≤ X ≤ 画布宽-控件宽
+                    value = Math.Round(value, 3, MidpointRounding.AwayFromZero);   // C12-11：坐标存储统一 3 位（显示与模型一致）
                 }
                 if (Math.Abs(_x - value) > 0.001)
                 {
@@ -1057,13 +1058,14 @@ namespace NavigatorHMI.ViewModels
         private double _y;
         public double Y
         {
-            get => _y;
+            get => Math.Round(_y, 3);   // C12-11：点坐标显示统一 3 位小数
             set
             {
                 if (_selectedWidget != null)
                 {
                     if (!double.IsFinite(value)) value = _y;
                     value = Math.Max(0, Math.Min(value, CanvasHeight - _selectedWidget.Height));
+                    value = Math.Round(value, 3, MidpointRounding.AwayFromZero);   // C12-11：坐标存储统一 3 位
                 }
                 if (Math.Abs(_y - value) > 0.001)
                 {
@@ -1739,9 +1741,9 @@ namespace NavigatorHMI.ViewModels
         public string SwitchOffText { get => _switchOffText; set { if (_switchOffText != value) { _switchOffText = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is SwitchWidget sw) sw.OffText = value; } } }
 
         private double _lineX2 = 100;
-        public double LineX2 { get => _lineX2; set { if (!double.IsFinite(value)) value = _lineX2; if (_selectedWidget is LineWidget ln) value = Math.Min(Math.Max(0, value), ln.Width); if (Math.Abs(_lineX2 - value) > 0.001) { if (!_syncingFromModel) BeforeModify?.Invoke(); _lineX2 = value; OnPropertyChanged(); if (_selectedWidget is LineWidget ln2) ln2.X2 = value; } } }
+        public double LineX2 { get => _lineX2; set { if (!double.IsFinite(value)) value = _lineX2; if (_selectedWidget is LineWidget ln) value = Math.Min(Math.Max(0, value), ln.Width); value = Math.Round(value, 3, MidpointRounding.AwayFromZero); if (Math.Abs(_lineX2 - value) > 0.001) { if (!_syncingFromModel) BeforeModify?.Invoke(); _lineX2 = value; OnPropertyChanged(); if (_selectedWidget is LineWidget ln2) ln2.X2 = value; } } }   // C12-11：端点存储统一 3 位
         private double _lineY2 = 0;
-        public double LineY2 { get => _lineY2; set { if (!double.IsFinite(value)) value = _lineY2; if (_selectedWidget is LineWidget ln) value = Math.Min(Math.Max(0, value), ln.Height); if (Math.Abs(_lineY2 - value) > 0.001) { if (!_syncingFromModel) BeforeModify?.Invoke(); _lineY2 = value; OnPropertyChanged(); if (_selectedWidget is LineWidget ln3) ln3.Y2 = value; } } }
+        public double LineY2 { get => _lineY2; set { if (!double.IsFinite(value)) value = _lineY2; if (_selectedWidget is LineWidget ln) value = Math.Min(Math.Max(0, value), ln.Height); value = Math.Round(value, 3, MidpointRounding.AwayFromZero); if (Math.Abs(_lineY2 - value) > 0.001) { if (!_syncingFromModel) BeforeModify?.Invoke(); _lineY2 = value; OnPropertyChanged(); if (_selectedWidget is LineWidget ln3) ln3.Y2 = value; } } }   // C12-11：端点存储统一 3 位
         private string _lineStrokeColor = "#000000";
         public string LineStrokeColor { get => _lineStrokeColor; set { if (_lineStrokeColor != value) { _lineStrokeColor = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is LineWidget ln) ln.StrokeColor = value; } } }
 
@@ -2049,10 +2051,10 @@ namespace NavigatorHMI.ViewModels
 
         public double X
         {
-            get => Model.X;
+            get => Math.Round(Model.X, 3, MidpointRounding.AwayFromZero);   // C12-11：顶点坐标显示统一 3 位小数
             set
             {
-                var v = Math.Round(value, 3);
+                var v = Math.Round(value, 3, MidpointRounding.AwayFromZero);
                 if (Model.X != v)
                 {
                     _beforeModify?.Invoke();   // 行内编辑前快照（撤销粒度 = 单格编辑；新行未挂入模型时 null 安全）
@@ -2064,10 +2066,10 @@ namespace NavigatorHMI.ViewModels
         }
         public double Y
         {
-            get => Model.Y;
+            get => Math.Round(Model.Y, 3, MidpointRounding.AwayFromZero);   // C12-11：顶点坐标显示统一 3 位小数
             set
             {
-                var v = Math.Round(value, 3);
+                var v = Math.Round(value, 3, MidpointRounding.AwayFromZero);
                 if (Model.Y != v)
                 {
                     _beforeModify?.Invoke();
