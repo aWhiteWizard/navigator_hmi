@@ -14,6 +14,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Windows;
 using System.Windows.Threading;
 using System.Windows.Controls;
@@ -1402,6 +1403,13 @@ namespace NavigatorHMI.Views
                 var wm = _viewModel.CurrentProject?.WorldMap;
                 if (wm != null)
                 {
+                    // U-B4/C12-4：相邻重复点拦截（防误双击，与作业范围加点同规则）
+                    var last = wm.WorkPoints.Count > 0 ? wm.WorkPoints[^1].FixedPoint : null;
+                    if (last != null && Math.Abs(last.Longitude - geo.Longitude) < 1e-9 && Math.Abs(last.Latitude - geo.Latitude) < 1e-9)
+                    {
+                        e.Handled = true;
+                        return;
+                    }
                     _viewModel.PushWorldMapUndoSnapshot();   // 加点前快照（C12-2 机制）
                     wm.WorkPoints.Add(new MapWorkPoint { Name = NextWorkPointName(wm), FixedPoint = geo });
                     MarkProjectDirty();
@@ -1703,23 +1711,23 @@ namespace NavigatorHMI.Views
                 if (geo == null) continue;
                 var scr = GeoToScreen(geo);
                 if (scr == null) continue;
-                AddWorkPointMarker(scr.Value, wp.Name, isRangePoint: false);
+                AddWorkPointMarker(scr.Value, wp.Name, isRangePoint: false, geo, wp.BoundTag);   // C12-5：气泡含名称/经纬度/绑定变量
             }
             // C12-3：作业范围闭合区域（≥3 个有效点 → 边界连线 + 半透明填充；IsHitTestVisible=false 不挡地图交互）
-            var rangePts = new List<Point>();
+            var rangePts = new List<(Point Scr, GeoPoint Geo, string? Bound)>();
             foreach (var rp in wm.WorkRangePoints)
             {
                 var geo = ResolveWorkPointGeo(project, rp.BoundTag, rp.FixedPoint);
                 if (geo == null) continue;
                 var scr = GeoToScreen(geo);
                 if (scr == null) continue;
-                rangePts.Add(scr.Value);
+                rangePts.Add((scr.Value, geo, rp.BoundTag));
             }
             if (rangePts.Count >= 3)
             {
                 var poly = new System.Windows.Shapes.Polygon
                 {
-                    Points = new PointCollection(rangePts),
+                    Points = new PointCollection(rangePts.Select(r => r.Scr)),
                     Fill = new SolidColorBrush(Color.FromArgb(40, 30, 144, 255)),   // 半透明蓝填充
                     Stroke = new SolidColorBrush(Color.FromArgb(200, 30, 144, 255)),
                     StrokeThickness = 1.5,
@@ -1728,7 +1736,7 @@ namespace NavigatorHMI.Views
                 Canvas.SetLeft(poly, 0); Canvas.SetTop(poly, 0);
                 WorkPointsOverlay.Children.Add(poly);
             }
-            foreach (var pt in rangePts) AddWorkPointMarker(pt, null, isRangePoint: true);
+            foreach (var rp in rangePts) AddWorkPointMarker(rp.Scr, null, isRangePoint: true, rp.Geo, rp.Bound);   // C12-5：范围点气泡含经纬度/绑定变量
         }
 
         /// <summary>作业点经纬度解析：绑 GPS 变量优先（取基准值，1Hz 模拟动态），否则固定值。</summary>
@@ -1742,8 +1750,9 @@ namespace NavigatorHMI.Views
             return fixedPoint;
         }
 
-        /// <summary>添加单个 marker 到 overlay：作业点 = 红点 + 名称标签；作业范围点 = 蓝色小方块（无名称）。</summary>
-        private void AddWorkPointMarker(Point scr, string? name, bool isRangePoint)
+        /// <summary>添加单个 marker 到 overlay：作业点 = 红点 + 名称标签；作业范围点 = 蓝色小方块（无名称）。
+        /// C12-5：悬停气泡（ToolTip）显示名称/经纬度/绑定变量——悬停有反馈后即可验证 C12-4 重复点拦截。</summary>
+        private void AddWorkPointMarker(Point scr, string? name, bool isRangePoint, GeoPoint? geo, string? boundTag)
         {
             var mark = new System.Windows.Shapes.Ellipse();
             if (isRangePoint)
@@ -1758,6 +1767,13 @@ namespace NavigatorHMI.Views
                 mark.Fill = Brushes.Red; mark.Stroke = Brushes.White; mark.StrokeThickness = 1.5;
                 Canvas.SetLeft(mark, scr.X - 6); Canvas.SetTop(mark, scr.Y - 6);
             }
+            // C12-5：悬停气泡（名称/经纬度/绑定变量；移出即隐藏由 WPF ToolTip 原生行为保证）
+            var tt = new StringBuilder();
+            tt.Append(isRangePoint ? "范围点" : $"作业点: {name}");
+            tt.AppendLine();
+            if (geo != null) tt.AppendLine(geo.ToBaseValue());
+            if (!string.IsNullOrEmpty(boundTag)) tt.Append($"绑定: {boundTag}");
+            mark.ToolTip = tt.ToString().TrimEnd();
             WorkPointsOverlay.Children.Add(mark);
 
             if (!isRangePoint && !string.IsNullOrEmpty(name))
@@ -1769,6 +1785,7 @@ namespace NavigatorHMI.Views
                     Foreground = Brushes.Black,
                     Background = new SolidColorBrush(Color.FromArgb(200, 255, 255, 255)),
                     Padding = new Thickness(2, 0, 2, 0),
+                    IsHitTestVisible = false,   // C12-5：名称标签不参与命中（有背景会挡地图拖拽；气泡由 marker 承载）
                 };
                 Canvas.SetLeft(label, scr.X + 8); Canvas.SetTop(label, scr.Y - 20);
                 WorkPointsOverlay.Children.Add(label);

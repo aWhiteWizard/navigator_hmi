@@ -1522,8 +1522,9 @@
                                                     Width="{Binding DeviceWidth}" Height="{Binding DeviceHeight}"
                                                     Visibility="{Binding DataContext.IsWorldMapActive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}"
                                                     IsHitTestVisible="{Binding DataContext.IsWorldMapActive, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=False}"/>
-                                            <!-- 作业点/作业范围点 overlay（P2）：经纬度 → 屏幕坐标换算后定位；不命中不挡地图交互 -->
-                                            <Canvas x:Name="WorkPointsOverlay" Panel.ZIndex="1" IsHitTestVisible="False"
+                                            <!-- 作业点/作业范围点 overlay（P2/C12-5）：经纬度 → 屏幕坐标换算后定位；Canvas 无 Background 空白区穿透地图交互，
+                                                 子元素命中仅限 marker 本身（ToolTip 悬停气泡需要命中；区域 polygon/名称标签各自 IsHitTestVisible=false 保持穿透） -->
+                                            <Canvas x:Name="WorkPointsOverlay" Panel.ZIndex="1" IsHitTestVisible="True"
                                                     Width="{Binding DeviceWidth}" Height="{Binding DeviceHeight}"
                                                     Visibility="{Binding DataContext.IsWorldMapActive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}"/>
                                             <Canvas x:Name="DrawingCanvas" HorizontalAlignment="Left" VerticalAlignment="Top"
