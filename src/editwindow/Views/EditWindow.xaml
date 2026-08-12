@@ -212,6 +212,7 @@
                         <DataGridTextColumn Header="绑定变量" Binding="{Binding BoundTag, UpdateSourceTrigger=LostFocus}" Width="70"/>
                     </DataGrid.Columns>
                 </DataGrid>
+                <Button Content="📍 设置作业点" Click="StartEditWorkPoint_Click" Padding="8,2" HorizontalAlignment="Left" Margin="4,2" FontSize="11" ToolTip="进入选点模式：点击地图追加作业点（名称自动编号），ESC/右键退出"/>
                 <Button Content="🗑 删除选中作业点" Click="DeleteWorkPointRow_Click" Padding="8,2" HorizontalAlignment="Right" Margin="4,2" FontSize="11"/>
             </StackPanel>
             <TextBlock Text="作业范围" Style="{StaticResource PropGroupHeader}" Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}"/>
@@ -1453,7 +1454,8 @@
                                             <Button Content="📋 属性" Click="WorldMapProperty_Click" Width="110" Height="28" Margin="2" ToolTip="选中世界地图画面，属性面板显示作业点/作业范围配置"/>
                                             <Button Content="⚡ 事件配置" Click="WorldMapEventConfig_Click" Width="110" Height="28" Margin="2" ToolTip="配置点击地图空白处切换画面事件"/>
                                             <Separator/>
-                                            <Button Content="📌 设置作业范围" Click="StartEditWorkRange_Click" Width="110" Height="28" Margin="2" ToolTip="进入加点模式：点击地图加经纬度点，ESC/右键退出"/>
+                                            <Button Content="📍 设置作业点" Click="StartEditWorkPoint_Click" Width="110" Height="28" Margin="2" ToolTip="进入选点模式：点击地图追加作业点（名称自动编号），ESC/右键退出"/>
+                <Button Content="📌 设置作业范围" Click="StartEditWorkRange_Click" Width="110" Height="28" Margin="2" ToolTip="进入加点模式：点击地图加经纬度点，ESC/右键退出"/>
                                             <Button Content="🗑 清除作业范围" Click="ClearWorkRange_Click" Width="110" Height="28" Margin="2"/>
                                         </StackPanel>
                                     </Border>

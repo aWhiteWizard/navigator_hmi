@@ -79,6 +79,7 @@ namespace NavigatorHMI.Views
         private readonly List<System.Windows.Point> _polygonPoints = new();
         /// <summary>作业范围加点编辑模式（P3/P4）：地图点击加经纬度点，ESC/右键退出。</summary>
         private bool _isEditingWorkRange;
+        private bool _isAddingWorkPoint;   // C12-9：作业点地图选点模式（点击地图追加作业点）
         private System.Windows.Shapes.Path? _drawPreviewPath;
 
         // CLI 命令历史
@@ -1386,10 +1387,26 @@ namespace NavigatorHMI.Views
                 return;
             }
 
-            if (_currentWidgetCreator is not PolygonWidgetCreator && !_isEditingWorkRange) return;
+            if (_currentWidgetCreator is not PolygonWidgetCreator && !_isEditingWorkRange && !_isAddingWorkPoint) return;
             var pos = e.GetPosition(WorldMapControl);
             var geo = ScreenToGeo(pos);
             if (geo == null) return;
+
+            if (_isAddingWorkPoint)
+            {
+                // C12-9：作业点地图选点（名称自动编号；连续加点，右键/ESC 退出）
+                var wm = _viewModel.CurrentProject?.WorldMap;
+                if (wm != null)
+                {
+                    _viewModel.PushWorldMapUndoSnapshot();   // 加点前快照（C12-2 机制）
+                    wm.WorkPoints.Add(new MapWorkPoint { Name = NextWorkPointName(wm), FixedPoint = geo });
+                    MarkProjectDirty();
+                    UpdateAllGeoWidgets();
+                    _propertyViewModel.RefreshWorkPointRows();   // C12-6 同款：表格实时刷新
+                }
+                e.Handled = true;
+                return;
+            }
 
             if (_isEditingWorkRange)
             {
@@ -1427,6 +1444,13 @@ namespace NavigatorHMI.Views
         private void WorldMap_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (_viewModel?.IsWorldMapActive != true) return;
+
+            if (_isAddingWorkPoint)
+            {
+                ExitWorkPointAddMode();
+                e.Handled = true;
+                return;
+            }
 
             if (_isEditingWorkRange)
             {
@@ -1494,11 +1518,41 @@ namespace NavigatorHMI.Views
         /// <summary>P5：属性面板「视口自适应」按钮 → ZoomToBox 框选（VM 回调）。</summary>
         private void WorldMapZoomToBox_Click(object sender, RoutedEventArgs e) => _propertyViewModel.WorldMapZoomToBox();
 
+        /// <summary>C12-9：进入作业点地图选点模式：点击地图追加作业点（名称自动编号；ESC/右键退出）。</summary>
+        private void StartEditWorkPoint_Click(object sender, RoutedEventArgs e)
+        {
+            WorldMapContextMenu.IsOpen = false;
+            if (_viewModel?.CurrentProject?.WorldMap == null) return;
+            _isEditingWorkRange = false;   // 互斥：退出作业范围加点模式
+            _isAddingWorkPoint = true;
+            WorldMapControl.Cursor = Cursors.Cross;
+            System.Diagnostics.Trace.WriteLine("[WorldMap] 进入作业点选点模式：点击地图追加作业点，ESC/右键退出");
+        }
+
+        /// <summary>C12-9：退出作业点选点模式（右键/ESC；不清除已加点）。</summary>
+        private void ExitWorkPointAddMode()
+        {
+            if (!_isAddingWorkPoint) return;
+            _isAddingWorkPoint = false;
+            WorldMapControl.Cursor = Cursors.Arrow;
+            UpdateAllGeoWidgets();
+        }
+
+        /// <summary>C12-9：作业点默认名"作业点N"（N 从现有数量+1 起递增，避开重名）。</summary>
+        private static string NextWorkPointName(WorldMapConfig wm)
+        {
+            var names = new HashSet<string>(wm.WorkPoints.Select(w => w.Name));
+            int n = wm.WorkPoints.Count + 1;
+            while (names.Contains($"作业点{n}")) n++;
+            return $"作业点{n}";
+        }
+
         /// <summary>进入作业范围加点编辑模式：地图点击加经纬度、ESC/右键退出（P3/P4）。</summary>
         private void StartEditWorkRange_Click(object sender, RoutedEventArgs e)
         {
             WorldMapContextMenu.IsOpen = false;
             if (_viewModel?.CurrentProject?.WorldMap == null) return;
+            _isAddingWorkPoint = false;   // 互斥：退出作业点选点模式（C12-9）
             _isEditingWorkRange = true;
             WorldMapControl.Cursor = Cursors.Cross;
             // 地图禁拖动由 Preview 隧道事件 e.Handled=true 实现（WorldMap_PreviewMouseLeftButtonDown 加点分支先于 Mapsui 内部处理）
@@ -2231,6 +2285,7 @@ namespace NavigatorHMI.Views
             // P2：世界地图画面切换/重载后刷新作业点 overlay（视口未初始化时 ViewportChanged 不触发）
             if (_viewModel?.IsWorldMapActive == true) UpdateAllGeoWidgets();
             else if (_isEditingWorkRange) ExitWorkRangeEditMode();   // 切出世界地图 → 退出作业范围编辑模式
+            else if (_isAddingWorkPoint) ExitWorkPointAddMode();   // C12-9：切出世界地图 → 退出作业点选点模式
 
             // 订阅模型脏标记（任意控件属性变化 → 标题加 * 并在关闭时提醒保存）
             SubscribeModelDirty(screen);
@@ -2636,10 +2691,15 @@ namespace NavigatorHMI.Views
             }
             else if (e.Key == Key.Escape)
             {
-                // ESC 退出添加模式（含两点式绘制中途取消）；作业范围加点编辑模式优先退出
+                // ESC 退出添加模式（含两点式绘制中途取消）；作业范围加点/作业点选点编辑模式优先退出
                 if (_isEditingWorkRange)
                 {
                     ExitWorkRangeEditMode();
+                    e.Handled = true;
+                }
+                else if (_isAddingWorkPoint)
+                {
+                    ExitWorkPointAddMode();   // C12-9：ESC 退出作业点选点模式
                     e.Handled = true;
                 }
                 else if (_currentWidgetCreator != null)
