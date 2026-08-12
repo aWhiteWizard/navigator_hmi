@@ -205,9 +205,22 @@
             <StackPanel Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}">
                 <DataGrid ItemsSource="{Binding WorkPointRows}" SelectedItem="{Binding SelectedWorkPointRow}" CanUserAddRows="True" AutoGenerateColumns="False"
                           Height="110" Margin="4,2" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
-                          SelectionMode="Single" SelectionChanged="WorkPointGrid_SelectionChanged" RowEditEnding="WorkPointGrid_RowEditEnding" ToolTip="末行空白行输入自动补行；经纬度(固定)与绑定变量二选一（互斥）">
+                          SelectionMode="Single" SelectionChanged="WorkPointGrid_SelectionChanged" RowEditEnding="WorkPointGrid_RowEditEnding"
+                          PreparingCellForEdit="WorkPointGrid_PreparingCellForEdit" CellEditEnding="WorkPointGrid_CellEditEnding"
+                          ToolTip="末行空白行输入自动补行；经纬度(固定)与绑定变量二选一（互斥）">
+                    <DataGrid.RowStyle>
+                        <!-- V-5b：经纬度输入非法 → 行浅黄 + ToolTip 带示例（不再静默忽略） -->
+                        <Style TargetType="DataGridRow">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasCoordError}" Value="True">
+                                    <Setter Property="Background" Value="LightYellow"/>
+                                    <Setter Property="ToolTip" Value="{Binding CoordError}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.RowStyle>
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="名称" Binding="{Binding Name, UpdateSourceTrigger=LostFocus}" Width="80">
+                        <DataGridTextColumn Header="名称" Binding="{Binding Name, UpdateSourceTrigger=LostFocus}" Width="70">
                             <DataGridTextColumn.CellStyle>
                                 <!-- V-4a：续28 B 方案——名称重复 → 单元格粉红 + ToolTip 提示（不删行不拦截，改名恢复） -->
                                 <Style TargetType="DataGridCell">
@@ -220,10 +233,14 @@
                                 </Style>
                             </DataGridTextColumn.CellStyle>
                         </DataGridTextColumn>
-                        <DataGridTextColumn Header="经纬度(固定)" Binding="{Binding LngLat, UpdateSourceTrigger=LostFocus}" Width="*"/>
-                        <DataGridTextColumn Header="绑定变量" Binding="{Binding BoundTag, UpdateSourceTrigger=LostFocus}" Width="70"/>
+                        <!-- V-5a：续23 方案 B——经纬度拆两列（每格输小数度，正=E/N 负=W/S；存储仍 DMS） -->
+                        <DataGridTextColumn Header="经度(E+)" Binding="{Binding Lng, UpdateSourceTrigger=LostFocus}" Width="*"/>
+                        <DataGridTextColumn Header="纬度(N+)" Binding="{Binding Lat, UpdateSourceTrigger=LostFocus}" Width="*"/>
+                        <DataGridTextColumn Header="绑定变量" Binding="{Binding BoundTag, UpdateSourceTrigger=LostFocus}" Width="55"/>
                     </DataGrid.Columns>
                 </DataGrid>
+                <!-- V-5a：经纬度输入 DMS 实时换算提示（仅编辑态显示，续23 增补 2；Tag 供 DataGrid 事件按 VisualTree 查找） -->
+                <TextBlock Tag="dms-hint" Foreground="DarkSlateGray" FontSize="10" Margin="6,0,4,2" TextWrapping="Wrap" Visibility="Collapsed" IsHitTestVisible="False"/>
                 <Button Content="📍 设置作业点" Click="StartEditWorkPoint_Click" Padding="8,2" HorizontalAlignment="Left" Margin="4,2" FontSize="11" ToolTip="进入选点模式：点击地图追加作业点（名称自动编号），ESC/右键退出"/>
                 <Button Content="🗑 删除选中作业点" Click="DeleteWorkPointRow_Click" Padding="8,2" HorizontalAlignment="Right" Margin="4,2" FontSize="11"/>
             </StackPanel>
@@ -231,12 +248,29 @@
             <StackPanel Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}">
                 <DataGrid ItemsSource="{Binding WorkRangeRows}" SelectedItem="{Binding SelectedWorkRangeRow}" CanUserAddRows="True" AutoGenerateColumns="False"
                           Height="90" Margin="4,2" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
-                          SelectionMode="Single" SelectionChanged="WorkRangeGrid_SelectionChanged" RowEditEnding="WorkRangeGrid_RowEditEnding" ToolTip="作业范围围栏顶点；地图右键「设置作业范围」可加点">
+                          SelectionMode="Single" SelectionChanged="WorkRangeGrid_SelectionChanged" RowEditEnding="WorkRangeGrid_RowEditEnding"
+                          PreparingCellForEdit="WorkRangeGrid_PreparingCellForEdit" CellEditEnding="WorkRangeGrid_CellEditEnding"
+                          ToolTip="作业范围围栏顶点；地图右键「设置作业范围」可加点">
+                    <DataGrid.RowStyle>
+                        <!-- V-5b：经纬度输入非法 → 行浅黄 + ToolTip 带示例 -->
+                        <Style TargetType="DataGridRow">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasCoordError}" Value="True">
+                                    <Setter Property="Background" Value="LightYellow"/>
+                                    <Setter Property="ToolTip" Value="{Binding CoordError}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.RowStyle>
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="经纬度(固定)" Binding="{Binding LngLat, UpdateSourceTrigger=LostFocus}" Width="*"/>
-                        <DataGridTextColumn Header="绑定变量" Binding="{Binding BoundTag, UpdateSourceTrigger=LostFocus}" Width="70"/>
+                        <!-- V-5a：续23 方案 B——经纬度拆两列（范围点无名称列） -->
+                        <DataGridTextColumn Header="经度(E+)" Binding="{Binding Lng, UpdateSourceTrigger=LostFocus}" Width="*"/>
+                        <DataGridTextColumn Header="纬度(N+)" Binding="{Binding Lat, UpdateSourceTrigger=LostFocus}" Width="*"/>
+                        <DataGridTextColumn Header="绑定变量" Binding="{Binding BoundTag, UpdateSourceTrigger=LostFocus}" Width="55"/>
                     </DataGrid.Columns>
                 </DataGrid>
+                <!-- V-5a：经纬度输入 DMS 实时换算提示（仅编辑态显示；Tag 供 DataGrid 事件按 VisualTree 查找） -->
+                <TextBlock Tag="dms-hint" Foreground="DarkSlateGray" FontSize="10" Margin="6,0,4,2" TextWrapping="Wrap" Visibility="Collapsed" IsHitTestVisible="False"/>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="4,2">
                     <Button Content="📍 地图加点" Click="StartEditWorkRange_Click" Padding="8,2" Margin="0,0,6,0" FontSize="11"/>
                     <Button Content="🗑 删除选中" Click="DeleteWorkRangeRow_Click" Padding="8,2" FontSize="11"/>

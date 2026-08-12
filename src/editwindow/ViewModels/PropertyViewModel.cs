@@ -1994,6 +1994,66 @@ namespace NavigatorHMI.ViewModels
                 _onChanged?.Invoke(); OnPropertyChanged(); OnPropertyChanged(nameof(BoundTag));
             }
         }
+        // V-5a：经纬度拆两列（续23 方案 B）——每格输小数度（正=E/N，负=W/S；解析失败按非法处理）；
+        // V-5b：非法输入不静默——标 CoordError（ToolTip 带示例）
+        public string Lng
+        {
+            get => Model.FixedPoint?.Longitude.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture) ?? "";
+            set
+            {
+                var v = (value ?? "").Trim();
+                if (double.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lng)
+                    && lng >= -180 && lng <= 180)
+                {
+                    _beforeModify?.Invoke();
+                    Model.FixedPoint ??= new GeoPoint(0, 0);
+                    Model.FixedPoint.Longitude = lng;
+                    Model.BoundTag = "";   // 互斥：写固定值清绑定变量
+                    CoordErrorLng = "";   // V-5b：只清本列错误（Lat 错误独立保留）
+                    _onChanged?.Invoke(); OnPropertyChanged(); OnPropertyChanged(nameof(BoundTag)); OnPropertyChanged(nameof(LngLat));
+                }
+                else if (!string.IsNullOrWhiteSpace(v))
+                    CoordErrorLng = "经度格式：104.06（东经为正，负号=西经）；DMS 如 E104°3'30\"";   // V-5b：非法输入带示例
+                else CoordErrorLng = "";
+            }
+        }
+        public string Lat
+        {
+            get => Model.FixedPoint?.Latitude.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture) ?? "";
+            set
+            {
+                var v = (value ?? "").Trim();
+                if (double.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lat)
+                    && lat >= -90 && lat <= 90)
+                {
+                    _beforeModify?.Invoke();
+                    Model.FixedPoint ??= new GeoPoint(0, 0);
+                    Model.FixedPoint.Latitude = lat;
+                    Model.BoundTag = "";
+                    CoordErrorLat = "";
+                    _onChanged?.Invoke(); OnPropertyChanged(); OnPropertyChanged(nameof(BoundTag)); OnPropertyChanged(nameof(LngLat));
+                }
+                else if (!string.IsNullOrWhiteSpace(v))
+                    CoordErrorLat = "纬度格式：30.67（北纬为正，负号=南纬）；DMS 如 N30°40'12\"";
+                else CoordErrorLat = "";
+            }
+        }
+        /// <summary>V-5b：经度/纬度输入非法提示（含示例；两列独立，合法输入清本列）。</summary>
+        private string _coordErrorLng = "";
+        public string CoordErrorLng
+        {
+            get => _coordErrorLng;
+            set { if (_coordErrorLng != value) { _coordErrorLng = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasCoordError)); OnPropertyChanged(nameof(CoordError)); } }
+        }
+        private string _coordErrorLat = "";
+        public string CoordErrorLat
+        {
+            get => _coordErrorLat;
+            set { if (_coordErrorLat != value) { _coordErrorLat = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasCoordError)); OnPropertyChanged(nameof(CoordError)); } }
+        }
+        public string CoordError => CoordErrorLng.Length > 0 ? CoordErrorLng : CoordErrorLat;
+        public bool HasCoordError => CoordErrorLng.Length > 0 || CoordErrorLat.Length > 0;
+
         public string BoundTag
         {
             get => Model.BoundTag;
@@ -2006,6 +2066,7 @@ namespace NavigatorHMI.ViewModels
                     _beforeModify?.Invoke();   // 行内编辑前快照
                     Model.BoundTag = v; Model.FixedPoint = null;   // 两列互斥：写绑定变量清固定值
                     _onChanged?.Invoke(); OnPropertyChanged(); OnPropertyChanged(nameof(LngLat));
+                    OnPropertyChanged(nameof(Lng)); OnPropertyChanged(nameof(Lat));   // V-5a：清固定值 → 两列同步清空显示
                 }
             }
         }
@@ -2037,6 +2098,64 @@ namespace NavigatorHMI.ViewModels
                 _onChanged?.Invoke(); OnPropertyChanged(); OnPropertyChanged(nameof(BoundTag));
             }
         }
+        // V-5a：范围点经纬度拆两列（同 WorkPointRowVM：小数度输入，正=E/N 负=W/S）
+        public string Lng
+        {
+            get => Model.FixedPoint?.Longitude.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture) ?? "";
+            set
+            {
+                var v = (value ?? "").Trim();
+                if (double.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lng)
+                    && lng >= -180 && lng <= 180)
+                {
+                    _beforeModify?.Invoke();
+                    Model.FixedPoint ??= new GeoPoint(0, 0);
+                    Model.FixedPoint.Longitude = lng;
+                    Model.BoundTag = "";
+                    CoordErrorLng = "";
+                    _onChanged?.Invoke(); OnPropertyChanged(); OnPropertyChanged(nameof(BoundTag)); OnPropertyChanged(nameof(LngLat));
+                }
+                else if (!string.IsNullOrWhiteSpace(v))
+                    CoordErrorLng = "经度格式：104.06（东经为正，负号=西经）；DMS 如 E104°3'30\"";
+                else CoordErrorLng = "";
+            }
+        }
+        public string Lat
+        {
+            get => Model.FixedPoint?.Latitude.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture) ?? "";
+            set
+            {
+                var v = (value ?? "").Trim();
+                if (double.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lat)
+                    && lat >= -90 && lat <= 90)
+                {
+                    _beforeModify?.Invoke();
+                    Model.FixedPoint ??= new GeoPoint(0, 0);
+                    Model.FixedPoint.Latitude = lat;
+                    Model.BoundTag = "";
+                    CoordErrorLat = "";
+                    _onChanged?.Invoke(); OnPropertyChanged(); OnPropertyChanged(nameof(BoundTag)); OnPropertyChanged(nameof(LngLat));
+                }
+                else if (!string.IsNullOrWhiteSpace(v))
+                    CoordErrorLat = "纬度格式：30.67（北纬为正，负号=南纬）；DMS 如 N30°40'12\"";
+                else CoordErrorLat = "";
+            }
+        }
+        /// <summary>V-5b：经度/纬度输入非法提示（含示例；两列独立）。</summary>
+        private string _coordErrorLng = "";
+        public string CoordErrorLng
+        {
+            get => _coordErrorLng;
+            set { if (_coordErrorLng != value) { _coordErrorLng = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasCoordError)); OnPropertyChanged(nameof(CoordError)); } }
+        }
+        private string _coordErrorLat = "";
+        public string CoordErrorLat
+        {
+            get => _coordErrorLat;
+            set { if (_coordErrorLat != value) { _coordErrorLat = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasCoordError)); OnPropertyChanged(nameof(CoordError)); } }
+        }
+        public string CoordError => CoordErrorLng.Length > 0 ? CoordErrorLng : CoordErrorLat;
+        public bool HasCoordError => CoordErrorLng.Length > 0 || CoordErrorLat.Length > 0;
         public string BoundTag
         {
             get => Model.BoundTag;
@@ -2049,6 +2168,7 @@ namespace NavigatorHMI.ViewModels
                     _beforeModify?.Invoke();   // 行内编辑前快照
                     Model.BoundTag = v; Model.FixedPoint = null;   // 两列互斥
                     _onChanged?.Invoke(); OnPropertyChanged(); OnPropertyChanged(nameof(LngLat));
+                    OnPropertyChanged(nameof(Lng)); OnPropertyChanged(nameof(Lat));   // V-5a：清固定值 → 两列同步清空显示
                 }
             }
         }

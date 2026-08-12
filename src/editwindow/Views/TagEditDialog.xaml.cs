@@ -51,6 +51,15 @@ namespace NavigatorHMI.Views
                 DeadbandBox.Text = existing.Deadband.ToString(System.Globalization.CultureInfo.InvariantCulture);
                 DescriptionBox.Text = existing.Description;
                 BaseValueBox.Text = existing.BaseValue;
+                if (existing.DataType == TagDataType.GPS)   // V-5a：GPS 基准值回填两框（解析 BaseValue 拆经度/纬度）
+                {
+                    if (GeoPoint.TryParse(existing.BaseValue, out var gpsPt) && gpsPt != null)
+                    {
+                        LngBaseBox.Text = gpsPt.Longitude.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture);
+                        LatBaseBox.Text = gpsPt.Latitude.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture);
+                        GpsDmsHint.Visibility = Visibility.Collapsed;   // 回填触发 TextChanged → 提示抑制（仅输入状态显示，续23 增补 2）
+                    }
+                }
                 if (existing.DataType == TagDataType.BOOL)   // #4：BOOL 编辑回填下拉；存量 "1"/"True"/"TRUE" 兼容（大小写不敏感——命令层新写入已归一，旧工程可能存变体）
                     BoolBaseBox.SelectedIndex = existing.BaseValue is not null
                         && (string.Equals(existing.BaseValue, "true", StringComparison.OrdinalIgnoreCase) || existing.BaseValue == "1") ? 1 : 0;
@@ -125,13 +134,57 @@ namespace NavigatorHMI.Views
             }
         }
 
-        /// <summary>#4：BOOL 类型基准值用下拉（false/true——只能填这两个），其余类型用文本框。</summary>
+        /// <summary>#4：BOOL 类型基准值用下拉（false/true——只能填这两个），其余类型用文本框。
+        /// V-5a：GPS 类型用两框（经度/纬度，续23 方案 B）。</summary>
         private void DataTypeBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (DataTypeBox.SelectedItem is not ComboBoxItem bi) return;
             bool isBool = bi.Content?.ToString() == nameof(TagDataType.BOOL);
-            BaseValueBox.Visibility = isBool ? Visibility.Collapsed : Visibility.Visible;
+            bool isGps = bi.Content?.ToString() == nameof(TagDataType.GPS);
+            BaseValueBox.Visibility = (isBool || isGps) ? Visibility.Collapsed : Visibility.Visible;
             BoolBaseBox.Visibility = isBool ? Visibility.Visible : Visibility.Collapsed;
+            LngBaseBox.Visibility = isGps ? Visibility.Visible : Visibility.Collapsed;
+            LatBaseBox.Visibility = isGps ? Visibility.Visible : Visibility.Collapsed;
+            if (!isGps) GpsDmsHint.Visibility = Visibility.Collapsed;
+        }
+
+        /// <summary>V-5a：GPS 两框输入 → DMS 实时换算提示（TextChanged 显示；LostFocus 隐藏，续23 增补 2）。</summary>
+        private void GpsBaseBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (GpsDmsHint == null) return;
+            var lngStr = LngBaseBox.Text.Trim();
+            var latStr = LatBaseBox.Text.Trim();
+            var parts = new List<string>();
+            if (lngStr.Length > 0)
+                parts.Add(double.TryParse(lngStr, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out var lng)
+                    ? $"经度→{GeoPoint.FormatDms(lng, true)}" : "经度格式：104.06（负=西经）");
+            if (latStr.Length > 0)
+                parts.Add(double.TryParse(latStr, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out var lat)
+                    ? $"纬度→{GeoPoint.FormatDms(lat, false)}" : "纬度格式：30.67（负=南纬）");
+            GpsDmsHint.Text = string.Join("　", parts);
+            GpsDmsHint.Visibility = parts.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void GpsBaseBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (GpsDmsHint != null) GpsDmsHint.Visibility = Visibility.Collapsed;
+        }
+
+        /// <summary>V-5a：GPS 基准值从两框组装 "(E..., N...)"；非法返回 null 并置 err 提示。</summary>
+        private string? BuildGpsBaseValue(out string? err)
+        {
+            err = null;
+            var lngStr = LngBaseBox.Text.Trim();
+            var latStr = LatBaseBox.Text.Trim();
+            if (lngStr.Length == 0 && latStr.Length == 0) return new GeoPoint(0, 0).ToBaseValue();   // 全空 = 默认 (E0°0'0", N0°0'0")
+            if (lngStr.Length == 0 || latStr.Length == 0) { err = "经度和纬度都要填写（或都留空用默认 0）"; return null; }
+            if (!double.TryParse(lngStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lng)
+                || lng < -180 || lng > 180) { err = $"经度格式：104.06（东经为正，负号=西经；范围 ±180）"; return null; }
+            if (!double.TryParse(latStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lat)
+                || lat < -90 || lat > 90) { err = $"纬度格式：30.67（北纬为正，负号=南纬；范围 ±90）"; return null; }
+            return new GeoPoint(lng, lat).ToBaseValue();
         }
 
         /// <summary>来源下拉切换：选中设备显示地址输入，内部变量/自定义隐藏。</summary>
@@ -205,9 +258,20 @@ namespace NavigatorHMI.Views
             { ShowError("死区必须是有限数字"); return; }
 
             // 基准值：BOOL 用下拉（false/true——只能填这两个）；数字类型要求可解析为数字；DATETIME 用日期时间格式（任务8：全 0 字面放行）
-            var baseValue = dt == TagDataType.BOOL
-                ? (BoolBaseBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "false"
-                : BaseValueBox.Text.Trim();
+            // V-5a：GPS 基准值从两框组装（非法 → ShowError 拦截）
+            string baseValue;
+            if (dt == TagDataType.GPS)
+            {
+                var gpsBase = BuildGpsBaseValue(out var gpsErr);
+                if (gpsBase == null) { ShowError(gpsErr ?? "经纬度格式错误"); return; }
+                baseValue = gpsBase;
+            }
+            else
+            {
+                baseValue = dt == TagDataType.BOOL
+                    ? (BoolBaseBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "false"
+                    : BaseValueBox.Text.Trim();
+            }
             if (dt == TagDataType.DATETIME && baseValue.Length == 0) baseValue = "0000:00:00 00:00:00";   // 任务8：DATETIME 默认全 0 基准值
             if (baseValue.Length == 0 && dt == TagDataType.FLOAT) baseValue = "0.0";   // D4：数字变量默认基准值 0/0.0
             if (baseValue.Length == 0 && dt is TagDataType.INT16 or TagDataType.UINT16 or TagDataType.INT32) baseValue = "0";

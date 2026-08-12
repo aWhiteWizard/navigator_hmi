@@ -54,6 +54,11 @@ namespace NavigatorHMI.Common
             return true;
         }
 
+        /// <summary>格式化单个坐标：方向前缀 + 度分秒（秒四舍五入到整数 AwayFromZero，处理 60 进位）。
+        /// V-5a：public 供 GUI 输入实时换算提示（isLongitude=true → E/W 前缀，false → N/S）。</summary>
+        public static string FormatDms(double value, bool isLongitude)
+            => FormatCoord(value, isLongitude ? 'E' : 'N', isLongitude ? 'W' : 'S');
+
         /// <summary>格式化单个坐标：方向前缀 + 度分秒（秒四舍五入到整数 AwayFromZero，处理 60 进位）。</summary>
         private static string FormatCoord(double value, char positivePrefix, char negativePrefix)
         {

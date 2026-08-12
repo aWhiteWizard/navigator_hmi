@@ -2009,6 +2009,84 @@ namespace NavigatorHMI.Views
                 dg.ScrollIntoView(dg.SelectedItem);
         }
 
+        /// <summary>V-5a：经纬度单元格进入编辑 → 显示 DMS 实时换算提示（订阅 TextChanged；续23 增补 2：仅输入状态显示）。
+        /// dms-hint 提示块是 DataGrid 的兄弟节点（同 StackPanel），从 DataGrid 的 Parent 向下查找。</summary>
+        private void WorkPointGrid_PreparingCellForEdit(object sender, DataGridPreparingCellForEditEventArgs e)
+            => PrepareGeoCellEdit(((FrameworkElement)sender).Parent, e);
+
+        private void WorkPointGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+        {
+            UnsubscribeGeoHint();
+            HideGeoCellHint(FindDmsHint(((FrameworkElement)sender).Parent));
+        }
+
+        /// <summary>V-5a：范围点经纬度单元格 DMS 提示（同作业点）。</summary>
+        private void WorkRangeGrid_PreparingCellForEdit(object sender, DataGridPreparingCellForEditEventArgs e)
+            => PrepareGeoCellEdit(((FrameworkElement)sender).Parent, e);
+
+        private void WorkRangeGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+        {
+            UnsubscribeGeoHint();
+            HideGeoCellHint(FindDmsHint(((FrameworkElement)sender).Parent));
+        }
+
+        /// <summary>V-5a：当前 DMS 提示的 TextBox 订阅（防重复订阅泄漏——同格重复编辑只保留最新 handler）。</summary>
+        private TextBox? _geoHintTextBox;
+        private TextChangedEventHandler? _geoHintHandler;
+
+        private void UnsubscribeGeoHint()
+        {
+            if (_geoHintTextBox != null && _geoHintHandler != null)
+                _geoHintTextBox.TextChanged -= _geoHintHandler;
+            _geoHintTextBox = null;
+            _geoHintHandler = null;
+        }
+
+        /// <summary>V-5a：从 StackPanel（DataGrid 父级）向下按 Tag="dms-hint" 找提示 TextBlock（提示在 DataTemplate 内，x:Name 不生成窗口字段）。</summary>
+        private static TextBlock? FindDmsHint(DependencyObject? root)
+        {
+            if (root == null) return null;
+            for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(root); i++)
+            {
+                var child = System.Windows.Media.VisualTreeHelper.GetChild(root, i);
+                if (child is TextBlock tb && tb.Tag as string == "dms-hint") return tb;
+                if (FindDmsHint(child) is { } found) return found;
+            }
+            return null;
+        }
+
+        /// <summary>V-5a：经纬度列进入编辑 → 显示提示 + 订阅 TextChanged 实时换算（"104.06 → E104°3'36""）。</summary>
+        private void PrepareGeoCellEdit(DependencyObject? root, DataGridPreparingCellForEditEventArgs e)
+        {
+            var hint = FindDmsHint(root);
+            if (hint == null) return;
+            var isLng = (e.Column.Header as string)?.StartsWith("经度") == true;
+            var isLat = (e.Column.Header as string)?.StartsWith("纬度") == true;
+            if (!isLng && !isLat) { UnsubscribeGeoHint(); hint.Visibility = Visibility.Collapsed; return; }   // 非经纬度列：清残留订阅
+            if (e.EditingElement is not TextBox tb) return;
+            UnsubscribeGeoHint();   // 移除旧订阅（防泄漏）
+            _geoHintTextBox = tb;
+            _geoHintHandler = (_, _) => UpdateGeoHint(hint, isLng, tb.Text);
+            tb.TextChanged += _geoHintHandler;
+            UpdateGeoHint(hint, isLng, tb.Text);
+            hint.Visibility = Visibility.Visible;
+        }
+
+        private static void HideGeoCellHint(TextBlock? hint)
+        {
+            if (hint != null) hint.Visibility = Visibility.Collapsed;
+        }
+
+        /// <summary>V-5a：DMS 换算提示文本（小数度 → 度分秒；非法输入给格式示例）。</summary>
+        private static void UpdateGeoHint(TextBlock hint, bool isLng, string text)
+        {
+            if (double.TryParse(text.Trim(), System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out var v))
+                hint.Text = $"→ {GeoPoint.FormatDms(v, isLng)}";
+            else
+                hint.Text = isLng ? "输入小数经度，如 104.06（负=西经）" : "输入小数纬度，如 30.67（负=南纬）";
+        }
+
         /// <summary>C12-1：作业范围表格新行提交（同 WorkPoint 表格）。</summary>
         private void WorkRangeGrid_RowEditEnding(object sender, DataGridRowEditEndingEventArgs e)
         {

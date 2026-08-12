@@ -72,12 +72,19 @@
 
             <TextBlock Grid.Row="8" Grid.Column="0" VerticalAlignment="Center"><Run Text="基准值:"/><Run Text="（可选）" Foreground="Gray" FontSize="10"/></TextBlock>
             <Grid Grid.Row="8" Grid.Column="1">
-                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <!-- BOOL 与数字共用 * 列（Visibility 互斥切换，BoolBaseBox 占满列宽与其他输入框一致） -->
-                <TextBox Grid.Column="0" x:Name="BaseValueBox" ToolTip="设计态预览值：数字变量填数字，图片变量填路径（BOOL 类型请用下拉选择）"/>
-                <ComboBox Grid.Column="0" x:Name="BoolBaseBox" Visibility="Collapsed" SelectedIndex="0">
+                <TextBox Grid.Column="0" Grid.ColumnSpan="2" x:Name="BaseValueBox" ToolTip="设计态预览值：数字变量填数字，图片变量填路径（BOOL 类型请用下拉选择）"/>
+                <ComboBox Grid.Column="0" Grid.ColumnSpan="2" x:Name="BoolBaseBox" Visibility="Collapsed" SelectedIndex="0">
                     <ComboBoxItem Content="false"/><ComboBoxItem Content="true"/>
                 </ComboBox>
+                <!-- V-5a：GPS 类型基准值拆两框（续23 方案 B：小数度输入，正=E/N 负=W/S）+ DMS 实时换算提示（仅输入状态显示） -->
+                <TextBox Grid.Row="0" Grid.Column="0" x:Name="LngBaseBox" Visibility="Collapsed" Margin="0,0,2,0"
+                         ToolTip="经度（东经为正，负号=西经），如 104.06" TextChanged="GpsBaseBox_TextChanged" LostFocus="GpsBaseBox_LostFocus"/>
+                <TextBox Grid.Row="0" Grid.Column="1" x:Name="LatBaseBox" Visibility="Collapsed" Margin="2,0,0,0"
+                         ToolTip="纬度（北纬为正，负号=南纬），如 30.67" TextChanged="GpsBaseBox_TextChanged" LostFocus="GpsBaseBox_LostFocus"/>
+                <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" x:Name="GpsDmsHint" Foreground="DarkSlateGray" FontSize="10" Margin="0,2,0,0" Visibility="Collapsed" IsHitTestVisible="False"/>
             </Grid>
         </Grid>
 
