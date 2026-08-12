@@ -158,4 +158,20 @@ public class CompactSchemaAuditTests
         Assert.Equal(new[] { "name" }, required);
         Assert.DoesNotContain("threshold", required);
     }
+
+    // ── C12-14：作业点/范围点命令的经纬度与绑定变量在 compact schema 可见（原被省略 → AI 无法指定）──
+
+    [Theory]
+    [InlineData(typeof(AddWorkPointHandler))]
+    [InlineData(typeof(AddWorkRangePointHandler))]
+    public void 作业点命令_lngLat_boundTag可见且不进required(Type handlerType)
+    {
+        var def = ((ICommandHandler)Activator.CreateInstance(handlerType)!).Definition;
+        var p = BuildParams(def);
+        Assert.True(HasProp(p, "lng_lat"), $"{def.Name} 应含 lng_lat（AI 指定固定经纬度）");
+        Assert.True(HasProp(p, "bound_tag"), $"{def.Name} 应含 bound_tag（AI 指定绑定 GPS 变量）");
+        var required = p.GetProperty("required").EnumerateArray().Select(r => r.GetString()).ToList();
+        Assert.DoesNotContain("lng_lat", required);
+        Assert.DoesNotContain("bound_tag", required);
+    }
 }

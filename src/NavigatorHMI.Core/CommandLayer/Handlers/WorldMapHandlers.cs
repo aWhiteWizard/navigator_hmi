@@ -57,8 +57,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
             {
                 ["screen_name"] = new() { Type = "string", Required = true },
                 ["name"] = new() { Type = "string", Required = true, Description = "作业点名称（如 1号泵站）" },
-                ["lng_lat"] = new() { Type = "string", Required = false, Description = "固定经纬度（DMS 或小数度）；与 bound_tag 二选一" },
-                ["bound_tag"] = new() { Type = "string", Required = false, Description = "绑定 GPS 变量名（动态移动）；与 lng_lat 二选一" },
+                ["lng_lat"] = new() { Type = "string", Required = false, KeepInCompact = true, Description = "固定经纬度（DMS 或小数度）；与 bound_tag 二选一" },   // C12-14：AI compact schema 暴露该参数（原省略 → AI 无法指定经纬度）
+                ["bound_tag"] = new() { Type = "string", Required = false, KeepInCompact = true, Description = "绑定 GPS 变量名（动态移动）；与 lng_lat 二选一" },   // C12-14：AI compact schema 暴露该参数（原省略 → AI 无法指定绑定变量）
             }
         };
         public ValidationResult Validate(Dictionary<string, object?> p)
@@ -120,8 +120,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
             Parameters = new()
             {
                 ["screen_name"] = new() { Type = "string", Required = true },
-                ["lng_lat"] = new() { Type = "string", Required = false, Description = "固定经纬度（DMS 或小数度）；与 bound_tag 二选一" },
-                ["bound_tag"] = new() { Type = "string", Required = false, Description = "绑定 GPS 变量名；与 lng_lat 二选一" },
+                ["lng_lat"] = new() { Type = "string", Required = false, KeepInCompact = true, Description = "固定经纬度（DMS 或小数度）；与 bound_tag 二选一" },   // C12-14：AI compact schema 暴露（与 add_work_point 同源缺陷一并修复）
+                ["bound_tag"] = new() { Type = "string", Required = false, KeepInCompact = true, Description = "绑定 GPS 变量名；与 lng_lat 二选一" },   // C12-14：AI compact schema 暴露
             }
         };
         public ValidationResult Validate(Dictionary<string, object?> p)
