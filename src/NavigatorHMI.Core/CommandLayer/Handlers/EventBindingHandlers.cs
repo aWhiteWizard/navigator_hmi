@@ -1,3 +1,4 @@
+using System.Text;
 using NavigatorHMI.Common;
 
 namespace NavigatorHMI.CommandLayer.Handlers
@@ -44,6 +45,34 @@ namespace NavigatorHMI.CommandLayer.Handlers
             project.WorldMap ??= new WorldMapConfig();
             return (project.WorldMap.Events, null);
         }
+
+        /// <summary>C12-15：screen_switch 目标画面名容错解析——精确 → 去空白 → 去末尾括号段 → 唯一包含匹配；
+        /// 命中返回正式画面名（调用方改写落库）；失败返回 null 并填充候选列表（调用方回执列候选）。</summary>
+        internal static string? ResolveScreenSwitchTarget(HMIProject project, string raw, out List<string> candidates)
+        {
+            candidates = new();
+            if (string.IsNullOrWhiteSpace(raw)) return null;
+            var t = raw.Trim();
+            if (project.Screens.Any(s => s.Name == t)) return t;
+            string norm = NormalizeScreenName(t);
+            var byNorm = project.Screens.Where(s => NormalizeScreenName(s.Name) == norm).Select(s => s.Name).ToList();
+            if (byNorm.Count == 1) return byNorm[0];
+            if (byNorm.Count > 1) { candidates = byNorm; return null; }   // 规范化后多命中等价 → 不自动选，列候选
+            var byContains = project.Screens
+                .Where(s => NormalizeScreenName(s.Name).Contains(norm) || norm.Contains(NormalizeScreenName(s.Name)))
+                .Select(s => s.Name).ToList();
+            if (byContains.Count == 1) return byContains[0];
+            candidates = byContains.Count > 0 ? byContains : project.Screens.Select(s => s.Name).ToList();
+            return null;
+        }
+
+        /// <summary>画面名规范化：去全部空白 + 去末尾括号段（"世界地图(主)" → "世界地图"；保留中间括号）。</summary>
+        private static string NormalizeScreenName(string s)
+        {
+            var sb = new StringBuilder();
+            foreach (var ch in s) if (!char.IsWhiteSpace(ch)) sb.Append(ch);
+            return System.Text.RegularExpressions.Regex.Replace(sb.ToString(), @"[（(][^（()）]*[）)]$", "");
+        }
     }
 
     /// <summary>add_event：为控件/世界地图追加动作。同事件类型已存在 → 追加 Action；不存在 → 新建 WidgetEvent。P9：widget_name 缺省且画面为世界地图 → 地图级事件（点击切换）。</summary>
@@ -73,6 +102,14 @@ namespace NavigatorHMI.CommandLayer.Handlers
             if (!Enum.TryParse<EventType>(p["event_type"]!.ToString(), ignoreCase: true, out var evt)) return CommandResult.Fail("INVALID_PARAM", $"未知事件类型: {p["event_type"]}");
             if (!Enum.TryParse<ActionType>(p["action_type"]!.ToString(), ignoreCase: true, out var act)) return CommandResult.Fail("INVALID_PARAM", $"未知动作类型: {p["action_type"]}");
             var actionParams = p.TryGetValue("params", out var raw) && raw is Dictionary<string, string> dict ? dict : new();
+            // C12-15：screen_switch 目标画面容错匹配（精确/去空白/去括号后缀/包含），失败回执列候选
+            if (act == ActionType.screen_switch && actionParams.TryGetValue("target_screen", out var target) && !string.IsNullOrWhiteSpace(target))
+            {
+                var resolved = EventBindingCommon.ResolveScreenSwitchTarget(project, target, out var cands);
+                if (resolved == null)
+                    return CommandResult.Fail("INVALID_PARAM", $"目标画面 \"{target}\" 未找到" + (cands.Count > 0 ? $"；候选: {string.Join(", ", cands)}" : ""));
+                actionParams["target_screen"] = resolved;   // 落库为正式画面名
+            }
             var we = events.FirstOrDefault(e => e.Type == evt);
             if (we == null)
             {
@@ -144,6 +181,14 @@ namespace NavigatorHMI.CommandLayer.Handlers
             if (!Enum.TryParse<EventType>(p["event_type"]!.ToString(), ignoreCase: true, out var evt)) return CommandResult.Fail("INVALID_PARAM", $"未知事件类型: {p["event_type"]}");
             if (!Enum.TryParse<ActionType>(p["action_type"]!.ToString(), ignoreCase: true, out var act)) return CommandResult.Fail("INVALID_PARAM", $"未知动作类型: {p["action_type"]}");
             if (!(p.TryGetValue("params", out var raw) && raw is Dictionary<string, string> dict)) return CommandResult.Fail("INVALID_PARAM", "缺少 params 参数（完整键值对）");
+            // C12-15：screen_switch 目标画面容错匹配（与 add_event 同规则）
+            if (act == ActionType.screen_switch && dict.TryGetValue("target_screen", out var target) && !string.IsNullOrWhiteSpace(target))
+            {
+                var resolved = EventBindingCommon.ResolveScreenSwitchTarget(project, target, out var cands);
+                if (resolved == null)
+                    return CommandResult.Fail("INVALID_PARAM", $"目标画面 \"{target}\" 未找到" + (cands.Count > 0 ? $"；候选: {string.Join(", ", cands)}" : ""));
+                dict["target_screen"] = resolved;   // 落库为正式画面名
+            }
             var we = events.FirstOrDefault(e => e.Type == evt);
             // 语义：同事件下同 action_type 重复添加时，update 只改首个匹配（与 remove 的 RemoveAll 全删不对称，属有意设计——UI 层按 action_index 精确操作，不会出现重复）
             var action = we?.Actions.FirstOrDefault(a => a.Type == act);

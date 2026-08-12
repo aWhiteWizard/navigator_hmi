@@ -31,7 +31,7 @@ namespace NavigatorHMI.Tests
         public void add_event_同事件累积动作()
         {
             var (svc, p) = Create();
-            var r1 = svc.Execute("add_event", P("测试画面", "button_1", "onClick", "screen_switch", new() { ["target_screen"] = "监控" }));
+            var r1 = svc.Execute("add_event", P("测试画面", "button_1", "onClick", "screen_switch", new() { ["target_screen"] = "测试画面" }));
             Assert.True(r1.Success);
             var r2 = svc.Execute("add_event", P("测试画面", "button_1", "onClick", "tag_write", new() { ["tag_name"] = "温度", ["value"] = "1" }));
             Assert.True(r2.Success);
@@ -40,15 +40,15 @@ namespace NavigatorHMI.Tests
             Assert.Equal(2, we.Actions.Count);
             Assert.Equal(ActionType.screen_switch, we.Actions[0].Type);
             Assert.Equal(ActionType.tag_write, we.Actions[1].Type);
-            Assert.Equal("监控", we.Actions[0].Parameters["target_screen"]);
+            Assert.Equal("测试画面", we.Actions[0].Parameters["target_screen"]);
         }
 
         [Fact]
         public void add_event_不同事件各自独立()
         {
             var (svc, p) = Create();
-            svc.Execute("add_event", P("测试画面", "button_1", "onClick", "screen_switch", new() { ["target_screen"] = "A" }));
-            svc.Execute("add_event", P("测试画面", "button_1", "onPress", "screen_switch", new() { ["target_screen"] = "B" }));
+            svc.Execute("add_event", P("测试画面", "button_1", "onClick", "screen_switch", new() { ["target_screen"] = "测试画面" }));
+            svc.Execute("add_event", P("测试画面", "button_1", "onPress", "screen_switch", new() { ["target_screen"] = "测试画面" }));
             Assert.Equal(2, p.Screens[0].Widgets[0].Events.Count);
         }
 
@@ -56,7 +56,7 @@ namespace NavigatorHMI.Tests
         public void remove_event_指定动作_删空则事件也删()
         {
             var (svc, p) = Create();
-            svc.Execute("add_event", P("测试画面", "button_1", "onClick", "screen_switch", new() { ["target_screen"] = "A" }));
+            svc.Execute("add_event", P("测试画面", "button_1", "onClick", "screen_switch", new() { ["target_screen"] = "测试画面" }));
             svc.Execute("add_event", P("测试画面", "button_1", "onClick", "tag_write", new() { ["tag_name"] = "x" }));
             // 删 1 留 1
             var r = svc.Execute("remove_event", P("测试画面", "button_1", "onClick", "screen_switch"));
@@ -85,11 +85,11 @@ namespace NavigatorHMI.Tests
         public void update_event_整组替换参数()
         {
             var (svc, p) = Create();
-            svc.Execute("add_event", P("测试画面", "button_1", "onClick", "screen_switch", new() { ["target_screen"] = "A" }));
-            var r = svc.Execute("update_event", P("测试画面", "button_1", "onClick", "screen_switch", new() { ["target_screen"] = "B", ["extra"] = "1" }));
+            svc.Execute("add_event", P("测试画面", "button_1", "onClick", "screen_switch", new() { ["target_screen"] = "测试画面" }));
+            var r = svc.Execute("update_event", P("测试画面", "button_1", "onClick", "screen_switch", new() { ["target_screen"] = "测试画面", ["extra"] = "1" }));
             Assert.True(r.Success);
             var action = p.Screens[0].Widgets[0].Events.Single().Actions.Single();
-            Assert.Equal("B", action.Parameters["target_screen"]);
+            Assert.Equal("测试画面", action.Parameters["target_screen"]);
             Assert.Equal(2, action.Parameters.Count);   // 整组替换：旧参数清空
         }
 
@@ -102,6 +102,43 @@ namespace NavigatorHMI.Tests
             Assert.True(Enum.TryParse<ActionType>("screen_prev", out _));
             Assert.True(Enum.TryParse<ActionType>("tag_toggle", out _));
             Assert.True(Enum.TryParse<ActionType>("acknowledge_alarm", out _));
+        }
+
+        // ── C12-15：screen_switch 目标画面容错匹配（别名 → 正式名落库；失败回执列候选）──
+
+        [Fact]
+        public void screenSwitch_括号后缀别名匹配_落库正式名()
+        {
+            var (svc, p) = Create();
+            p.Screens.Add(new Screen { Name = "世界地图(主)", Width = 800, Height = 480 });
+            var r = svc.Execute("add_event", P("测试画面", "button_1", "onClick", "screen_switch", new() { ["target_screen"] = "世界地图" }));
+            Assert.True(r.Success, r.ErrorMessage);
+            Assert.Equal("世界地图(主)", p.Screens[0].Widgets[0].Events.Single().Actions.Single().Parameters["target_screen"]);
+        }
+
+        [Fact]
+        public void screenSwitch_目标画面不存在_回执列候选()
+        {
+            var (svc, p) = Create();
+            p.Screens.Add(new Screen { Name = "泵站1", Width = 800, Height = 480 });
+            p.Screens.Add(new Screen { Name = "总览", Width = 800, Height = 480 });
+            var r = svc.Execute("add_event", P("测试画面", "button_1", "onClick", "screen_switch", new() { ["target_screen"] = "不存在画面" }));
+            Assert.False(r.Success);
+            Assert.Equal("INVALID_PARAM", r.ErrorCode);
+            Assert.Contains("候选", r.ErrorMessage);
+            Assert.Contains("泵站1", r.ErrorMessage);
+            Assert.Contains("总览", r.ErrorMessage);
+        }
+
+        [Fact]
+        public void updateEvent_screenSwitch_容错匹配也修正()
+        {
+            var (svc, p) = Create();
+            p.Screens.Add(new Screen { Name = "设备详情", Width = 800, Height = 480 });
+            svc.Execute("add_event", P("测试画面", "button_1", "onClick", "screen_switch", new() { ["target_screen"] = "设备详情" }));
+            var r = svc.Execute("update_event", P("测试画面", "button_1", "onClick", "screen_switch", new() { ["target_screen"] = " 设备详情 " }));
+            Assert.True(r.Success, r.ErrorMessage);   // 去空白规范化命中
+            Assert.Equal("设备详情", p.Screens[0].Widgets[0].Events.Single().Actions.Single().Parameters["target_screen"]);
         }
     }
 }
