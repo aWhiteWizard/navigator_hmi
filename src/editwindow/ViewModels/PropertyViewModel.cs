@@ -374,6 +374,7 @@ namespace NavigatorHMI.ViewModels
                         // 无条件通知（切换选中控件时 setter 可能值相等短路——不得依赖其副作用）
                         OnPropertyChanged(nameof(IsValueEditable));
                         RefreshPolygonPointRows();   // P7：多边形顶点可编辑表格刷新
+                        RefreshRectanglePointRows();   // V-6b：矩形 4 顶点表格刷新（选中矩形时）
                         }
                         finally { _syncingFromModel = false; }
                     }
@@ -576,6 +577,9 @@ namespace NavigatorHMI.ViewModels
         /// <summary>P7：多边形顶点可编辑表格行（画布绝对坐标；行内编辑/末行补行/删除禁 &lt;3 点）。</summary>
         public ObservableCollection<PolygonPointRowVM> PolygonPointRows { get; } = new();
 
+        /// <summary>V-6b：矩形 4 顶点表格行（画布绝对坐标；固定 4 行，无增删——仿 PolygonPointRows，行内编辑反推 X/Y/W/H）。</summary>
+        public ObservableCollection<PolygonPointRowVM> RectanglePointRows { get; } = new();
+
         /// <summary>重建多边形顶点表格（选中多边形时调用）：按模型 Points 重建行（PointD 无 INPC，行直写模型 + 重赋值触发渲染刷新）。</summary>
         public void RefreshPolygonPointRows()
         {
@@ -658,6 +662,50 @@ namespace NavigatorHMI.ViewModels
         {
             for (int i = 0; i < PolygonPointRows.Count; i++) PolygonPointRows[i].Index = i + 1;
         }
+
+        /// <summary>V-6b：重建矩形 4 顶点表格（选中矩形时调用）——左上/右上/右下/左下，画布绝对坐标。</summary>
+        public void RefreshRectanglePointRows()
+        {
+            RectanglePointRows.CollectionChanged -= RectanglePointRows_CollectionChanged;
+            RectanglePointRows.Clear();
+            if (_selectedWidget is RectangleWidget r)
+            {
+                RectanglePointRows.Add(new PolygonPointRowVM(new PointD(r.X, r.Y), OnRectanglePointRowChanged, BeforeModify));
+                RectanglePointRows.Add(new PolygonPointRowVM(new PointD(r.X + r.Width, r.Y), OnRectanglePointRowChanged, BeforeModify));
+                RectanglePointRows.Add(new PolygonPointRowVM(new PointD(r.X + r.Width, r.Y + r.Height), OnRectanglePointRowChanged, BeforeModify));
+                RectanglePointRows.Add(new PolygonPointRowVM(new PointD(r.X, r.Y + r.Height), OnRectanglePointRowChanged, BeforeModify));
+            }
+            RectanglePointRows.CollectionChanged += RectanglePointRows_CollectionChanged;
+            ReindexRectanglePointRows();
+        }
+
+        /// <summary>V-6b：矩形表格固定 4 行、无增删（CanUserAddRows=False），CollectionChanged 仅对称退订/订阅，无需处理。</summary>
+        private void RectanglePointRows_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) { }
+
+        /// <summary>V-6b：矩形顶点行变化（行内编辑）→ 从 4 顶点反推 X/Y/W/H（min/max，防翻转）。</summary>
+        private void OnRectanglePointRowChanged()
+        {
+            if (_selectedWidget is not RectangleWidget r) return;
+            if (RectanglePointRows.Count == 4 && RectanglePointRows.All(x => x.Model != null))
+            {
+                double minX = RectanglePointRows.Min(x => x.Model.X), minY = RectanglePointRows.Min(x => x.Model.Y);
+                double maxX = RectanglePointRows.Max(x => x.Model.X), maxY = RectanglePointRows.Max(x => x.Model.Y);
+                r.X = minX; r.Y = minY;
+                r.Width = Math.Max(maxX - minX, 1); r.Height = Math.Max(maxY - minY, 1);
+            }
+            OnPropertyChanged(nameof(IsRectangleWidget));
+            DirtyRequested?.Invoke();
+        }
+
+        /// <summary>V-6b：矩形表格行号（固定 4 行）。</summary>
+        private void ReindexRectanglePointRows()
+        {
+            for (int i = 0; i < RectanglePointRows.Count; i++) RectanglePointRows[i].Index = i + 1;
+        }
+
+        /// <summary>V-6b：拖拽/缩放结束后刷新矩形表格——矩形行 Model 是独立 PointD 拷贝（非共享引用，与 Polygon 不同），
+        /// 仅发通知值不变 → 必须重建（从当前矩形取 4 角，天然反映拖拽结果）。</summary>
+        public void RefreshRectanglePointRowsDisplay() => RefreshRectanglePointRows();
 
         /// <summary>C12-12：拖拽/缩放结束后刷新顶点表格显示值（PointD 无 INPC、行 VM 直读模型——外部改动模型后需显式通知；
         /// 原表格只在选中时 RefreshPolygonPointRows 重建，拖拽/缩放后显示陈旧）。</summary>

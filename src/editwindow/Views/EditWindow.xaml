@@ -373,7 +373,19 @@
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="FillColor:" Style="{StaticResource PropLabel}"/>
                 <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding RectFillColor, Mode=TwoWay}"/>
-        </Grid></StackPanel></DataTemplate>
+            </Grid>
+            <!-- V-6b：矩形端点表格（画布绝对坐标；固定 4 顶点——左上/右上/右下/左下；行内编辑反推 X/Y/W/H，拖拽端点实时联动） -->
+            <TextBlock Text="端点（画布绝对坐标）" Style="{StaticResource PropGroupHeader}"/>
+            <DataGrid ItemsSource="{Binding RectanglePointRows}" AutoGenerateColumns="False"
+                      Height="110" Margin="4,2" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                      SelectionMode="Single" ToolTip="矩形 4 顶点画布绝对坐标：行内编辑 X/Y 改形（拖拽端点手柄同步）">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="#" Binding="{Binding Index}" IsReadOnly="True" Width="32"/>
+                    <DataGridTextColumn Header="X" Binding="{Binding X, UpdateSourceTrigger=LostFocus}" Width="*"/>
+                    <DataGridTextColumn Header="Y" Binding="{Binding Y, UpdateSourceTrigger=LostFocus}" Width="*"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </StackPanel></DataTemplate>
 
         <!-- LabelWidget 属性 -->
         <DataTemplate x:Key="PropLabelWidget"><StackPanel>

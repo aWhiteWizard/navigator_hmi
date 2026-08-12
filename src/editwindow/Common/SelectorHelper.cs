@@ -52,7 +52,10 @@ namespace NavigatorHMI.Common
                 var adornerLayer = AdornerLayer.GetAdornerLayer(element);
                 if (adornerLayer != null)
                 {
-                    var adorner = new ResizeAdorner(element, widget);
+                    // V-6a：5 类图形控件选中 → 端点手柄 Adorner（替代 8 方向方框）；其余控件保持 ResizeAdorner
+                    Adorner adorner = widget is LineWidget or RectangleWidget or CircleWidget or EllipseWidget or PolygonWidget
+                        ? new EndpointHandleAdorner(element, widget)
+                        : new ResizeAdorner(element, widget);
                     adornerLayer.Add(adorner);
                     _adornerMap[element] = adorner;
                     System.Diagnostics.Debug.WriteLine($"✅ 创建 Adorner: {widget.ObjectName}, 元素={element.GetType().Name}, 尺寸={element.RenderSize.Width}x{element.RenderSize.Height}, Layer={adornerLayer.GetType().Name}({adornerLayer.GetHashCode():X})");
@@ -93,7 +96,7 @@ namespace NavigatorHMI.Common
                     {
                         foreach (var a in adorners)
                         {
-                            if (a is ResizeAdorner)
+                            if (a is ResizeAdorner or EndpointHandleAdorner)   // V-6a：两种 Adorner 都清理
                             {
                                 adornerLayer.Remove(a);
                                 System.Diagnostics.Debug.WriteLine("✅ 通过遍历移除 Adorner");

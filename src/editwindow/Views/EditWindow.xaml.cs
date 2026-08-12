@@ -275,8 +275,12 @@ namespace NavigatorHMI.Views
             _getCanvasSizeCallback = () => new Size(_propertyViewModel.CanvasWidth, _propertyViewModel.CanvasHeight);
             SelectorHelper.ResizeDragStarted = _resizeDragStartedCallback;
             SelectorHelper.GetCanvasSize = _getCanvasSizeCallback;
-            // C12-12：缩放结束 → 多边形顶点表格实时刷新（缩放平移顶点后表格不再陈旧）
-            _resizeDragCompletedCallback = () => _propertyViewModel.RefreshPolygonPointRowsDisplay();
+            // C12-12：缩放结束 → 多边形顶点表格实时刷新（缩放平移顶点后表格不再陈旧）；V-6b：矩形端点表格同刷新
+            _resizeDragCompletedCallback = () =>
+            {
+                _propertyViewModel.RefreshPolygonPointRowsDisplay();
+                _propertyViewModel.RefreshRectanglePointRowsDisplay();
+            };
             SelectorHelper.ResizeDragCompleted = _resizeDragCompletedCallback;
             // 选中变化（单选/多选/清空）→ 同步属性面板多选状态
             _selectionManager.SelectionChanged += SyncSelectionToPropertyPanel;
