@@ -1,4 +1,5 @@
 using NavigatorHMI.CommandLayer;
+using NavigatorHMI.CommandLayer.Handlers;
 using NavigatorHMI.Common;
 using Xunit;
 
@@ -233,6 +234,30 @@ namespace NavigatorHMI.Tests
         var r = svc.Execute("create_tag", new Dictionary<string, object?> { ["name"] = "B5", ["data_type"] = "BOOL", ["base_value"] = input });
         Assert.True(r.Success, $"{r.ErrorCode} {r.ErrorMessage}");
         Assert.Equal(expect, project.Tags[0].BaseValue);   // #4：BOOL 归一存储（大小写变体 → true/false 小写）
+    }
+
+    /// <summary>C12-13：非法提示附类型示例——每个非 STRING 类型传非法值不抛异常（示例字典全覆盖）且错误消息含示例文本。</summary>
+    [Fact]
+    public void 非法提示_附类型示例_C12_13()
+    {
+        foreach (var dt in Enum.GetValues<TagDataType>())
+        {
+            if (dt == TagDataType.STRING) continue;   // STRING 任意文本放行（默认分支恒 true，无错误消息）
+            string bad = dt switch
+            {
+                TagDataType.BOOL => "notabool",
+                TagDataType.DATETIME => "notadate",
+                TagDataType.GPS => "999,999",   // 经度超 ±180 → 非法
+                _ => "not_a_number",
+            };
+            var err = BaseValueValidator.Check(bad, dt);
+            Assert.False(string.IsNullOrEmpty(err), $"{dt} 应返回错误消息（示例字典缺 key 会抛异常 → 测试失败）");
+        }
+        // STRING 任意文本放行
+        Assert.Null(BaseValueValidator.Check("任意文本", TagDataType.STRING));
+        // 错误消息附格式示例
+        Assert.Contains("如 3.14", BaseValueValidator.Check("abc", TagDataType.FLOAT));
+        Assert.Contains("如 2026-08-12", BaseValueValidator.Check("notadate", TagDataType.DATETIME));
     }
     }
 }

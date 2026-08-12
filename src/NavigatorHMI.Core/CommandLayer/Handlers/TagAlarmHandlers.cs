@@ -572,6 +572,19 @@ namespace NavigatorHMI.CommandLayer.Handlers
 /// P8：事件函数 value 校验复用同一规则（GPS→GeoPoint、数值→InvariantCulture、BOOL→true/false、DATETIME→DateTime/全 0 字面、STRING→任意）。</summary>
 public static class BaseValueValidator
 {
+    /// <summary>C12-13：各类型合法格式示例（错误消息附示例，AI/CLI 用户可直接按格式重试）。</summary>
+    private static readonly Dictionary<TagDataType, string> _examples = new()
+    {
+        [TagDataType.FLOAT] = "如 3.14 / -0.5（小数或负数；不接受 NaN/Infinity）",
+        [TagDataType.INT16] = "如 -32768 ~ 32767 的整数",
+        [TagDataType.UINT16] = "如 0 ~ 65535 的整数",
+        [TagDataType.INT32] = "如 -2147483648 ~ 2147483647 的整数",
+        [TagDataType.BOOL] = "仅 true 或 false",
+        [TagDataType.DATETIME] = "如 2026-08-12 10:30:00",
+        [TagDataType.GPS] = "如 104.06, 30.67 或 E104°3'30\", N30°40'20\"",
+        [TagDataType.STRING] = "任意文本",
+    };
+
     public static string? Check(string? raw, TagDataType dt)
     {
         if (string.IsNullOrWhiteSpace(raw)) return null;   // 空 = 清空/未提供，放行
@@ -587,7 +600,7 @@ public static class BaseValueValidator
             TagDataType.GPS => GeoPoint.TryParse(s, out _),   // 经纬度：DMS（E104°3'30", N30°40'20"）或小数度，经度±180/纬度±90，前缀-位置匹配
             _ => true,   // STRING 等任意文本
         };
-        return ok ? null : $"base_value 不是合法的 {dt} 数值: '{raw}'";
+        return ok ? null : $"base_value 不是合法的 {dt} 数值: '{raw}'（{_examples[dt]}）";   // C12-13：附格式示例
     }
 
     /// <summary>归一化基准值存储：GPS 小数度输入自动转 DMS 括号格式（"104.0583, 30.6722" → "(E104°3'30\", N30°40'20\")"）；其余类型原样。</summary>
