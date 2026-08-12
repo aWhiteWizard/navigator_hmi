@@ -827,6 +827,7 @@ namespace NavigatorHMI.ViewModels
                     WorkPointRows.Add(new WorkPointRowVM(wp, OnWorkPointRowChanged, IsGpsTag, WorldMapBeforeModify));
             WorkPointRows.CollectionChanged += WorkPointRows_CollectionChanged;
             RefreshWorkMapRangePoints();
+            ValidateDuplicateNames();   // V-4a：表格重载（切画面/撤销/重做）后重名校验
         }
 
         /// <summary>从工程 WorldMapConfig 同步作业范围点表格。</summary>
@@ -855,6 +856,21 @@ namespace NavigatorHMI.ViewModels
         {
             DirtyRequested?.Invoke();
             WorldMapPointsChanged?.Invoke();
+            ValidateDuplicateNames();   // V-4a：名称重名校验（输入/增删后）
+        }
+
+        /// <summary>V-4a：作业点名称重名校验（续28 B 方案）——重名行标 IsDuplicateName（粉红+ToolTip），
+        /// 不删行不拦截；空名（placeholder/未输入）不参与。改名/删行后自动恢复。</summary>
+        private void ValidateDuplicateNames()
+        {
+            if (Project?.WorldMap == null) return;
+            var dupNames = WorkPointRows
+                .Where(r => !string.IsNullOrWhiteSpace(r.Name))
+                .GroupBy(r => r.Name, StringComparer.Ordinal)
+                .Where(g => g.Count() > 1)
+                .Select(g => g.Key)
+                .ToHashSet(StringComparer.Ordinal);
+            foreach (var r in WorkPointRows) r.IsDuplicateName = dupNames.Contains(r.Name);
         }
 
         /// <summary>DataGrid 新行 Add（双击 placeholder 进入编辑时 DataGrid 同步 Add 空行，此刻用户尚未输入——C12-1）：
@@ -1957,7 +1973,14 @@ namespace NavigatorHMI.ViewModels
         public string Name
         {
             get => Model.Name;
-            set { var v = value ?? ""; if (Model.Name != v) { _beforeModify?.Invoke(); Model.Name = v; _onChanged?.Invoke(); OnPropertyChanged(); } }
+            set { var v = value?.Trim() ?? ""; if (Model.Name != v) { _beforeModify?.Invoke(); Model.Name = v; _onChanged?.Invoke(); OnPropertyChanged(); } }
+        }
+        /// <summary>V-4a：名称重复标记（续28 B 方案：重名不删行不拦截，名称框标粉红 + ToolTip 提示；改名后自动恢复）。</summary>
+        private bool _isDuplicateName;
+        public bool IsDuplicateName
+        {
+            get => _isDuplicateName;
+            set { if (_isDuplicateName != value) { _isDuplicateName = value; OnPropertyChanged(); } }
         }
         public string LngLat
         {

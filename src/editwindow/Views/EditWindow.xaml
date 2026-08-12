@@ -207,7 +207,19 @@
                           Height="110" Margin="4,2" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
                           SelectionMode="Single" SelectionChanged="WorkPointGrid_SelectionChanged" RowEditEnding="WorkPointGrid_RowEditEnding" ToolTip="末行空白行输入自动补行；经纬度(固定)与绑定变量二选一（互斥）">
                     <DataGrid.Columns>
-                        <DataGridTextColumn Header="名称" Binding="{Binding Name, UpdateSourceTrigger=LostFocus}" Width="80"/>
+                        <DataGridTextColumn Header="名称" Binding="{Binding Name, UpdateSourceTrigger=LostFocus}" Width="80">
+                            <DataGridTextColumn.CellStyle>
+                                <!-- V-4a：续28 B 方案——名称重复 → 单元格粉红 + ToolTip 提示（不删行不拦截，改名恢复） -->
+                                <Style TargetType="DataGridCell">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsDuplicateName}" Value="True">
+                                            <Setter Property="Background" Value="LightPink"/>
+                                            <Setter Property="ToolTip" Value="作业点名称重复，请改名"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGridTextColumn.CellStyle>
+                        </DataGridTextColumn>
                         <DataGridTextColumn Header="经纬度(固定)" Binding="{Binding LngLat, UpdateSourceTrigger=LostFocus}" Width="*"/>
                         <DataGridTextColumn Header="绑定变量" Binding="{Binding BoundTag, UpdateSourceTrigger=LostFocus}" Width="70"/>
                     </DataGrid.Columns>
