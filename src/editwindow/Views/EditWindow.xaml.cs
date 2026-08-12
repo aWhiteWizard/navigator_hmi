@@ -257,7 +257,11 @@ namespace NavigatorHMI.Views
             };
             // C12-2：作业点/范围点表格增删改/行编辑前快照 → WorldMap 独立撤销栈（原 BeforeModify 绑 Widgets 栈，快照不含 WorldMap）
             _propertyViewModel.WorldMapBeforeModify = () => _viewModel.PushWorldMapUndoSnapshot();
-            _propertyViewModel.WorldMapZoomToBoxRequested = () => { if (_viewModel?.IsWorldMapActive == true) TryFitWorldMapViewport(); };
+            _propertyViewModel.WorldMapZoomToBoxRequested = () =>
+            {
+                if (_viewModel?.IsWorldMapActive == true && !TryFitWorldMapViewport())
+                    MessageBox.Show(this, "没有可定位的数据：作业点/作业范围点均为空", "视口自适应", MessageBoxButton.OK, MessageBoxImage.Information);   // C12-7：全空时提示（原静默无反应）
+            };
             // 缩放手柄：拖拽开始 Push 撤销快照 + 画布尺寸提供器（缩放钳制）
             _resizeDragStartedCallback = () => _viewModel.PushUndoSnapshot();
             _getCanvasSizeCallback = () => new Size(_propertyViewModel.CanvasWidth, _propertyViewModel.CanvasHeight);
@@ -1626,16 +1630,12 @@ namespace NavigatorHMI.Views
             if (vp.Width <= 0 || vp.Height <= 0 || !(vp.Resolution > 0)) return false;   // viewport 未初始化（首帧 Collapsed/NaN）守卫：防 ZoomToBox 除 0
 
             var geos = new List<GeoPoint>();
-            // 1) 作业点（WorldMapConfig.WorkPoints：绑 GPS 变量取基准值 / 固定值）
+            // 1) 作业点（绑 GPS 变量取基准值 / 固定值）——C12-7 复用 ResolveWorkPointGeo（与 overlay 渲染语义一致）
             foreach (var wp in project.WorldMap?.WorkPoints ?? new())
-            {
-                if (!string.IsNullOrEmpty(wp.BoundTag))
-                {
-                    var t = project.Tags.FirstOrDefault(x => x.Name == wp.BoundTag);
-                    if (t?.DataType == TagDataType.GPS && GeoPoint.TryParse(t.BaseValue, out var g) && g != null) geos.Add(g);
-                }
-                else if (wp.FixedPoint != null) geos.Add(wp.FixedPoint);
-            }
+                if (ResolveWorkPointGeo(project, wp.BoundTag, wp.FixedPoint) is { } wg) geos.Add(wg);
+            // 2) 作业范围点并入包围盒（围栏顶点也要被视口自适应覆盖）
+            foreach (var rp in project.WorldMap?.WorkRangePoints ?? new())
+                if (ResolveWorkPointGeo(project, rp.BoundTag, rp.FixedPoint) is { } rg) geos.Add(rg);
 
             if (geos.Count == 0)
             {
