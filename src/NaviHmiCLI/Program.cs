@@ -274,7 +274,7 @@ public static class Program
         var exitCode = Execute(service, "add_event", new()
         {
             ["screen_name"] = RequireVal("screen"),
-            ["widget_name"] = RequireVal("widget"),
+            ["widget_name"] = OptVal("widget", ""),   // C12-16：widget 可选（缺省 + 世界地图画面 = 地图级事件，命令层 P9 已支持）
             ["event_type"] = RequireVal("event"),
             ["action_type"] = RequireVal("action"),
             ["params"] = paramDict,
@@ -290,7 +290,7 @@ public static class Program
         var exitCode = Execute(service, "remove_event", new()
         {
             ["screen_name"] = RequireVal("screen"),
-            ["widget_name"] = RequireVal("widget"),
+            ["widget_name"] = OptVal("widget", ""),   // C12-16：widget 可选（缺省 + 世界地图画面 = 地图级事件，与命令层一致）
             ["event_type"] = RequireVal("event"),
             ["action_type"] = OptVal("action", ""),
         });
@@ -313,7 +313,7 @@ public static class Program
         var exitCode = Execute(service, "update_event", new()
         {
             ["screen_name"] = RequireVal("screen"),
-            ["widget_name"] = RequireVal("widget"),
+            ["widget_name"] = OptVal("widget", ""),   // C12-16：widget 可选（与命令层一致）
             ["event_type"] = RequireVal("event"),
             ["action_type"] = RequireVal("action"),
             ["params"] = paramDict,
