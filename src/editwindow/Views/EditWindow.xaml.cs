@@ -2050,13 +2050,15 @@ namespace NavigatorHMI.Views
         }
 
         /// <summary>C12-1：作业点表格新行提交（RowEditEnding Commit）——空行判定从 CollectionChanged Add 移到提交路径：
-        /// 双击 placeholder 进入编辑时 DataGrid 已同步 Add 空行（此时未输入），Add 时判定必然误杀；提交时才有用户输入。</summary>
+        /// 双击 placeholder 进入编辑时 DataGrid 已同步 Add 空行（此时未输入），Add 时判定必然误杀；提交时才有用户输入。
+        /// X-3b：IsDuplicateName 已由 CellEditEnding 的名称列 UpdateSource 更新（e.EditingElement 时序确定；
+        /// RowEditEnding 阶段编辑 TextBox 可能已被 DataGrid 移除，不可再定位/UpdateSource）。</summary>
         private void WorkPointGrid_RowEditEnding(object sender, DataGridRowEditEndingEventArgs e)
         {
             if (e.EditAction != DataGridEditAction.Commit) return;
             if (e.Row.Item is not WorkPointRowVM row) return;
             if (e.Row.IsNewItem) _propertyViewModel.CommitNewWorkPointRow(row);
-            // W-3a：名称重名提交 → 名称列旁立即弹气泡（IsDuplicateName 已由 Name setter → ValidateDuplicateNames 更新；悬停 ToolTip 保留）
+            // W-3a：名称重名提交 → 名称列旁立即弹气泡（IsDuplicateName 由 CellEditEnding UpdateSource 更新；悬停 ToolTip 保留）
             if (row.IsDuplicateName) ShowErrorBubble(FindDataGridCell(e.Row, 0), "作业点名称重复，请改名");
         }
 
@@ -2163,6 +2165,11 @@ namespace NavigatorHMI.Views
             return content == null ? null : FindVisualParent<System.Windows.Controls.DataGridCell>(content);
         }
 
+        /// <summary>X-3 审查：输入是否为坐标合法前缀（全字符在坐标字符集内：数字/负号/点/度分秒符号/方向前缀/空白）——中间态不弹泡防闪烁。</summary>
+        private static bool IsCoordPrefix(string s)
+            => s.All(c => c is >= '0' and <= '9' or '.' or '-' or '°' or '\'' or '"' or ' ' or '′' or '″'
+                or 'E' or 'e' or 'W' or 'w' or 'N' or 'n' or 'S' or 's' or '度' or '分' or '秒');
+
         /// <summary>W-3a：经纬度提交后非法 → 错误列单元格旁弹气泡（带示例；列索引区分作业点/范围点表）。</summary>
         private void ShowCoordErrorBubble(DataGridRow row, bool isRangeTable)
         {
@@ -2178,11 +2185,27 @@ namespace NavigatorHMI.Views
         }
 
         /// <summary>V-5a：经纬度单元格进入编辑 → 显示 DMS 实时换算提示（订阅 TextChanged；续23 增补 2：仅输入状态显示）。
+        /// X-3a：经纬度输入过程实时检测非法弹气泡；名称列实时检测重名弹气泡。
         /// dms-hint 提示块是 DataGrid 的兄弟节点（同 StackPanel），从 DataGrid 的 Parent 向下查找。</summary>
         private void WorkPointGrid_PreparingCellForEdit(object sender, DataGridPreparingCellForEditEventArgs e)
         {
             HideErrorBubble();   // W-3a：进入编辑 → 气泡立即消失
-            PrepareGeoCellEdit(((FrameworkElement)sender).Parent, e);
+            if ((e.Column.Header as string) == "名称" && e.EditingElement is TextBox tb && e.Row?.Item is WorkPointRowVM row)
+            {
+                // X-3a：名称列实时检测重名（Name setter 已实时更新 IsDuplicateName——实时弹泡不等提交）
+                // X-3 审查：经纬度切名称列时隐藏 DMS hint（名称分支绕过 PrepareGeoCellEdit 的 hint 处理）
+                if (FindDmsHint(((FrameworkElement)sender).Parent) is { } nameHint) nameHint.Visibility = Visibility.Collapsed;
+                UnsubscribeGeoHint();
+                _geoHintTextBox = tb;
+                _geoHintHandler = (_, _) =>
+                {
+                    if (row.IsDuplicateName) ShowErrorBubble(FindDataGridCell(e.Row, 0), "作业点名称重复，请改名");
+                    else HideErrorBubble();
+                };
+                tb.TextChanged += _geoHintHandler;
+                return;
+            }
+            PrepareGeoCellEdit(((FrameworkElement)sender).Parent, e, isRangeTable: false);
         }
 
         private void WorkPointGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
@@ -2200,11 +2223,11 @@ namespace NavigatorHMI.Views
             }
         }
 
-        /// <summary>V-5a：范围点经纬度单元格 DMS 提示（同作业点）。</summary>
+        /// <summary>V-5a：范围点经纬度单元格 DMS 提示（同作业点；范围点无名称列）。</summary>
         private void WorkRangeGrid_PreparingCellForEdit(object sender, DataGridPreparingCellForEditEventArgs e)
         {
             HideErrorBubble();   // W-3a：进入编辑 → 气泡立即消失
-            PrepareGeoCellEdit(((FrameworkElement)sender).Parent, e);
+            PrepareGeoCellEdit(((FrameworkElement)sender).Parent, e, isRangeTable: true);
         }
 
         private void WorkRangeGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
@@ -2247,7 +2270,7 @@ namespace NavigatorHMI.Views
         }
 
         /// <summary>V-5a：经纬度列进入编辑 → 显示提示 + 订阅 TextChanged 实时换算（"104.06 → E104°3'36""）。</summary>
-        private void PrepareGeoCellEdit(DependencyObject? root, DataGridPreparingCellForEditEventArgs e)
+        private void PrepareGeoCellEdit(DependencyObject? root, DataGridPreparingCellForEditEventArgs e, bool isRangeTable)
         {
             var hint = FindDmsHint(root);
             if (hint == null) return;
@@ -2257,7 +2280,22 @@ namespace NavigatorHMI.Views
             if (e.EditingElement is not TextBox tb) return;
             UnsubscribeGeoHint();   // 移除旧订阅（防泄漏）
             _geoHintTextBox = tb;
-            _geoHintHandler = (_, _) => UpdateGeoHint(hint, isLng, tb.Text);
+            _geoHintHandler = (_, _) =>
+            {
+                UpdateGeoHint(hint, isLng, tb.Text);
+                // X-3a：输入过程实时检测非法 → 立即弹气泡（锚定编辑格旁）；合法/空 → 消泡（不等提交，用户需求"错误发生时立即弹出"）
+                // 中间态宽容（X-3 审查）："-"/"104." 等合法前缀（全字符在坐标字符集内）不弹泡防闪烁打扰
+                var trimmed = tb.Text.Trim();
+                if (GeoPoint.TryParseCoord(trimmed, isLng, out _)) HideErrorBubble();
+                else if (trimmed.Length > 0 && !IsCoordPrefix(trimmed))
+                {
+                    int col = isRangeTable ? (isLng ? 0 : 1) : (isLng ? 1 : 2);
+                    ShowErrorBubble(FindDataGridCell(e.Row, col),
+                        isLng ? "经度格式：104.06（东经为正，负号=西经）；DMS 如 E104°3'29.88\""
+                              : "纬度格式：30.67（北纬为正，负号=南纬）；DMS 如 N30°40'20.12\"");
+                }
+                else HideErrorBubble();   // 合法前缀中间态/空：不弹（保留已有气泡至 3s 或改对）
+            };
             tb.TextChanged += _geoHintHandler;
             UpdateGeoHint(hint, isLng, tb.Text);
             hint.Visibility = Visibility.Visible;
