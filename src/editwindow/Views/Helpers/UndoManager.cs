@@ -15,13 +15,30 @@ namespace NavigatorHMI.Views.Helpers
         private readonly Dictionary<Screen, Stack<byte[]>> _redoStacks = new();
         private readonly Dictionary<Screen, Stack<byte[]>> _wmUndoStacks = new();
         private readonly Dictionary<Screen, Stack<byte[]>> _wmRedoStacks = new();
+        // X-1c：变量基准值快照（单栈——Tags 全局非画面级；拖拽绑变量点更新 BaseValue 前调用，Ctrl+Z 还原变量值）
+        private readonly Stack<byte[]> _tagUndoStack = new();
+        private readonly Stack<byte[]> _tagRedoStack = new();
 
         public int UndoCount => _undoStacks.Values.Sum(s => s.Count);
         public int RedoCount => _redoStacks.Values.Sum(s => s.Count);
+        /// <summary>X-1c：Widgets 撤销栈是否有可撤销操作。</summary>
+        public bool HasUndo(Screen screen) => screen != null && GetUndoStack(screen).Count > 0;
+        /// <summary>X-1c：Widgets 重做栈是否有可重做操作。</summary>
+        public bool HasRedo(Screen screen) => screen != null && GetRedoStack(screen).Count > 0;
 
         private int _version;
         /// <summary>单调递增版本号：PushSnapshot/Undo/Redo 每次操作 +1（含裁剪），供 UI 判断快照会话变更。</summary>
         public int Version => _version;
+
+        // X-1c should-fix：各撤销栈最近 push 版本——Ctrl+Z 按 LIFO 全局顺序取最近操作（防固定优先级撤销错序：
+        // 先拖绑点（Tag 栈）再拖非绑点（WorldMap 栈）时，应撤后者而非按固定 Tag 优先撤更早的）
+        public int WidgetsLatestVersion { get; private set; }
+        public int WorldMapLatestVersion { get; private set; }
+        public int TagLatestVersion { get; private set; }
+        // X-1c 复审：redo 路由须用"最近撤销"版本（非 push 版本）——撤销顺序 WM→Tag 时，重做应 Tag→WM（后撤先重做）
+        public int WidgetsRedoLatestVersion { get; private set; }
+        public int WorldMapRedoLatestVersion { get; private set; }
+        public int TagRedoLatestVersion { get; private set; }
 
         /// <summary>保存快照（修改前调用）。</summary>
         public void PushSnapshot(Screen screen)
@@ -31,6 +48,7 @@ namespace NavigatorHMI.Views.Helpers
             // 新操作清空 redo
             if (_redoStacks.ContainsKey(screen)) _redoStacks[screen].Clear();
             _version++;
+            WidgetsLatestVersion = _version;   // X-1c：记录最近版本供 LIFO 路由
         }
 
         /// <summary>弹出最近一个撤销快照（命令失败时调用——BeforeModify 已推但模型未变，防空快照污染撤销栈）。</summary>
@@ -52,6 +70,7 @@ namespace NavigatorHMI.Views.Helpers
             PushToStack(GetRedoStack(screen), screen);
             // 从 undo 弹出恢复
             _version++;
+            WidgetsRedoLatestVersion = _version;   // X-1c 复审：记录最近撤销版本供 redo 路由
             return Deserialize(GetUndoStack(screen).Pop());
         }
 
@@ -103,6 +122,7 @@ namespace NavigatorHMI.Views.Helpers
             // 新操作清空 redo
             if (_wmRedoStacks.ContainsKey(screen)) _wmRedoStacks[screen].Clear();
             _version++;
+            WorldMapLatestVersion = _version;   // X-1c：记录最近版本供 LIFO 路由
         }
 
         /// <summary>撤销 WorldMap 配置：反序列化旧快照写回 wm 实例（保留引用）；无栈返回 false。</summary>
@@ -113,6 +133,7 @@ namespace NavigatorHMI.Views.Helpers
             PushWmToStack(GetWmRedoStack(screen), wm);
             RestoreWorldMap(wm, GetWmUndoStack(screen).Pop());
             _version++;
+            WorldMapRedoLatestVersion = _version;   // X-1c 复审
             return true;
         }
 
@@ -129,6 +150,67 @@ namespace NavigatorHMI.Views.Helpers
 
         private Stack<byte[]> GetWmUndoStack(Screen s) { if (!_wmUndoStacks.ContainsKey(s)) _wmUndoStacks[s] = new(); return _wmUndoStacks[s]; }
         private Stack<byte[]> GetWmRedoStack(Screen s) { if (!_wmRedoStacks.ContainsKey(s)) _wmRedoStacks[s] = new(); return _wmRedoStacks[s]; }
+
+        // ── X-1c：变量基准值快照（单栈——Tags 全局非画面级；拖拽绑变量点更新 BaseValue 前调用）──
+
+        /// <summary>变量撤销栈是否有可撤销操作。</summary>
+        public bool HasTagUndo => _tagUndoStack.Count > 0;
+        /// <summary>变量重做栈是否有可重做操作。</summary>
+        public bool HasTagRedo => _tagRedoStack.Count > 0;
+
+        /// <summary>保存变量列表快照（修改 BaseValue 前调用；单栈全局）。</summary>
+        public void PushTagSnapshot(List<Tag> tags)
+        {
+            if (tags == null) return;
+            using var ms = new MemoryStream();
+            Serializer.Serialize(ms, tags);
+            _tagUndoStack.Push(ms.ToArray());
+            if (_tagUndoStack.Count > MaxSteps) { var items = _tagUndoStack.ToArray(); _tagUndoStack.Clear(); for (int i = Math.Min(items.Length - 1, MaxSteps - 1); i >= 0; i--) _tagUndoStack.Push(items[i]); }
+            _tagRedoStack.Clear();   // 新操作清空 redo
+            _version++;
+            TagLatestVersion = _version;   // X-1c：记录最近版本供 LIFO 路由
+        }
+
+        /// <summary>X-1c：外部（非拖拽）修改变量基准值后清 Tag redo——防 Redo 用旧快照覆盖手动编辑的新值。</summary>
+        public void ClearTagRedo() => _tagRedoStack.Clear();
+
+        /// <summary>撤销变量基准值：反序列化旧快照写回 tags 列表（按 Name 匹配还原 BaseValue）；无栈返回 false。</summary>
+        public bool UndoTags(List<Tag> tags)
+        {
+            if (tags == null || _tagUndoStack.Count == 0) return false;
+            // 当前状态推入 redo
+            using var msCur = new MemoryStream();
+            Serializer.Serialize(msCur, tags);
+            _tagRedoStack.Push(msCur.ToArray());
+            RestoreTagBaseValues(tags, _tagUndoStack.Pop());
+            _version++;
+            TagRedoLatestVersion = _version;   // X-1c 复审
+            return true;
+        }
+
+        /// <summary>重做变量基准值。</summary>
+        public bool RedoTags(List<Tag> tags)
+        {
+            if (tags == null || _tagRedoStack.Count == 0) return false;
+            using var msCur = new MemoryStream();
+            Serializer.Serialize(msCur, tags);
+            _tagUndoStack.Push(msCur.ToArray());
+            RestoreTagBaseValues(tags, _tagRedoStack.Pop());
+            _version++;
+            return true;
+        }
+
+        /// <summary>反序列化快照并按 Name 还原 BaseValue（快照里的变量若已删除则忽略；当前新增变量不动）。</summary>
+        private static void RestoreTagBaseValues(List<Tag> tags, byte[] data)
+        {
+            using var ms = new MemoryStream(data);
+            var snap = Serializer.Deserialize<List<Tag>>(ms);
+            foreach (var st in snap)
+            {
+                var cur = tags.FirstOrDefault(t => t.Name == st.Name);
+                if (cur != null) cur.BaseValue = st.BaseValue;
+            }
+        }
 
         private static void PushWmToStack(Stack<byte[]> stack, WorldMapConfig wm)
         {

@@ -893,6 +893,9 @@ namespace NavigatorHMI.ViewModels
             // 用户/组命令：刷新用户面板（AI 添加用户即时显示——问题 2）
             if (cmdName is "create_user" or "update_user" or "delete_user" or "create_group" or "update_group" or "delete_group")
                 RefreshUserPanel();
+            // X-1c：外部（非拖拽）update_tag 改基准值 → 清 Tag redo（防 Redo 用旧快照覆盖手动编辑的新值）
+            if (cmdName == "update_tag" && result.Success)
+                _undoManager.ClearTagRedo();
 
             // 智能跳转：create_screen → 自动切换到新画面
             if (cmdName == "create_screen" && parameters.TryGetValue("name", out var nameObj))
@@ -1018,6 +1021,17 @@ namespace NavigatorHMI.ViewModels
                 _undoManager.PushWorldMapSnapshot(CurrentScreen, CurrentProject.WorldMap);
         }
 
+        /// <summary>X-1c：变量基准值变更前快照（拖拽绑变量点更新 BaseValue 用；Tags 全局单栈）。</summary>
+        public void PushTagSnapshot()
+        {
+            if (CurrentProject?.Tags != null) _undoManager.PushTagSnapshot(CurrentProject.Tags);
+        }
+        /// <summary>X-1c：变量撤销/重做后触发变量表格与地图点刷新（EditWindow 订阅）。</summary>
+        public Action? TagUndoRequested { get; set; }
+        public Action? TagRedoRequested { get; set; }
+        public bool HasTagUndo => _undoManager.HasTagUndo;
+        public bool HasTagRedo => _undoManager.HasTagRedo;
+
         /// <summary>WorldMap 撤销/重做后触发地图与表格刷新（EditWindow 订阅：UpdateAllGeoWidgets + 作业点/范围点表格重载）。</summary>
         public Action? WorldMapUndoRequested { get; set; }
 
@@ -1072,10 +1086,24 @@ namespace NavigatorHMI.ViewModels
                 {
                     // A12：列表栈非空时优先撤销列表项操作（列表操作粒度小、频率高，按钮/Ctrl+Z/菜单一致）
                     if (ListManager?.HasListUndo == true) { ListManager.UndoList(); return; }
+                    // X-1c should-fix：Tag/WorldMap/Widgets 三栈在"非空栈"中选版本最大者（LIFO 全局顺序；栈空的不参与比较——防撤销后 LatestVersion 仍指向空栈卡死）
+                    int best = -1;
+                    if (CurrentProject != null && _undoManager.HasTagUndo) best = Math.Max(best, _undoManager.TagLatestVersion);
+                    if (CurrentScreen != null && _undoManager.HasWorldMapUndo(CurrentScreen)) best = Math.Max(best, _undoManager.WorldMapLatestVersion);
+                    if (CurrentScreen != null && _undoManager.HasUndo(CurrentScreen)) best = Math.Max(best, _undoManager.WidgetsLatestVersion);
+                    if (CurrentProject != null && _undoManager.HasTagUndo && best == _undoManager.TagLatestVersion)
+                    {
+                        if (_undoManager.UndoTags(CurrentProject.Tags))
+                        {
+                            TagUndoRequested?.Invoke();
+                            ProjectDirtyRequested?.Invoke();
+                            return;
+                        }
+                    }
                     if (CurrentScreen == null) return;
                     // C12-2：世界地图画面优先撤销 WorldMap 数据（作业点/范围点；Widgets 快照不含 WorldMap）
                     if (CurrentScreen.Type == ScreenType.WorldMap && CurrentProject?.WorldMap != null
-                        && _undoManager.HasWorldMapUndo(CurrentScreen))
+                        && _undoManager.HasWorldMapUndo(CurrentScreen) && best == _undoManager.WorldMapLatestVersion)
                     {
                         if (_undoManager.UndoWorldMap(CurrentScreen, CurrentProject.WorldMap))
                         {
@@ -1100,10 +1128,24 @@ namespace NavigatorHMI.ViewModels
                 {
                     // A12：列表栈非空时优先重做列表项操作
                     if (ListManager?.HasListRedo == true) { ListManager.RedoList(); return; }
+                    // X-1c should-fix（复审）：与 Undo 对称——非空 redo 栈中"最近撤销版本"最大者优先（后撤先重做，LIFO 互逆）
+                    int best = -1;
+                    if (CurrentProject != null && _undoManager.HasTagRedo) best = Math.Max(best, _undoManager.TagRedoLatestVersion);
+                    if (CurrentScreen != null && _undoManager.HasWorldMapRedo(CurrentScreen)) best = Math.Max(best, _undoManager.WorldMapRedoLatestVersion);
+                    if (CurrentScreen != null && _undoManager.HasRedo(CurrentScreen)) best = Math.Max(best, _undoManager.WidgetsRedoLatestVersion);
+                    if (CurrentProject != null && _undoManager.HasTagRedo && best == _undoManager.TagRedoLatestVersion)
+                    {
+                        if (_undoManager.RedoTags(CurrentProject.Tags))
+                        {
+                            TagRedoRequested?.Invoke();
+                            ProjectDirtyRequested?.Invoke();
+                            return;
+                        }
+                    }
                     if (CurrentScreen == null) return;
                     // C12-2：世界地图画面优先重做 WorldMap 数据
                     if (CurrentScreen.Type == ScreenType.WorldMap && CurrentProject?.WorldMap != null
-                        && _undoManager.HasWorldMapRedo(CurrentScreen))
+                        && _undoManager.HasWorldMapRedo(CurrentScreen) && best == _undoManager.WorldMapRedoLatestVersion)   // X-1c 三审：与 Undo 侧对称，缺版本条件会抢先重做错序
                     {
                         if (_undoManager.RedoWorldMap(CurrentScreen, CurrentProject.WorldMap))
                         {

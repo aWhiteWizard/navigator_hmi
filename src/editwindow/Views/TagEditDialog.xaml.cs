@@ -55,8 +55,9 @@ namespace NavigatorHMI.Views
                 {
                     if (GeoPoint.TryParse(existing.BaseValue, out var gpsPt) && gpsPt != null)
                     {
-                        LngBaseBox.Text = gpsPt.Longitude.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture);
-                        LatBaseBox.Text = gpsPt.Latitude.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture);
+                        // X-1b：编辑框预填 DMS（W-2a 拍板"显示/输入/修改全 DMS，小数只是输入方式"；提交 BuildGpsBaseValue 解析已支持小数/DMS）
+                        LngBaseBox.Text = GeoPoint.FormatDms(gpsPt.Longitude, true);
+                        LatBaseBox.Text = GeoPoint.FormatDms(gpsPt.Latitude, false);
                         GpsDmsHint.Visibility = Visibility.Collapsed;   // 回填触发 TextChanged → 提示抑制（仅输入状态显示，续23 增补 2）
                     }
                 }
@@ -180,10 +181,9 @@ namespace NavigatorHMI.Views
             var latStr = LatBaseBox.Text.Trim();
             if (lngStr.Length == 0 && latStr.Length == 0) return new GeoPoint(0, 0).ToBaseValue();   // 全空 = 默认 (E0°0'0", N0°0'0")
             if (lngStr.Length == 0 || latStr.Length == 0) { err = "经度和纬度都要填写（或都留空用默认 0）"; return null; }
-            if (!double.TryParse(lngStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lng)
-                || lng < -180 || lng > 180) { err = $"经度格式：104.06（东经为正，负号=西经；范围 ±180）"; return null; }
-            if (!double.TryParse(latStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lat)
-                || lat < -90 || lat > 90) { err = $"纬度格式：30.67（北纬为正，负号=南纬；范围 ±90）"; return null; }
+            // X-1b：提交解析改 TryParseCoord（小数/DMS 双解析 + 范围校验；编辑框现预填 DMS）
+            if (!GeoPoint.TryParseCoord(lngStr, true, out var lng)) { err = $"经度格式：104.06（东经为正，负号=西经；范围 ±180）或 DMS 如 E104°3'29.88\""; return null; }
+            if (!GeoPoint.TryParseCoord(latStr, false, out var lat)) { err = $"纬度格式：30.67（北纬为正，负号=南纬；范围 ±90）或 DMS 如 N30°40'20.12\""; return null; }
             return new GeoPoint(lng, lat).ToBaseValue();
         }
 

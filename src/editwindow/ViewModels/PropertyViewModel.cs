@@ -868,6 +868,7 @@ namespace NavigatorHMI.ViewModels
         /// <summary>从工程 WorldMapConfig 同步作业点/作业范围点表格（选中画面时装载）。</summary>
         private void RefreshWorldMapWorkPoints()
         {
+            RefreshGpsTagNames();   // X-1a：表格重建即同步 GPS 绑定选项（不依赖属性面板 RefreshBindableTags 链路，世界地图场景下拉不空白）
             WorkPointRows.CollectionChanged -= WorkPointRows_CollectionChanged;
             WorkPointRows.Clear();
             if (Project?.WorldMap != null)
@@ -881,6 +882,7 @@ namespace NavigatorHMI.ViewModels
         /// <summary>从工程 WorldMapConfig 同步作业范围点表格。</summary>
         private void RefreshWorkMapRangePoints()
         {
+            RefreshGpsTagNames();   // X-1a：同作业点表格，重建即同步 GPS 选项
             WorkRangeRows.CollectionChanged -= WorkRangeRows_CollectionChanged;
             WorkRangeRows.Clear();
             if (Project?.WorldMap != null)

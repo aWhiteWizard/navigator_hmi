@@ -265,6 +265,9 @@ namespace NavigatorHMI.Views
                 _propertyViewModel.RefreshWorkPointRows();
                 _propertyViewModel.RefreshWorkRangeRows();
             };
+            // X-1c：变量基准值撤销/重做后刷新（变量表 + 地图点位置由变量驱动）
+            _viewModel.TagUndoRequested = () => RefreshAfterTagBaseValueChange();
+            _viewModel.TagRedoRequested = () => RefreshAfterTagBaseValueChange();
             // C12-2：作业点/范围点表格增删改/行编辑前快照 → WorldMap 独立撤销栈（原 BeforeModify 绑 Widgets 栈，快照不含 WorldMap）
             _propertyViewModel.WorldMapBeforeModify = () => _viewModel.PushWorldMapUndoSnapshot();
             _propertyViewModel.WorldMapZoomToBoxRequested = () =>
@@ -1946,16 +1949,39 @@ namespace NavigatorHMI.Views
                     if (wm == null || geo == null) return;
                     // V-3a（审查 Nit5）：提交前经纬度边界校验（防拖出地图范围写入无效 FixedPoint）
                     if (geo.Latitude < -90 || geo.Latitude > 90 || geo.Longitude < -180 || geo.Longitude > 180) return;
-                    _viewModel.PushWorldMapUndoSnapshot();   // 拖拽提交前快照（C12-2 机制，WorldMap 独立撤销栈）
-                    if (dragModel is MapWorkPoint mwp)
+                    if (dragModel is MapWorkPoint mwp && !string.IsNullOrEmpty(mwp.BoundTag))
                     {
-                        mwp.FixedPoint = geo; mwp.BoundTag = "";   // 拖拽后固定经纬度优先（绑变量点转固定值）
-                        _propertyViewModel.RefreshWorkPointRows();
+                        // X-1c：绑变量点拖拽 → 不清绑不写固定值，更新绑定 GPS 变量基准值（位置由变量驱动）
+                        // 顺序：先查 tag 有效 → PushTagSnapshot 快照旧值 → 再更新（快照必须早于修改）
+                        if (FindBoundGpsTag(mwp.BoundTag) is { } tag)
+                        {
+                            _viewModel.PushTagSnapshot();   // 变量基准值快照（Tag 撤销栈，Ctrl+Z 还原变量值）
+                            tag.BaseValue = $"({GeoPoint.FormatDms(geo.Longitude, true)}, {GeoPoint.FormatDms(geo.Latitude, false)})";
+                            _propertyViewModel.RefreshWorkPointRows();
+                        }
                     }
-                    else if (dragModel is WorkRangePoint mrp)
+                    else if (dragModel is WorkRangePoint mrp && !string.IsNullOrEmpty(mrp.BoundTag))
                     {
-                        mrp.FixedPoint = geo; mrp.BoundTag = "";
-                        _propertyViewModel.RefreshWorkRangeRows();
+                        if (FindBoundGpsTag(mrp.BoundTag) is { } tag)
+                        {
+                            _viewModel.PushTagSnapshot();
+                            tag.BaseValue = $"({GeoPoint.FormatDms(geo.Longitude, true)}, {GeoPoint.FormatDms(geo.Latitude, false)})";
+                            _propertyViewModel.RefreshWorkRangeRows();
+                        }
+                    }
+                    else
+                    {
+                        _viewModel.PushWorldMapUndoSnapshot();   // 拖拽提交前快照（C12-2 机制，WorldMap 独立撤销栈）
+                        if (dragModel is MapWorkPoint mwp2)
+                        {
+                            mwp2.FixedPoint = geo; mwp2.BoundTag = "";   // 无绑定：固定经纬度
+                            _propertyViewModel.RefreshWorkPointRows();
+                        }
+                        else if (dragModel is WorkRangePoint mrp2)
+                        {
+                            mrp2.FixedPoint = geo; mrp2.BoundTag = "";
+                            _propertyViewModel.RefreshWorkRangeRows();
+                        }
                     }
                     MarkProjectDirty();
                     UpdateAllGeoWidgets();   // 全量刷新：视觉位置落定到新经纬度 + 表格同步
@@ -2049,6 +2075,20 @@ namespace NavigatorHMI.Views
                 _propertyViewModel.SelectedWorkPointRow = null;
                 _propertyViewModel.SelectedWorkRangeRow = null;
             }
+        }
+
+        /// <summary>X-1c：查找绑定的 GPS 变量（变量不存在/非 GPS 返回 null——拖拽时不清绑不写固定值，仅更新有效变量基准值）。</summary>
+        private Tag? FindBoundGpsTag(string boundTag)
+            => _viewModel?.CurrentProject?.Tags.FirstOrDefault(t => t.Name == boundTag && t.DataType == TagDataType.GPS);
+
+        /// <summary>X-1c：变量基准值变更（拖拽写回/撤销/重做）后刷新——地图点位置由变量驱动 + 作业点/范围点表格 + 变量管理器表格（Tag 无 INPC，强制 Refresh）。</summary>
+        private void RefreshAfterTagBaseValueChange()
+        {
+            UpdateAllGeoWidgets();
+            _propertyViewModel.RefreshWorkPointRows();
+            _propertyViewModel.RefreshWorkRangeRows();
+            _variableManagerVM?.Refresh();   // Tag.BaseValue 无 INPC → 变量管理器表格强制刷新
+            MarkProjectDirty();
         }
 
         /// <summary>W-1c：作业点表格点击空白（未命中行，且非滚动条/列头 chrome）→ 取消选中态；点击行由 SelectedItem 绑定联动。</summary>
