@@ -1,4 +1,5 @@
 using NavigatorHMI.AiAgent;
+using NavigatorHMI.Common;
 using NavigatorHMI.CommandLayer;
 using System.Text.Json;
 
@@ -51,5 +52,24 @@ public class UserSchemaTests
         var p = CreateUserTool();
         var gn = p.GetProperty("properties").GetProperty("group_name");
         Assert.False(gn.TryGetProperty("default", out _), "compact 不输出默认值（防模型省略参数）");
+    }
+
+    [Fact]
+    public void CommandExecuted_用户组全部命令触发事件()
+    {
+        // W-5b 验证：CommandExecuted 事件对 6 个用户/组命令全部触发（AI 走同一 CommandService → OnCommandExecuted → RefreshUserPanel 链路）
+        var p = new HMIProject();
+        p.Users.Add(new UserAccount { UserName = "甲", PasswordHash = "X", GroupName = "访客" });
+        var svc = new CommandService(p);
+        var fired = new List<string>();
+        svc.CommandExecuted += (name, _, _) => fired.Add(name);
+        svc.Execute("update_user", new Dictionary<string, object?> { ["user_name"] = "甲", ["new_group_name"] = "操作员" });
+        svc.Execute("create_group", new Dictionary<string, object?> { ["group_name"] = "工程师" });
+        svc.Execute("update_group", new Dictionary<string, object?> { ["group_name"] = "工程师", ["permissions"] = "ScreenEdit" });
+        svc.Execute("delete_group", new Dictionary<string, object?> { ["group_name"] = "工程师" });
+        svc.Execute("create_user", new Dictionary<string, object?> { ["user_name"] = "乙", ["password"] = "123", ["group_name"] = "访客" });
+        svc.Execute("delete_user", new Dictionary<string, object?> { ["user_name"] = "乙" });
+        foreach (var expected in new[] { "update_user", "create_group", "update_group", "delete_group", "create_user", "delete_user" })
+            Assert.Contains(expected, fired);   // 按执行顺序逐一触发（命令层构造预置预设三组，update_user 目标组"操作员"存在）
     }
 }
