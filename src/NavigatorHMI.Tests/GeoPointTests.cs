@@ -12,32 +12,46 @@ namespace NavigatorHMI.Tests
         public void 小数度转DMS_东经北纬()
         {
             var p = new GeoPoint(104.0583, 30.6722);
-            Assert.Equal("E104°3'30\", N30°40'20\"", p.ToDmsString());
+            Assert.Equal("E104°3'29.88\", N30°40'19.92\"", p.ToDmsString());
         }
 
         [Fact]
         public void 小数度转DMS_西经南纬()
         {
             var p = new GeoPoint(-104.0583, -30.6722);
-            Assert.Equal("W104°3'30\", S30°40'20\"", p.ToDmsString());
+            Assert.Equal("W104°3'29.88\", S30°40'19.92\"", p.ToDmsString());
         }
 
         [Fact]
         public void 小数度转DMS_零点()
         {
             var p = new GeoPoint(0, 0);
-            Assert.Equal("E0°0'0\", N0°0'0\"", p.ToDmsString());
+            Assert.Equal("E0°0'0.00\", N0°0'0.00\"", p.ToDmsString());
         }
 
         [Fact]
         public void 小数度转DMS_秒进位()
         {
-            // 104.0599 ≈ 104°3'35.64" → 秒四舍五入 36
+            // W-2a：秒保留 2 位小数——104.0599 ≈ 104°3'35.64"（不再舍入到整数 36）
             var p = new GeoPoint(104.0599, 30);
-            Assert.Equal("E104°3'36\", N30°0'0\"", p.ToDmsString());
-            // 分进位：30.9999 ≈ 30°59'59.64" → 60' → 31°0'0"
+            Assert.Equal("E104°3'35.64\", N30°0'0.00\"", p.ToDmsString());
+            // 分进位：30.9999 ≈ 30°59'59.64" → 59.64 < 60 不进位（旧整数舍入到 60' 才进 31°）
             var p2 = new GeoPoint(104, 30.9999);
-            Assert.Equal("E104°0'0\", N31°0'0\"", p2.ToDmsString());
+            Assert.Equal("E104°0'0.00\", N30°59'59.64\"", p2.ToDmsString());
+            // W-2a 补测：分小数 0.99996 → 秒 59.9976" → Round(,2)=60.00 → 触发 sec>=60 进位 → 104°2'0.00"
+            var p3 = new GeoPoint(104.0333326667, 0);
+            Assert.Equal("E104°2'0.00\", N0°0'0.00\"", p3.ToDmsString());
+        }
+
+        [Fact]
+        public void 负数小数解析_西经南纬()
+        {
+            // W-2a 补测：TryParseCoord 接受带负号纯小数（V-5a 合法输入 -104.06 / -30.55）
+            Assert.True(GeoPoint.TryParseCoord("-104.06", true, out var lng));
+            Assert.Equal(-104.06, lng, 6);
+            Assert.True(GeoPoint.TryParseCoord("-30.55", false, out var lat));
+            Assert.Equal(-30.55, lat, 6);
+            Assert.False(GeoPoint.TryParseCoord("104.06", false, out _));   // 经度值放纬度位：超 ±90 拒绝
         }
 
         // ── DMS 解析 → 小数度 ──
@@ -74,11 +88,11 @@ namespace NavigatorHMI.Tests
         {
             var p = new GeoPoint(104.0583, 30.6722);
             var baseValue = p.ToBaseValue();
-            Assert.Equal("(E104°3'30\", N30°40'20\")", baseValue);
+            Assert.Equal("(E104°3'29.88\", N30°40'19.92\")", baseValue);
             Assert.True(GeoPoint.TryParse(baseValue, out var back));
-            // DMS 整数秒固有精度：往返值为 DMS 精确值（非原始小数度）
-            Assert.Equal(104 + 3.0 / 60 + 30.0 / 3600, back!.Longitude, 5);
-            Assert.Equal(30 + 40.0 / 60 + 20.0 / 3600, back.Latitude, 5);
+            // DMS 2 位小数秒精度：往返值为 DMS 精确值（非原始小数度）
+            Assert.Equal(104 + 3.0 / 60 + 29.88 / 3600, back!.Longitude, 5);
+            Assert.Equal(30 + 40.0 / 60 + 19.92 / 3600, back.Latitude, 5);
         }
 
         // ── 小数度输入 ──
@@ -170,9 +184,9 @@ namespace NavigatorHMI.Tests
         [Fact]
         public void 秒舍入_半点进位()
         {
-            // 30 + 0.5/3600 = 30.0001389 → N30°0'0.5" → AwayFromZero → N30°0'1"
+            // W-2a：秒保留 2 位小数——30.0001389 ≈ N30°0'0.5"（0.5 不再 AwayFromZero 进位到 1）
             var p = new GeoPoint(0, 30.0001388889);
-            Assert.Equal("E0°0'0\", N30°0'1\"", p.ToDmsString());
+            Assert.Equal("E0°0'0.00\", N30°0'0.50\"", p.ToDmsString());
         }
     }
 }

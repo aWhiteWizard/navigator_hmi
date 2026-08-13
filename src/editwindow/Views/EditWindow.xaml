@@ -237,7 +237,19 @@
                         <!-- V-5a：续23 方案 B——经纬度拆两列（每格输小数度，正=E/N 负=W/S；存储仍 DMS） -->
                         <DataGridTextColumn Header="经度(E+)" Binding="{Binding Lng, UpdateSourceTrigger=LostFocus}" Width="*"/>
                         <DataGridTextColumn Header="纬度(N+)" Binding="{Binding Lat, UpdateSourceTrigger=LostFocus}" Width="*"/>
-                        <DataGridTextColumn Header="绑定变量" Binding="{Binding BoundTag, UpdateSourceTrigger=LostFocus}" Width="55"/>
+                        <DataGridTemplateColumn Header="绑定变量" Width="85">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding BoundTagDisplay}" Margin="2,0" VerticalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                            <DataGridTemplateColumn.CellEditingTemplate>
+                                <DataTemplate>
+                                    <!-- W-2b：绑定变量只下拉（GPS 变量 + 「无」），不可手输 -->
+                                    <ComboBox ItemsSource="{Binding GpsTagNames}" SelectedItem="{Binding BoundTagDisplay, UpdateSourceTrigger=LostFocus}" IsEditable="False"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellEditingTemplate>
+                        </DataGridTemplateColumn>
                     </DataGrid.Columns>
                 </DataGrid>
                 <!-- V-5a：经纬度输入 DMS 实时换算提示（仅编辑态显示，续23 增补 2；Tag 供 DataGrid 事件按 VisualTree 查找） -->
@@ -268,7 +280,19 @@
                         <!-- V-5a：续23 方案 B——经纬度拆两列（范围点无名称列） -->
                         <DataGridTextColumn Header="经度(E+)" Binding="{Binding Lng, UpdateSourceTrigger=LostFocus}" Width="*"/>
                         <DataGridTextColumn Header="纬度(N+)" Binding="{Binding Lat, UpdateSourceTrigger=LostFocus}" Width="*"/>
-                        <DataGridTextColumn Header="绑定变量" Binding="{Binding BoundTag, UpdateSourceTrigger=LostFocus}" Width="55"/>
+                        <DataGridTemplateColumn Header="绑定变量" Width="85">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding BoundTagDisplay}" Margin="2,0" VerticalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                            <DataGridTemplateColumn.CellEditingTemplate>
+                                <DataTemplate>
+                                    <!-- W-2b：绑定变量只下拉（GPS 变量 + 「无」），不可手输 -->
+                                    <ComboBox ItemsSource="{Binding GpsTagNames}" SelectedItem="{Binding BoundTagDisplay, UpdateSourceTrigger=LostFocus}" IsEditable="False"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellEditingTemplate>
+                        </DataGridTemplateColumn>
                     </DataGrid.Columns>
                 </DataGrid>
                 <!-- V-5a：经纬度输入 DMS 实时换算提示（仅编辑态显示；Tag 供 DataGrid 事件按 VisualTree 查找） -->

@@ -35,7 +35,7 @@ namespace NavigatorHMI.Tests
             var r = svc.Execute("create_tag", new Dictionary<string, object?>
             {
                 ["name"] = "位置", ["data_type"] = "GPS",
-                ["base_value"] = "(E104°3'30\", N30°40'20\")"
+                ["base_value"] = "(E104°3'29.88\", N30°40'19.92\")"
             });
             Assert.True(r.Success);
             Assert.Equal(NavigatorHMI.Common.TagDataType.GPS, p.Tags[0].DataType);
@@ -57,7 +57,7 @@ namespace NavigatorHMI.Tests
             var r = svc.Execute("create_tag", new Dictionary<string, object?> { ["name"] = "位置", ["data_type"] = "GPS", ["base_value"] = "104.0583, 30.6722" });
             Assert.True(r.Success);
             // 需求：输入小数度自动转 DMS 存储（基准值归一为 DMS 括号格式）
-            Assert.Equal("(E104°3'30\", N30°40'20\")", p.Tags[0].BaseValue);
+            Assert.Equal("(E104°3'29.88\", N30°40'19.92\")", p.Tags[0].BaseValue);
         }
 
         // ═══ TagCompatibility（P1 修订）：GPS 变量不再可绑任何控件——仅世界地图作业点/作业范围点绑定 ═══
@@ -100,7 +100,7 @@ namespace NavigatorHMI.Tests
             var r = svc.Execute("update_tag", new Dictionary<string, object?> { ["name"] = "位置", ["data_type"] = "GPS" });
             Assert.True(r.Success);
             Assert.Equal(NavigatorHMI.Common.TagDataType.GPS, p.Tags[0].DataType);
-            Assert.Equal("(E104°3'30\", N30°40'20\")", p.Tags[0].BaseValue);   // 与 create_tag 归一格式一致
+            Assert.Equal("(E104°3'29.88\", N30°40'19.92\")", p.Tags[0].BaseValue);   // 与 create_tag 归一格式一致
         }
 
         // ═══ AI 入口可达：create_tag/update_tag 的 data_type EnumValues 含 GPS ═══

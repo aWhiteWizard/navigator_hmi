@@ -872,7 +872,7 @@ namespace NavigatorHMI.ViewModels
             WorkPointRows.Clear();
             if (Project?.WorldMap != null)
                 foreach (var wp in Project.WorldMap.WorkPoints)
-                    WorkPointRows.Add(new WorkPointRowVM(wp, OnWorkPointRowChanged, IsGpsTag, WorldMapBeforeModify));
+                    WorkPointRows.Add(new WorkPointRowVM(wp, OnWorkPointRowChanged, IsGpsTag, WorldMapBeforeModify) { GpsTagNames = GpsTagNames });   // W-2b：绑定变量下拉选项
             WorkPointRows.CollectionChanged += WorkPointRows_CollectionChanged;
             RefreshWorkMapRangePoints();
             ValidateDuplicateNames();   // V-4a：表格重载（切画面/撤销/重做）后重名校验
@@ -885,7 +885,7 @@ namespace NavigatorHMI.ViewModels
             WorkRangeRows.Clear();
             if (Project?.WorldMap != null)
                 foreach (var rp in Project.WorldMap.WorkRangePoints)
-                    WorkRangeRows.Add(new WorkRangeRowVM(rp, OnWorkPointRowChanged, IsGpsTag, WorldMapBeforeModify));
+                    WorkRangeRows.Add(new WorkRangeRowVM(rp, OnWorkPointRowChanged, IsGpsTag, WorldMapBeforeModify) { GpsTagNames = GpsTagNames });   // W-2b：绑定变量下拉选项
             WorkRangeRows.CollectionChanged += WorkRangeRows_CollectionChanged;
         }
 
@@ -930,6 +930,7 @@ namespace NavigatorHMI.ViewModels
             foreach (WorkPointRowVM row in e.NewItems)
             {
                 if (Project == null) continue;
+                row.GpsTagNames = GpsTagNames;   // W-2b：DataGrid 自动新建的占位行也注入下拉选项
                 // 双击 placeholder 触发 Add 时行必空（DataGrid 先 Add 后编辑）→ 移交提交判定，不在此移除
                 if (string.IsNullOrWhiteSpace(row.Name) && string.IsNullOrWhiteSpace(row.LngLat) && string.IsNullOrWhiteSpace(row.BoundTag))
                     continue;
@@ -971,6 +972,7 @@ namespace NavigatorHMI.ViewModels
             foreach (WorkRangeRowVM row in e.NewItems)
             {
                 if (Project == null) continue;
+                row.GpsTagNames = GpsTagNames;   // W-2b：DataGrid 自动新建的占位行也注入下拉选项
                 if (string.IsNullOrWhiteSpace(row.LngLat) && string.IsNullOrWhiteSpace(row.BoundTag))
                     continue;
                 Project.WorldMap ??= new WorldMapConfig();
@@ -1334,8 +1336,8 @@ namespace NavigatorHMI.ViewModels
         {
             BindableTags.Clear();
             BindableTags.Add(NoBindingSentinel);   // 无绑定哨兵（非 null）
-            if (Project == null) return;
-            // 类型过滤：数值/索引控件只显示数字变量，文本控件只显示 STRING，None（Label）不显示任何变量，其他不限
+            RefreshGpsTagNames();   // W-2b：先于 Project==null 早退刷新（关闭工程时清空 GPS 选项，防残留旧工程变量）
+            if (Project == null) return;            // 类型过滤：数值/索引控件只显示数字变量，文本控件只显示 STRING，None（Label）不显示任何变量，其他不限
             var req = _selectedWidget != null ? TagCompatibility.GetRequirement(_selectedWidget) : TagRequirement.Any;
             var current = _selectedWidget?.BoundTag ?? "";
             bool currentIncluded = false;
@@ -1368,6 +1370,18 @@ namespace NavigatorHMI.ViewModels
                 else
                     BindableTags.Add(new Tag { Name = $"(缺失变量: {current})" });   // 变量不存在（历史/外部工程）：占位可见，防下拉空白静默
             }
+        }
+
+        /// <summary>W-2b：作业点/范围点绑定变量下拉选项 = 「无」+ 工程全部 GPS 变量（ObservableCollection 共享引用，行 VM 直接绑定；变量增删经 RefreshBindableTags 联动）。</summary>
+        public ObservableCollection<string> GpsTagNames { get; } = new();
+
+        private void RefreshGpsTagNames()
+        {
+            GpsTagNames.Clear();
+            GpsTagNames.Add("无");
+            if (Project == null) return;
+            foreach (var t in Project.Tags)
+                if (t.DataType == TagDataType.GPS) GpsTagNames.Add(t.Name);
         }
 
         /// <summary>解析绑定目标：变量存在→Tag；变量缺失（历史/外部工程）→缺失占位项；无绑定→哨兵。
@@ -2042,16 +2056,15 @@ namespace NavigatorHMI.ViewModels
                 _onChanged?.Invoke(); OnPropertyChanged(); OnPropertyChanged(nameof(BoundTag));
             }
         }
-        // V-5a：经纬度拆两列（续23 方案 B）——每格输小数度（正=E/N，负=W/S；解析失败按非法处理）；
-        // V-5b：非法输入不静默——标 CoordError（ToolTip 带示例）
+        // W-2a：经纬度拆两列——显示/编辑/修改全 DMS（用户 2026-08-12 拍板：小数只是输入方式，确认后一律度分秒，秒 2 位小数）；
+        // 输入兼容小数度（正=E/N，负=W/S）与 DMS（含小数秒）；非法 → CoordError（W-3a 气泡 + ToolTip 带示例）
         public string Lng
         {
-            get => Model.FixedPoint?.Longitude.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture) ?? "";
+            get => Model.FixedPoint != null ? GeoPoint.FormatDms(Model.FixedPoint.Longitude, true) : "";
             set
             {
                 var v = (value ?? "").Trim();
-                if (double.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lng)
-                    && lng >= -180 && lng <= 180)
+                if (GeoPoint.TryParseCoord(v, true, out var lng))
                 {
                     _beforeModify?.Invoke();
                     Model.FixedPoint ??= new GeoPoint(0, 0);
@@ -2061,18 +2074,17 @@ namespace NavigatorHMI.ViewModels
                     _onChanged?.Invoke(); OnPropertyChanged(); OnPropertyChanged(nameof(BoundTag)); OnPropertyChanged(nameof(LngLat));
                 }
                 else if (!string.IsNullOrWhiteSpace(v))
-                    CoordErrorLng = "经度格式：104.06（东经为正，负号=西经）；DMS 如 E104°3'30\"";   // V-5b：非法输入带示例
+                    CoordErrorLng = "经度格式：104.06（东经为正，负号=西经）；DMS 如 E104°3'30.25\"";   // V-5b：非法输入带示例
                 else CoordErrorLng = "";
             }
         }
         public string Lat
         {
-            get => Model.FixedPoint?.Latitude.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture) ?? "";
+            get => Model.FixedPoint != null ? GeoPoint.FormatDms(Model.FixedPoint.Latitude, false) : "";
             set
             {
                 var v = (value ?? "").Trim();
-                if (double.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lat)
-                    && lat >= -90 && lat <= 90)
+                if (GeoPoint.TryParseCoord(v, false, out var lat))
                 {
                     _beforeModify?.Invoke();
                     Model.FixedPoint ??= new GeoPoint(0, 0);
@@ -2082,7 +2094,7 @@ namespace NavigatorHMI.ViewModels
                     _onChanged?.Invoke(); OnPropertyChanged(); OnPropertyChanged(nameof(BoundTag)); OnPropertyChanged(nameof(LngLat));
                 }
                 else if (!string.IsNullOrWhiteSpace(v))
-                    CoordErrorLat = "纬度格式：30.67（北纬为正，负号=南纬）；DMS 如 N30°40'12\"";
+                    CoordErrorLat = "纬度格式：30.67（北纬为正，负号=南纬）；DMS 如 N30°40'20.12\"";
                 else CoordErrorLat = "";
             }
         }
@@ -2115,6 +2127,26 @@ namespace NavigatorHMI.ViewModels
                     Model.BoundTag = v; Model.FixedPoint = null;   // 两列互斥：写绑定变量清固定值
                     _onChanged?.Invoke(); OnPropertyChanged(); OnPropertyChanged(nameof(LngLat));
                     OnPropertyChanged(nameof(Lng)); OnPropertyChanged(nameof(Lat));   // V-5a：清固定值 → 两列同步清空显示
+                    OnPropertyChanged(nameof(BoundTagDisplay));   // W-2b：下拉显示联动
+                }
+            }
+        }
+        /// <summary>W-2b：绑定变量下拉显示——空 = 「无」；选中「无」= 清空（其余同 BoundTag 校验/互斥逻辑）。</summary>
+        public System.Collections.ObjectModel.ObservableCollection<string>? GpsTagNames { get; set; }
+        public string BoundTagDisplay
+        {
+            get => string.IsNullOrEmpty(Model.BoundTag) ? "无" : Model.BoundTag;
+            set
+            {
+                var v = (value ?? "").Trim();
+                if (v == "无") v = "";
+                if (v.Length > 0 && (_tagValidator == null || !_tagValidator(v))) return;
+                if (Model.BoundTag != v)
+                {
+                    _beforeModify?.Invoke();
+                    Model.BoundTag = v; Model.FixedPoint = null;
+                    _onChanged?.Invoke(); OnPropertyChanged(); OnPropertyChanged(nameof(BoundTag));
+                    OnPropertyChanged(nameof(LngLat)); OnPropertyChanged(nameof(Lng)); OnPropertyChanged(nameof(Lat));
                 }
             }
         }
@@ -2146,15 +2178,14 @@ namespace NavigatorHMI.ViewModels
                 _onChanged?.Invoke(); OnPropertyChanged(); OnPropertyChanged(nameof(BoundTag));
             }
         }
-        // V-5a：范围点经纬度拆两列（同 WorkPointRowVM：小数度输入，正=E/N 负=W/S）
+        // W-2a：范围点经纬度拆两列（同 WorkPointRowVM：显示/编辑/修改全 DMS，输入兼容小数与 DMS）
         public string Lng
         {
-            get => Model.FixedPoint?.Longitude.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture) ?? "";
+            get => Model.FixedPoint != null ? GeoPoint.FormatDms(Model.FixedPoint.Longitude, true) : "";
             set
             {
                 var v = (value ?? "").Trim();
-                if (double.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lng)
-                    && lng >= -180 && lng <= 180)
+                if (GeoPoint.TryParseCoord(v, true, out var lng))
                 {
                     _beforeModify?.Invoke();
                     Model.FixedPoint ??= new GeoPoint(0, 0);
@@ -2164,18 +2195,17 @@ namespace NavigatorHMI.ViewModels
                     _onChanged?.Invoke(); OnPropertyChanged(); OnPropertyChanged(nameof(BoundTag)); OnPropertyChanged(nameof(LngLat));
                 }
                 else if (!string.IsNullOrWhiteSpace(v))
-                    CoordErrorLng = "经度格式：104.06（东经为正，负号=西经）；DMS 如 E104°3'30\"";
+                    CoordErrorLng = "经度格式：104.06（东经为正，负号=西经）；DMS 如 E104°3'30.25\"";
                 else CoordErrorLng = "";
             }
         }
         public string Lat
         {
-            get => Model.FixedPoint?.Latitude.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture) ?? "";
+            get => Model.FixedPoint != null ? GeoPoint.FormatDms(Model.FixedPoint.Latitude, false) : "";
             set
             {
                 var v = (value ?? "").Trim();
-                if (double.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lat)
-                    && lat >= -90 && lat <= 90)
+                if (GeoPoint.TryParseCoord(v, false, out var lat))
                 {
                     _beforeModify?.Invoke();
                     Model.FixedPoint ??= new GeoPoint(0, 0);
@@ -2185,7 +2215,7 @@ namespace NavigatorHMI.ViewModels
                     _onChanged?.Invoke(); OnPropertyChanged(); OnPropertyChanged(nameof(BoundTag)); OnPropertyChanged(nameof(LngLat));
                 }
                 else if (!string.IsNullOrWhiteSpace(v))
-                    CoordErrorLat = "纬度格式：30.67（北纬为正，负号=南纬）；DMS 如 N30°40'12\"";
+                    CoordErrorLat = "纬度格式：30.67（北纬为正，负号=南纬）；DMS 如 N30°40'20.12\"";
                 else CoordErrorLat = "";
             }
         }
@@ -2217,6 +2247,26 @@ namespace NavigatorHMI.ViewModels
                     Model.BoundTag = v; Model.FixedPoint = null;   // 两列互斥
                     _onChanged?.Invoke(); OnPropertyChanged(); OnPropertyChanged(nameof(LngLat));
                     OnPropertyChanged(nameof(Lng)); OnPropertyChanged(nameof(Lat));   // V-5a：清固定值 → 两列同步清空显示
+                    OnPropertyChanged(nameof(BoundTagDisplay));   // W-2b：下拉显示联动
+                }
+            }
+        }
+        /// <summary>W-2b：绑定变量下拉显示——空 = 「无」；选中「无」= 清空（其余同 BoundTag 校验/互斥逻辑）。</summary>
+        public System.Collections.ObjectModel.ObservableCollection<string>? GpsTagNames { get; set; }
+        public string BoundTagDisplay
+        {
+            get => string.IsNullOrEmpty(Model.BoundTag) ? "无" : Model.BoundTag;
+            set
+            {
+                var v = (value ?? "").Trim();
+                if (v == "无") v = "";
+                if (v.Length > 0 && (_tagValidator == null || !_tagValidator(v))) return;
+                if (Model.BoundTag != v)
+                {
+                    _beforeModify?.Invoke();
+                    Model.BoundTag = v; Model.FixedPoint = null;
+                    _onChanged?.Invoke(); OnPropertyChanged(); OnPropertyChanged(nameof(BoundTag));
+                    OnPropertyChanged(nameof(LngLat)); OnPropertyChanged(nameof(Lng)); OnPropertyChanged(nameof(Lat));
                 }
             }
         }

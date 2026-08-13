@@ -59,7 +59,8 @@ namespace NavigatorHMI.Common
         public static string FormatDms(double value, bool isLongitude)
             => FormatCoord(value, isLongitude ? 'E' : 'N', isLongitude ? 'W' : 'S');
 
-        /// <summary>格式化单个坐标：方向前缀 + 度分秒（秒四舍五入到整数 AwayFromZero，处理 60 进位）。</summary>
+        /// <summary>格式化单个坐标：方向前缀 + 度分秒（W-2a：秒保留 2 位小数 ≈0.01″≈0.3m 级精度，用户 2026-08-12 拍板；
+        /// 60 进位处理不变）。</summary>
         private static string FormatCoord(double value, char positivePrefix, char negativePrefix)
         {
             char prefix = value >= 0 ? positivePrefix : negativePrefix;
@@ -67,14 +68,15 @@ namespace NavigatorHMI.Common
             int deg = (int)Math.Floor(abs);
             double minFloat = (abs - deg) * 60;
             int min = (int)Math.Floor(minFloat);
-            double sec = Math.Round((minFloat - min) * 60, 0, MidpointRounding.AwayFromZero);
+            double sec = Math.Round((minFloat - min) * 60, 2, MidpointRounding.AwayFromZero);
             if (sec >= 60) { sec = 0; min++; }
             if (min >= 60) { min = 0; deg++; }
-            return $"{prefix}{deg}°{min}'{sec:0}\"";
+            return $"{prefix}{deg}°{min}'{sec:0.00}\"";
         }
 
-        /// <summary>解析单个坐标（DMS 或小数度），校验范围（经度 ±180 / 纬度 ±90）与前缀-位置匹配（经度仅 E/W、纬度仅 N/S）。</summary>
-        private static bool TryParseCoord(string s, bool isLongitude, out double value)
+        /// <summary>解析单个坐标（DMS 或小数度），校验范围（经度 ±180 / 纬度 ±90）与前缀-位置匹配（经度仅 E/W、纬度仅 N/S）。
+        /// W-2a：public 供表格行 VM 统一解析小数/DMS 输入（原 private）。</summary>
+        public static bool TryParseCoord(string s, bool isLongitude, out double value)
         {
             value = 0;
             if (s.Length == 0) return false;
