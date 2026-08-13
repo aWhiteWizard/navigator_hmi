@@ -663,33 +663,33 @@ namespace NavigatorHMI.ViewModels
             for (int i = 0; i < PolygonPointRows.Count; i++) PolygonPointRows[i].Index = i + 1;
         }
 
-        /// <summary>V-6b：重建矩形 4 顶点表格（选中矩形时调用）——左上/右上/右下/左下，画布绝对坐标。</summary>
+        /// <summary>W-4b：重建矩形 2 对角线顶点表格（选中矩形时调用）——左上 + 右下（用户拍板：4 顶点多余，2 对角点即确定矩形），画布绝对坐标。</summary>
         public void RefreshRectanglePointRows()
         {
             RectanglePointRows.CollectionChanged -= RectanglePointRows_CollectionChanged;
             RectanglePointRows.Clear();
             if (_selectedWidget is RectangleWidget r)
             {
-                RectanglePointRows.Add(new PolygonPointRowVM(new PointD(r.X, r.Y), OnRectanglePointRowChanged, BeforeModify));
-                RectanglePointRows.Add(new PolygonPointRowVM(new PointD(r.X + r.Width, r.Y), OnRectanglePointRowChanged, BeforeModify));
-                RectanglePointRows.Add(new PolygonPointRowVM(new PointD(r.X + r.Width, r.Y + r.Height), OnRectanglePointRowChanged, BeforeModify));
-                RectanglePointRows.Add(new PolygonPointRowVM(new PointD(r.X, r.Y + r.Height), OnRectanglePointRowChanged, BeforeModify));
+                RectanglePointRows.Add(new PolygonPointRowVM(new PointD(r.X, r.Y), OnRectanglePointRowChanged, BeforeModify));                       // 左上
+                RectanglePointRows.Add(new PolygonPointRowVM(new PointD(r.X + r.Width, r.Y + r.Height), OnRectanglePointRowChanged, BeforeModify));   // 右下
             }
             RectanglePointRows.CollectionChanged += RectanglePointRows_CollectionChanged;
             ReindexRectanglePointRows();
         }
 
-        /// <summary>V-6b：矩形表格固定 4 行、无增删（CanUserAddRows=False），CollectionChanged 仅对称退订/订阅，无需处理。</summary>
+        /// <summary>V-6b：矩形表格固定 2 行、无增删（CanUserAddRows=False），CollectionChanged 仅对称退订/订阅，无需处理。</summary>
         private void RectanglePointRows_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) { }
 
-        /// <summary>V-6b：矩形顶点行变化（行内编辑）→ 从 4 顶点反推 X/Y/W/H（min/max，防翻转）。</summary>
+        /// <summary>W-4b：矩形顶点行变化（行内编辑）→ 从 2 对角点反推 X/Y/W/H（左上=min、右下=max，防翻转）。</summary>
         private void OnRectanglePointRowChanged()
         {
             if (_selectedWidget is not RectangleWidget r) return;
-            if (RectanglePointRows.Count == 4 && RectanglePointRows.All(x => x.Model != null))
+            if (RectanglePointRows.Count == 2 && RectanglePointRows.All(x => x.Model != null))
             {
-                double minX = RectanglePointRows.Min(x => x.Model.X), minY = RectanglePointRows.Min(x => x.Model.Y);
-                double maxX = RectanglePointRows.Max(x => x.Model.X), maxY = RectanglePointRows.Max(x => x.Model.Y);
+                var tl = RectanglePointRows[0].Model!;   // 左上
+                var br = RectanglePointRows[1].Model!;   // 右下
+                double minX = Math.Min(tl.X, br.X), minY = Math.Min(tl.Y, br.Y);
+                double maxX = Math.Max(tl.X, br.X), maxY = Math.Max(tl.Y, br.Y);
                 r.X = minX; r.Y = minY;
                 r.Width = Math.Max(maxX - minX, 1); r.Height = Math.Max(maxY - minY, 1);
             }
@@ -697,7 +697,7 @@ namespace NavigatorHMI.ViewModels
             DirtyRequested?.Invoke();
         }
 
-        /// <summary>V-6b：矩形表格行号（固定 4 行）。</summary>
+        /// <summary>W-4b：矩形表格行号（固定 2 行）。</summary>
         private void ReindexRectanglePointRows()
         {
             for (int i = 0; i < RectanglePointRows.Count; i++) RectanglePointRows[i].Index = i + 1;

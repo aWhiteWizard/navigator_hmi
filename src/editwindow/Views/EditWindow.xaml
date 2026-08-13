@@ -400,11 +400,11 @@
                 <Label Grid.Column="0" Content="FillColor:" Style="{StaticResource PropLabel}"/>
                 <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding RectFillColor, Mode=TwoWay}"/>
             </Grid>
-            <!-- V-6b：矩形端点表格（画布绝对坐标；固定 4 顶点——左上/右上/右下/左下；行内编辑反推 X/Y/W/H，拖拽端点实时联动） -->
+            <!-- W-4b：矩形端点表格（画布绝对坐标；固定 2 对角点——左上/右下；行内编辑反推 X/Y/W/H，拖拽端点实时联动） -->
             <TextBlock Text="端点（画布绝对坐标）" Style="{StaticResource PropGroupHeader}"/>
-            <DataGrid ItemsSource="{Binding RectanglePointRows}" AutoGenerateColumns="False"
+            <DataGrid ItemsSource="{Binding RectanglePointRows}" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
                       Height="110" Margin="4,2" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
-                      SelectionMode="Single" ToolTip="矩形 4 顶点画布绝对坐标：行内编辑 X/Y 改形（拖拽端点手柄同步）">
+                      SelectionMode="Single" ToolTip="矩形 2 对角点（左上/右下）画布绝对坐标：行内编辑 X/Y 改形（拖拽端点手柄同步）">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="#" Binding="{Binding Index}" IsReadOnly="True" Width="32"/>
                     <DataGridTextColumn Header="X" Binding="{Binding X, UpdateSourceTrigger=LostFocus}" Width="*"/>

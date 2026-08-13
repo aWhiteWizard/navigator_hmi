@@ -57,6 +57,8 @@ namespace NavigatorHMI.Views
         /// <summary>缩放手柄静态回调引用（Closing 时比较清理，防闭包泄漏）。</summary>
         private Action? _resizeDragStartedCallback;
         private Action? _resizeDragCompletedCallback;   // C12-12：缩放结束回调（字段化供 EditWindow_Closed 清理——静态回调闭包泄漏防护）
+        private Action? _resizeDragDeltaCallback;   // W-4c：缩放过程回调（字段化同上；节流刷新矩形端点表格）
+        private DateTime _lastResizeDeltaRefresh = DateTime.MinValue;   // W-4c：拖拽过程刷新节流时间戳
         /// <summary>画布尺寸回调引用（Closing 时比较清理）。</summary>
         private Func<Size>? _getCanvasSizeCallback;
 
@@ -282,6 +284,15 @@ namespace NavigatorHMI.Views
                 _propertyViewModel.RefreshRectanglePointRowsDisplay();
             };
             SelectorHelper.ResizeDragCompleted = _resizeDragCompletedCallback;
+            // W-4c：缩放手柄拖拽过程 → 矩形端点表格实时同步（100ms 节流；DragCompleted 兜底最终值）
+            _resizeDragDeltaCallback = () =>
+            {
+                var now = DateTime.UtcNow;
+                if ((now - _lastResizeDeltaRefresh).TotalMilliseconds < 100) return;
+                _lastResizeDeltaRefresh = now;
+                _propertyViewModel.RefreshRectanglePointRowsDisplay();
+            };
+            SelectorHelper.ResizeDragDelta = _resizeDragDeltaCallback;
             // 选中变化（单选/多选/清空）→ 同步属性面板多选状态
             _selectionManager.SelectionChanged += SyncSelectionToPropertyPanel;
 
@@ -2397,6 +2408,8 @@ namespace NavigatorHMI.Views
             _clockTimer.Stop();   // D6：关闭停止画布时钟
             if (SelectorHelper.ResizeDragStarted == _resizeDragStartedCallback)
                 SelectorHelper.ResizeDragStarted = null;
+            if (SelectorHelper.ResizeDragDelta == _resizeDragDeltaCallback)
+                SelectorHelper.ResizeDragDelta = null;   // W-4c：拖拽过程回调清理（防闭包持有已关闭窗口）
             if (SelectorHelper.ResizeDragCompleted == _resizeDragCompletedCallback)
                 SelectorHelper.ResizeDragCompleted = null;   // C12-12：静态回调清理（防闭包持有已关闭窗口）
             if (SelectorHelper.GetCanvasSize == _getCanvasSizeCallback)

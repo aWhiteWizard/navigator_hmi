@@ -195,6 +195,7 @@ namespace NavigatorHMI.Common
                     break;
             }
 
+            SelectorHelper.ResizeDragDelta?.Invoke();   // W-4c：拖拽过程实时刷新端点表格（注入方节流；DragCompleted 兜底最终值）
             InvalidateArrange();   // 手柄跟随新位置
         }
 
@@ -230,7 +231,15 @@ namespace NavigatorHMI.Common
             return new Size(w, h);
         }
 
-        protected override Size MeasureOverride(Size constraint) => GetElementSize();
+        protected override Size MeasureOverride(Size constraint)
+        {
+            // W-4a 修复：手柄不显示根因——必须 Measure 子元素（WPF 布局要求 Arrange 前先 Measure，
+            // 未 Measure 的 Thumb 不渲染；此前只 return 尺寸导致 10×10 手柄全部不可见，方框（OnRender）正常）
+            var size = GetElementSize();
+            foreach (var child in _visualChildren)
+                if (child is System.Windows.UIElement ue) ue.Measure(size);
+            return size;
+        }
 
         /// <summary>手柄位置 = 按当前模型状态实时计算（拖拽中跟随；Polygon 顶点按 Points 绝对坐标-包围盒左上）。</summary>
         protected override Size ArrangeOverride(Size finalSize)
