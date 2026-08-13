@@ -241,6 +241,11 @@ namespace NavigatorHMI.Common
             return size;
         }
 
+        // X-2a 修复：缺 VisualChildrenCount/GetVisualChild 则 LayoutManager 不知道 Adorner 有子视觉，
+        // 子元素进不了渲染管线（对齐 ResizeAdorner 291-292）——手柄不显示真根因
+        protected override int VisualChildrenCount => _visualChildren.Count;
+        protected override Visual GetVisualChild(int index) => _visualChildren[index];
+
         /// <summary>手柄位置 = 按当前模型状态实时计算（拖拽中跟随；Polygon 顶点按 Points 绝对坐标-包围盒左上）。</summary>
         protected override Size ArrangeOverride(Size finalSize)
         {
