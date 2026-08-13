@@ -2066,6 +2066,8 @@ namespace NavigatorHMI.ViewModels
                 var v = (value ?? "").Trim();
                 if (GeoPoint.TryParseCoord(v, true, out var lng))
                 {
+                    // W-3a 回归修复：同值短路——DataGrid Commit 会二次 UpdateSource，避免重复 _beforeModify 覆盖正确撤销快照
+                    if (Model.FixedPoint != null && Math.Abs(Model.FixedPoint.Longitude - lng) < 1e-9 && string.IsNullOrEmpty(Model.BoundTag)) return;
                     _beforeModify?.Invoke();
                     Model.FixedPoint ??= new GeoPoint(0, 0);
                     Model.FixedPoint.Longitude = lng;
@@ -2086,6 +2088,8 @@ namespace NavigatorHMI.ViewModels
                 var v = (value ?? "").Trim();
                 if (GeoPoint.TryParseCoord(v, false, out var lat))
                 {
+                    // W-3a 回归修复：同值短路（同 Lng）
+                    if (Model.FixedPoint != null && Math.Abs(Model.FixedPoint.Latitude - lat) < 1e-9 && string.IsNullOrEmpty(Model.BoundTag)) return;
                     _beforeModify?.Invoke();
                     Model.FixedPoint ??= new GeoPoint(0, 0);
                     Model.FixedPoint.Latitude = lat;
@@ -2187,6 +2191,8 @@ namespace NavigatorHMI.ViewModels
                 var v = (value ?? "").Trim();
                 if (GeoPoint.TryParseCoord(v, true, out var lng))
                 {
+                    // W-3a 回归修复：同值短路——DataGrid Commit 会二次 UpdateSource，避免重复 _beforeModify 覆盖正确撤销快照
+                    if (Model.FixedPoint != null && Math.Abs(Model.FixedPoint.Longitude - lng) < 1e-9 && string.IsNullOrEmpty(Model.BoundTag)) return;
                     _beforeModify?.Invoke();
                     Model.FixedPoint ??= new GeoPoint(0, 0);
                     Model.FixedPoint.Longitude = lng;
@@ -2207,6 +2213,8 @@ namespace NavigatorHMI.ViewModels
                 var v = (value ?? "").Trim();
                 if (GeoPoint.TryParseCoord(v, false, out var lat))
                 {
+                    // W-3a 回归修复：同值短路（同 Lng）
+                    if (Model.FixedPoint != null && Math.Abs(Model.FixedPoint.Latitude - lat) < 1e-9 && string.IsNullOrEmpty(Model.BoundTag)) return;
                     _beforeModify?.Invoke();
                     Model.FixedPoint ??= new GeoPoint(0, 0);
                     Model.FixedPoint.Latitude = lat;

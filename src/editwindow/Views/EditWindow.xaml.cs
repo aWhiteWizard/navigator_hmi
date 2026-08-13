@@ -2015,8 +2015,11 @@ namespace NavigatorHMI.Views
         /// 双击 placeholder 进入编辑时 DataGrid 已同步 Add 空行（此时未输入），Add 时判定必然误杀；提交时才有用户输入。</summary>
         private void WorkPointGrid_RowEditEnding(object sender, DataGridRowEditEndingEventArgs e)
         {
-            if (e.EditAction != DataGridEditAction.Commit || !e.Row.IsNewItem) return;
-            if (e.Row.Item is WorkPointRowVM row) _propertyViewModel.CommitNewWorkPointRow(row);
+            if (e.EditAction != DataGridEditAction.Commit) return;
+            if (e.Row.Item is not WorkPointRowVM row) return;
+            if (e.Row.IsNewItem) _propertyViewModel.CommitNewWorkPointRow(row);
+            // W-3a：名称重名提交 → 名称列旁立即弹气泡（IsDuplicateName 已由 Name setter → ValidateDuplicateNames 更新；悬停 ToolTip 保留）
+            if (row.IsDuplicateName) ShowErrorBubble(FindDataGridCell(e.Row, 0), "作业点名称重复，请改名");
         }
 
         /// <summary>V-2c：表格选中变化 → 滚动到该行（marker 点击经 SelectedItem 绑定触发，用户点表格同样适用；选中态由 setter → overlay 刷新联动）。</summary>
@@ -2057,25 +2060,113 @@ namespace NavigatorHMI.Views
                 && FindVisualParent<System.Windows.Controls.Primitives.ScrollBar>(src) == null;
         }
 
+        /// <summary>W-3a：错误提示气泡（重名/非法输入立即弹出，非悬停；锚定出错单元格旁，3s 自动消、进入编辑即消；悬停 ToolTip 保留共存）。</summary>
+        private System.Windows.Controls.Primitives.Popup? _errorBubble;
+        private System.Windows.Threading.DispatcherTimer? _errorBubbleTimer;
+        private const double ErrorBubbleDurationMs = 3000;
+
+        private void ShowErrorBubble(System.Windows.UIElement? target, string message)
+        {
+            if (_errorBubble == null)
+            {
+                _errorBubble = new System.Windows.Controls.Primitives.Popup
+                {
+                    AllowsTransparency = true,
+                    StaysOpen = false,
+                    IsHitTestVisible = false,   // W-3a nit：提示气泡穿透（不拦截覆盖区鼠标，与 dms-hint 一致）
+                    Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom,
+                    Child = new System.Windows.Controls.Border
+                    {
+                        Background = new SolidColorBrush(Color.FromArgb(240, 255, 235, 59)),
+                        BorderBrush = new SolidColorBrush(Color.FromArgb(255, 200, 160, 0)),
+                        BorderThickness = new Thickness(1),
+                        CornerRadius = new CornerRadius(3),
+                        Padding = new Thickness(6, 3, 6, 3),
+                        Child = new System.Windows.Controls.TextBlock { FontSize = 11, Foreground = Brushes.Black, TextWrapping = TextWrapping.Wrap, MaxWidth = 280 },
+                    }
+                };
+                _errorBubbleTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(ErrorBubbleDurationMs) };
+                _errorBubbleTimer.Tick += (_, _) => HideErrorBubble();
+            }
+            if (_errorBubble.Child is System.Windows.Controls.Border b && b.Child is System.Windows.Controls.TextBlock tb) tb.Text = message;
+            _errorBubble.PlacementTarget = target;
+            _errorBubbleTimer?.Stop();
+            if (target == null) { _errorBubble.IsOpen = false; return; }
+            _errorBubble.IsOpen = true;
+            _errorBubbleTimer?.Start();
+        }
+
+        private void HideErrorBubble()
+        {
+            _errorBubbleTimer?.Stop();
+            if (_errorBubble != null) _errorBubble.IsOpen = false;
+        }
+
+        /// <summary>W-3a：定位 DataGridRow 中指定列索引的单元格（气泡锚定用；GetCellContent 的 Parent 链含 DataGridCell）。</summary>
+        private static System.Windows.Controls.DataGridCell? FindDataGridCell(System.Windows.Controls.DataGridRow row, int columnIndex)
+        {
+            var dg = FindVisualParent<System.Windows.Controls.DataGrid>(row);
+            if (dg == null || columnIndex < 0 || columnIndex >= dg.Columns.Count) return null;
+            var content = dg.Columns[columnIndex].GetCellContent(row);
+            return content == null ? null : FindVisualParent<System.Windows.Controls.DataGridCell>(content);
+        }
+
+        /// <summary>W-3a：经纬度提交后非法 → 错误列单元格旁弹气泡（带示例；列索引区分作业点/范围点表）。</summary>
+        private void ShowCoordErrorBubble(DataGridRow row, bool isRangeTable)
+        {
+            if (row?.Item is not WorkPointRowVM wp) return;
+            int col = wp.CoordErrorLng.Length > 0 ? (isRangeTable ? 0 : 1) : (isRangeTable ? 1 : 2);
+            ShowErrorBubble(FindDataGridCell(row, col), wp.CoordError);
+        }
+        private void ShowCoordErrorBubbleRange(DataGridRow row)
+        {
+            if (row?.Item is not WorkRangeRowVM wr) return;
+            int col = wr.CoordErrorLng.Length > 0 ? 0 : 1;
+            ShowErrorBubble(FindDataGridCell(row, col), wr.CoordError);
+        }
+
         /// <summary>V-5a：经纬度单元格进入编辑 → 显示 DMS 实时换算提示（订阅 TextChanged；续23 增补 2：仅输入状态显示）。
         /// dms-hint 提示块是 DataGrid 的兄弟节点（同 StackPanel），从 DataGrid 的 Parent 向下查找。</summary>
         private void WorkPointGrid_PreparingCellForEdit(object sender, DataGridPreparingCellForEditEventArgs e)
-            => PrepareGeoCellEdit(((FrameworkElement)sender).Parent, e);
+        {
+            HideErrorBubble();   // W-3a：进入编辑 → 气泡立即消失
+            PrepareGeoCellEdit(((FrameworkElement)sender).Parent, e);
+        }
 
         private void WorkPointGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
         {
             UnsubscribeGeoHint();
             HideGeoCellHint(FindDmsHint(((FrameworkElement)sender).Parent));
+            // W-3a：列绑定 LostFocus 在 CellEditEnding 之后才 UpdateSource——Commit 时先强制提交编辑值，
+            // 确保 HasCoordError 读到新值（按 Enter/Tab 首次即弹）；仅 Commit 分支执行（Esc 取消不写回）
+            if (e.EditAction == DataGridEditAction.Commit)
+            {
+                (e.EditingElement as System.Windows.Controls.TextBox)?.GetBindingExpression(System.Windows.Controls.TextBox.TextProperty)?.UpdateSource();
+                // W-3a：非法输入提交 → 立即弹气泡（行浅黄 + ToolTip 保留）
+                if (e.Row != null && e.Row.Item is WorkPointRowVM r && r.HasCoordError)
+                    ShowCoordErrorBubble(e.Row, isRangeTable: false);
+            }
         }
 
         /// <summary>V-5a：范围点经纬度单元格 DMS 提示（同作业点）。</summary>
         private void WorkRangeGrid_PreparingCellForEdit(object sender, DataGridPreparingCellForEditEventArgs e)
-            => PrepareGeoCellEdit(((FrameworkElement)sender).Parent, e);
+        {
+            HideErrorBubble();   // W-3a：进入编辑 → 气泡立即消失
+            PrepareGeoCellEdit(((FrameworkElement)sender).Parent, e);
+        }
 
         private void WorkRangeGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
         {
             UnsubscribeGeoHint();
             HideGeoCellHint(FindDmsHint(((FrameworkElement)sender).Parent));
+            // W-3a：同 WorkPointGrid——Commit 分支先强制提交编辑值再读 HasCoordError（Esc 取消不写回）
+            if (e.EditAction == DataGridEditAction.Commit)
+            {
+                (e.EditingElement as System.Windows.Controls.TextBox)?.GetBindingExpression(System.Windows.Controls.TextBox.TextProperty)?.UpdateSource();
+                // W-3a：非法输入提交 → 立即弹气泡
+                if (e.Row != null && e.Row.Item is WorkRangeRowVM wr && wr.HasCoordError)
+                    ShowCoordErrorBubbleRange(e.Row);
+            }
         }
 
         /// <summary>V-5a：当前 DMS 提示的 TextBox 订阅（防重复订阅泄漏——同格重复编辑只保留最新 handler）。</summary>
@@ -2316,6 +2407,9 @@ namespace NavigatorHMI.Views
             _viewModel.AiMessages.CollectionChanged -= AiMessages_CollectionChanged;   // 退订自动滚动（防关闭后无效回调）
             _viewModel.Dispose();   // 释放 AI 后端（CloudLLMBackend 的 HttpClient/Authorization）
             try { WorldMapControl?.Dispose(); } catch { }   // 释放 Mapsui MapControl（HttpClient/瓦片缓存）
+            // W-3a：错误气泡清理（停定时器防闭包持有窗口、关闭残留 Popup）
+            _errorBubbleTimer?.Stop();
+            if (_errorBubble != null) _errorBubble.IsOpen = false;
         }
 
         #endregion
