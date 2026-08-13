@@ -567,12 +567,13 @@ namespace NavigatorHMI.Views
                 _viewModel.AddGroupCommand(dlg.GroupName.Trim(), dlg.GetPermissions());
         }
 
-        /// <summary>P2-1 用户组：双击行编辑弹窗。</summary>
+        /// <summary>P2-1 用户组：双击行编辑弹窗（W-5a：预设组组名只读——防改名绕过删除保护，仅可改权限）。</summary>
         private void GroupsGrid_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             if (sender is not System.Windows.Controls.DataGrid dg || dg.SelectedItem is not UserGroup g) return;
             var dlg = new GroupEditDialog { Owner = this };
             dlg.Prefill(g.Name, g.Permissions);
+            dlg.IsPreset = g.Name is "管理员" or "操作员" or "访客";
             if (dlg.ShowDialog() == true)
                 _viewModel.UpdateGroupCommand(g.Name, dlg.GroupName.Trim(), dlg.GetPermissions());
         }

@@ -121,7 +121,7 @@ public static class Program
             "delete-user"    => Cmd("delete_user", Require("user-name", "user_name")),
             "list-users"     => Cmd("list_users"),
             "create-group"   => Cmd("create_group", Require("group-name", "group_name"), OptIfProvided("permissions")),
-            "update-group"   => Cmd("update_group", Require("group-name", "group_name"), Opt("new-group-name", "new_group_name"), OptIfProvided("permissions")),
+            "update-group"   => Cmd("update_group", Require("group-name", "group_name"), OptMap("new-group-name", "new_group_name", ""), OptIfProvided("permissions")),
             "delete-group"   => Cmd("delete_group", Require("group-name", "group_name")),            "bind-tag"       => Cmd("bind_tag", Require("screen", "screen_name"), Require("widget", "widget_name"), Require("tag", "tag_name")),
 
             // 列表

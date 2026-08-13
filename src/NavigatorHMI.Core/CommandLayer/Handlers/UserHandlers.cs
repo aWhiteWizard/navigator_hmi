@@ -201,6 +201,9 @@ namespace NavigatorHMI.CommandLayer
             var newName = p.GetValueOrDefault("new_group_name")?.ToString()?.Trim();
             if (!string.IsNullOrEmpty(newName) && newName != name)
             {
+                // W-5a：预设组禁止改名（防改名后变普通组绕过删除保护；与 delete_group 预设判断一致）
+                if (name is "管理员" or "操作员" or "访客")
+                    return CommandResult.Fail("BLOCKED", $"预设组 \"{name}\" 不可改名");
                 if (project.Groups.Any(x => x.Name == newName))
                     return CommandResult.Fail("DUPLICATE", $"用户组 \"{newName}\" 已存在");
                 g.Name = newName;

@@ -13,7 +13,19 @@
         <Grid Grid.Row="0">
             <Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
             <TextBlock Text="组名:" VerticalAlignment="Center"/>
-            <TextBox x:Name="NameBox" Grid.Column="1" Text="{Binding GroupName, UpdateSourceTrigger=PropertyChanged}" Padding="2"/>
+            <TextBox x:Name="NameBox" Grid.Column="1" Text="{Binding GroupName, UpdateSourceTrigger=PropertyChanged}" Padding="2" IsReadOnly="{Binding GroupNameReadOnly}">
+                <TextBox.Style>
+                    <!-- W-5a：预设组组名只读（灰底 + 提示），仅可改权限 -->
+                    <Style TargetType="TextBox">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding GroupNameReadOnly}" Value="True">
+                                <Setter Property="Background" Value="#F2F2F2"/>
+                                <Setter Property="ToolTip" Value="预设组不可改名，仅可修改权限"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBox.Style>
+            </TextBox>
         </Grid>
         <TextBlock Grid.Row="1" Text="权限:" FontWeight="Bold" Margin="0,10,0,2"/>
         <StackPanel Grid.Row="2">

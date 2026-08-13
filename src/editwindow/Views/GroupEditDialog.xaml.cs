@@ -20,6 +20,11 @@ public partial class GroupEditDialog : Window, INotifyPropertyChanged
     private string _groupName = "";
     public string GroupName { get => _groupName; set { if (_groupName != value) { _groupName = value; Notify(); } } }
 
+    /// <summary>W-5a：预设组（管理员/操作员/访客）——组名只读，仅可改权限。</summary>
+    private bool _isPreset;
+    public bool IsPreset { get => _isPreset; set { _isPreset = value; Notify(); Notify(nameof(GroupNameReadOnly)); } }
+    public bool GroupNameReadOnly => _isPreset;
+
     private bool _screenEdit, _alarmAck, _userManage, _systemSettings;
     public bool ScreenEdit { get => _screenEdit; set { _screenEdit = value; Notify(); } }
     public bool AlarmAck { get => _alarmAck; set { _alarmAck = value; Notify(); } }

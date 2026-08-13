@@ -109,4 +109,22 @@ public class GroupCommandsTests
         Assert.False(r.Success);
         Assert.Equal("INVALID_PARAM", r.ErrorCode);
     }
+
+    [Fact]
+    public void UpdateGroup_预设组改名拒绝_权限仍可改()
+    {
+        var p = new HMIProject();
+        var svc = new CommandService(p);
+        // 改名（同名新名不触发；改名为其他 → BLOCKED，防改名后变普通组绕过删除保护）
+        var r = svc.Execute("update_group", new Dictionary<string, object?> { ["group_name"] = "管理员", ["new_group_name"] = "超级管理员" });
+        Assert.False(r.Success);
+        Assert.Equal("BLOCKED", r.ErrorCode);
+        Assert.Contains(p.Groups, x => x.Name == "管理员");
+        Assert.DoesNotContain(p.Groups, x => x.Name == "超级管理员");
+        // 预设组权限仍可改（组名不变）
+        var r2 = svc.Execute("update_group", new Dictionary<string, object?> { ["group_name"] = "管理员", ["permissions"] = "ScreenEdit,AlarmAck" });
+        Assert.True(r2.Success, $"{r2.ErrorCode} {r2.ErrorMessage}");
+        var g = p.Groups.First(x => x.Name == "管理员");
+        Assert.Equal(2, g.Permissions.Count);
+    }
 }
