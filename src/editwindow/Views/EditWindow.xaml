@@ -207,6 +207,7 @@
                           Height="110" Margin="4,2" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
                           SelectionMode="Single" SelectionChanged="WorkPointGrid_SelectionChanged" RowEditEnding="WorkPointGrid_RowEditEnding"
                           PreparingCellForEdit="WorkPointGrid_PreparingCellForEdit" CellEditEnding="WorkPointGrid_CellEditEnding"
+                          PreviewMouseLeftButtonDown="WorkPointGrid_PreviewMouseLeftButtonDown"
                           ToolTip="末行空白行输入自动补行；经纬度(固定)与绑定变量二选一（互斥）">
                     <DataGrid.RowStyle>
                         <!-- V-5b：经纬度输入非法 → 行浅黄 + ToolTip 带示例（不再静默忽略） -->
@@ -250,6 +251,7 @@
                           Height="90" Margin="4,2" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
                           SelectionMode="Single" SelectionChanged="WorkRangeGrid_SelectionChanged" RowEditEnding="WorkRangeGrid_RowEditEnding"
                           PreparingCellForEdit="WorkRangeGrid_PreparingCellForEdit" CellEditEnding="WorkRangeGrid_CellEditEnding"
+                          PreviewMouseLeftButtonDown="WorkRangeGrid_PreviewMouseLeftButtonDown"
                           ToolTip="作业范围围栏顶点；地图右键「设置作业范围」可加点">
                     <DataGrid.RowStyle>
                         <!-- V-5b：经纬度输入非法 → 行浅黄 + ToolTip 带示例 -->

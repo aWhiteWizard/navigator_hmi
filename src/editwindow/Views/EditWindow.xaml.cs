@@ -1397,14 +1397,20 @@ namespace NavigatorHMI.Views
 
             // P5/P6：锁定预览 → 短路禁平移（左键不落到 Mapsui 拖动）；点击切换画面事件由 FW 运行时执行，设计态不模拟。
             // V-3c：锁定仅禁平移缩放——加点/选点模式放行（允许放置新端点）；点击 marker（选中/拖拽查看）放行；其余保持短路
+            // W-1c：点空白（非 marker/非加点选点）清除选中态
             if (_viewModel.CurrentProject?.WorldMap?.ViewLocked == true
                 && !_isAddingWorkPoint && !_isEditingWorkRange && !IsWorkPointMarkerHit(e))
             {
+                ClearGeoSelection();
                 e.Handled = true;
                 return;
             }
 
-            if (_currentWidgetCreator is not PolygonWidgetCreator && !_isEditingWorkRange && !_isAddingWorkPoint) return;
+            if (_currentWidgetCreator is not PolygonWidgetCreator && !_isEditingWorkRange && !_isAddingWorkPoint)
+            {
+                if (!IsWorkPointMarkerHit(e)) ClearGeoSelection();   // W-1c：点 marker 不清除（选中/拖拽由其 handler 处理）
+                return;
+            }
             var pos = e.GetPosition(WorldMapControl);
             var geo = ScreenToGeo(pos);
             if (geo == null) return;
@@ -1878,6 +1884,15 @@ namespace NavigatorHMI.Views
                 mark.MouseLeftButtonDown += (_, e) =>
                 {
                     if (_isAddingWorkPoint || _isEditingWorkRange) return;   // 加点模式优先（Preview 隧道短路已拦，双保险）
+                    // W-1a：先进入拖拽准备（捕获鼠标）再选中表格行——选中行 setter 会触发 overlay 重建，
+                    // 若先选行则当前 marker 被重建移除 → CaptureMouse 在已移除元素上失效 → 拖不动
+                    // （范围点首次按下即拖失效根因；重建被 _dragMarker 守卫拦截，marker 保留）
+                    // W-1b：锁定下也可拖拽移动点（用户澄清：禁拖拽 = 禁拖地图，点拖拽锁定下允许；锁定禁平移缩放由锁定短路实现）
+                    _dragMarker = mark;
+                    _dragModel = (object?)workPoint ?? rangePoint;
+                    _markerDragStart = e.GetPosition(WorldMapControl);
+                    _markerDragMoved = false;
+                    mark.CaptureMouse();
                     if (workPoint != null)
                     {
                         var row = _propertyViewModel.WorkPointRows.FirstOrDefault(r => r.Model == workPoint);
@@ -1887,15 +1902,6 @@ namespace NavigatorHMI.Views
                     {
                         var row = _propertyViewModel.WorkRangeRows.FirstOrDefault(r => r.Model == rangePoint);
                         if (row != null) _propertyViewModel.SelectedWorkRangeRow = row;
-                    }
-                    // V-3a：拖拽准备（锁定下禁改位置，续26：锁=禁编辑地图位置）
-                    if (_viewModel?.CurrentProject?.WorldMap?.ViewLocked != true)
-                    {
-                        _dragMarker = mark;
-                        _dragModel = (object?)workPoint ?? rangePoint;
-                        _markerDragStart = e.GetPosition(WorldMapControl);
-                        _markerDragMoved = false;
-                        mark.CaptureMouse();
                     }
                     e.Handled = true;   // 阻止地图拖动
                 };
@@ -1915,7 +1921,14 @@ namespace NavigatorHMI.Views
                     _dragMarker = null;
                     var dragModel = _dragModel;
                     _dragModel = null;   // 统一清理（与 _dragMarker 一起，防早退路径悬空）
-                    if (!_markerDragMoved) return;   // 未拖动 = 纯选中，不提交
+                    if (!_markerDragMoved)
+                    {
+                        // W-1a：纯点击未拖动 = 选中——Down 中选中行触发的重建被 _dragMarker 守卫拦截，
+                        // 此处清守卫后补一次全量刷新重建 overlay，选中框（V-2a）随之出现
+                        UpdateAllGeoWidgets();
+                        e.Handled = true;
+                        return;
+                    }
                     var wm = _viewModel?.CurrentProject?.WorldMap;
                     var geo = ScreenToGeo(e.GetPosition(WorldMapControl));
                     if (wm == null || geo == null) return;
@@ -2011,6 +2024,37 @@ namespace NavigatorHMI.Views
         {
             if (sender is System.Windows.Controls.DataGrid dg && dg.SelectedItem != null)
                 dg.ScrollIntoView(dg.SelectedItem);
+        }
+
+        /// <summary>W-1c：清除作业点/范围点选中态（置 null → PropertyViewModel setter 联动 overlay 刷新消选中）。</summary>
+        private void ClearGeoSelection()
+        {
+            if (_propertyViewModel.SelectedWorkPointRow != null || _propertyViewModel.SelectedWorkRangeRow != null)
+            {
+                _propertyViewModel.SelectedWorkPointRow = null;
+                _propertyViewModel.SelectedWorkRangeRow = null;
+            }
+        }
+
+        /// <summary>W-1c：作业点表格点击空白（未命中行，且非滚动条/列头 chrome）→ 取消选中态；点击行由 SelectedItem 绑定联动。</summary>
+        private void WorkPointGrid_PreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (IsDataGridBlankHit(e)) ClearGeoSelection();
+        }
+
+        /// <summary>W-1c：作业范围表格点击空白（未命中行，且非滚动条/列头 chrome）→ 取消选中态（同作业点）。</summary>
+        private void WorkRangeGrid_PreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (IsDataGridBlankHit(e)) ClearGeoSelection();
+        }
+
+        /// <summary>W-1c：表格点击是否落在"空白"：未命中 DataGridRow，且非滚动条/列头（拖滚动条浏览、点列头排序不清除选中）。</summary>
+        private static bool IsDataGridBlankHit(System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (FindDataGridRow(e) != null) return false;
+            var src = e.OriginalSource as System.Windows.DependencyObject;
+            return FindVisualParent<System.Windows.Controls.Primitives.DataGridColumnHeader>(src) == null
+                && FindVisualParent<System.Windows.Controls.Primitives.ScrollBar>(src) == null;
         }
 
         /// <summary>V-5a：经纬度单元格进入编辑 → 显示 DMS 实时换算提示（订阅 TextChanged；续23 增补 2：仅输入状态显示）。
