@@ -54,4 +54,4 @@
 - Plan 定稿时输出《项目计划执行书》`<循环>-execution-plan.md`（摘要/根因/修改点/边界/验收 7 字段），Do 阶段以执行书为准；Do 完成后归档/删除。
 
 ## 当前继续点
-- 见 PROJECT.md「继续点」段（循环 X Do 完成，Check 待用户验收）。
+- 见 PROJECT.md「继续点」段（循环 X Do+Check+Act 完成、落库已提交并补审、欠账已修，待用户发起循环 Y Plan）。
