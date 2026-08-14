@@ -15,7 +15,19 @@
 
 ## 审查纪律
 - 每步/每提交必审：改动完成后、提交前必须跑 reviewer 审查；修复后复审；审查通过才允许 commit。
+- 最多 3 轮修改-审查循环；审查未通过不得提交。
+- **B2 冲突扫描**（审查草稿强制）：提取硬约束遍历 related 文件，发现冲突输出三级标签——`CONFLICT_HARD` 暂停交用户裁决 / `CONFLICT_SOFT` 自动取保守值并标注 / `CONFLICT_CONTEXT` 两边补场景限定不改值。
+- **结构化改进标签**：审查输出 `[NEED_RULE]`/`[INDEX_WEAK]`/`[STALE]` → 投递 `references/inbox/` 待消费（知识库更新请求通道）。
 - commit message 无 BOM；提交不 push（等用户批准）。
+
+## 子 Agent 委派约定（主 Agent 唯一改代码）
+- **铁则**：只有主 Agent（本会话）能改代码/写文件；子 Agent 只读只产出（审查/读图/检索三类），经主 Agent 中转交付。委派 prompt 一律声明「只读、禁止修改文件、一次性任务、禁止提问直接输出」。
+- **委派手段（dsh 原生 subagent）**：优先用 subagent 工具委派（自带独立会话与工具面，比 Pi 的 `pi -p` 子进程更稳）；读图可用 read_image。
+- **审查子 Agent**：加载 `~/.pi/agent/skills/reviewer/SKILL.md`（三层框架 + B2 冲突扫描 + 结构化标签），按文件类型加载对应层 reference，只出报告不改代码。
+- **读图子 Agent**：按 🔴 关键图（原理图/时序图/含代码截图）必读 → 委派视觉能力子 Agent 或 `~/bin/pi-diagram-read.sh`（kimi-k3）；🟡 辅助图时间允许则读；⚫ 装饰图跳过；审查后清理临时图片。
+- **检索子 Agent**：大文档提取用 doc-retriever 方法——先 grep 定位行号再 read 上下文，不全读大文件；输出按主题分节 + 来源 `文件:行号`；存疑单列不推断。
+- **审查计数（替代 Pi B5 钩子）**：本工作区无扩展钩子，由主 Agent 自律——连续修改未审查达阈值（代码 3 次/文档 6 次）必须先送审再继续。
+- **子 Agent 只读硬约束**：dsh 当前对外 subagent 接口未暴露 toolFilter，靠 prompt 声明只读；若需硬封（禁止 edit/write）需扩展 dsh 子代理调用层，暂不实施。
 
 ## 功能自验证
 - 做完功能必须实际验证：命令层用 `navihmi` CLI 建临时工程实测 + 查看工程文件内容；GUI 侧交互留给用户 Check。
