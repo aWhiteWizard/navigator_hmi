@@ -11,7 +11,7 @@
 ## 用户协作约定（源自 Reasonix memory，2026-08-11 用户定，跨项目）
 - **学习类项目记录方式**：学习类项目（如 hardware-design-learning）一律由用户自己记录笔记；阶段性完成后用户告知，主 Agent 统一入库知识库（references/ 层）——学习类工程产出最终都要落知识库，不能只存会话/project。会话中已确认可沉淀的经验经用户确认后即时入库，不等整个项目学完。
 - **硬件协作分工**：硬件项目方案设计是用户与主 Agent **共同任务**（检索 3_hardware/4_bugs 提供支持）；方案定稿后硬件实现由用户主导；debug 由用户负责，每版问题/优缺点反馈 → 主 Agent 记录入库（问题→4_bugs 负样本、优缺点→3_hardware 设计经验）。与软件分工（主 Agent 实现、用户验证）相反。
-- **D 盘优先（2026-08-14 用户定）**：备份/存档/临时/下载等非必要文件一律放 D 盘（如 `D:\ProgramData\Agent_backup\`），C 盘空间紧张不装大文件；仅在 C 盘放必须的系统/工具文件。
+- **D 盘优先（2026-08-14 用户定）**：备份/存档/临时/下载等非必要文件一律放 D 盘（如 `D:\ProgramData\Agent_backup\`），C 盘空间紧张不装大文件；仅在 C 盘放必须的系统/工具文件。**AI/skill 相关一律 D 盘，查询优先 D 盘**——dsh skill 根 = `D:\ProgramData\dsh-skills\`（经 junction 挂 `~/.dsh/skills`），现有 6 个 skill：`wpf-hmi-development` / `embedded-linux-bsp` / `deepseek-agent-integration` / `kb-review-methodology` / `doc-retrieval` / `dotnet-protobuf-contract`（2026-08-14 注册验证通过）。
 
 ## 长会话与上下文压缩（2026-08-14 用户定，防压缩丢记忆）
 - **背景**：本项目在 DeepSeek Harness 中长期使用**同一个会话**做 PDCA 循环（连贯长任务，不开新会话）。dsh 上下文窗口 1M token，用到 **80%（80 万）自动压缩**：保留最近 16 万 token 细节，更早历史变摘要——压缩只丢 AI 的临时记忆，不丢磁盘上的项目状态。
@@ -61,4 +61,4 @@
 - **Do 环节任务清单（2026-08-14 用户期望）**：进入 Do 的第一步，用 todo 清单（todo_write）建立任务分解表——每项任务一行（如 Z-1/Z-2/Z-3、编译+测试、reviewer 审查、修复/复审、提交），随进度更新状态（pending/in_progress/completed），GUI 可视化进度；不得直接开工而不建清单。
 
 ## 当前继续点
-- 见 PROJECT.md「继续点」段（循环 Z 全流程完成，Act 落库中；下一循环待修：整体拖动端点表格实时刷新，待用户发起 Plan）。
+- 见 PROJECT.md「继续点」段（循环 AA 全流程完成 + Skill 任务完成——Check 续56 AA-1/AA-2 通过、6 个 dsh skill 注册，无下一轮，Act 收尾中：落库 + push）。
