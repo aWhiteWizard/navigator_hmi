@@ -1958,6 +1958,7 @@ namespace NavigatorHMI.Views
                             _viewModel.PushTagSnapshot();   // 变量基准值快照（Tag 撤销栈，Ctrl+Z 还原变量值）
                             tag.BaseValue = $"({GeoPoint.FormatDms(geo.Longitude, true)}, {GeoPoint.FormatDms(geo.Latitude, false)})";
                             _propertyViewModel.RefreshWorkPointRows();
+                            _variableManagerVM?.Refresh();   // Y-1a：拖拽写回 BaseValue 后刷新变量管理器表格（Tag 无 INPC，须强制刷新）
                         }
                     }
                     else if (dragModel is WorkRangePoint mrp && !string.IsNullOrEmpty(mrp.BoundTag))
@@ -1967,6 +1968,7 @@ namespace NavigatorHMI.Views
                             _viewModel.PushTagSnapshot();
                             tag.BaseValue = $"({GeoPoint.FormatDms(geo.Longitude, true)}, {GeoPoint.FormatDms(geo.Latitude, false)})";
                             _propertyViewModel.RefreshWorkRangeRows();
+                            _variableManagerVM?.Refresh();   // Y-1a：拖拽写回 BaseValue 后刷新变量管理器表格（Tag 无 INPC，须强制刷新）
                         }
                     }
                     else

@@ -83,6 +83,19 @@ namespace NavigatorHMI.Common
             }
         }
 
+        /// <summary>Y-2d：手柄光标按方位分派——角点对角斜向、边中点水平/垂直、圆心/线端点/多边形顶点 move（对照 ResizeAdorner 8 方向）。</summary>
+        private static Cursor CursorForKind(HandleKind kind, int index)
+        {
+            return kind switch
+            {
+                HandleKind.Center or HandleKind.Start or HandleKind.End or HandleKind.PolygonVertex => Cursors.SizeAll,
+                HandleKind.Vertex => index is 1 or 3 ? Cursors.SizeNESW : Cursors.SizeNWSE,   // 0 左上↘ / 2 右下↖ = NWSE；1 右上↙ / 3 左下↗ = NESW
+                HandleKind.QuadLeft or HandleKind.QuadRight => Cursors.SizeWE,
+                HandleKind.QuadTop or HandleKind.QuadBottom => Cursors.SizeNS,
+                _ => Cursors.SizeAll
+            };
+        }
+
         private void AddHandle(HandleKind kind, int index = -1)
         {
             var thumb = new Thumb
@@ -92,7 +105,7 @@ namespace NavigatorHMI.Common
                 Background = Brushes.White,
                 BorderBrush = Brushes.DodgerBlue,
                 BorderThickness = new Thickness(1.5),
-                Cursor = kind == HandleKind.Center ? Cursors.SizeAll : Cursors.SizeNWSE,
+                Cursor = CursorForKind(kind, index),
                 IsHitTestVisible = true,
                 Focusable = false
             };
@@ -120,17 +133,30 @@ namespace NavigatorHMI.Common
                 case HandleKind.End:     // Line 终点（相对偏移 X2/Y2）
                     if (_widget is LineWidget lEnd) { lEnd.X2 += dx; lEnd.Y2 += dy; }
                     break;
-                case HandleKind.Vertex:  // Rectangle 角 → 更新对应角绝对坐标 → 反推 X/Y/W/H（min/max 防翻转）
+                case HandleKind.Vertex:  // Rectangle 角 → 锚定对角反推 X/Y/W/H（仿 ResizeAdorner 四角；min 防翻转，向内拖无死区）
                     if (_widget is RectangleWidget && handle.Index is >= 0 and <= 3)
                     {
-                        var corners = new[]
+                        const double MIN = 10;   // 与 RectangleWidgetCreator 最小尺寸一致
+                        double newX = x, newY = y, newW = w, newH = h;
+                        switch (handle.Index)
                         {
-                            new Point(x, y), new Point(x + w, y),
-                            new Point(x + w, y + h), new Point(x, y + h)
-                        };
-                        var c = corners[handle.Index];
-                        corners[handle.Index] = new Point(c.X + dx, c.Y + dy);
-                        ApplyRectCorners(corners);
+                            case 0:   // 左上：锚定右下
+                                newW = Math.Max(MIN, w - dx); newH = Math.Max(MIN, h - dy);
+                                newX = x + w - newW; newY = y + h - newH;
+                                break;
+                            case 1:   // 右上：锚定左下
+                                newW = Math.Max(MIN, w + dx); newH = Math.Max(MIN, h - dy);
+                                newY = y + h - newH;
+                                break;
+                            case 2:   // 右下：锚定左上
+                                newW = Math.Max(MIN, w + dx); newH = Math.Max(MIN, h + dy);
+                                break;
+                            case 3:   // 左下：锚定右上
+                                newW = Math.Max(MIN, w - dx); newH = Math.Max(MIN, h + dy);
+                                newX = x + w - newW;
+                                break;
+                        }
+                        _widget.X = newX; _widget.Y = newY; _widget.Width = newW; _widget.Height = newH;
                     }
                     break;
                 case HandleKind.Center:  // 圆/椭圆圆心 → 平移
@@ -197,17 +223,6 @@ namespace NavigatorHMI.Common
 
             SelectorHelper.ResizeDragDelta?.Invoke();   // W-4c：拖拽过程实时刷新端点表格（注入方节流；DragCompleted 兜底最终值）
             InvalidateArrange();   // 手柄跟随新位置
-        }
-
-        private void ApplyRectCorners(Point[] c)
-        {
-            double minX = Math.Min(Math.Min(c[0].X, c[1].X), Math.Min(c[2].X, c[3].X));
-            double minY = Math.Min(Math.Min(c[0].Y, c[1].Y), Math.Min(c[2].Y, c[3].Y));
-            double maxX = Math.Max(Math.Max(c[0].X, c[1].X), Math.Max(c[2].X, c[3].X));
-            double maxY = Math.Max(Math.Max(c[0].Y, c[1].Y), Math.Max(c[2].Y, c[3].Y));
-            _widget.X = minX; _widget.Y = minY;
-            _widget.Width = Math.Max(10, maxX - minX);
-            _widget.Height = Math.Max(10, maxY - minY);
         }
 
         private static void RecalcPolygonBounds(PolygonWidget poly)
@@ -285,6 +300,7 @@ namespace NavigatorHMI.Common
         protected override void OnRender(DrawingContext dc)
         {
             base.OnRender(dc);
+            if (_widget is LineWidget) return;   // Y-2e：直线只显示 2 端点手柄，不画外圈选中框
             var size = GetElementSize();
             dc.DrawRectangle(null, _selectionPen, new Rect(0, 0, size.Width, size.Height));
         }
