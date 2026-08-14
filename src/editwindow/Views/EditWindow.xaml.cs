@@ -57,7 +57,7 @@ namespace NavigatorHMI.Views
         /// <summary>缩放手柄静态回调引用（Closing 时比较清理，防闭包泄漏）。</summary>
         private Action? _resizeDragStartedCallback;
         private Action? _resizeDragCompletedCallback;   // C12-12：缩放结束回调（字段化供 EditWindow_Closed 清理——静态回调闭包泄漏防护）
-        private Action? _resizeDragDeltaCallback;   // W-4c：缩放过程回调（字段化同上；节流刷新矩形端点表格）
+        private Action<Widget>? _resizeDragDeltaCallback;   // W-4c/Z-2：缩放过程回调（字段化同上；携带被拖 widget 按类型节流刷新端点表格）
         private DateTime _lastResizeDeltaRefresh = DateTime.MinValue;   // W-4c：拖拽过程刷新节流时间戳
         /// <summary>画布尺寸回调引用（Closing 时比较清理）。</summary>
         private Func<Size>? _getCanvasSizeCallback;
@@ -276,7 +276,11 @@ namespace NavigatorHMI.Views
                     MessageBox.Show(this, "没有可定位的数据：作业点/作业范围点均为空", "视口自适应", MessageBoxButton.OK, MessageBoxImage.Information);   // C12-7：全空时提示（原静默无反应）
             };
             // 缩放手柄：拖拽开始 Push 撤销快照 + 画布尺寸提供器（缩放钳制）
-            _resizeDragStartedCallback = () => _viewModel.PushUndoSnapshot();
+            _resizeDragStartedCallback = () =>
+            {
+                _lastResizeDeltaRefresh = DateTime.MinValue;   // Z-2：拖拽开始重置节流时间戳，保证本次拖拽首帧即刷新（首帧不被跨拖拽残留时间戳吞掉）
+                _viewModel.PushUndoSnapshot();
+            };
             _getCanvasSizeCallback = () => new Size(_propertyViewModel.CanvasWidth, _propertyViewModel.CanvasHeight);
             SelectorHelper.ResizeDragStarted = _resizeDragStartedCallback;
             SelectorHelper.GetCanvasSize = _getCanvasSizeCallback;
@@ -287,13 +291,17 @@ namespace NavigatorHMI.Views
                 _propertyViewModel.RefreshRectanglePointRowsDisplay();
             };
             SelectorHelper.ResizeDragCompleted = _resizeDragCompletedCallback;
-            // W-4c：缩放手柄拖拽过程 → 矩形端点表格实时同步（100ms 节流；DragCompleted 兜底最终值）
-            _resizeDragDeltaCallback = () =>
+            // W-4c/Z-2：缩放手柄拖拽过程 → 端点表格实时同步（100ms 节流；DragCompleted 兜底最终值）
+            // Z-2/Z-3：按被拖 widget 类型刷对应表格（多边形实时同步 + 矩形跨画面修复）——携带被拖 widget，
+            // 摆脱 _selectedWidget 门控（静默选中/跨画面下 _selectedWidget 会陈旧导致表格 Clear 不重建）
+            _resizeDragDeltaCallback = (Widget w) =>
             {
                 var now = DateTime.UtcNow;
                 if ((now - _lastResizeDeltaRefresh).TotalMilliseconds < 100) return;
                 _lastResizeDeltaRefresh = now;
-                _propertyViewModel.RefreshRectanglePointRowsDisplay();
+                // Z-2/Z-3：按被拖 widget 类型刷对应表格——矩形传被拖对象（门控下沉到数据源，彻底摆脱 _selectedWidget 陈旧）
+                if (w is RectangleWidget rect) _propertyViewModel.RefreshRectanglePointRowsDisplay(rect);
+                else if (w is PolygonWidget) _propertyViewModel.RefreshPolygonPointRowsDisplay();
             };
             SelectorHelper.ResizeDragDelta = _resizeDragDeltaCallback;
             // 选中变化（单选/多选/清空）→ 同步属性面板多选状态

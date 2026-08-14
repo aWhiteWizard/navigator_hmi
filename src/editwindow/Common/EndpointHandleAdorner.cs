@@ -10,7 +10,7 @@ namespace NavigatorHMI.Common
 {
     /// <summary>
     /// V-6a：图形控件端点手柄 Adorner（替代 8 方向方框 ResizeAdorner，仅 5 类图形控件选中时使用）。
-    /// 按控件类型生成端点手柄：Line 2 端点 / Rectangle 4 顶点 / Circle 圆心+4 象限（拖象限=半径，圆心=平移）/
+    /// 按控件类型生成端点手柄：Line 2 端点 / Rectangle 2 对角点（Z-1：左上+右下，用户拍板 4 顶点多余）/ Circle 圆心+4 象限（拖象限=半径，圆心=平移）/
     /// Ellipse 圆心+4 象限（拖象限=rx/ry，圆心=平移）/ Polygon N 顶点（画布绝对坐标）。
     /// 拖拽直接改模型（撤销快照复用 SelectorHelper.ResizeDragStarted/Completed；DragCompleted 刷新端点表格）。
     /// </summary>
@@ -38,7 +38,7 @@ namespace NavigatorHMI.Common
         {
             public Thumb Thumb = null!;
             public HandleKind Kind;
-            public int Index = -1;   // Vertex=角索引(0-3)；PolygonVertex=顶点索引
+            public int Index = -1;   // Vertex=角索引（0 左上 / 2 右下，Z-1 只生成 2 对角点）；PolygonVertex=顶点索引
         }
 
         private readonly List<Handle> _handles = new();
@@ -61,7 +61,9 @@ namespace NavigatorHMI.Common
                     AddHandle(HandleKind.End);
                     break;
                 case RectangleWidget:
-                    for (int i = 0; i < 4; i++) AddHandle(HandleKind.Vertex, i);
+                    // Z-1：矩形只生成 2 个对角点手柄（左上=index 0 锚定右下、右下=index 2 锚定左上），与 W-4b 表格 2 对角点对齐（用户拍板：4 顶点多余）
+                    AddHandle(HandleKind.Vertex, 0);
+                    AddHandle(HandleKind.Vertex, 2);
                     break;
                 case CircleWidget:
                     AddHandle(HandleKind.Center);
@@ -83,13 +85,13 @@ namespace NavigatorHMI.Common
             }
         }
 
-        /// <summary>Y-2d：手柄光标按方位分派——角点对角斜向、边中点水平/垂直、圆心/线端点/多边形顶点 move（对照 ResizeAdorner 8 方向）。</summary>
+        /// <summary>Y-2d/Z-1：手柄光标按方位分派——角点对角斜向、边中点水平/垂直、圆心/线端点/多边形顶点 move（对照 ResizeAdorner 8 方向）。</summary>
         private static Cursor CursorForKind(HandleKind kind, int index)
         {
             return kind switch
             {
                 HandleKind.Center or HandleKind.Start or HandleKind.End or HandleKind.PolygonVertex => Cursors.SizeAll,
-                HandleKind.Vertex => index is 1 or 3 ? Cursors.SizeNESW : Cursors.SizeNWSE,   // 0 左上↘ / 2 右下↖ = NWSE；1 右上↙ / 3 左下↗ = NESW
+                HandleKind.Vertex => Cursors.SizeNWSE,   // Z-1：仅左上/右下两角点，均对角斜向（0/2）
                 HandleKind.QuadLeft or HandleKind.QuadRight => Cursors.SizeWE,
                 HandleKind.QuadTop or HandleKind.QuadBottom => Cursors.SizeNS,
                 _ => Cursors.SizeAll
@@ -133,8 +135,8 @@ namespace NavigatorHMI.Common
                 case HandleKind.End:     // Line 终点（相对偏移 X2/Y2）
                     if (_widget is LineWidget lEnd) { lEnd.X2 += dx; lEnd.Y2 += dy; }
                     break;
-                case HandleKind.Vertex:  // Rectangle 角 → 锚定对角反推 X/Y/W/H（仿 ResizeAdorner 四角；min 防翻转，向内拖无死区）
-                    if (_widget is RectangleWidget && handle.Index is >= 0 and <= 3)
+                case HandleKind.Vertex:  // Rectangle 2 对角点（Z-1：只生成左上 index 0 / 右下 index 2）→ 锚定对角反推 X/Y/W/H（仿 ResizeAdorner 四角；min 防翻转，向内拖无死区）
+                    if (_widget is RectangleWidget && handle.Index is 0 or 2)
                     {
                         const double MIN = 10;   // 与 RectangleWidgetCreator 最小尺寸一致
                         double newX = x, newY = y, newW = w, newH = h;
@@ -144,16 +146,8 @@ namespace NavigatorHMI.Common
                                 newW = Math.Max(MIN, w - dx); newH = Math.Max(MIN, h - dy);
                                 newX = x + w - newW; newY = y + h - newH;
                                 break;
-                            case 1:   // 右上：锚定左下
-                                newW = Math.Max(MIN, w + dx); newH = Math.Max(MIN, h - dy);
-                                newY = y + h - newH;
-                                break;
                             case 2:   // 右下：锚定左上
                                 newW = Math.Max(MIN, w + dx); newH = Math.Max(MIN, h + dy);
-                                break;
-                            case 3:   // 左下：锚定右上
-                                newW = Math.Max(MIN, w - dx); newH = Math.Max(MIN, h + dy);
-                                newX = x + w - newW;
                                 break;
                         }
                         _widget.X = newX; _widget.Y = newY; _widget.Width = newW; _widget.Height = newH;
@@ -221,7 +215,7 @@ namespace NavigatorHMI.Common
                     break;
             }
 
-            SelectorHelper.ResizeDragDelta?.Invoke();   // W-4c：拖拽过程实时刷新端点表格（注入方节流；DragCompleted 兜底最终值）
+            SelectorHelper.ResizeDragDelta?.Invoke(_widget);   // W-4c/Z-2：拖拽过程实时刷新端点表格（携带被拖 widget 按类型刷表，摆脱 _selectedWidget 门控；注入方节流）
             InvalidateArrange();   // 手柄跟随新位置
         }
 
@@ -277,10 +271,8 @@ namespace NavigatorHMI.Common
                     HandleKind.Center => (w / 2, h / 2),
                     HandleKind.Vertex => handle.Index switch
                     {
-                        1 => (w, 0.0),
-                        2 => (w, h),
-                        3 => (0.0, h),
-                        _ => (0.0, 0.0)
+                        2 => (w, h),   // Z-1：右下
+                        _ => (0.0, 0.0)   // index 0：左上
                     },
                     HandleKind.QuadLeft => (0.0, h / 2),
                     HandleKind.QuadTop => (w / 2, 0.0),

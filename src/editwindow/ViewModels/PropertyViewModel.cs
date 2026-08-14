@@ -663,12 +663,14 @@ namespace NavigatorHMI.ViewModels
             for (int i = 0; i < PolygonPointRows.Count; i++) PolygonPointRows[i].Index = i + 1;
         }
 
-        /// <summary>W-4b：重建矩形 2 对角线顶点表格（选中矩形时调用）——左上 + 右下（用户拍板：4 顶点多余，2 对角点即确定矩形），画布绝对坐标。</summary>
-        public void RefreshRectanglePointRows()
+        /// <summary>W-4b/Z-2：重建矩形 2 对角线顶点表格——左上 + 右下（用户拍板：4 顶点多余，2 对角点即确定矩形），画布绝对坐标。
+        /// Z-2：可选传被拖矩形——拖拽实时刷新路径传被拖对象，摆脱 `_selectedWidget` 门控（静默选中/跨画面下其会陈旧导致 Clear 不重建/显示错误矩形）；不传时回退 `_selectedWidget`（选中/编辑路径）。</summary>
+        public void RefreshRectanglePointRows(RectangleWidget? rect = null)
         {
             RectanglePointRows.CollectionChanged -= RectanglePointRows_CollectionChanged;
             RectanglePointRows.Clear();
-            if (_selectedWidget is RectangleWidget r)
+            var r = rect ?? (_selectedWidget as RectangleWidget);
+            if (r != null)
             {
                 RectanglePointRows.Add(new PolygonPointRowVM(new PointD(r.X, r.Y), OnRectanglePointRowChanged, BeforeModify));                       // 左上
                 RectanglePointRows.Add(new PolygonPointRowVM(new PointD(r.X + r.Width, r.Y + r.Height), OnRectanglePointRowChanged, BeforeModify));   // 右下
@@ -703,9 +705,9 @@ namespace NavigatorHMI.ViewModels
             for (int i = 0; i < RectanglePointRows.Count; i++) RectanglePointRows[i].Index = i + 1;
         }
 
-        /// <summary>V-6b：拖拽/缩放结束后刷新矩形表格——矩形行 Model 是独立 PointD 拷贝（非共享引用，与 Polygon 不同），
-        /// 仅发通知值不变 → 必须重建（从当前矩形取 4 角，天然反映拖拽结果）。</summary>
-        public void RefreshRectanglePointRowsDisplay() => RefreshRectanglePointRows();
+        /// <summary>V-6b/Z-2：拖拽/缩放结束后刷新矩形表格——矩形行 Model 是独立 PointD 拷贝（非共享引用，与 Polygon 不同），
+        /// 仅发通知值不变 → 必须重建（从矩形取 2 对角点，天然反映拖拽结果）。Z-2：拖拽实时刷新传被拖矩形（rect 非空），结束兜底不传（走选中）。</summary>
+        public void RefreshRectanglePointRowsDisplay(RectangleWidget? rect = null) => RefreshRectanglePointRows(rect);
 
         /// <summary>C12-12：拖拽/缩放结束后刷新顶点表格显示值（PointD 无 INPC、行 VM 直读模型——外部改动模型后需显式通知；
         /// 原表格只在选中时 RefreshPolygonPointRows 重建，拖拽/缩放后显示陈旧）。</summary>
@@ -713,20 +715,21 @@ namespace NavigatorHMI.ViewModels
         {
             foreach (var row in PolygonPointRows) row.RefreshValues();
         }
-         private PropertyTargetType _selectedObjectType;
-         /// <summary>当前选中对象的类型，供 XAML DataTemplate 切换使用。</summary>
-         public PropertyTargetType SelectedObjectType
-         {
-             get => _selectedObjectType;
-             private set
-             {
-                 if (_selectedObjectType != value)
-                 {
-                     _selectedObjectType = value;
-                     OnPropertyChanged();
-                 }
-             }
-         }
+
+        private PropertyTargetType _selectedObjectType;
+        /// <summary>当前选中对象的类型，供 XAML DataTemplate 切换使用。</summary>
+        public PropertyTargetType SelectedObjectType
+        {
+            get => _selectedObjectType;
+            private set
+            {
+                if (_selectedObjectType != value)
+                {
+                    _selectedObjectType = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
 
         // ── 画面属性字段 ──
  

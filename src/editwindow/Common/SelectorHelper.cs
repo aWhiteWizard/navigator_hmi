@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Media;
@@ -12,7 +12,7 @@ namespace NavigatorHMI.Common
         /// <summary>缩放手柄拖拽开始回调（EditWindow 注入 → 撤销快照）。</summary>
         public static Action? ResizeDragStarted { get; set; }
         /// <summary>W-4c：缩放手柄拖拽过程回调（EditWindow 注入 → 节流刷新端点表格；每帧触发，注入方自行节流）。</summary>
-        public static Action? ResizeDragDelta { get; set; }
+        public static Action<Widget>? ResizeDragDelta { get; set; }
         /// <summary>C12-12：缩放手柄拖拽结束回调（EditWindow 注入 → 多边形顶点表格实时刷新）。</summary>
         public static Action? ResizeDragCompleted { get; set; }
         /// <summary>画布尺寸提供器（EditWindow 注入 → 缩放钳制）。</summary>
