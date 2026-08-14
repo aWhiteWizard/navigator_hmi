@@ -705,8 +705,8 @@ namespace NavigatorHMI.ViewModels
             for (int i = 0; i < RectanglePointRows.Count; i++) RectanglePointRows[i].Index = i + 1;
         }
 
-        /// <summary>V-6b/Z-2：拖拽/缩放结束后刷新矩形表格——矩形行 Model 是独立 PointD 拷贝（非共享引用，与 Polygon 不同），
-        /// 仅发通知值不变 → 必须重建（从矩形取 2 对角点，天然反映拖拽结果）。Z-2：拖拽实时刷新传被拖矩形（rect 非空），结束兜底不传（走选中）。</summary>
+        /// <summary>V-6b/AA-2：拖拽/缩放结束后刷新矩形表格——矩形行 Model 是独立 PointD 拷贝（非共享引用，与 Polygon 不同），
+        /// 仅发通知值不变 → 必须重建（从矩形取 2 对角点，天然反映拖拽结果）。AA-2：结束兜底传被拖对象（rect 非空），与拖拽过程一致。</summary>
         public void RefreshRectanglePointRowsDisplay(RectangleWidget? rect = null) => RefreshRectanglePointRows(rect);
 
         /// <summary>C12-12：拖拽/缩放结束后刷新顶点表格显示值（PointD 无 INPC、行 VM 直读模型——外部改动模型后需显式通知；

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -68,7 +68,7 @@ namespace NavigatorHMI.Common
         /// <summary>缩放手柄拖拽结束：通知刷新（C12-12——多边形缩放平移顶点后端点表格实时更新）。</summary>
         private void Thumb_DragCompleted(object sender, DragCompletedEventArgs e)
         {
-            SelectorHelper.ResizeDragCompleted?.Invoke();
+            SelectorHelper.ResizeDragCompleted?.Invoke(_widget);
             System.Diagnostics.Debug.WriteLine($"🎯 Resize 完成: {_widget.ObjectName}, X={_widget.X}, Y={_widget.Y}, W={_widget.Width}, H={_widget.Height}");
         }
 

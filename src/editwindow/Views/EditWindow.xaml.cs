@@ -56,9 +56,10 @@ namespace NavigatorHMI.Views
         private bool _skipClosingCheck = false;
         /// <summary>缩放手柄静态回调引用（Closing 时比较清理，防闭包泄漏）。</summary>
         private Action? _resizeDragStartedCallback;
-        private Action? _resizeDragCompletedCallback;   // C12-12：缩放结束回调（字段化供 EditWindow_Closed 清理——静态回调闭包泄漏防护）
+        private Action<Widget>? _resizeDragCompletedCallback;   // C12-12/AA-2：缩放结束回调（字段化同上；携带被拖 widget 按类型兜底刷表）
         private Action<Widget>? _resizeDragDeltaCallback;   // W-4c/Z-2：缩放过程回调（字段化同上；携带被拖 widget 按类型节流刷新端点表格）
         private DateTime _lastResizeDeltaRefresh = DateTime.MinValue;   // W-4c：拖拽过程刷新节流时间戳
+        private DateTime _lastDragMoveRefresh = DateTime.MinValue;   // AA-1：整体拖动过程刷新节流时间戳
         /// <summary>画布尺寸回调引用（Closing 时比较清理）。</summary>
         private Func<Size>? _getCanvasSizeCallback;
 
@@ -213,7 +214,22 @@ namespace NavigatorHMI.Views
                 _widgetContextMenuHandler.Show,
                 () => _viewModel.PushUndoSnapshot(),
                 () => _currentWidgetCreator != null,  // 添加/绘制模式标志
-                () => _propertyViewModel.RefreshPolygonPointRowsDisplay());  // C12-12：拖拽结束 → 多边形顶点表格实时刷新
+                () =>
+                {
+                    // C12-12/AA-1：拖拽结束 → 端点表格刷新（多边形 + 矩形，AA-1 补矩形表——整体移动后坐标同步）
+                    _lastDragMoveRefresh = DateTime.MinValue;   // AA-1：重置 move 节流时间戳（对齐 Z-2 首帧模式，防跨拖拽残留吞首帧）
+                    _propertyViewModel.RefreshPolygonPointRowsDisplay();
+                    _propertyViewModel.RefreshRectanglePointRowsDisplay();
+                },
+                (Widget w) =>
+                {
+                    // AA-1：整体拖动过程实时刷端点表格（100ms 节流，按被拖类型刷表——修"矩形整体拖坐标不更新/多边形松开才变"）
+                    var now = DateTime.UtcNow;
+                    if ((now - _lastDragMoveRefresh).TotalMilliseconds < 100) return;
+                    _lastDragMoveRefresh = now;
+                    if (w is RectangleWidget rect) _propertyViewModel.RefreshRectanglePointRowsDisplay(rect);
+                    else if (w is PolygonWidget) _propertyViewModel.RefreshPolygonPointRowsDisplay();
+                });
 
             // 6. 订阅事件
             WeakReferenceMessenger.Default.Register<ScreenAddedMessage>(this, OnScreenAdded);
@@ -284,11 +300,11 @@ namespace NavigatorHMI.Views
             _getCanvasSizeCallback = () => new Size(_propertyViewModel.CanvasWidth, _propertyViewModel.CanvasHeight);
             SelectorHelper.ResizeDragStarted = _resizeDragStartedCallback;
             SelectorHelper.GetCanvasSize = _getCanvasSizeCallback;
-            // C12-12：缩放结束 → 多边形顶点表格实时刷新（缩放平移顶点后表格不再陈旧）；V-6b：矩形端点表格同刷新
-            _resizeDragCompletedCallback = () =>
+            // C12-12/AA-2：缩放结束 → 端点表格兜底刷新（携带被拖 widget 按类型刷表——跨画面陈旧选中下松开后表格不空）
+            _resizeDragCompletedCallback = (Widget w) =>
             {
-                _propertyViewModel.RefreshPolygonPointRowsDisplay();
-                _propertyViewModel.RefreshRectanglePointRowsDisplay();
+                if (w is RectangleWidget rect) _propertyViewModel.RefreshRectanglePointRowsDisplay(rect);
+                else if (w is PolygonWidget) _propertyViewModel.RefreshPolygonPointRowsDisplay();
             };
             SelectorHelper.ResizeDragCompleted = _resizeDragCompletedCallback;
             // W-4c/Z-2：缩放手柄拖拽过程 → 端点表格实时同步（100ms 节流；DragCompleted 兜底最终值）

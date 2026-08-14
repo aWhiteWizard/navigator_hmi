@@ -113,7 +113,7 @@ namespace NavigatorHMI.Common
             };
             thumb.DragStarted += (_, _) => SelectorHelper.ResizeDragStarted?.Invoke();
             thumb.DragDelta += Thumb_DragDelta;
-            thumb.DragCompleted += (_, _) => SelectorHelper.ResizeDragCompleted?.Invoke();
+            thumb.DragCompleted += (_, _) => SelectorHelper.ResizeDragCompleted?.Invoke(_widget);
             _visualChildren.Add(thumb);
             _handles.Add(new Handle { Thumb = thumb, Kind = kind, Index = index });
         }

@@ -40,11 +40,13 @@ namespace NavigatorHMI.Views.Behaviors
         private readonly Action? _pushUndoCallback;
         private readonly Func<bool>? _isAddMode;   // 添加/绘制模式标志（绘制模式下不启动拖拽）
         private readonly Action? _onDragEndCallback;   // C12-12：拖拽结束回调（多边形顶点表格实时刷新）
+        private readonly Action<Widget>? _onDragMoveCallback;   // AA-1：拖动过程回调（携带被拖 widget，注入方节流刷端点表格）
 
         public WidgetDragBehavior(Canvas canvas, Func<EditWindowViewModel> viewModelProvider,
             Action markDirtyCallback, Action<Cursor> setCursorCallback,
             WidgetSelectionManager selectionManager, Action<Widget, Point>? onRightClickCallback = null,
-            Action? pushUndoCallback = null, Func<bool>? isAddMode = null, Action? onDragEndCallback = null)
+            Action? pushUndoCallback = null, Func<bool>? isAddMode = null, Action? onDragEndCallback = null,
+            Action<Widget>? onDragMoveCallback = null)
         {
             _canvas = canvas;
             _viewModelProvider = viewModelProvider;
@@ -55,6 +57,7 @@ namespace NavigatorHMI.Views.Behaviors
             _pushUndoCallback = pushUndoCallback;
             _isAddMode = isAddMode;
             _onDragEndCallback = onDragEndCallback;
+            _onDragMoveCallback = onDragMoveCallback;
         }
 
         /// <summary>沿视觉树向上查找 Thumb（ResizeAdorner 的缩放手柄）。命中则返回，未命中返回 null。</summary>
@@ -220,6 +223,9 @@ namespace NavigatorHMI.Views.Behaviors
                 w.Y = newY;
             }
             _markDirtyCallback();
+            // AA-1：整体拖动过程实时刷新端点表格（携带被拖 widget；注入方节流——单选中即选中项，多选为批量模式端点表格不显示）
+            if (_onDragMoveCallback != null && _draggingWidgets.Count > 0)
+                _onDragMoveCallback(_draggingWidgets[0].widget);
         }
 
         internal void OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
