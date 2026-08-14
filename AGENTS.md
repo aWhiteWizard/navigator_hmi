@@ -8,6 +8,10 @@
 - 代码仓库：`D:\workspace\code\navigator_hmi`（分支 arch-scaffold，本地提交未 push）。
 - 知识库（只读引用，物理路径不变）：`~/.pi/agent/skills/reviewer/references/`（7 层）+ 工程库 `projects/navigator-hmi/PROJECT.md`。
 
+## 用户协作约定（源自 Reasonix memory，2026-08-11 用户定，跨项目）
+- **学习类项目记录方式**：学习类项目（如 hardware-design-learning）一律由用户自己记录笔记；阶段性完成后用户告知，主 Agent 统一入库知识库（references/ 层）——学习类工程产出最终都要落知识库，不能只存会话/project。会话中已确认可沉淀的经验经用户确认后即时入库，不等整个项目学完。
+- **硬件协作分工**：硬件项目方案设计是用户与主 Agent **共同任务**（检索 3_hardware/4_bugs 提供支持）；方案定稿后硬件实现由用户主导；debug 由用户负责，每版问题/优缺点反馈 → 主 Agent 记录入库（问题→4_bugs 负样本、优缺点→3_hardware 设计经验）。与软件分工（主 Agent 实现、用户验证）相反。
+
 ## PDCA 工作流（铁律）
 1. 环节顺序：**Plan → Do → Check → Act**；环节切换**只由用户明确发起**（用户说「开始执行/进入下一环节」才推进）。
 2. **Check 只记录不实施**（劳动纪律）：Check 阶段发现的问题只记录到 PROJECT.md「Check 环节记录续N」区，**任何修改（无论多小）必须等用户明确说进入下一轮 Do 才执行**——即使用户口头说「修吧」也不等于进入 Do。
