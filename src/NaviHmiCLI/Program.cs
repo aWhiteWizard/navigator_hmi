@@ -102,6 +102,13 @@ public static class Program
             "remove-event"   => RemoveEvent(),
             "update-event"   => UpdateEvent(),
 
+            // 世界地图（命令层已有，CLI 补齐路由：测试工程脚本化生成用）
+            "add-work-point"     => Cmd("add_work_point", Require("screen", "screen_name"), Require("name"), OptMap("lng-lat", "lng_lat", ""), OptMap("bound-tag", "bound_tag", "")),
+            "add-work-range-point" => Cmd("add_work_range_point", Require("screen", "screen_name"), OptMap("lng-lat", "lng_lat", ""), OptMap("bound-tag", "bound_tag", "")),
+            "clear-work-range"   => Cmd("clear_work_range", Require("screen", "screen_name")),
+            "delete-work-point"  => Cmd("delete_work_point", Require("screen", "screen_name"), Require("name")),
+            "update-world-map"   => Cmd("update_world_map", Require("screen", "screen_name"), OptMap("tile-source", "tile_source", ""), OptMap("zoom-level", "zoom_level", ""), OptMap("show-global-overlay", "show_global_overlay", ""), OptMap("view-locked", "view_locked", "")),
+
             // 布局
             "align"          => Cmd("align_widgets", Require("screen", "screen_name"), Require("widgets"), Require("direction")),
             "array"          => Cmd("array_layout", Require("screen", "screen_name"), Require("widgets"), Require("mode"),
