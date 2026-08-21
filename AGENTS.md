@@ -5,6 +5,7 @@
 
 ## 项目背景
 - NavigatorHMI 工业 HMI 系统：PC 组态软件（C# WPF）+ HMI 设备端（RK3562 / Qt）。
+- **任务结构（2026-08-14 用户定）**：NavigatorHMI = 同一个任务的两个子任务——子任务 A：PC 组态软件（进行中，V1.0 + bug 收尾完成，不结束）；子任务 B：HMI panel（设备端，RK3562/Qt，新建工程）；B 完成后 A/B 联调。两子任务同任务同会话推进。
 - 代码仓库：`D:\workspace\code\navigator_hmi`（分支 arch-scaffold，本地提交未 push）。
 - 知识库（只读引用，物理路径不变）：`~/.pi/agent/skills/reviewer/references/`（7 层）+ 工程库 `projects/navigator-hmi/PROJECT.md`。
 
@@ -61,4 +62,4 @@
 - **Do 环节任务清单（2026-08-14 用户期望）**：进入 Do 的第一步，用 todo 清单（todo_write）建立任务分解表——每项任务一行（如 Z-1/Z-2/Z-3、编译+测试、reviewer 审查、修复/复审、提交），随进度更新状态（pending/in_progress/completed），GUI 可视化进度；不得直接开工而不建清单。
 
 ## 当前继续点
-- 见 PROJECT.md「继续点」段（循环 AA 全流程完成 + Skill 任务完成——Check 续56 AA-1/AA-2 通过、6 个 dsh skill 注册，无下一轮，Act 收尾中：落库 + push）。
+- 见 PROJECT.md「继续点」段（NavigatorHMI 一个任务两子任务：PC 组态软件进行中 + HMI panel 子任务 B 新建工程；当前进入子任务 B 项目架构讨论）。

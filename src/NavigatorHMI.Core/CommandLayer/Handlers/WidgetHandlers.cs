@@ -242,6 +242,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
             }
             switch (widget)
             {
+                case ButtonWidget w when key == "objectName": w.ObjectName = value; break;   // 允许重命名控件（唯一标识，全局画面 Stop 改名防同名连动）
                 case ButtonWidget btn when key == "text": btn.Text = value; break;
                 case ButtonWidget w when key == "fontSize": w.FontSize = double.Parse(value); break;
                 case ButtonWidget w when key == "fontFamily": w.FontFamily = value; break;

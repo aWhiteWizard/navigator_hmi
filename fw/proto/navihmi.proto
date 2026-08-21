@@ -1,11 +1,14 @@
 syntax = "proto3";
-package navihmi;
+package navihmi_pb;   // C++ 生成类命名空间（与运行时模型 navihmi 区分；wire 格式不受 package 影响）
 option optimize_for = LITE_RUNTIME;
 
 // ═══════════════════════════════════════════════════════════════════
 // NavigatorHMI 工程编译产物契约（.navihmi）
 // 两端共享：PC 组态软件 ProjectGenerator 输出本格式；FW 端 protoc 生成解析。
 // 字段号与 PC 端 NavihmiDto（protobuf-net）严格对齐，修改需两端同步。
+// B-4 契约核对（2026-08-18）：补齐与 C# DTO 对齐的 7 处缺口
+// （TagDataType GPS/DATETIME、WidgetType DateTime/Window/Polygon、用户系统、
+//  Widget 37-53/64、Tag.device_name、AlarmRule 9-14、WorldMapConfig 8-11）
 // ═══════════════════════════════════════════════════════════════════
 
 // ── 枚举（值与 C# 端一致，全部从 0 开始） ──
@@ -29,7 +32,7 @@ enum TagDataType {
   TAG_FLOAT = 4;
   TAG_STRING = 5;
   TAG_DATETIME = 6;
-  TAG_GPS = 7;   // 经纬度（基准值 DMS 格式 "(E104°3'30\", N30°40'20\")"；仅图形类控件可绑定）
+  TAG_GPS = 7;
 }
 
 enum AlarmType {
@@ -57,12 +60,6 @@ enum ProtocolType {
   PROTO_MQTT = 2;
 }
 
-enum WindowType {
-  WIN_USER_VIEW = 0;
-  WIN_ALARM_VIEW = 1;
-  WIN_ROBOT_LIST = 2;
-}
-
 enum WidgetType {
   W_BUTTON = 0;
   W_TEXT = 1;
@@ -80,8 +77,8 @@ enum WidgetType {
   W_FRAME = 13;
   W_PROGRESS_BAR = 14;
   W_DATETIME = 15;
-  W_WINDOW = 16;
-  W_POLYGON = 17;   // 多边形（顶点画布绝对坐标 points=64，相对画面原点；X/Y/Width/Height 为其包围盒）
+  W_WINDOW = 16;         // 窗口控件（UserView/AlarmView/RobotList，见 window_type）
+  W_POLYGON = 17;        // 多边形（世界地图图形控件）
 }
 
 enum EventType {
@@ -97,13 +94,13 @@ enum EventType {
   EV_ON_TIMER = 9;
   EV_ON_SYSTEM_START = 10;
   EV_ON_SYSTEM_SHUTDOWN = 11;
-  EV_ON_INPUT = 12;
-  EV_ON_ON = 13;
-  EV_ON_OFF = 14;
-  EV_ON_PROGRESS_COMPLETE = 15;
-  EV_ON_USER_CHANGED = 16;
-  EV_ON_ACK = 17;
-  EV_ON_SELECT = 18;
+  EV_ON_INPUT = 12;      // 输入完成（IOField）
+  EV_ON_ON = 13;         // 开关打开（Switch）
+  EV_ON_OFF = 14;        // 开关关闭（Switch）
+  EV_ON_PROGRESS_COMPLETE = 15;  // 进度条到达 100%
+  EV_ON_USER_CHANGED = 16;       // 用户登录/登出（UserView）
+  EV_ON_ACK = 17;        // 报警确认（AlarmView）
+  EV_ON_SELECT = 18;     // 机器人选中（RobotList）
 }
 
 enum ActionType {
@@ -113,17 +110,43 @@ enum ActionType {
   ACT_RUN_COMMAND = 3;
   ACT_SHOW_POPUP = 4;
   ACT_SEND_NOTIFICATION = 5;
-  ACT_SCREEN_PREV = 6;
-  ACT_SCREEN_NEXT = 7;
-  ACT_TAG_ADD = 8;
-  ACT_TAG_SUBTRACT = 9;
-  ACT_TAG_TOGGLE = 10;
-  ACT_SET_BIT = 11;
-  ACT_RESET_BIT = 12;
-  ACT_SET_DATETIME = 13;
-  ACT_GET_DATETIME = 14;
-  ACT_ACKNOWLEDGE_ALARM = 15;
-  ACT_SET_SYSTEM_TIME = 16;
+  ACT_SCREEN_PREV = 6;       // 上一个画面
+  ACT_SCREEN_NEXT = 7;       // 下一个画面
+  ACT_TAG_ADD = 8;           // 变量值增加
+  ACT_TAG_SUBTRACT = 9;      // 变量值减少
+  ACT_TAG_TOGGLE = 10;       // BOOL 翻转
+  ACT_SET_BIT = 11;          // BOOL 置位
+  ACT_RESET_BIT = 12;        // BOOL 复位
+  ACT_SET_DATETIME = 13;     // 设置日期时间
+  ACT_GET_DATETIME = 14;     // 读取日期时间
+  ACT_ACKNOWLEDGE_ALARM = 15; // 确认报警
+  ACT_SET_SYSTEM_TIME = 16;   // 修改系统时间
+}
+
+enum AlarmTriggerMode {
+  ALARM_TRIGGER_THRESHOLD = 0;  // 阈值比较（默认）
+  ALARM_TRIGGER_ON_RISING = 1;  // BOOL 上升沿
+  ALARM_TRIGGER_ON_FALLING = 2; // BOOL 下降沿
+  ALARM_TRIGGER_ON_CHANGE = 3;  // BOOL 值变化
+}
+
+enum AlarmCategory {
+  ALARM_CAT_SYSTEM = 0;
+  ALARM_CAT_USER = 1;
+  ALARM_CAT_ERROR = 2;
+}
+
+enum UserPermission {
+  PERM_SCREEN_EDIT = 0;     // 画面编辑
+  PERM_ALARM_ACK = 1;       // 报警确认
+  PERM_USER_MANAGE = 2;     // 用户管理
+  PERM_SYSTEM_SETTINGS = 3; // 系统设置
+}
+
+enum WindowType {
+  WIN_USER_VIEW = 0;
+  WIN_ALARM_VIEW = 1;
+  WIN_ROBOT_LIST = 2;
 }
 
 // ── 消息 ──
@@ -145,11 +168,11 @@ message HMIProject {
   NavPosition navigation_position = 14;
   string start_screen = 15;
   repeated ListDef lists = 16;
-  int32 format_version = 17;   // 契约版本（当前=1；FW 端解析后校验，不匹配拒绝加载；1 = 世界地图重构契约；曾误升 2 后改回 P11）
-  // W1 用户系统
+  int32 format_version = 17;  // 契约版本（当前=1；FW 端解析后校验，不匹配拒绝加载）
   repeated UserAccount users = 18;
   repeated UserGroup groups = 19;
-  SecuritySettings security = 20;  // 用户安全设置（密码策略）
+  SecuritySettings security = 20;
+  bool enable_vnc = 21;       // 启用 VNC 镜像（eglfs 物理屏照常，额外开 5900 远程显示通道；默认关=零开销）
 }
 
 message Screen {
@@ -211,29 +234,42 @@ message Widget {
   double x2 = 34;            // Line
   double y2 = 35;            // Line
   // Frame
-  string title = 36;         // Frame 标题；Window 类型时=边框色 BorderColor
-  // 日期时间（DateTime）
-  string dt_text = 37;       // DateTime 显示文本
-  string dt_format = 38;     // DateTime 格式
-  // W1 窗口控件（39+，W5 细化 RobotSlots）
-  int32 window_type = 39;    // WindowType: 0=UserView 1=AlarmView 2=RobotList
+  string title = 36;         // Frame 标题；W_WINDOW(16) 时**复用为边框色**（ProjectGenerator.cs:213 写入，FW 解析窗口控件须按 36=边框色、40=win_title=窗口标题处理）
+  // DateTime（W_DATETIME=15）
+  string dt_text = 37;       // 显示文本（如 "2026-01-01 00:00:00"）
+  string dt_format = 38;     // 格式（如 "yyyy-MM-dd HH:mm:ss"）
+  // 窗口控件（W_WINDOW=16）
+  int32 window_type = 39;    // WindowType
   string win_title = 40;     // 窗口标题
-  bool show_title_bar = 41;  // 显示标题栏
-  bool show_history = 42;    // AlarmView 含历史
-  string selected_tag = 43;  // RobotList 选中编号变量
-  double card_width = 44;    // RobotList 卡片宽
-  double card_height = 45;   // RobotList 卡片高
-  // W5 窗口控件扩展（46+）
-  bool show_user_name = 46;     // UserView 显示用户名
-  bool show_role = 47;          // UserView 显示角色
-  bool show_mode = 48;          // UserView 显示运行模式
-  bool card_show_number = 49;   // RobotList 显示编号
-  bool card_show_status = 50;   // RobotList 显示状态
-  bool card_show_location = 51; // RobotList 显示位置
-  string bound_device = 52;     // RobotList 绑定设备名
-  repeated RobotSlotBinding robot_slots = 53;   // RobotList 机器人绑定组
-  // ── 多边形（64）──
-  repeated PointD points = 64;         // Polygon 顶点画布绝对坐标（相对画面原点；P7 语义）
+  bool show_title_bar = 41;  // 显示标题栏（默认 true）
+  bool show_history = 42;    // 报警视图历史开关
+  string selected_tag = 43;  // RobotList 选中变量
+  double card_width = 44;    // 卡片宽
+  double card_height = 45;   // 卡片高
+  // W5 窗口控件扩展（46-53）
+  bool show_user_name = 46;  // UserView 显示用户名
+  bool show_role = 47;       // UserView 显示角色
+  bool show_mode = 48;       // UserView 显示运行模式
+  bool card_show_number = 49;    // RobotList 卡片显示编号
+  bool card_show_status = 50;    // RobotList 卡片显示状态
+  bool card_show_location = 51;  // RobotList 卡片显示位置
+  string bound_device = 52;      // RobotList 绑定设备
+  repeated RobotSlotBinding robot_slots = 53;  // RobotList 机器人绑定组
+  // 多边形（W_POLYGON=17）
+  repeated PointD points = 64;   // Polygon 顶点画面坐标
+}
+
+message RobotSlotBinding {
+  string id_tag = 1;         // 编号变量
+  string status_tag = 2;     // 状态变量
+  string location_tag = 3;   // 位置变量
+  string detail_tag = 4;     // 详细信息 JSON 变量
+  string oper_tag = 5;       // 操作变量
+}
+
+message PointD {
+  double x = 1;
+  double y = 2;
 }
 
 message WidgetEvent {
@@ -255,8 +291,8 @@ message Tag {
   int32 scan_interval_ms = 5;
   double deadband = 6;
   string description = 7;
-  string base_value = 8;         // 设计态基准值
-  string device_name = 9;   // W1 所属设备名（RobotList BoundDevice 两态过滤）
+  string base_value = 8;     // 设计态基准值
+  string device_name = 9;    // 关联设备名（DeviceConfig.Name；空 = 无）
 }
 
 message AlarmRule {
@@ -268,12 +304,12 @@ message AlarmRule {
   int32 delay_ms = 6;        // 防抖延迟
   Severity level = 7;
   string message = 8;
-  int32 alarm_trigger_mode = 9;   // AlarmTriggerMode: 0=Threshold 1=OnRising 2=OnFalling 3=OnChange
-  int32 category = 10;             // AlarmCategory: 0=System 1=User 2=Error
-  int32 priority = 11;             // 排序优先级
-  bool ack_required = 12;          // 需要确认
-  string ack_group = 13;           // 确认组
-  string color_override = 14;      // 颜色图标覆盖
+  AlarmTriggerMode trigger_mode = 9;   // 触发模式（默认 Threshold）
+  AlarmCategory category = 10;         // 报警类别（默认 User）
+  int32 priority = 11;                 // 排序优先级（越大越靠前）
+  bool ack_required = 12;              // 需要确认（默认 true）
+  string ack_group = 13;               // 确认组（联动确认）
+  string color_override = 14;          // 颜色覆盖（如 "#FF0000"）
 }
 
 message ListDef {
@@ -296,64 +332,47 @@ message WorldMapConfig {
   string tile_source = 5;      // 离线/在线瓦片源
   int32 zoom_level = 6;
   bool show_global_overlay = 7;
-  repeated MapWorkPoint work_points = 8;   // 作业点列表（视口自适应按包围盒计算）
-  repeated WorkRangePoint work_range_points = 9;   // 作业范围点（围栏顶点，无名称）
-  repeated WidgetEvent events = 10;                // 世界地图点击切换事件（组态配置，运行时点击地图空白处触发）
-  bool view_locked = 11;                           // 锁定预览（运行时禁交互/禁平移缩放）
+  repeated MapWorkPoint work_points = 8;        // 作业点（蓝点）
+  repeated WorkRangePoint work_range_points = 9; // 作业范围点（围栏顶点，红点）
+  repeated WidgetEvent events = 10;             // 点击切换画面事件（地图级）
+  bool view_locked = 11;                        // 锁定预览（禁平移缩放/点击切换）
 }
 
-// 经纬度点（WGS84 小数度；PC 端 GeoPoint）
 message GeoPoint {
-  double longitude = 1;
-  double latitude = 2;
+  double longitude = 1;   // 经度（东正西负）
+  double latitude = 2;    // 纬度（北正南负）
 }
 
-// 画面坐标点（PC 端 PointD，多边形顶点用）
-message PointD {
-  double x = 1;
-  double y = 2;
-}
-
-// 世界地图作业点：绑经纬度变量（GPS）或固定值（二选一）
 message MapWorkPoint {
-  string name = 1;
-  GeoPoint fixed_point = 2;
-  string bound_tag = 3;
+  string name = 1;        // 作业点名称（如 "1号泵站"）
+  GeoPoint fixed_point = 2;  // 固定经纬度（有 bound_tag 时以变量为准）
+  string bound_tag = 3;   // 绑定 GPS 变量名（空 = 用 fixed_point）
 }
 
-// 世界地图作业范围点（围栏顶点）：绑经纬度变量（GPS）或固定值（二选一），无名称
 message WorkRangePoint {
-  GeoPoint fixed_point = 1;
-  string bound_tag = 2;
-}
-
-message UserAccount {
-  string user_name = 1;
-  string password_hash = 2;
-  string group_name = 3;
-  bool must_change_password = 4;
+  GeoPoint fixed_point = 1;  // 固定经纬度
+  string bound_tag = 2;      // 绑定 GPS 变量名（空 = 用 fixed_point）
 }
 
 message UserGroup {
   string name = 1;
-  repeated int32 permissions = 2;   // UserPermission 位（值表：0=ScreenEdit 1=AlarmAck 2=UserManage 3=SystemSettings）
+  repeated UserPermission permissions = 2;  // 组权限位
+}
+
+message UserAccount {
+  string user_name = 1;
+  string password_hash = 2;   // SHA256 Hex
+  string group_name = 3;      // UserGroup.Name
+  bool must_change_password = 4;
 }
 
 message SecuritySettings {
-  int32 min_password_length = 1;
+  int32 min_password_length = 1;   // 默认 6
   bool require_digit = 2;
   bool require_letter = 3;
   bool require_upper_lower = 4;
   bool require_special = 5;
-  int32 password_max_age_days = 6;
-  int32 failed_login_lockout = 7;
+  int32 password_max_age_days = 6;  // 0=不过期
+  int32 failed_login_lockout = 7;   // 0=不锁定
   int32 lock_minutes = 8;
-}
-
-message RobotSlotBinding {
-  string id_tag = 1;
-  string status_tag = 2;
-  string location_tag = 3;
-  string detail_tag = 4;
-  string oper_tag = 5;
 }
