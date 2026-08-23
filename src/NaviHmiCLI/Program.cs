@@ -89,6 +89,7 @@ public static class Program
             "resize-widget"  => Cmd("resize_widget", Require("screen", "screen_name"), Require("widget", "widget_name"), Require("width"), Require("height")),
             "delete-widget"  => Cmd("delete_widget", Require("screen", "screen_name"), Require("widget", "widget_name")),
             "set-property"   => Cmd("set_property", Require("screen", "screen_name"), Require("widget", "widget_name"), Require("key"), Require("value")),
+            "bind-robot-slot" => Cmd("bind_robot_slot", Require("screen", "screen_name"), Require("widget", "widget_name"), Require("slot"), OptIfProvided("id-tag", "id_tag"), OptIfProvided("status-tag", "status_tag"), OptIfProvided("location-tag", "location_tag"), OptIfProvided("detail-tag", "detail_tag"), OptIfProvided("oper-tag", "oper_tag")),
 
             // 层级
             "bring-to-front" => Cmd("bring_to_front", Require("screen", "screen_name"), Require("widget", "widget_name")),

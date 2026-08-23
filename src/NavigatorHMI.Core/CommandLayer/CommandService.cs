@@ -75,6 +75,7 @@ namespace NavigatorHMI.CommandLayer
                 ["resize_widget"]   = new ResizeWidgetHandler(),
                 ["delete_widget"]   = new DeleteWidgetHandler(),
                 ["set_property"]    = new SetPropertyHandler(),
+                ["bind_robot_slot"] = new BindRobotSlotHandler(),   // G 循环: RobotList 槽位绑定（GUI RobotSlots 的 CLI 等价）
 
                 // ── 控件层级 ──
                 ["bring_to_front"]  = new BringToFrontHandler(),

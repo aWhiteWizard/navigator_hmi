@@ -479,4 +479,62 @@ namespace NavigatorHMI.CommandLayer.Handlers
             return d;
         }
     }
+
+    /// <summary>G 循环测试工程支撑：RobotList 绑定槽位（slot 序号 + 5 变量名；GUI 属性面板 RobotSlots 的 CLI 等价）。</summary>
+    public class BindRobotSlotHandler : ICommandHandler
+    {
+        public CommandDefinition Definition => new()
+        {
+            Name = "bind_robot_slot", Description = "RobotList 控件绑定机器人槽位变量（编号/状态/位置/详情/操作，留空=不改）",
+            Parameters = new()
+            {
+                ["screen_name"] = new() { Type = "string", Required = true },
+                ["widget_name"] = new() { Type = "string", Required = true },
+                ["slot"] = new() { Type = "int", Required = true, Description = "槽位序号（0 起）" },
+                ["id_tag"] = new() { Type = "string", DefaultValue = "", Description = "编号变量名（有值→显示卡片）" },
+                ["status_tag"] = new() { Type = "string", DefaultValue = "", Description = "状态变量名（0=空闲/1=运行/2=故障）" },
+                ["location_tag"] = new() { Type = "string", DefaultValue = "", Description = "位置变量名" },
+                ["detail_tag"] = new() { Type = "string", DefaultValue = "", Description = "详细信息变量名（JSON）" },
+                ["oper_tag"] = new() { Type = "string", DefaultValue = "", Description = "操作变量名（写 \"下线:R01\" 等）" },
+            }
+        };
+        public ValidationResult Validate(Dictionary<string, object?> p)
+        {
+            if (!p.ContainsKey("screen_name") || !p.ContainsKey("widget_name")) return ValidationResult.Fail("缺少必填参数: screen_name/widget_name");
+            if (!p.ContainsKey("slot") || !int.TryParse(p["slot"]?.ToString(), out _)) return ValidationResult.Fail("缺少必填参数: slot（0 起整数）");
+            return ValidationResult.Ok;
+        }
+        public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
+        {
+            var (_, widget, err) = WidgetHelper.FindWidget(project, p);
+            if (err != null) return err;
+            if (widget is not WindowWidget ww || ww.Type != WindowType.RobotList)
+                return CommandResult.Fail("INVALID_TARGET", $"控件 \"{p["widget_name"]}\" 不是 RobotList 窗口控件");
+            var slot = int.Parse(p["slot"]!.ToString()!);
+            if (slot < 0 || slot > 63) return CommandResult.Fail("INVALID_VALUE", $"槽位序号越界: {slot}（0-63）");
+            while (ww.RobotSlots.Count <= slot) ww.RobotSlots.Add(new RobotSlotBinding());
+            var b = ww.RobotSlots[slot];
+            var set = (string key, string param) =>
+            {
+                var v = p.GetValueOrDefault(param)?.ToString() ?? "";
+                if (!string.IsNullOrEmpty(v))
+                {
+                    if (project.Tags.All(t => t.Name != v)) return $"变量 \"{v}\" 不存在，请先 create-tag";
+                    return "";
+                }
+                return "";
+            };
+            foreach (var (key, param) in new[] { ("IdTag", "id_tag"), ("StatusTag", "status_tag"), ("LocationTag", "location_tag"), ("DetailTag", "detail_tag"), ("OperTag", "oper_tag") })
+            {
+                var e = set(key, param);
+                if (e != "") return CommandResult.Fail("NOT_FOUND", e);
+            }
+            if (!string.IsNullOrEmpty(p.GetValueOrDefault("id_tag")?.ToString())) b.IdTag = p["id_tag"]!.ToString()!;
+            if (!string.IsNullOrEmpty(p.GetValueOrDefault("status_tag")?.ToString())) b.StatusTag = p["status_tag"]!.ToString()!;
+            if (!string.IsNullOrEmpty(p.GetValueOrDefault("location_tag")?.ToString())) b.LocationTag = p["location_tag"]!.ToString()!;
+            if (!string.IsNullOrEmpty(p.GetValueOrDefault("detail_tag")?.ToString())) b.DetailTag = p["detail_tag"]!.ToString()!;
+            if (!string.IsNullOrEmpty(p.GetValueOrDefault("oper_tag")?.ToString())) b.OperTag = p["oper_tag"]!.ToString()!;
+            return CommandResult.Ok(new { slot, id = b.IdTag, status = b.StatusTag, location = b.LocationTag });
+        }
+    }
 }
