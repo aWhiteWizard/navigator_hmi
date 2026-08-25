@@ -28,6 +28,44 @@ namespace NavigatorHMI.Tests
             };
 
         [Fact]
+        public void add_event_带condition落库()
+        {
+            var (svc, p) = Create();
+            var r = svc.Execute("add_event", new Dictionary<string, object?>
+            {
+                ["screen_name"] = "测试画面",
+                ["widget_name"] = "button_1",
+                ["event_type"] = "onClick",
+                ["action_type"] = "tag_write",
+                ["condition"] = "value > 80",
+                ["params"] = new Dictionary<string, string> { ["tag_name"] = "温度", ["value"] = "1" },
+            });
+            Assert.True(r.Success);
+            var we = p.Screens[0].Widgets[0].Events.Single();
+            Assert.Equal("value > 80", we.Condition);
+            Assert.Single(we.Actions);
+        }
+
+        [Fact]
+        public void update_event_更新condition()
+        {
+            var (svc, p) = Create();
+            svc.Execute("add_event", P("测试画面", "button_1", "onClick", "screen_switch", new() { ["target_screen"] = "测试画面" }));
+            var r = svc.Execute("update_event", new Dictionary<string, object?>
+            {
+                ["screen_name"] = "测试画面",
+                ["widget_name"] = "button_1",
+                ["event_type"] = "onClick",
+                ["action_type"] = "screen_switch",
+                ["condition"] = "R01_status == 2",
+                ["params"] = new Dictionary<string, string> { ["target_screen"] = "测试画面" },
+            });
+            Assert.True(r.Success);
+            var we = p.Screens[0].Widgets[0].Events.Single();
+            Assert.Equal("R01_status == 2", we.Condition);
+        }
+
+        [Fact]
         public void add_event_同事件累积动作()
         {
             var (svc, p) = Create();

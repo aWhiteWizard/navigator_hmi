@@ -87,6 +87,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 ["widget_name"] = new() { Type = "string", Required = false, Description = "控件名；缺省且画面为世界地图 = 地图级点击切换事件" },
                 ["event_type"] = new() { Type = "enum", Required = true, EnumValues = EventBindingCommon.AllEventTypes },
                 ["action_type"] = new() { Type = "enum", Required = true, EnumValues = EventBindingCommon.AllActionTypes },
+                ["condition"] = new() { Type = "string", Required = false, Description = "I-3 事件触发条件（如 value > 80；传了则设置该事件条件，未传保持现状）", KeepInCompact = true },
                 ["params"] = new() { Type = "dict", Required = false, Description = "动作参数键值对（如 tag_write 的 tag_name/value；screen_switch 的 target_screen）", KeepInCompact = true },
             }
         };
@@ -116,6 +117,9 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 we = new WidgetEvent { Type = evt };
                 events.Add(we);
             }
+            // I-3：condition 参数（可选）——传了则设置该事件触发条件（未传保持现状）
+            if (p.TryGetValue("condition", out var cond) && cond != null)
+                we.Condition = cond.ToString() ?? "";
             we.Actions.Add(new EventAction { Type = act, Parameters = actionParams });
             return CommandResult.Ok(new Dictionary<string, object?> { ["event"] = evt.ToString(), ["action"] = act.ToString(), ["action_index"] = we.Actions.Count - 1 });
         }
@@ -166,6 +170,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 ["widget_name"] = new() { Type = "string", Required = false, Description = "控件名；缺省且画面为世界地图 = 地图级点击切换事件" },
                 ["event_type"] = new() { Type = "enum", Required = true, EnumValues = EventBindingCommon.AllEventTypes },
                 ["action_type"] = new() { Type = "enum", Required = true, EnumValues = EventBindingCommon.AllActionTypes },
+                ["condition"] = new() { Type = "string", Required = false, Description = "I-3 事件触发条件（如 value > 80；传了则更新该事件条件，未传保持现状）", KeepInCompact = true },
                 ["params"] = new() { Type = "dict", Required = true, Description = "替换后的完整参数键值对" },
             }
         };
@@ -193,6 +198,9 @@ namespace NavigatorHMI.CommandLayer.Handlers
             // 语义：同事件下同 action_type 重复添加时，update 只改首个匹配（与 remove 的 RemoveAll 全删不对称，属有意设计——UI 层按 action_index 精确操作，不会出现重复）
             var action = we?.Actions.FirstOrDefault(a => a.Type == act);
             if (action == null) return CommandResult.Fail("NOT_FOUND", $"事件 {evt} 下未找到动作 {act}");
+            // I-3：condition 参数（可选）——传了则更新该事件触发条件
+            if (p.TryGetValue("condition", out var cond) && cond != null)
+                we!.Condition = cond.ToString() ?? "";
             action.Parameters = dict;
             return CommandResult.Ok();
         }

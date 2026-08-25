@@ -121,6 +121,14 @@ namespace NavigatorHMI.ViewModels
 
         public ObservableCollection<ActionEditVM> Functions { get; } = new();
         private ActionEditVM? _selectedFunction;
+
+        /// <summary>I-3 事件触发条件（如 "value > 80"；留空=无条件）。保存写回 WidgetEvent.Condition。</summary>
+        private string _condition = "";
+        public string Condition
+        {
+            get => _condition;
+            set { if (_condition != value) { _condition = value ?? ""; OnPropertyChanged(); } }
+        }
         public ActionEditVM? SelectedFunction
         {
             get => _selectedFunction;
@@ -183,8 +191,11 @@ namespace NavigatorHMI.ViewModels
             var events = widget != null ? widget.Events : (project.WorldMap ??= new WorldMapConfig()).Events;
             var we = events.FirstOrDefault(e => e.Type == evt);
             if (we != null)
+            {
+                _condition = we.Condition;   // I-3 载入事件条件
                 foreach (var a in we.Actions)
                     Functions.Add(new ActionEditVM(a, this));
+            }
         }
 
         /// <summary>添加函数（从下拉选中动作类型）。</summary>
@@ -229,6 +240,7 @@ namespace NavigatorHMI.ViewModels
                 we = new WidgetEvent { Type = _eventType };
                 events.Add(we);
             }
+            we.Condition = Condition;   // I-3 保存事件条件（留空=无条件）
             we.Actions.Clear();
             we.Actions.AddRange(Functions.Select(f => f.Build()));
         }

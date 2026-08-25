@@ -285,6 +285,8 @@ public static class Program
             ["widget_name"] = OptVal("widget", ""),   // C12-16：widget 可选（缺省 + 世界地图画面 = 地图级事件，命令层 P9 已支持）
             ["event_type"] = RequireVal("event"),
             ["action_type"] = RequireVal("action"),
+            // I-3 condition 可选（OptIfProvided：显式提供才写入，空串=清空；未提供=保持现状——避免 null 净化崩溃）
+            ["condition"] = _opts.ContainsKey("condition") ? OptVal("condition", "") : null,
             ["params"] = paramDict,
         });
         if (exitCode == 0) AutoSave(project);
@@ -324,6 +326,8 @@ public static class Program
             ["widget_name"] = OptVal("widget", ""),   // C12-16：widget 可选（与命令层一致）
             ["event_type"] = RequireVal("event"),
             ["action_type"] = RequireVal("action"),
+            // I-3 condition 可选（OptIfProvided：显式提供才写入，空串=清空；未提供=保持现状）
+            ["condition"] = _opts.ContainsKey("condition") ? OptVal("condition", "") : null,
             ["params"] = paramDict,
         });
         if (exitCode == 0) AutoSave(project);

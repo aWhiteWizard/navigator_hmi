@@ -4610,7 +4610,7 @@ namespace NavigatorHMI.Views
             });
         }
 
-        /// <summary>GUI CLI add-event：--screen→screen_name、--widget→widget_name（可选，缺省+世界地图=地图级事件）、--event→event_type、--action→action_type、--params "k=v,k=v" 解析为字典；缺必填参数报错（对齐独立 CLI RequireVal）。</summary>
+        /// <summary>GUI CLI add-event：--screen→screen_name、--widget→widget_name（可选，缺省+世界地图=地图级事件）、--event→event_type、--action→action_type、--condition（可选，I-3 事件触发条件）、--params "k=v,k=v" 解析为字典；缺必填参数报错（对齐独立 CLI RequireVal）。</summary>
         private CommandResult AddEventFromGuiCli(Dictionary<string, string> opts)
         {
             if (MissingRequired(opts, "screen", "event", "action") is { } err) return err;
@@ -4620,6 +4620,7 @@ namespace NavigatorHMI.Views
                 ["widget_name"] = opts.GetValueOrDefault("widget", ""),
                 ["event_type"] = opts.GetValueOrDefault("event", ""),
                 ["action_type"] = opts.GetValueOrDefault("action", ""),
+                ["condition"] = opts.TryGetValue("condition", out var c) ? c : null,   // I-3：未传=无条件（保持现状）
                 ["params"] = ParseCliParamsDict(opts),
             });
         }
@@ -4637,7 +4638,7 @@ namespace NavigatorHMI.Views
             });
         }
 
-        /// <summary>GUI CLI update-event：更新事件下动作的参数（params 完整替换，对齐独立 CLI UpdateEvent）。</summary>
+        /// <summary>GUI CLI update-event：更新事件下动作的参数（params 完整替换，--condition 可选更新事件条件，对齐独立 CLI UpdateEvent）。</summary>
         private CommandResult UpdateEventFromGuiCli(Dictionary<string, string> opts)
         {
             if (MissingRequired(opts, "screen", "event", "action") is { } err) return err;
@@ -4647,6 +4648,7 @@ namespace NavigatorHMI.Views
                 ["widget_name"] = opts.GetValueOrDefault("widget", ""),
                 ["event_type"] = opts.GetValueOrDefault("event", ""),
                 ["action_type"] = opts.GetValueOrDefault("action", ""),
+                ["condition"] = opts.TryGetValue("condition", out var c) ? c : null,   // I-3：未传=保持现状
                 ["params"] = ParseCliParamsDict(opts),
             });
         }
