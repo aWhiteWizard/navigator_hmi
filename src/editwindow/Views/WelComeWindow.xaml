@@ -1,4 +1,4 @@
-﻿<Window x:Class="NavigatorHMI.Views.WelComeWindow"
+<Window x:Class="NavigatorHMI.Views.WelComeWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -87,8 +87,8 @@
                                     </TextBlock.Style>
                                 </TextBlock>
 
-                                <!-- 时间：不变，保持原样 -->
-                                <TextBlock Text="{Binding LastOpenedTime}" FontSize="9" Foreground="DarkGray"/>
+                                <!-- 时间：展示层转本地（持久化 UtcNow，2026-08-26 规范整改） -->
+                                <TextBlock Text="{Binding LastOpenedTimeLocal}" FontSize="9" Foreground="DarkGray"/>
                             </StackPanel>
                         </DataTemplate>
                     </ListBox.ItemTemplate>

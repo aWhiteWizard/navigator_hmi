@@ -73,8 +73,8 @@ namespace NavigatorHMI.Common
         [ProtoMember(6)]
         public bool IsGlobal { get; set; } = false;
 
-        /// <summary>是否在导航栏显示</summary>
-        [ProtoMember(7)]
+        /// <summary>是否在导航栏显示。默认 true——IsRequired 强制写（protobuf-net 省略 false 丢值）。</summary>
+        [ProtoMember(7, IsRequired = true)]
         public bool ShowInNav { get; set; } = true;
 
         /// <summary>导航栏排序权重（值越小越靠前）</summary>
@@ -204,8 +204,8 @@ public abstract class Widget : INotifyPropertyChanged
                 OnPropertyChanged(nameof(DisplayText));
                 OnPropertyChanged(nameof(DisplayPath));
                 OnPropertyChanged(nameof(DisplayProgressValue));
-                OnPropertyChanged("DisplayIsOn");      // Switch 子类：绑定变更刷新开关显示状态
-                OnPropertyChanged("DisplayIsChecked");   // CheckBox 子类：绑定变更刷新勾选状态
+                OnPropertyChanged("DisplayIsOn");      // Switch 子类属性——基类无法 nameof 子类成员，字面量通知
+                OnPropertyChanged("DisplayIsChecked");   // CheckBox 子类属性——基类无法 nameof 子类成员，字面量通知
             }
         }
     }
@@ -586,7 +586,7 @@ public class SwitchWidget : Widget
     private bool _isOn = false;
     /// <summary>当前开关状态（true=ON，false=OFF）</summary>
     [ProtoMember(1)]
-    public bool IsOn { get => _isOn; set { _isOn = value; OnPropertyChanged(); OnPropertyChanged("DisplayIsOn"); } }
+    public bool IsOn { get => _isOn; set { _isOn = value; OnPropertyChanged(); OnPropertyChanged(nameof(DisplayIsOn)); } }
 
     /// <summary>设计态显示状态：绑定变量 → 基准值布尔判定；否则自身 IsOn。
     /// 仅 getter（SwitchTemplate 为 OneWay MultiBinding，点击不写回；IsOn 由属性面板修改）。</summary>
@@ -856,7 +856,7 @@ public class CheckBoxWidget : Widget
     private bool _isChecked = false;
     /// <summary>选中状态</summary>
     [ProtoMember(1)]
-    public bool IsChecked { get => _isChecked; set { _isChecked = value; OnPropertyChanged(); OnPropertyChanged("DisplayIsChecked"); } }
+    public bool IsChecked { get => _isChecked; set { _isChecked = value; OnPropertyChanged(); OnPropertyChanged(nameof(DisplayIsChecked)); } }
 
     /// <summary>设计态勾选状态：绑定变量 → 基准值布尔判定；否则自身 IsChecked。
     /// setter 透传 IsChecked（TwoWay 绑定写回路径：设计态点击画布切换勾选仍落模型；绑定变量时 get 优先基准值，点击不覆盖显示）。</summary>

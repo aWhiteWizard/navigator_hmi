@@ -46,7 +46,7 @@ set-property 属性键 (--screen <画面> --widget <控件> --key <键> --value 
   字体: fontFamily | fontSize | fontWeight | fontStyle | textDecoration
   数值: value | min | max | strokeThickness | x2 | y2
   列表: listRef | defaultIndex
-  其他: hAlign | imagePath | stretchMode | isOn | isChecked | isReadOnly | fillStyle
+  其他: hAlign | imagePath | stretchMode | isOn | isChecked | isReadOnly | fillStyle | content
 
 控件类型 (add-widget --type): button text rectangle label image numeric switch line circle ellipse iofield checkbox textlist frame progressbar";
     }

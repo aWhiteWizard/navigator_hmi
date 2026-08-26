@@ -9,13 +9,13 @@ namespace NavigatorHMI.Views.Helpers.Creators
     /// </summary>
     public class RectangleWidgetCreator : ITwoPointCreator
     {
-        /// <summary>单点创建（接口兼容备用路径，默认 100×50 矩形）。</summary>
+    /// <summary>单点创建（接口兼容备用路径，默认 100×50 矩形）。</summary>
         public Widget Create(Point position, Screen screen)
         {
             return Create(position, new Point(position.X + 100, position.Y + 50), screen);
         }
 
-        /// <summary>两点式创建：一个角→对角。</summary>
+    /// <summary>两点式创建：一个角→对角。</summary>
         public Widget Create(Point start, Point end, Screen screen)
         {
             int maxNum = 0;

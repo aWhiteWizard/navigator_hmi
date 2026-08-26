@@ -4,6 +4,7 @@ using System.Windows;
 
 namespace NavigatorHMI.Views.Helpers.Creators
 {
+    /// <summary>数值显示控件创建器：点击位置居中创建，ObjectName 自动分配（「数值N」序号递增）。</summary>
     public class NumericDisplayWidgetCreator : IWidgetCreator
     {
         public Widget Create(Point position, Screen screen)

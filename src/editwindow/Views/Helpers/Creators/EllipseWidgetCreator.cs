@@ -10,7 +10,7 @@ namespace NavigatorHMI.Views.Helpers.Creators
     /// </summary>
     public class EllipseWidgetCreator : ITwoPointCreator
     {
-        /// <summary>单点创建（接口兼容备用路径，默认 60x40 椭圆）。</summary>
+    /// <summary>单点创建（接口兼容备用路径，默认 60x40 椭圆）。</summary>
         public Widget Create(Point position, Screen screen)
         {
             return Create(position, new Point(position.X + 60, position.Y + 40), screen);

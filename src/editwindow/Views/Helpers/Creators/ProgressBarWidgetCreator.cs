@@ -4,6 +4,7 @@ using System.Windows;
 
 namespace NavigatorHMI.Views.Helpers.Creators
 {
+    /// <summary>进度条控件创建器：点击位置居中创建，ObjectName 自动分配（「进度条N」序号递增）。</summary>
     public class ProgressBarWidgetCreator : IWidgetCreator
     {
         public Widget Create(Point position, Screen screen)

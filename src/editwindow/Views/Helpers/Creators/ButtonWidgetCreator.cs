@@ -1,4 +1,4 @@
-﻿using NavigatorHMI.Common;
+using NavigatorHMI.Common;
 using System.Linq;
 using System.Windows;
 
@@ -10,7 +10,7 @@ namespace NavigatorHMI.Views.Helpers.Creators
     /// </summary>
     public class ButtonWidgetCreator : IWidgetCreator
     {
-        /// <summary>
+    /// <summary>
         /// 在指定位置创建一个默认尺寸为 80×30 的 <see cref="ButtonWidget"/>，
         /// 以点击位置为控件中心进行偏移，并根据画面中已有控件自动生成唯一 ObjectName。
         /// </summary>

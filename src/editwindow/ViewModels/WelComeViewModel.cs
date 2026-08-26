@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -18,7 +19,7 @@ namespace NavigatorHMI.ViewModels
     public class WelComeViewModel : INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler PropertyChanged;
-        private void OnPropertyChanged(string propertyName)
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
@@ -49,9 +50,13 @@ namespace NavigatorHMI.ViewModels
 
     public class RecentOpenedFileItems
     {
-        public String Name {  get; set; }
-        public String Path { get; set; }
+        public string Name { get; set; }
+        public string Path { get; set; }
         public DateTime LastOpenedTime { get; set; }
+
+        /// <summary>展示用本地时间（2026-08-26 规范整改：持久化 UtcNow + 展示层转本地——旧文件 Kind=Unspecified 按本地处理、值不变，兼容）。</summary>
+        [JsonIgnore]
+        public DateTime LastOpenedTimeLocal => LastOpenedTime.ToLocalTime();
 
         [JsonIgnore]
         public ICommand OpenCommand { get; set; }
@@ -68,27 +73,27 @@ namespace NavigatorHMI.ViewModels
 
         private RecentProjectManager()
         {
-            _recent_opened_files = new List<RecentOpenedFileItems>();
+            _recentOpenedFiles = new List<RecentOpenedFileItems>();
             LoadFromFile();
         }
 
-        private string recent_opened_file = ConfigFilePath.RecentOpenedFilePath; 
-        private List<RecentOpenedFileItems> _recent_opened_files = new List<RecentOpenedFileItems>();
+        private string _recentOpenedFile = ConfigFilePath.RecentOpenedFilePath;
+        private List<RecentOpenedFileItems> _recentOpenedFiles = new List<RecentOpenedFileItems>();
 
-        public List<RecentOpenedFileItems> RecentOpenedProject => _recent_opened_files;
+        public List<RecentOpenedFileItems> RecentOpenedProject => _recentOpenedFiles;
         public event Action<string> OnProjectSelected;
 
         // 添加一个工程到最近打开列表
         public void AddRecentProject(string filePath)
         {
             // 检查是否已存在
-            var existing = _recent_opened_files.FirstOrDefault(p => p.Path == filePath);
+            var existing = _recentOpenedFiles.FirstOrDefault(p => p.Path == filePath);
             if (existing != null)
             {
                 // 已存在，移到最前面
-                _recent_opened_files.Remove(existing);
-                existing.LastOpenedTime = DateTime.Now;
-                _recent_opened_files.Insert(0, existing);
+                _recentOpenedFiles.Remove(existing);
+                existing.LastOpenedTime = DateTime.UtcNow;
+                _recentOpenedFiles.Insert(0, existing);
             }
             else
             {
@@ -97,10 +102,10 @@ namespace NavigatorHMI.ViewModels
                 {
                     Name = Path.GetFileNameWithoutExtension(filePath),
                     Path = filePath,
-                    LastOpenedTime = DateTime.Now,
+                    LastOpenedTime = DateTime.UtcNow,
                     OpenCommand = new RelayCommand(() => OnProjectSelected?.Invoke(filePath))
                 };
-                _recent_opened_files.Insert(0, newItem);
+                _recentOpenedFiles.Insert(0, newItem);
             }
             // 保存到文件
             SaveToFile();
@@ -108,7 +113,7 @@ namespace NavigatorHMI.ViewModels
 
         public void LoadFromFile()
         {
-            string filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, recent_opened_file);
+            string filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, _recentOpenedFile);
 
             // 确保目录存在
             string directory = Path.GetDirectoryName(filePath);
@@ -122,7 +127,7 @@ namespace NavigatorHMI.ViewModels
                 {
                     // 文件存在：读取并反序列化
                     string json = File.ReadAllText(filePath);
-                    _recent_opened_files = JsonSerializer.Deserialize<List<RecentOpenedFileItems>>(json)
+                    _recentOpenedFiles = JsonSerializer.Deserialize<List<RecentOpenedFileItems>>(json)
                                       ?? new List<RecentOpenedFileItems>();
                 }
                 catch (Exception ex)
@@ -138,29 +143,30 @@ namespace NavigatorHMI.ViewModels
             else
             {
                 // 文件不存在：创建空文件并初始化空列表
-                _recent_opened_files = new List<RecentOpenedFileItems>();
+                _recentOpenedFiles = new List<RecentOpenedFileItems>();
                 SaveToFile(); // 调用保存方法，写入空列表
             }
         }
 
+        private static readonly JsonSerializerOptions _recentFileJsonOptions = new()
+        {
+            WriteIndented = true,
+            Encoder = JavaScriptEncoder.Create(UnicodeRanges.BasicLatin, UnicodeRanges.CjkUnifiedIdeographs)
+        };
+
         public void SaveToFile()
         {
-            string file_path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, recent_opened_file);
-            var options = new JsonSerializerOptions
-            {
-                WriteIndented = true,
-                Encoder = JavaScriptEncoder.Create(UnicodeRanges.BasicLatin, UnicodeRanges.CjkUnifiedIdeographs)
-            };
-            string json = JsonSerializer.Serialize(_recent_opened_files, options);
-            File.WriteAllText(file_path, json);
+            string filePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, _recentOpenedFile);
+            string json = JsonSerializer.Serialize(_recentOpenedFiles, _recentFileJsonOptions);
+            File.WriteAllText(filePath, json);
         }
 
         public void RemoveRecentProject(string filePath)
         {
-            var item = _recent_opened_files.FirstOrDefault(p => p.Path == filePath);
+            var item = _recentOpenedFiles.FirstOrDefault(p => p.Path == filePath);
             if (item != null)
             {
-                _recent_opened_files.Remove(item);
+                _recentOpenedFiles.Remove(item);
                 SaveToFile();
             }
         }
@@ -168,7 +174,7 @@ namespace NavigatorHMI.ViewModels
         public void RemoveAllInvalidProjects()
         {
             // 移除所有文件不存在的项
-            int removedCount = _recent_opened_files.RemoveAll(p => !File.Exists(p.Path));
+            int removedCount = _recentOpenedFiles.RemoveAll(p => !File.Exists(p.Path));
             if (removedCount > 0)
                 SaveToFile();
         }

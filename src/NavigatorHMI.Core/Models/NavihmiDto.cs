@@ -32,7 +32,7 @@ namespace NavigatorHMI.Common
         [ProtoMember(10)] public List<AlarmRule> Alarms { get; set; } = new();
         [ProtoMember(11)] public List<DeviceConfig> Devices { get; set; } = new();
         [ProtoMember(12)] public WorldMapConfig? WorldMap { get; set; }
-        [ProtoMember(13)] public bool ShowNavigationBar { get; set; } = true;
+        [ProtoMember(13, IsRequired = true)] public bool ShowNavigationBar { get; set; } = true;
         [ProtoMember(14)] public NavPosition NavigationPosition { get; set; }
         [ProtoMember(15)] public string StartScreen { get; set; } = "";
         [ProtoMember(16)] public List<ListDef> Lists { get; set; } = new();
@@ -54,7 +54,7 @@ namespace NavigatorHMI.Common
         [ProtoMember(4)] public ScreenType Type { get; set; }
         [ProtoMember(5)] public List<NavihmiWidget> Widgets { get; set; } = new();
         [ProtoMember(6)] public bool IsGlobal { get; set; }
-        [ProtoMember(7)] public bool ShowInNav { get; set; } = true;
+        [ProtoMember(7, IsRequired = true)] public bool ShowInNav { get; set; } = true;
         [ProtoMember(8)] public int NavOrder { get; set; }
     }
 
@@ -109,7 +109,7 @@ namespace NavigatorHMI.Common
         // ── W1 窗口控件（39+，W5 细化 RobotSlots） ──
         [ProtoMember(39)] public int WindowType { get; set; }
         [ProtoMember(40)] public string WinTitle { get; set; } = "";
-        [ProtoMember(41)] public bool ShowTitleBar { get; set; } = true;
+        [ProtoMember(41, IsRequired = true)] public bool ShowTitleBar { get; set; } = true;
         [ProtoMember(42)] public bool ShowHistory { get; set; }
         [ProtoMember(43)] public string SelectedTag { get; set; } = "";
         [ProtoMember(44)] public double CardWidth { get; set; }

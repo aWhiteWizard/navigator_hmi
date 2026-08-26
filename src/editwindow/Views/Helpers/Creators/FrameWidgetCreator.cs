@@ -4,6 +4,7 @@ using System.Windows;
 
 namespace NavigatorHMI.Views.Helpers.Creators
 {
+    /// <summary>框架控件创建器：点击位置居中创建，ObjectName 自动分配（「框架N」序号递增）。</summary>
     public class FrameWidgetCreator : IWidgetCreator
     {
         public Widget Create(Point position, Screen screen)

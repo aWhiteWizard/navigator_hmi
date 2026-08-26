@@ -605,14 +605,16 @@ public static class Program
 可用命令:
   工程: create-project, open-project, save-project, compile
   画面: create-screen, delete-screen, rename-screen, copy-screen, paste-screen, current-screen（无参=显示当前画面）
-  控件: add-widget, move-widget, resize-widget, delete-widget, set-property
+  控件: add-widget, move-widget, resize-widget, delete-widget, set-property, bind-robot-slot
   剪贴板: copy-widget, paste-widget
   默认字体: set-default-font
   层级: bring-to-front, bring-forward, send-backward, send-to-back
   布局: align, array
-  事件: bind-event
+  事件: bind-event, add-event, remove-event, update-event
   变量: create-tag, update-tag, delete-tag, bind-tag
-  用户: create-user, update-user, delete-user, list-users
+  列表: create-list, update-list, delete-list
+  用户: create-user, update-user, delete-user, list-users, create-group, update-group, delete-group
+  世界地图: add-work-point, add-work-range-point, clear-work-range, delete-work-point, update-world-map
 报警: create-alarm, update-alarm, delete-alarm
   设备: configure-device, update-device, delete-device, connect, scan, deploy-project, deploy-firmware
 
@@ -652,6 +654,7 @@ NavigatorHMI CLI — 组态软件命令行接口
   rename-screen          --name <name> --new-name <name>
   copy-screen            --name <name>
   paste-screen           [--name <name>]
+  current-screen         （无参=显示当前画面）
 
 控件命令:
   add-widget             --screen <name> --type button --x <n> --y <n> [--width <n>] [--height <n>] [--window-type userview|alarmview|robotlist]
@@ -659,6 +662,7 @@ NavigatorHMI CLI — 组态软件命令行接口
   resize-widget          --screen <name> --widget <name> --width <n> --height <n>
   delete-widget          --screen <name> --widget <name>
   set-property           --screen <name> --widget <name> --key <key> --value <val>
+  bind-robot-slot        --screen <name> --widget <name> --slot <n> [--id-tag <t>] [--status-tag <t>] [--location-tag <t>] [--detail-tag <t>] [--oper-tag <t>]   # 机器人列表槽位绑定变量（--slot 未提供=新增槽位）
 
 set-property 属性键 (--screen <画面> --widget <控件> --key <键> --value <值>):
   文本: text | content | title | onText | offText
@@ -682,6 +686,30 @@ set-property 属性键 (--screen <画面> --widget <控件> --key <键> --value 
 
 事件命令:
   bind-event             --screen <name> --widget <name> --event <type> --action <type> [--params "k1=v1,k2=v2"]
+  add-event              --screen <name> --widget <name> --event <type> --action <type> [--params "k1=v1,k2=v2"] [--condition <expr>]   # 新增事件（含触发条件，I-3）
+  remove-event           --screen <name> --widget <name> --event <type> [--action <type>]   # 移除事件
+  update-event           --screen <name> --widget <name> --event <type> --action <type> [--new-action <type>] [--params "k1=v1,k2=v2"] [--condition <expr>]   # 更新事件（condition 显式空串=清空）
+
+列表命令:
+  create-list            --name <name> --type <type> [--items <a,b,c>]
+  update-list            --name <name> [--new-name <name>] [--items <a,b,c>]
+  delete-list            --name <name>
+
+用户/组命令:
+  create-user            --user-name <name> --password <pwd> [--group-name 管理员|操作员|访客]
+  update-user            --user-name <name> [--new-user-name <n>] [--new-password <p>] [--new-group-name <g>]   # 留空=不改
+  delete-user            --user-name <name>   # 不能删除最后一个管理员
+  list-users
+  create-group           --group-name <name> [--permissions <a,b,c>]
+  update-group           --group-name <name> [--new-group-name <name>] [--permissions <a,b,c>]
+  delete-group           --group-name <name>
+
+世界地图命令:
+  add-work-point         --screen <name> --name <n> (--lng-lat <经纬度> 或 --bound-tag <GPS变量>)   # 二选一
+  add-work-range-point   --screen <name> (--lng-lat <经纬度> 或 --bound-tag <GPS变量>)   # 围栏顶点
+  clear-work-range       --screen <name>
+  delete-work-point      --screen <name> --name <n>
+  update-world-map       --screen <name> [--tile-source offline|amap|<自定义>] [--zoom-level <n>] [--show-global-overlay true|false] [--view-locked true|false]
 
 变量命令:
   create-tag             --name <name> --type <BOOL|INT16|FLOAT|...> [--source <uri>] [--unit <u>] [--scan-interval <ms>] [--base-value <n>]   # source 缺省 = 内部变量；base-value = 设计态基准值

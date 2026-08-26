@@ -102,8 +102,8 @@ namespace NavigatorHMI.Common
         [ProtoMember(11)]
         public int Priority { get; set; }
 
-        /// <summary>W1 需要确认（false=自动恢复无需确认）。</summary>
-        [ProtoMember(12)]
+        /// <summary>W1 需要确认（false=自动恢复无需确认）。默认 true——IsRequired 强制写（protobuf-net 省略 false 丢值）。</summary>
+        [ProtoMember(12, IsRequired = true)]   // 默认 true——IsRequired 强制写（protobuf-net 省略 false 会丢值）
         public bool AckRequired { get; set; } = true;
 
         /// <summary>W1 确认组（联动确认：同组报警一起确认；空=单独确认）。</summary>

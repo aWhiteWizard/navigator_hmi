@@ -10,7 +10,7 @@ namespace NavigatorHMI.Views.Helpers.Creators
     /// </summary>
     public class CircleWidgetCreator : ITwoPointCreator
     {
-        /// <summary>单点创建（接口兼容备用路径，默认半径 30px 正圆）。</summary>
+    /// <summary>单点创建（接口兼容备用路径，默认半径 30px 正圆）。</summary>
         public Widget Create(Point position, Screen screen)
         {
             return Create(position, new Point(position.X + 30, position.Y), screen);

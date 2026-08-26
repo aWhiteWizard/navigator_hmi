@@ -7,6 +7,7 @@ using NavigatorHMI.Views.Behaviors;
 using NavigatorHMI.Views.Helpers;
 using NavigatorHMI.Views.Helpers.Creators;
 using ProtoBuf;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
@@ -2524,7 +2525,7 @@ namespace NavigatorHMI.Views
                 TagResolver.CurrentProject = null;
             _viewModel.AiMessages.CollectionChanged -= AiMessages_CollectionChanged;   // 退订自动滚动（防关闭后无效回调）
             _viewModel.Dispose();   // 释放 AI 后端（CloudLLMBackend 的 HttpClient/Authorization）
-            try { WorldMapControl?.Dispose(); } catch { }   // 释放 Mapsui MapControl（HttpClient/瓦片缓存）
+            try { WorldMapControl?.Dispose(); } catch (Exception ex) { Log.Warning(ex, "WorldMapControl 释放异常（Mapsui MapControl，关闭路径不阻塞）"); }   // 释放 Mapsui MapControl（HttpClient/瓦片缓存）
             // W-3a：错误气泡清理（停定时器防闭包持有窗口、关闭残留 Popup）
             _errorBubbleTimer?.Stop();
             if (_errorBubble != null) _errorBubble.IsOpen = false;
@@ -4269,7 +4270,7 @@ namespace NavigatorHMI.Views
                 using var fs = new FileStream(dlg.FileName, FileMode.Open);
                 var project = Serializer.Deserialize<HMIProject>(fs);
                 project.ProjectFilePath = dlg.FileName;
-                project.LastModifiedTime = DateTime.Now;
+                project.LastModifiedTime = DateTime.UtcNow;
                 RecentProjectManager.Instance.AddRecentProject(dlg.FileName);
 
                 _isProjectDirty = false;
@@ -4756,6 +4757,16 @@ namespace NavigatorHMI.Views
             "new-name" => "new_name",
             "base-value" => "base_value",
             "connection" => "connection_info",
+            // 世界地图命令参数键（2026-08-26 规范整改：对齐 WorldMapHandlers/CLI OptMap——原缺映射致 GUI 控制台参数静默失效）
+            "lng-lat" => "lng_lat",
+            "tile-source" => "tile_source",
+            "zoom-level" => "zoom_level",
+            "show-global-overlay" => "show_global_overlay",
+            "view-locked" => "view_locked",
+            // bind-robot-slot 槽位参数键（对齐 WidgetHandlers：原缺映射致 GUI 控制台绑槽参数静默失效）
+            "id-tag" => "id_tag", "status-tag" => "status_tag",
+            "location-tag" => "location_tag", "detail-tag" => "detail_tag",
+            "oper-tag" => "oper_tag",
             _ => key
         };
 

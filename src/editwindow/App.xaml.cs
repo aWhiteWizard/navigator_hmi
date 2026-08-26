@@ -154,7 +154,7 @@ namespace NavigatorHMI
 
                 // 更新工程路径和修改时间
                 project.ProjectFilePath = filePath;
-                project.LastModifiedTime = DateTime.Now;
+                project.LastModifiedTime = DateTime.UtcNow;
 
             }
             catch (Exception ex)

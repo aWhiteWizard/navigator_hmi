@@ -2,6 +2,7 @@ using NavigatorHMI.Common;
 
 namespace NavigatorHMI.CommandLayer.Handlers
 {
+    /// <summary>bring_to_front 命令：控件置于顶层（图层操作）。</summary>
     public class BringToFrontHandler : ICommandHandler
     {
         public CommandDefinition Definition => new() { Name = "bring_to_front", Description = "控件置于顶层", Parameters = LayerEventHelper.SwParams() };
@@ -9,6 +10,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
         public CommandResult Execute(HMIProject project, Dictionary<string, object?> p) =>
             LayerEventHelper.LayerOp(project, p, (s, i) => { var w = s.Widgets[i]; s.Widgets.RemoveAt(i); s.Widgets.Add(w); });
     }
+    /// <summary>bring_forward 命令：控件上移一层（图层操作）。</summary>
     public class BringForwardHandler : ICommandHandler
     {
         public CommandDefinition Definition => new() { Name = "bring_forward", Description = "控件上移一层", Parameters = LayerEventHelper.SwParams() };
@@ -16,6 +18,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
         public CommandResult Execute(HMIProject project, Dictionary<string, object?> p) =>
             LayerEventHelper.LayerOp(project, p, (s, i) => { if (i < s.Widgets.Count - 1) s.Widgets.Move(i, i + 1); });
     }
+    /// <summary>send_backward 命令：控件下移一层（图层操作）。</summary>
     public class SendBackwardHandler : ICommandHandler
     {
         public CommandDefinition Definition => new() { Name = "send_backward", Description = "控件下移一层", Parameters = LayerEventHelper.SwParams() };
@@ -23,6 +26,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
         public CommandResult Execute(HMIProject project, Dictionary<string, object?> p) =>
             LayerEventHelper.LayerOp(project, p, (s, i) => { if (i > 0) s.Widgets.Move(i, i - 1); });
     }
+    /// <summary>send_to_back 命令：控件置于底层（图层操作）。</summary>
     public class SendToBackHandler : ICommandHandler
     {
         public CommandDefinition Definition => new() { Name = "send_to_back", Description = "控件置于底层", Parameters = LayerEventHelper.SwParams() };
@@ -30,6 +34,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
         public CommandResult Execute(HMIProject project, Dictionary<string, object?> p) =>
             LayerEventHelper.LayerOp(project, p, (s, i) => { var w = s.Widgets[i]; s.Widgets.RemoveAt(i); s.Widgets.Insert(0, w); });
     }
+    /// <summary>bind_event 命令：为控件绑定事件-动作（事件类型/动作类型枚举校验 + 参数透传）。</summary>
     public class BindEventHandler : ICommandHandler
     {
         public CommandDefinition Definition => new()

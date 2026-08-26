@@ -125,8 +125,8 @@ namespace NavigatorHMI.Common
         [ProtoMember(12)]
         public WorldMapConfig? WorldMap { get; set; }
 
-        /// <summary>设备端是否显示底部/顶部导航栏（默认开启）</summary>
-        [ProtoMember(13)]
+        /// <summary>设备端是否显示底部/顶部导航栏（默认开启）。默认 true——IsRequired 强制写（protobuf-net 省略 false 丢值）。</summary>
+        [ProtoMember(13, IsRequired = true)]
         public bool ShowNavigationBar { get; set; } = true;
 
         /// <summary>导航栏位置（Top / Bottom）</summary>

@@ -11,13 +11,13 @@ namespace NavigatorHMI.Views.Helpers.Creators
     /// </summary>
     public class LineWidgetCreator : ITwoPointCreator
     {
-        /// <summary>单点创建（接口兼容备用路径，默认水平线 100px）。</summary>
+    /// <summary>单点创建（接口兼容备用路径，默认水平线 100px）。</summary>
         public Widget Create(Point position, Screen screen)
         {
             return Create(position, new Point(position.X + 100, position.Y), screen);
         }
 
-        /// <summary>两点式创建：起点→终点。</summary>
+    /// <summary>两点式创建：起点→终点。</summary>
         public Widget Create(Point start, Point end, Screen screen)
         {
             int maxNum = 0;

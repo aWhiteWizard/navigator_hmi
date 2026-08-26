@@ -59,10 +59,10 @@ namespace NavigatorHMI.Tests
         {
             // 生产路径 center 必非 0：以中国区域 3857 坐标为中心，z8 分辨率；往返一致为核（src 非视口中心，经纬度断言无意义）
             var (cx, cy) = Mapsui.Projections.SphericalMercator.FromLonLat(104.06, 30.67);
-            const double resZ8 = 156543.03392804097 / 256;
+            const double ResZ8 = 156543.03392804097 / 256;
             var src = new System.Windows.Point(234.5, 123.7);
-            var geo = MapViewportMath.ScreenToGeo(cx, cy, resZ8, W, H, src);
-            var back = MapViewportMath.GeoToScreen(cx, cy, resZ8, W, H, geo);
+            var geo = MapViewportMath.ScreenToGeo(cx, cy, ResZ8, W, H, src);
+            var back = MapViewportMath.GeoToScreen(cx, cy, ResZ8, W, H, geo);
             Assert.Equal(src.X, back.X, 3);
             Assert.Equal(src.Y, back.Y, 3);
             // 屏幕左上（123.7 在 600 中心 300 上方）→ 纬度应高于中心纬度 30.67
@@ -75,12 +75,12 @@ namespace NavigatorHMI.Tests
         {
             // z16 分辨率（街道级）：已知点为中心 → 在视口内，往返精度（高缩放放大换算误差）
             var (cx, cy) = Mapsui.Projections.SphericalMercator.FromLonLat(116.404, 39.915);
-            const double resZ16 = 156543.03392804097 / 65536;
+            const double ResZ16 = 156543.03392804097 / 65536;
             var geo = new GeoPoint(116.404, 39.915);
-            var scr = MapViewportMath.GeoToScreen(cx, cy, resZ16, W, H, geo);
+            var scr = MapViewportMath.GeoToScreen(cx, cy, ResZ16, W, H, geo);
             Assert.Equal(W / 2, scr.X, 3);   // 已知点=中心 → 屏幕中心
             Assert.Equal(H / 2, scr.Y, 3);
-            var back = MapViewportMath.ScreenToGeo(cx, cy, resZ16, W, H, scr);
+            var back = MapViewportMath.ScreenToGeo(cx, cy, ResZ16, W, H, scr);
             Assert.Equal(geo.Longitude, back.Longitude, 6);
             Assert.Equal(geo.Latitude, back.Latitude, 6);
         }

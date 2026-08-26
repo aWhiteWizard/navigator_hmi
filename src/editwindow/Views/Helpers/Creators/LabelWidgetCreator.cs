@@ -4,6 +4,7 @@ using System.Windows;
 
 namespace NavigatorHMI.Views.Helpers.Creators
 {
+    /// <summary>标签控件创建器：点击位置居中创建，ObjectName 自动分配（「标签N」序号递增）。</summary>
     public class LabelWidgetCreator : IWidgetCreator
     {
         public Widget Create(Point position, Screen screen)

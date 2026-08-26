@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using NavigatorHMI.Common;
+using Serilog;
 
 namespace NavigatorHMI.Views
 {
@@ -330,7 +331,7 @@ namespace NavigatorHMI.Views
                 if (doc.RootElement.TryGetProperty("slaveId", out var s) && s.ValueKind == JsonValueKind.Number)
                     return s.GetInt32();
             }
-            catch (JsonException) { }
+            catch (JsonException ex) { Log.Warning(ex, "解析 ConnectionInfo 获取 slaveId 失败，回退默认 1"); }
             return 1;
         }
     }

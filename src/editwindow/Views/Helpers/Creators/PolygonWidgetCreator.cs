@@ -13,10 +13,10 @@ namespace NavigatorHMI.Views.Helpers.Creators
     /// </summary>
     public class PolygonWidgetCreator : IWidgetCreator
     {
-        /// <summary>单点创建（退路：仅 1 点，不闭合——调用方不应走此路径）。</summary>
+    /// <summary>单点创建（退路：仅 1 点，不闭合——调用方不应走此路径）。</summary>
         public Widget Create(Point position, Screen screen) => Create(new[] { position }, screen);
 
-        /// <summary>按顶点序列创建多边形（顶点画布绝对坐标；X/Y/Width/Height = 包围盒）。</summary>
+    /// <summary>按顶点序列创建多边形（顶点画布绝对坐标；X/Y/Width/Height = 包围盒）。</summary>
         public PolygonWidget Create(IReadOnlyList<Point> points, Screen screen)
         {
             if (points == null || points.Count == 0)

@@ -21,19 +21,19 @@ namespace NavigatorHMI.ViewModels
     public class DeviceConfigViewModel : INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler PropertyChanged;
-        private void OnPropertyChanged(string propertyName)
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
-        private HMIProject _current_project;
+        private HMIProject _currentProject;
         public HMIProject CurrentProject
         {
-            get => _current_project;
+            get => _currentProject;
             set
             {
-                _current_project = value;
-                OnPropertyChanged("CurrentProject");
+                _currentProject = value;
+                OnPropertyChanged();
             }
         }
 
@@ -46,7 +46,7 @@ namespace NavigatorHMI.ViewModels
             set
             {
                 _projectPath = value;
-                OnPropertyChanged("ProjectPath");
+                OnPropertyChanged();
             }
         }
         public string ProjectName
@@ -55,7 +55,7 @@ namespace NavigatorHMI.ViewModels
             set
             {
                 _projectName = value;
-                OnPropertyChanged("ProjectName");
+                OnPropertyChanged();
             }
         }
 
@@ -94,10 +94,10 @@ namespace NavigatorHMI.ViewModels
         private void ExecuteCreateNewProject()
         {
             // 用户点击了确定按钮，vm.CurrentProject已经被设置
-            string ProjectName = this.ProjectName;
-            string ProjectPath = this.ProjectPath;
+            string projectName = this.ProjectName;
+            string projectPath = this.ProjectPath;
 
-            string fullPath = Path.Combine(ProjectPath, ProjectName + ".hmiproj");
+            string fullPath = Path.Combine(projectPath, projectName + ".hmiproj");
 
             if (File.Exists(fullPath))
             {
@@ -109,10 +109,10 @@ namespace NavigatorHMI.ViewModels
 
             var newProject = new HMIProject
             {
-                Name = ProjectName,
-                CreateTime = DateTime.Now,
+                Name = projectName,
+                CreateTime = DateTime.UtcNow,
                 Version = SelectedDeviceVersion.Version,
-                LastModifiedTime = DateTime.Now,
+                LastModifiedTime = DateTime.UtcNow,
                 Screens = new List<Screen>(),
                 ProjectFilePath = fullPath,
                 DeviceHeight = int.Parse(SelectedDeviceModel.Height),
@@ -156,7 +156,7 @@ namespace NavigatorHMI.ViewModels
             set
             {
                 _selectedDeviceModel = value;
-                OnPropertyChanged("SelectedDeviceModel");
+                OnPropertyChanged();
             }
         }
 
@@ -174,7 +174,7 @@ namespace NavigatorHMI.ViewModels
             set
             {
                 _selectedDeviceVersion = value;
-                OnPropertyChanged("SelectedDeviceVersion");
+                OnPropertyChanged();
                 FilterDeviceModels();  // 版本变化时筛选
             }
         }
@@ -184,7 +184,7 @@ namespace NavigatorHMI.ViewModels
             get => _filteredDeviceModels;
             set { 
                     _filteredDeviceModels = value;
-                    OnPropertyChanged("FilteredDeviceModels"); 
+                    OnPropertyChanged(); 
                 }
         }
         private void FilterDeviceModels()

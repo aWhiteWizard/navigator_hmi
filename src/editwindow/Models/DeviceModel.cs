@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -12,7 +13,7 @@ namespace NavigatorHMI.Models
     {
         public event PropertyChangedEventHandler PropertyChanged;
 
-        private void OnPropertyChanged(string propertyName)
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
@@ -24,7 +25,7 @@ namespace NavigatorHMI.Models
             set
             {
                 _name = value;
-                OnPropertyChanged("Name");
+                OnPropertyChanged();
             }
         }
         private string _width;
@@ -34,7 +35,7 @@ namespace NavigatorHMI.Models
             set
             {
                 _width = value;
-                OnPropertyChanged("Width");
+                OnPropertyChanged();
             }
         }
 
@@ -45,7 +46,7 @@ namespace NavigatorHMI.Models
             set
             {
                 _height = value;
-                OnPropertyChanged("Height");
+                OnPropertyChanged();
             }
         }
 
@@ -56,7 +57,7 @@ namespace NavigatorHMI.Models
             set
             {
                 _version = value;
-                OnPropertyChanged("Version");
+                OnPropertyChanged();
             }
         }
     }
@@ -65,7 +66,7 @@ namespace NavigatorHMI.Models
     {
         public event PropertyChangedEventHandler PropertyChanged;
 
-        private void OnPropertyChanged(string propertyName)
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
@@ -78,7 +79,7 @@ namespace NavigatorHMI.Models
             set
             {
                 _version = value;
-                OnPropertyChanged("Version");
+                OnPropertyChanged();
             }
         }
     }

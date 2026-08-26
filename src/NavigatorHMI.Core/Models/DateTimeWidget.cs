@@ -21,7 +21,7 @@ namespace NavigatorHMI.Common
         public string Format
         {
             get => _format;
-            set { if (_format != value) { _format = value; OnPropertyChanged(); OnPropertyChanged("DisplayText"); } }   // 改格式立即刷新显示
+            set { if (_format != value) { _format = value; OnPropertyChanged(); OnPropertyChanged(nameof(DisplayText)); } }   // 改格式立即刷新显示
         }
 
         /// <summary>按 Format 格式化（非法格式回退默认，防 IsEditable 输入异常值抛 FormatException）。</summary>
@@ -78,6 +78,6 @@ namespace NavigatorHMI.Common
         }
 
         /// <summary>画布 1Hz 时钟回调：通知 DisplayText 变化（未绑定控件实时刷新）。</summary>
-        public void RefreshDisplay() => OnPropertyChanged("DisplayText");
+        public void RefreshDisplay() => OnPropertyChanged(nameof(DisplayText));
     }
 }

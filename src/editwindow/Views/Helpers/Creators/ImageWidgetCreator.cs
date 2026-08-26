@@ -4,6 +4,7 @@ using System.Windows;
 
 namespace NavigatorHMI.Views.Helpers.Creators
 {
+    /// <summary>图片控件创建器：点击位置居中创建，ObjectName 自动分配（「图片N」序号递增）。</summary>
     public class ImageWidgetCreator : IWidgetCreator
     {
         public Widget Create(Point position, Screen screen)
