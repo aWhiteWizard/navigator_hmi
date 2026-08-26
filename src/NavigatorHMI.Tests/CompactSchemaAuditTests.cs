@@ -89,11 +89,24 @@ public class CompactSchemaAuditTests
     [Theory]
     [InlineData(typeof(AddEventHandler))]
     [InlineData(typeof(BindEventHandler))]
+    [InlineData(typeof(UpdateEventHandler))]
     public void 事件命令_params可见(Type handlerType)
     {
         var def = ((ICommandHandler)Activator.CreateInstance(handlerType)!).Definition;
         var p = BuildParams(def);
         Assert.True(HasProp(p, "params"), $"{def.Name} 应含 params（动作核心参数）");
+    }
+
+    // ── J-6: I-3 事件触发条件 condition 在 AI compact schema 可见（add_event/update_event）──
+
+    [Theory]
+    [InlineData(typeof(AddEventHandler))]
+    [InlineData(typeof(UpdateEventHandler))]
+    public void 事件命令_condition可见(Type handlerType)
+    {
+        var def = ((ICommandHandler)Activator.CreateInstance(handlerType)!).Definition;
+        var p = BuildParams(def);
+        Assert.True(HasProp(p, "condition"), $"{def.Name} 应含 condition（I-3 事件触发条件——AI 配置条件表达式）");
     }
 
     // ── create_* 常见指令字段 ──

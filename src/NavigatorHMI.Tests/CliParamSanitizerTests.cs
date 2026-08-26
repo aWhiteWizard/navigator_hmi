@@ -141,5 +141,18 @@ namespace NavigatorHMI.Tests
             Assert.Contains("--name", err);
             Assert.Contains("a..b", err);
         }
+
+        // ── J-5: null 守卫（I-3 cli-optval-null-nre 教训——未提供参数直通不崩）──
+
+        [Theory]
+        [InlineData("path")]
+        [InlineData("project")]
+        [InlineData("name")]
+        [InlineData("description")]
+        [InlineData("connection")]
+        public void null值_放行不崩(string key)
+        {
+            Assert.Null(CliParamSanitizer.Validate(key, null));   // null 未提供参数 → 直通（不 NRE）
+        }
     }
 }

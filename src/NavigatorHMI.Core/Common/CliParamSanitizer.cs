@@ -10,9 +10,11 @@ namespace NavigatorHMI.Common
     /// </summary>
     public static class CliParamSanitizer
     {
-        /// <summary>校验单个参数；合法返回 null，非法返回错误消息（含 --key 与原始值）。</summary>
-        public static string? Validate(string key, string value)
+        /// <summary>校验单个参数；合法返回 null，非法返回错误消息（含 --key 与原始值）。
+        /// null 值按空串处理（未提供参数直通——I-3 教训：禁止对 null 调实例方法 NRE）。</summary>
+        public static string? Validate(string key, string? value)
         {
+            value ??= "";
             bool hasUpDir = value.Contains("..");
             bool hasSeparator = value.Contains('/') || value.Contains('\\');
             bool isPathParam = key is "path" or "project" or "file" or "output" or "connection" or "source";
