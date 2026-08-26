@@ -1284,7 +1284,7 @@ namespace NavigatorHMI.ViewModels
             new AiOption("local", "本地模型（Qwen2.5-7B GGUF）"),
         };
 
-        /// <summary>推理深度：映射单次指令的最大模型调用轮次（快速 2 / 均衡 4 / 深度 8）。</summary>
+        /// <summary>推理深度：映射单次指令的最大模型调用轮次（快速 4 / 均衡 8 / 深度 16；见 EnsureAiAgent 两处 MaxIterations 映射，注释与代码 2026-08-26 已对齐）。</summary>
         public IReadOnlyList<AiOption> AiDepths { get; } = new[]
         {
             new AiOption("fast", "快速"),

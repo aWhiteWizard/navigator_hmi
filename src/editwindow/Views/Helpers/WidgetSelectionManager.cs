@@ -16,6 +16,10 @@ namespace NavigatorHMI.Views.Helpers
     /// </summary>
     public class WidgetSelectionManager
     {
+        /// <summary>双击判定：时间窗（ms）与位移容差（px）——EditWindow 画布双击共用同一常量（2026-08-26 魔法数字整改统一）。</summary>
+        public const double DoubleClickIntervalMs = 500;
+        public const double DoubleClickSlopPx = 10;
+
         private readonly Canvas _canvas;
         private readonly Func<EditWindowViewModel> _viewModelProvider;
         /// <summary>选中状态变化时触发的事件，参数为选中的 Widget（null=取消选中）。</summary>
@@ -125,9 +129,9 @@ namespace NavigatorHMI.Views.Helpers
 
             var now = DateTime.Now;
 
-            bool isDoubleClick = (now - _lastClickTime).TotalMilliseconds < 500
-                              && Math.Abs(clickPosition.X - _lastClickPosition.X) < 10
-                              && Math.Abs(clickPosition.Y - _lastClickPosition.Y) < 10;
+            bool isDoubleClick = (now - _lastClickTime).TotalMilliseconds < DoubleClickIntervalMs
+                              && Math.Abs(clickPosition.X - _lastClickPosition.X) < DoubleClickSlopPx
+                              && Math.Abs(clickPosition.Y - _lastClickPosition.Y) < DoubleClickSlopPx;
 
             _lastClickTime = now;
             _lastClickPosition = clickPosition;

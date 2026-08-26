@@ -2146,6 +2146,10 @@ namespace NavigatorHMI.Views
         private System.Windows.Threading.DispatcherTimer? _errorBubbleTimer;
         private const double ErrorBubbleDurationMs = 3000;
 
+        // 画布/虚影尺寸兜底（vm 无值时）：与 HMIProject 模型默认 _deviceWidth=800/_deviceHeight=480 对齐（2026-08-26 魔法数字整改：原 ??600 与规范 480 不一致）
+        private const double DefaultDeviceWidth = 800;
+        private const double DefaultDeviceHeight = 480;
+
         private void ShowErrorBubble(System.Windows.UIElement? target, string message)
         {
             if (_errorBubble == null)
@@ -2614,8 +2618,8 @@ namespace NavigatorHMI.Views
                 _dragBehavior.OnMouseRightButtonUp);
             ghostItems.Name = GlobalGhostName;
             ghostItems.ItemsSource = globalScreen.Widgets;
-            ghostItems.Width = globalScreen.Width > 0 ? globalScreen.Width : (vm?.DeviceWidth ?? 800);
-            ghostItems.Height = globalScreen.Height > 0 ? globalScreen.Height : (vm?.DeviceHeight ?? 600);
+            ghostItems.Width = globalScreen.Width > 0 ? globalScreen.Width : (vm?.DeviceWidth ?? DefaultDeviceWidth);
+            ghostItems.Height = globalScreen.Height > 0 ? globalScreen.Height : (vm?.DeviceHeight ?? DefaultDeviceHeight);
             // 虚影：半透明 + 整体不参与命中测试（鼠标穿透，不可选中/编辑）
             ghostItems.Opacity = 0.35;
             ghostItems.IsHitTestVisible = false;
@@ -2844,8 +2848,8 @@ namespace NavigatorHMI.Views
             ArrayGuideOverlay.ClearMarks();
 
             var vm = this.DataContext as EditWindowViewModel;
-            itemsControl.Width = screen.Width > 0 ? screen.Width : (vm?.DeviceWidth ?? 800);
-            itemsControl.Height = screen.Height > 0 ? screen.Height : (vm?.DeviceHeight ?? 600);
+            itemsControl.Width = screen.Width > 0 ? screen.Width : (vm?.DeviceWidth ?? DefaultDeviceWidth);
+            itemsControl.Height = screen.Height > 0 ? screen.Height : (vm?.DeviceHeight ?? DefaultDeviceHeight);
 
             itemsControl.SetBinding(ItemsControl.ItemsSourceProperty, new Binding("CurrentScreen.Widgets"));
 
@@ -3500,10 +3504,10 @@ namespace NavigatorHMI.Views
             var now = DateTime.Now;
             var pos = e.GetPosition(DrawingCanvas);
 
-            // 检测双击：两次点击间隔 < 500ms 且距离 < 10px
-            bool isDoubleClick = (now - _lastClickTime).TotalMilliseconds < 500
-                              && Math.Abs(pos.X - _lastClickPosition.X) < 10
-                              && Math.Abs(pos.Y - _lastClickPosition.Y) < 10;
+            // 检测双击：两次点击间隔 < 500ms 且距离 < 10px（与 WidgetSelectionManager 共用常量）
+            bool isDoubleClick = (now - _lastClickTime).TotalMilliseconds < WidgetSelectionManager.DoubleClickIntervalMs
+                              && Math.Abs(pos.X - _lastClickPosition.X) < WidgetSelectionManager.DoubleClickSlopPx
+                              && Math.Abs(pos.Y - _lastClickPosition.Y) < WidgetSelectionManager.DoubleClickSlopPx;
 
             _lastClickTime = now;
             _lastClickPosition = pos;
@@ -3865,14 +3869,17 @@ namespace NavigatorHMI.Views
         #endregion
 
         #region 工具栏按钮操作
-        // 缩放
-        private void ZoomIn_Click(object sender, RoutedEventArgs e) => ApplyZoom(_zoomLevel * 1.25);
-        private void ZoomOut_Click(object sender, RoutedEventArgs e) => ApplyZoom(_zoomLevel / 1.25);
+        // 缩放（2026-08-26 魔法数字整改命名）
+        private const double ZoomStepFactor = 1.25;   // 每步缩放倍率
+        private const double MinZoomLevel = 0.1;      // 最小缩放（10%）
+        private const double MaxZoomLevel = 5.0;      // 最大缩放（500%）
+        private void ZoomIn_Click(object sender, RoutedEventArgs e) => ApplyZoom(_zoomLevel * ZoomStepFactor);
+        private void ZoomOut_Click(object sender, RoutedEventArgs e) => ApplyZoom(_zoomLevel / ZoomStepFactor);
         private void ZoomReset_Click(object sender, RoutedEventArgs e) => ApplyZoom(1.0);
 
         private void ApplyZoom(double level)
         {
-            _zoomLevel = Math.Max(0.1, Math.Min(level, 5.0));
+            _zoomLevel = Math.Max(MinZoomLevel, Math.Min(level, MaxZoomLevel));
             _canvasScale.ScaleX = _zoomLevel;
             _canvasScale.ScaleY = _zoomLevel;
             ZoomLabel.Text = $"{_zoomLevel * 100:F0}%";

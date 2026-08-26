@@ -25,6 +25,8 @@ namespace NavigatorHMI.AiAgent
 
         public const string DefaultEndpoint = "https://api.deepseek.com/v1";
         public const string DefaultModel = "deepseek-chat";
+        /// <summary>HTTP 请求超时（AI 推理慢模型/长上下文的宽松上限，2026-08-26 魔法数字整改命名）。</summary>
+        public static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(120);
 
         public CloudLLMBackend(string? apiKey = null, string? endpoint = null, string? model = null, int maxTokens = 1024)
         {
@@ -36,7 +38,7 @@ namespace NavigatorHMI.AiAgent
             _endpoint = (endpoint ?? Environment.GetEnvironmentVariable("NAVIGATOR_HMI_AI_ENDPOINT") ?? DefaultEndpoint).TrimEnd('/');
             _model = model ?? Environment.GetEnvironmentVariable("NAVIGATOR_HMI_AI_MODEL") ?? DefaultModel;
             _maxTokens = maxTokens;
-            _http = new HttpClient { Timeout = TimeSpan.FromSeconds(120) };
+            _http = new HttpClient { Timeout = RequestTimeout };
             if (_apiKey.Length > 0)
                 _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
         }
