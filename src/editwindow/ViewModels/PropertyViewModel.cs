@@ -6,6 +6,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using NavigatorHMI.CommandLayer;
 using NavigatorHMI.Common;
+using Serilog;
 
 namespace NavigatorHMI.ViewModels
 {
@@ -836,7 +837,7 @@ namespace NavigatorHMI.ViewModels
                         }
                         DirtyRequested?.Invoke();   // 标脏回调约定不抛异常（MarkProjectDirty 仅改标题），保持 try 外保证必达
                         try { OverlayChanged?.Invoke(); }   // 虚影刷新失败不阻断工程标脏（防关闭静默丢失）
-                        catch (Exception) { /* 刷新异常仅影响虚影层显示，标脏已发生 */ }
+                        catch (Exception ex) { Log.Warning(ex, "虚影刷新异常（仅影响虚影层显示，标脏已发生）"); }
                     }
                 }
             }

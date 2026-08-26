@@ -4431,7 +4431,7 @@ namespace NavigatorHMI.Views
                     else if (tb.Tag is string full)
                         System.Windows.Clipboard.SetText(full);
                 }
-                catch (Exception) { /* 剪贴板被其他进程短暂锁定时静默，不阻断 UI */ }
+                catch (Exception ex) { Log.Warning(ex, "剪贴板复制失败（其他进程短暂锁定，不阻断 UI）"); }
             }
         }
 
