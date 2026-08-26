@@ -1356,9 +1356,9 @@ namespace NavigatorHMI.ViewModels
                     TagRequirement.Bool => TagCompatibility.IsBoolCompatible(t.DataType),
                     TagRequirement.Geo => TagCompatibility.IsGeoCompatible(t.DataType),
                     TagRequirement.None => false,   // 禁止绑定：无变量可选
-                    // Any（普通控件）：排除 GPS——GPS 仅作业点/作业范围点可绑（与 TagCompatibility.Check 的 P1 修订
-                    // 一刀切拒绝一致），不下拉显示避免"能选但选了被拒"（Check 1-2 用户实测）；历史非法绑定由下方保留项兜底不静默解绑
-                    _ => t.DataType != TagDataType.GPS,
+                    // Any（普通控件）：默认排除 GPS——E 循环（2026-08-22 用户）放宽 GPS→IOField 坐标输入
+                    // （与 TagCompatibility.Check 一致）；IOField 下拉保留 GPS, 其余控件排除
+                    _ => t.DataType != TagDataType.GPS || _selectedWidget is IOFieldWidget,
                 };
                 if (ok)
                 {

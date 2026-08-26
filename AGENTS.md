@@ -1,18 +1,18 @@
 # NavigatorHMI 工作区指令（DeepSeek Harness / dsh 版）
 
-> 本文件由 Reasonix 于 2026-08-13 为 dsh 适配编写，与 `~/.pi/agent/skills/reviewer/projects/navigator-hmi/PROJECT.md` 配合使用。
+> 本文件由 Reasonix 于 2026-08-13 为 dsh 适配编写，与能力仓库的 `reviewer/projects/navigator-hmi/PROJECT.md` 配合使用。
 > 每个会话开始时：读 PROJECT.md「继续点」判断当前 PDCA 环节，再按下方约定行事。
 
 ## 项目背景
 - NavigatorHMI 工业 HMI 系统：PC 组态软件（C# WPF）+ HMI 设备端（RK3562 / Qt）。
 - **任务结构（2026-08-14 用户定）**：NavigatorHMI = 同一个任务的两个子任务——子任务 A：PC 组态软件（进行中，V1.0 + bug 收尾完成，不结束）；子任务 B：HMI panel（设备端，RK3562/Qt，新建工程）；B 完成后 A/B 联调。两子任务同任务同会话推进。
 - 代码仓库：`D:\workspace\code\navigator_hmi`（分支 arch-scaffold，本地提交未 push）。
-- 知识库（只读引用，物理路径不变）：`~/.pi/agent/skills/reviewer/references/`（7 层）+ 工程库 `projects/navigator-hmi/PROJECT.md`。
+- **能力仓库（AI-Capability，2026-08-23 用户定：不叫 Pi、直接叫能力仓库）**：本地根 `D:\workspace\code\Future-Tech-Workshop-AI-Capability`（git remote `git@github.com:aWhiteWizard/Future-Tech-Workshop-AI-Capability.git`）。知识库 = 仓库内 `reviewer/references/`（7 层 + drafts/inbox）+ 工程库 `reviewer/projects/`；引用一律写仓库内相对路径（如 `reviewer/references/4_bugs/`），不写带 Pi 的完整路径。**统一布局（2026-08-23）**：`~/.pi/agent/skills` 与 `~/.dsh/skills` 均为 junction 指向能力仓库（Pi 侧指向仓库根，dsh 侧指向 `skills/dsh/`）；能力仓库 = 唯一真源，旧目录已备份至 `D:\ProgramData\Agent_backup\`。
 
 ## 用户协作约定（源自 Reasonix memory，2026-08-11 用户定，跨项目）
-- **学习类项目记录方式**：学习类项目（如 hardware-design-learning）一律由用户自己记录笔记；阶段性完成后用户告知，主 Agent 统一入库知识库（references/ 层）——学习类工程产出最终都要落知识库，不能只存会话/project。会话中已确认可沉淀的经验经用户确认后即时入库，不等整个项目学完。
-- **硬件协作分工**：硬件项目方案设计是用户与主 Agent **共同任务**（检索 3_hardware/4_bugs 提供支持）；方案定稿后硬件实现由用户主导；debug 由用户负责，每版问题/优缺点反馈 → 主 Agent 记录入库（问题→4_bugs 负样本、优缺点→3_hardware 设计经验）。与软件分工（主 Agent 实现、用户验证）相反。
-- **D 盘优先（2026-08-14 用户定）**：备份/存档/临时/下载等非必要文件一律放 D 盘（如 `D:\ProgramData\Agent_backup\`），C 盘空间紧张不装大文件；仅在 C 盘放必须的系统/工具文件。**AI/skill 相关一律 D 盘，查询优先 D 盘**——dsh skill 根 = `D:\ProgramData\dsh-skills\`（经 junction 挂 `~/.dsh/skills`），现有 6 个 skill：`wpf-hmi-development` / `embedded-linux-bsp` / `deepseek-agent-integration` / `kb-review-methodology` / `doc-retrieval` / `dotnet-protobuf-contract`（2026-08-14 注册验证通过）。
+- **3 Agent 协作模型（2026-08-23 用户定，取代旧"学习类/硬件分工"）**：① **主 Agent（写作/实施）**——唯一能改代码/写文件，负责任务实施、方案与文档写作，经子 Agent 结果中转交付；② **看图员 Agent（读图）**——🔴 关键图（原理图/时序图/含代码截图）必读、🟡 辅助图时间允许则读、⚫ 装饰图跳过；委派视觉能力子 Agent 或 `pi-diagram-read.sh`（kimi-k3），读图后清理临时图片；③ **审核 Agent（审查）**——加载能力仓库 `reviewer/SKILL.md`（三层框架 + B2 冲突扫描 + 结构化标签），按文件类型加载对应层 reference，只出报告不改代码。子 Agent 只读只产出（审查/读图/检索三类）。
+- **学习类项目记录方式**（保留）**：学习类项目（如 hardware-design-learning）一律由用户自己记录笔记；阶段性完成后用户告知，主 Agent 统一入库知识库（references/ 层）——学习类工程产出最终都要落知识库，不能只存会话/project。会话中已确认可沉淀的经验经用户确认后即时入库，不等整个项目学完。
+- **D 盘优先（2026-08-14 用户定）**：备份/存档/临时/下载等非必要文件一律放 D 盘（如 `D:\ProgramData\Agent_backup\`），C 盘空间紧张不装大文件；仅在 C 盘放必须的系统/工具文件。**AI/skill 相关一律 D 盘，查询优先 D 盘**——**dsh skill 根 = 能力仓库 `skills/dsh/`**（`D:\workspace\code\Future-Tech-Workshop-AI-Capability\skills\dsh`，经 junction 挂 `~/.dsh/skills`），现有 7 个 skill：`wpf-hmi-development` / `embedded-linux-bsp` / `deepseek-agent-integration` / `kb-review-methodology` / `doc-retrieval` / `dotnet-protobuf-contract` / `dsh-client-plugin-development`（2026-08-14 注册验证通过；2026-08-23 迁入能力仓库统一管理）。
 
 ## 长会话与上下文压缩（2026-08-14 用户定，防压缩丢记忆）
 - **背景**：本项目在 DeepSeek Harness 中长期使用**同一个会话**做 PDCA 循环（连贯长任务，不开新会话）。dsh 上下文窗口 1M token，用到 **80%（80 万）自动压缩**：保留最近 16 万 token 细节，更早历史变摘要——压缩只丢 AI 的临时记忆，不丢磁盘上的项目状态。
@@ -60,6 +60,16 @@
 ## Plan 环节产物
 - Plan 定稿时输出《项目计划执行书》`<循环>-execution-plan.md`（摘要/根因/修改点/边界/验收 7 字段），Do 阶段以执行书为准；**Check 完成后直接删除执行书**（2026-08-14 用户定：执行书只给 Do 看，Plan 内容已落 PROJECT.md，无需存档）。
 - **Do 环节任务清单（2026-08-14 用户期望）**：进入 Do 的第一步，用 todo 清单（todo_write）建立任务分解表——每项任务一行（如 Z-1/Z-2/Z-3、编译+测试、reviewer 审查、修复/复审、提交），随进度更新状态（pending/in_progress/completed），GUI 可视化进度；不得直接开工而不建清单。
+
+## 任务简报系统（2026-08-23 用户定，dsh 客户端插件）
+- **UI**：右侧栏「简报」tab（详情面板 tab 条：概览/简报），4 个大框——前情提要 / 劳动纪律 / 附件说明 / 流程说明；点「保存简报」生成 Markdown。
+- **简报文件**：`D:\workspace\code\navigator_hmi\.agent\briefing.md`（agent 目录，固定路径，任何会话都能找到）。
+- **按项目隔离（2026-08-23 用户定）**：简报按会话工作区（cwd）定位——每个项目有自己的 `.agent/briefing.md`；切换到某个项目/会话时，右侧栏简报自动读取对应项目的简报，没有就显示空（首次保存时创建）。
+- **模板功能（2026-08-23 用户定）**：简报 tab 顶部「选择模板」按钮——模板库 = 能力仓库内 `reviewer/references/1_application/briefing-templates/`（知识库 1_application 层，.md 文件，同 4 段结构，跨项目共享，随能力仓库管理）。**模板可在简报内编辑**：「选择模板」列表每项有「编辑」按钮（进入模板编辑模式，4 框加载模板内容，保存覆盖该模板或另存为新名）；列表底部有「新建模板」入口（输入名称 → 编辑模式 → 保存即建）。
+- **启用简报开关（2026-08-23 用户定）**：简报 tab 工具栏「启用简报」checkbox（默认勾选，状态存 `.agent/briefing-settings.json`，按项目隔离）。**勾选时**：输入框工具行出现「☎ 简报发送」按钮，点它把简报全文 + 分隔线 + 用户输入拼好填入输入栏（软件拼接，不靠 LLM 判断）并自动发送（单条）；**未勾选时**：按钮灰「☎ 发送」，行为等同普通发送。
+- **软件拼接按钮（2026-08-23 用户定，取代 agent 行为拼接）**：「☎ 简报发送」按钮 = client 半注册到 `conversation.input.right` 槽位（原发送按钮左侧）。**外观随模式变化**：启用简报且会话空闲 → 高亮蓝底白字「☎ 简报发送」；未启用/插嘴 → 灰底「☎ 发送」。点击流程：读简报全文（`/briefing/load` 的 rawText，若简报不存在则直接提交原输入）→ `inputActions.setDraft(简报全文 + "\n\n---\n\n" + 输入)` **填入输入栏（可见）** → 延迟一拍 `inputActions.submit()` **自动发送**（只发拼接这条单条消息；延迟确保 setDraft 生效、避免同步时序发两条）；插嘴（会话 `running`）或未启用时直接提交原输入；普通回车/原发送按钮不拼接。
+- 简报文件只含 4 个编辑区（前情提要/劳动纪律/附件说明/流程说明），无「会话追加记录」（2026-08-23 用户定：该记录无保留必要，host 半已移除 append 端点与保存保留逻辑）。
+- 插件位置：`~/.dsh/profiles/web/node_modules/@navigatorhmi/dsh-client-ui-briefing/`（host 半 lib/index.js 提供 /briefing RPC：load/save/templates.list/templates.load/settings.get/settings.set；client 半 lib/client.js 渲染编辑器 + 「☎ 简报发送」按钮）；宿主为 overview 插件改造后的 details 面板（tab 条）。
 
 ## 当前继续点
 - 见 PROJECT.md「继续点」段（NavigatorHMI 一个任务两子任务：PC 组态软件进行中 + HMI panel 子任务 B 新建工程；当前进入子任务 B 项目架构讨论）。

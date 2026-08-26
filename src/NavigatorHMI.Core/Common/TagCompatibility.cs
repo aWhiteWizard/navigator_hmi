@@ -64,8 +64,13 @@ namespace NavigatorHMI.Common
         public static string? Check(Widget widget, Tag tag)
         {
             // P1 修订：GPS 变量不再可绑任何控件——仅世界地图作业点/作业范围点绑定（作业点 GUI 独立校验）
+            // E 循环（2026-08-22 用户）：坐标 iofield 输入坐标值——GPS 允许绑 IOField（其余控件仍禁止，
+            // 如 Label/Text 等绑 GPS 仍拒绝）。GPS 坐标数据格式约定：十进制小数度（如 104.0657,30.6570）
             if (tag.DataType == TagDataType.GPS)
-                return $"变量 \"{tag.Name}\" 类型 GPS 不能绑定 {widget.GetType().Name}（GPS 仅世界地图作业点/作业范围点可绑定）";
+            {
+                if (widget is IOFieldWidget) return null;
+                return $"变量 \"{tag.Name}\" 类型 GPS 不能绑定 {widget.GetType().Name}（GPS 仅世界地图作业点/作业范围点、IOField 坐标输入可绑定）";
+            }
             var req = GetRequirement(widget);
             return req switch
             {
