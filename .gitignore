@@ -36,3 +36,8 @@ models/
 
 # agent 目录（简报/甘特配置/Git Review 评审状态——dsh 插件数据，禁止进仓库，2026-08-28）
 .agent/
+
+# 插件生成物/素材/SDK（不入仓，2026-08-28 用户定）
+gantt.md
+image/
+linux_sdk/
