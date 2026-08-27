@@ -33,3 +33,6 @@ models/
 
 # CLI 校验测试临时工程
 校验测试*.hmiproj
+
+# agent 目录（简报/甘特配置/Git Review 评审状态——dsh 插件数据，禁止进仓库，2026-08-28）
+.agent/
