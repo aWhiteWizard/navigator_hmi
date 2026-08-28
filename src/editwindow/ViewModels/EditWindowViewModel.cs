@@ -29,6 +29,9 @@ namespace NavigatorHMI.ViewModels
         /// <summary>CommandService 实例，GUI/CLI/AI 统一入口。</summary>
         public CommandService CommandService { get; }
 
+        /// <summary>设备管理面板 VM（K-4：连接测试/闪烁/VNC/下载，门禁灰显）。</summary>
+        public DevicePanelViewModel DevicePanelVM { get; private set; } = null!;
+
         public int DeviceHeight => _currentProject.DeviceHeight;
         public int DeviceWidth => _currentProject.DeviceWidth;
 
@@ -1046,6 +1049,7 @@ namespace NavigatorHMI.ViewModels
         {
             CurrentProject = project;
             CommandService = new CommandService(project);
+            DevicePanelVM = new DevicePanelViewModel(CommandService);   // K-4：设备管理面板
             CommandService.CommandExecuted += OnCommandExecuted;
             // 构建树根：全局画面、地图画面、自定义画面列表根
             // 注意：树节点选中一律走 ActivateScreen（当前画面未变时也能退出变量管理器视图）
@@ -1542,6 +1546,7 @@ namespace NavigatorHMI.ViewModels
             _aiBackend?.Dispose();
             _aiBackend = null;
             _aiAgent = null;
+            DevicePanelVM?.Dispose();   // K-4：设备面板退订全局事件
             GC.SuppressFinalize(this);
         }
 

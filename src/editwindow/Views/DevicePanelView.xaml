@@ -1,0 +1,58 @@
+<UserControl x:Class="NavigatorHMI.Views.DevicePanelView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             MinWidth="260">
+    <Grid Margin="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- 连接测试（最上方）-->
+        <Button Grid.Row="0" Content="连接测试" Height="30" Command="{Binding ConnectCommand}"
+                HorizontalAlignment="Left" Padding="16,0" Margin="0,0,0,8" Cursor="Hand"/>
+
+        <!-- IP + 设备类型（中间）-->
+        <Grid Grid.Row="1" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="IP:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+            <TextBox Grid.Column="1" Text="{Binding Ip, UpdateSourceTrigger=PropertyChanged}" Height="26" VerticalContentAlignment="Center"
+                     ToolTip="设备 IP（如 192.168.1.146）" Padding="4,2"/>
+            <TextBlock Grid.Column="2" Text="类型:" VerticalAlignment="Center" Margin="10,0,6,0"/>
+            <ComboBox Grid.Column="3" ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}" Height="26" VerticalContentAlignment="Center"
+                      DisplayMemberPath="Model" ToolTip="设备型号（device-profile 驱动）"/>
+        </Grid>
+
+        <!-- 搜索 / 闪烁 / VNC 开关（下拉右侧横排）-->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,8">
+            <Button Content="搜索设备" Height="26" Padding="10,0" Margin="0,0,8,0" Cursor="Hand" IsEnabled="False"
+                    ToolTip="局域网扫描（V1.1 后续扩展）"/>
+            <Button Content="设备闪烁" Height="26" Padding="10,0" Margin="0,0,8,0" Command="{Binding BlinkCommand}" Cursor="Hand"/>
+            <CheckBox Content="VNC" VerticalAlignment="Center" IsChecked="{Binding VncOn}" Command="{Binding VncCommand}"
+                      ToolTip="VNC 运行时启停（5900）"/>
+        </StackPanel>
+
+        <!-- 状态信息 -->
+        <Border Grid.Row="3" Background="#F5F5F5" BorderBrush="#DDDDDD" BorderThickness="1" Padding="8,6" Margin="0,0,0,8">
+            <StackPanel>
+                <TextBlock Text="{Binding StatusText}" FontSize="12" TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding ProgressText}" FontSize="11" Foreground="#2D7DD2" TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
+
+        <!-- 下载区（门禁灰显）-->
+        <StackPanel Grid.Row="4" Orientation="Horizontal">
+            <Button Content="下载工程" Height="30" Padding="16,0" Command="{Binding DeployCommand}" Cursor="Hand"
+                    ToolTip="编译+打包+HTTP 传输（需已连接且型号支持部署）"/>
+            <TextBlock Text="（需连接测试通过）" VerticalAlignment="Center" Margin="8,0,0,0" FontSize="11" Foreground="#999999"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

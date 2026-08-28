@@ -1079,7 +1079,7 @@
     </Window.InputBindings>
 
     <Grid>
-        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
 
         <Menu x:Name="MainMenu" Grid.Row="0" HorizontalAlignment="Left">
             <MenuItem Header="文件">
@@ -2038,8 +2038,7 @@
 
                         <!-- 右侧: 属性窗口 -->
                         <avalon:LayoutAnchorablePane DockWidth="260">
-                            <avalon:LayoutAnchorable Title="属性" ContentId="property">
-                                <Grid Margin="4" DataContext="{Binding PropertyVM, RelativeSource={RelativeSource AncestorType=Window}}">
+                            <avalon:LayoutAnchorable Title="属性" ContentId="property">                                <Grid Margin="4" DataContext="{Binding PropertyVM, RelativeSource={RelativeSource AncestorType=Window}}">
                                     <TextBlock Text="请选择一个控件" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="Gray" FontSize="14">
                                         <TextBlock.Style><Style TargetType="TextBlock">
                                             <Setter Property="Visibility" Value="Collapsed"/>
@@ -2106,6 +2105,10 @@
                                     </ScrollViewer>
                                 </Grid>
                             </avalon:LayoutAnchorable>
+                            <!-- K-4: 设备管理面板（连接测试/闪烁/VNC 开关/下载工程，门禁灰显）-->
+                            <avalon:LayoutAnchorable Title="设备管理" ContentId="device">
+                                <ctrl:DevicePanelView x:Name="DevicePanel" DataContext="{Binding DevicePanelVM, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                            </avalon:LayoutAnchorable>
                         </avalon:LayoutAnchorablePane>
                     </avalon:LayoutPanel>
 
@@ -2133,6 +2136,11 @@
                 </avalon:LayoutPanel>
             </avalon:LayoutRoot>
         </avalon:DockingManager>
+
+        <!-- K-4: 主窗口状态栏（连接状态随 ConnectionSession 实时联动——GUI 与 CLI connect 对等）-->
+        <Border Grid.Row="4" Background="#F0F0F0" BorderBrush="#DDDDDD" BorderThickness="0,1,0,0" Padding="10,3">
+            <TextBlock x:Name="ConnectionStatusBar" FontSize="12" Foreground="#333333" Text="未连接"/>
+        </Border>
 
         <!-- ═══ AI 助手：悬浮按钮（任务11 退回内嵌）+ 右侧侧边栏 ═══ -->
         <Button x:Name="AiFabBtn" Grid.Row="3" Panel.ZIndex="1000" Width="46" Height="46" HorizontalAlignment="Right" VerticalAlignment="Bottom"

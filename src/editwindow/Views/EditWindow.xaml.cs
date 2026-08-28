@@ -169,6 +169,21 @@ namespace NavigatorHMI.Views
 
         #region 构造函数 & 初始化
 
+        /// <summary>K-4: 连接会话变化 → 状态栏（SessionChanged 可能后台线程——Dispatcher 封送）。</summary>
+        private void OnConnectionSessionChanged(ConnectionSession? session)
+        {
+            Dispatcher.BeginInvoke(new Action(UpdateConnectionStatusBar));
+        }
+
+        /// <summary>K-4: 刷新状态栏文本（未连接 / 已连接 IP·型号·固件）。</summary>
+        private void UpdateConnectionStatusBar()
+        {
+            var s = DeviceConnectionService.Session;
+            ConnectionStatusBar.Text = s == null
+                ? "未连接"
+                : $"已连接 {s.Ip} · {s.Model} · 固件 {s.FirmwareVersion ?? "?"}";
+        }
+
         public EditWindow(HMIProject project)
         {
             InitializeComponent();
@@ -180,6 +195,10 @@ namespace NavigatorHMI.Views
             // 2. 保存项目引用
             _currentProject = project;
             this.Title = project.ProjectFilePath;
+
+            // K-4: 主窗口状态栏（连接状态随 ConnectionSession 实时联动——GUI 与 CLI connect 对等）
+            DeviceConnectionService.SessionChanged += OnConnectionSessionChanged;
+            UpdateConnectionStatusBar();
 
             // 画布缩放
             DrawingCanvas.LayoutTransform = _canvasScale;
@@ -2514,6 +2533,7 @@ namespace NavigatorHMI.Views
         /// </summary>
         private void EditWindow_Closed(object? sender, EventArgs e)
         {
+            DeviceConnectionService.SessionChanged -= OnConnectionSessionChanged;   // K-4：状态栏退订（防闭包持有已关闭窗口）
             _clockTimer.Stop();   // D6：关闭停止画布时钟
             if (SelectorHelper.ResizeDragStarted == _resizeDragStartedCallback)
                 SelectorHelper.ResizeDragStarted = null;
