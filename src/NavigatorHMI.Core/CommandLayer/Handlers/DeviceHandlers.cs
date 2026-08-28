@@ -100,7 +100,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
             Parameters = new()
             {
                 ["ip"] = new() { Type = "string", Required = true, Description = "设备 IP 地址" },
-                ["model"] = new() { Type = "string", DefaultValue = "NavigatorHMI", Description = "设备型号" },
+                ["model"] = new() { Type = "string", DefaultValue = "NavigatorHMI-7", Description = "设备型号（device-profile 已知型号）" },
                 ["size_inch"] = new() { Type = "string", Description = "设备尺寸（7寸/4寸，profile 校验）", KeepInCompact = true },
             }
         };

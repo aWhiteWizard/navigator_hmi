@@ -157,7 +157,7 @@ public static class Program
             "configure-device" => Cmd("configure_device", Require("name"), Require("protocol"), Require("connection", "connection_info")),
             "update-device"   => Cmd("update_device", Require("name"), OptIfProvided("new-name", "new_name"), OptIfProvided("protocol"), OptIfProvided("connection", "connection_info")),
             "delete-device"   => Cmd("delete_device", Require("name")),
-            "connect"         => Cmd("connect", Require("ip"), Opt("model", "NavigatorHMI"), OptMap("size-inch", "size_inch", "")),
+            "connect"         => Cmd("connect", Require("ip"), Opt("model", "NavigatorHMI-7"), OptMap("size-inch", "size_inch", "")),
             "disconnect"      => Cmd("disconnect"),
             "scan"            => Cmd("scan_devices", Opt("nic", "eth0")),
             "deploy-project"  => Cmd("deploy_project", Require("ip", "device_ip"), OptMap("file", "file_path", "")),

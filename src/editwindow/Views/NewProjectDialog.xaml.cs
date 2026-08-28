@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -25,10 +25,14 @@ namespace NavigatorHMI.Views
     /// </summary>
     public partial class NewProjectDialog : Window
     {
+        private readonly DeviceConfigViewModel? _vm;
+
         public NewProjectDialog()
         {
             InitializeComponent();
-            this.DataContext = new DeviceConfigViewModel();
+            _vm = new DeviceConfigViewModel();
+            this.DataContext = _vm;
+            this.Closed += (s, e) => _vm?.Dispose();   // K-7：退订全局事件防泄漏
         }
 
         private void OpenPathSelectDialog_Click(object sender, RoutedEventArgs e)

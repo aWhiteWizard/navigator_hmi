@@ -18,13 +18,16 @@ using Screen = NavigatorHMI.Common.Screen;
 
 namespace NavigatorHMI.ViewModels
 {
-    public class DeviceConfigViewModel : INotifyPropertyChanged
+    public class DeviceConfigViewModel : INotifyPropertyChanged, IDisposable
     {
         public event PropertyChangedEventHandler PropertyChanged;
         protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
+
+        /// <summary>退订全局事件（静态事件持有 VM 会泄漏——对话框关闭时调用）。</summary>
+        public void Dispose() => DeviceProfileService.ProfilesChanged -= OnProfilesChanged;
 
         private HMIProject _currentProject;
         public HMIProject CurrentProject
@@ -73,11 +76,65 @@ namespace NavigatorHMI.ViewModels
 
             FilteredDeviceModels = new ObservableCollection<DeviceModel>();
 
-            // 默认选择第一个设备
+            // K-7：设备模型/版本来自 device-profile 描述文件（加新型号只加文件，不改代码）+ 目录热重载
+            DeviceProfileService.Initialize(Path.Combine(AppContext.BaseDirectory, "device-profiles"));
+            DeviceProfileService.ProfilesChanged += OnProfilesChanged;
+            RefreshProfiles();
+
+            // 默认选择第一个版本
             if (DeviceVersions.Count > 0)
                 SelectedDeviceVersion = DeviceVersions[0];
 
             FilterDeviceModels();
+        }
+
+        /// <summary>设备模型（K-7：device-profile 驱动——Test_HMI 已移除，仅真实型号）。</summary>
+        public List<DeviceModel> DeviceModels { get; private set; } = new();
+
+        /// <summary>可用版本（K-7：profile capability.compileVersion 去重——Test_Version 已移除）。</summary>
+        public List<DeviceVersion> DeviceVersions { get; private set; } = new();
+
+        /// <summary>刷新 profile 驱动的模型/版本列表（热重载时调用）；保持用户选中（版本按值重定位新实例、模型按 Name 保持）。</summary>
+        private void RefreshProfiles()
+        {
+            var prevVersion = SelectedDeviceVersion?.Version;
+            var prevModelName = SelectedDeviceModel?.Name;
+            DeviceModels = DeviceProfileService.Profiles.Select(p => new DeviceModel
+            {
+                Name = p.Model,
+                Version = p.Capability.CompileVersion,
+                Width = p.Width.ToString(),
+                Height = p.Height.ToString()
+            }).ToList();
+            DeviceVersions = DeviceProfileService.Profiles
+                .Select(p => p.Capability.CompileVersion)
+                .Where(v => !string.IsNullOrWhiteSpace(v))
+                .Distinct()
+                .Select(v => new DeviceVersion { Version = v! })
+                .ToList();
+            // 版本选中：按值重新定位新实例（旧实例不在新 ItemsSource，保留引用会致 SelectionBox 空白）
+            if (prevVersion != null)
+            {
+                var match = DeviceVersions.FirstOrDefault(v => v.Version == prevVersion);
+                SelectedDeviceVersion = match ?? DeviceVersions.FirstOrDefault();
+            }
+            else
+            {
+                SelectedDeviceVersion = DeviceVersions.FirstOrDefault();
+            }
+            OnPropertyChanged(nameof(DeviceModels));
+            OnPropertyChanged(nameof(DeviceVersions));
+            FilterDeviceModels(prevModelName);
+        }
+
+        /// <summary>FileSystemWatcher 事件在后台线程——UI 线程封送刷新。</summary>
+        private void OnProfilesChanged()
+        {
+            var dispatcher = System.Windows.Application.Current?.Dispatcher;
+            if (dispatcher != null && !dispatcher.CheckAccess())
+                dispatcher.BeginInvoke(new Action(RefreshProfiles));
+            else
+                RefreshProfiles();
         }
         private void ExecuteSave()
         {
@@ -139,14 +196,6 @@ namespace NavigatorHMI.ViewModels
             MessageBox.Show("打开项目功能尚未实现！");
         }
 
-        // 创建设备模型
-        public List<DeviceModel> DeviceModels { get; } = new List<DeviceModel>
-        {
-            new DeviceModel { Name = "NavigatorHMI_4'",Version = "V1", Width = "720", Height = "720" },
-            new DeviceModel { Name = "NavigatorHMI_7'", Version = "V1", Width = "1024", Height = "600" },
-            new DeviceModel { Name = "Test_HMI", Version = "Test_Version", Width = "999", Height = "999" },
-        };
-
         // 选中的设备（现在是DeviceModel对象）
         private DeviceModel _selectedDeviceModel;
         public DeviceModel SelectedDeviceModel
@@ -159,13 +208,6 @@ namespace NavigatorHMI.ViewModels
             }
         }
 
-        // 可用版本集合
-        public List<DeviceVersion> DeviceVersions { get; } = new List<DeviceVersion>
-        {
-            new DeviceVersion { Version = "V1" },
-            new DeviceVersion { Version = "Test_Version" },
-        };
-        // 选中的版本（现在是DeviceModel对象）
         private DeviceVersion _selectedDeviceVersion;
         public DeviceVersion SelectedDeviceVersion
         {
@@ -186,7 +228,7 @@ namespace NavigatorHMI.ViewModels
                     OnPropertyChanged(); 
                 }
         }
-        private void FilterDeviceModels()
+        private void FilterDeviceModels(string? keepName = null)
         {
             if (SelectedDeviceVersion == null)
             {
@@ -198,8 +240,9 @@ namespace NavigatorHMI.ViewModels
             FilteredDeviceModels.Clear();
             foreach (var model in filtered)
                 FilteredDeviceModels.Add(model);
-            if (FilteredDeviceModels.Count != 0)
-                SelectedDeviceModel = FilteredDeviceModels[0];
+            // 保持用户选中（热重载后按 Name 重定位）；无保留则选第一个
+            var keep = keepName != null ? filtered.FirstOrDefault(m => m.Name == keepName) : null;
+            SelectedDeviceModel = keep ?? FilteredDeviceModels.FirstOrDefault();
         }
 
         private void SaveProject(HMIProject project, string filePath)

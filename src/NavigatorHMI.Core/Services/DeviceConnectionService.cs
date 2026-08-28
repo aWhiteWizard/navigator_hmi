@@ -70,7 +70,7 @@ namespace NavigatorHMI.Common
         private const int ConnectTimeoutMs = 2000;
 
         /// <summary>测试连接并（成功时）建立会话。失败路径统一断开旧会话（设计 P0 ①：连接测试失败自动断开）。
-        /// 校验：型号全等（忽略大小写）+ 尺寸匹配（K-7 profile 升级前简单匹配）。</summary>
+        /// 校验（K-7 profile 驱动）：期望型号已配置描述文件 → 设备上报型号匹配 → 尺寸匹配。</summary>
         public static DeviceTestResult TestConnection(string ip, string model, string? sizeInch = null)
         {
             if (string.IsNullOrWhiteSpace(ip) || string.IsNullOrWhiteSpace(model))
@@ -96,18 +96,27 @@ namespace NavigatorHMI.Common
                 var devSize = root.TryGetProperty("sizeInch", out var s) ? SizeValue(s) : null;
                 var fwVer = root.TryGetProperty("version", out var v) ? v.GetString() : null;
 
-                if (!devModel.Equals(model.Trim(), StringComparison.OrdinalIgnoreCase))
+                // K-7 联动：期望型号必须已配置描述文件（未知型号 → 保守降级：拒绝建立会话，下载/部署被 CONNECTION_REQUIRED 门禁灰显）
+                var profile = DeviceProfileService.GetByModel(model);
+                if (profile == null)
                 {
-                    SetSession(null);   // 型号不匹配 → 失败自动断开
+                    SetSession(null);
                     return DeviceTestResult.Fail(DeviceTestStatus.DeviceMismatch,
-                        $"型号不匹配：期望 {model}，设备上报 {devModel}");
+                        $"未知型号 \"{model}\" 未配置描述文件（device-profiles），连接已拒绝（无法校验能力）");
                 }
-                if (!string.IsNullOrEmpty(sizeInch) && !string.IsNullOrEmpty(devSize)
-                    && !devSize.Equals(sizeInch, StringComparison.OrdinalIgnoreCase))
+                if (!devModel.Equals(profile.Model, StringComparison.OrdinalIgnoreCase))
                 {
-                    SetSession(null);   // 尺寸不匹配 → 失败自动断开
+                    SetSession(null);
                     return DeviceTestResult.Fail(DeviceTestStatus.DeviceMismatch,
-                        $"尺寸不匹配：期望 {sizeInch}，设备上报 {devSize}");
+                        $"型号不匹配：期望 {profile.Model}，设备上报 {devModel}");
+                }
+                var expectSize = sizeInch ?? profile.SizeInch;
+                if (!string.IsNullOrEmpty(expectSize) && !string.IsNullOrEmpty(devSize)
+                    && !NormalizeSize(devSize).Equals(NormalizeSize(expectSize), StringComparison.OrdinalIgnoreCase))
+                {
+                    SetSession(null);
+                    return DeviceTestResult.Fail(DeviceTestStatus.DeviceMismatch,
+                        $"尺寸不匹配：期望 {expectSize}，设备上报 {devSize}");
                 }
 
                 var session = new ConnectionSession(ip.Trim(), devModel, devSize, fwVer, DateTime.UtcNow);
@@ -129,6 +138,13 @@ namespace NavigatorHMI.Common
                 JsonValueKind.Number => el.ToString(),
                 _ => null
             };
+
+        /// <summary>尺寸比较归一（"7寸" ↔ "7" 等价——FW 契约定标前兼容两种报文形态）。</summary>
+        private static string NormalizeSize(string size)
+        {
+            var s = size.Trim();
+            return s.EndsWith("寸", StringComparison.Ordinal) ? s[..^1] : s;
+        }
 
         /// <summary>断开连接（幂等）：会话置 null + 广播事件。连接测试失败自动断开同入口。</summary>
         public static void Disconnect()

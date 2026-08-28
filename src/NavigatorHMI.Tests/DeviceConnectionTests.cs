@@ -148,12 +148,12 @@ namespace NavigatorHMI.Tests
         public void 本地假设备_型号尺寸匹配_连接成功()
         {
             DeviceConnectionService.UseStub = false;
-            var (_, ip, port) = StartFakeDevice("{\"model\":\"NavigatorHMI\",\"sizeInch\":\"7寸\",\"version\":\"1.0.0\"}");
+            var (_, ip, port) = StartFakeDevice("{\"model\":\"NavigatorHMI-7\",\"sizeInch\":\"7寸\",\"version\":\"1.0.0\"}");
             var svc = NewService();
-            // ip 带端口（127.0.0.1:<port>）——http://{ip}/api/device/info 天然支持 host:port
-            var result = svc.Execute("connect", new Dictionary<string, object?> { ["ip"] = $"{ip}:{port}", ["model"] = "NavigatorHMI", ["size_inch"] = "7寸" });
+            // ip 带端口（127.0.0.1:<port>）——http://{ip}/api/device/info 天然支持 host:port；型号须在 device-profile 已知
+            var result = svc.Execute("connect", new Dictionary<string, object?> { ["ip"] = $"{ip}:{port}", ["model"] = "NavigatorHMI-7", ["size_inch"] = "7寸" });
             Assert.True(result.Success);
-            Assert.Equal("NavigatorHMI", DeviceConnectionService.Session!.Model);
+            Assert.Equal("NavigatorHMI-7", DeviceConnectionService.Session!.Model);
             Assert.Equal("7寸", DeviceConnectionService.Session!.SizeInch);
             Assert.Equal("1.0.0", DeviceConnectionService.Session!.FirmwareVersion);
         }
@@ -164,7 +164,7 @@ namespace NavigatorHMI.Tests
             DeviceConnectionService.UseStub = false;
             var (_, ip, port) = StartFakeDevice("{\"model\":\"OtherModel\",\"sizeInch\":\"7寸\"}");
             var svc = NewService();
-            var result = svc.Execute("connect", new Dictionary<string, object?> { ["ip"] = $"{ip}:{port}", ["model"] = "NavigatorHMI" });
+            var result = svc.Execute("connect", new Dictionary<string, object?> { ["ip"] = $"{ip}:{port}", ["model"] = "NavigatorHMI-7" });
             Assert.False(result.Success);
             Assert.Equal("DEVICE_MISMATCH", result.ErrorCode);
             Assert.Null(DeviceConnectionService.Session);
@@ -174,11 +174,25 @@ namespace NavigatorHMI.Tests
         public void 本地假设备_尺寸不匹配_DEVICE_MISMATCH()
         {
             DeviceConnectionService.UseStub = false;
-            var (_, ip, port) = StartFakeDevice("{\"model\":\"NavigatorHMI\",\"sizeInch\":\"4寸\"}");
+            var (_, ip, port) = StartFakeDevice("{\"model\":\"NavigatorHMI-7\",\"sizeInch\":\"4寸\"}");
             var svc = NewService();
-            var result = svc.Execute("connect", new Dictionary<string, object?> { ["ip"] = $"{ip}:{port}", ["model"] = "NavigatorHMI", ["size_inch"] = "7寸" });
+            var result = svc.Execute("connect", new Dictionary<string, object?> { ["ip"] = $"{ip}:{port}", ["model"] = "NavigatorHMI-7", ["size_inch"] = "7寸" });
             Assert.False(result.Success);
             Assert.Equal("DEVICE_MISMATCH", result.ErrorCode);
+        }
+
+        [Fact]
+        public void 本地假设备_未知型号_DEVICE_MISMATCH_保守降级()
+        {
+            // K-7：期望型号未配置描述文件 → 未知型号保守降级（仅连接测试，不允许下载）
+            DeviceConnectionService.UseStub = false;
+            var (_, ip, port) = StartFakeDevice("{\"model\":\"NavigatorHMI-7\",\"sizeInch\":\"7寸\"}");
+            var svc = NewService();
+            var result = svc.Execute("connect", new Dictionary<string, object?> { ["ip"] = $"{ip}:{port}", ["model"] = "UnknownModel" });
+            Assert.False(result.Success);
+            Assert.Equal("DEVICE_MISMATCH", result.ErrorCode);
+            Assert.Contains("未知型号", result.ErrorMessage);
+            Assert.Null(DeviceConnectionService.Session);
         }
 
         [Fact]
@@ -187,7 +201,7 @@ namespace NavigatorHMI.Tests
             DeviceConnectionService.UseStub = false;
             var (_, ip, port) = StartFakeDevice("这不是JSON");
             var svc = NewService();
-            var result = svc.Execute("connect", new Dictionary<string, object?> { ["ip"] = $"{ip}:{port}", ["model"] = "NavigatorHMI" });
+            var result = svc.Execute("connect", new Dictionary<string, object?> { ["ip"] = $"{ip}:{port}", ["model"] = "NavigatorHMI-7" });
             Assert.False(result.Success);
             Assert.Equal("CONNECTION_FAILED", result.ErrorCode);
             Assert.Null(DeviceConnectionService.Session);

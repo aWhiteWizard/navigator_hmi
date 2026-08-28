@@ -4578,7 +4578,7 @@ namespace NavigatorHMI.Views
                 "scan" => _viewModel.CommandService.Execute("scan_devices",
                     new() { ["nic"] = opts.GetValueOrDefault("nic", "") }),
                 "connect" => _viewModel.CommandService.Execute("connect",
-                    new() { ["ip"] = opts.GetValueOrDefault("ip", ""), ["model"] = opts.GetValueOrDefault("model", "NavigatorHMI"), ["size_inch"] = opts.GetValueOrDefault("size-inch", "") }),
+                    new() { ["ip"] = opts.GetValueOrDefault("ip", ""), ["model"] = opts.GetValueOrDefault("model", "NavigatorHMI-7"), ["size_inch"] = opts.GetValueOrDefault("size-inch", "") }),
                 "disconnect" => _viewModel.CommandService.Execute("disconnect", new()),
                 "configure-device" => _viewModel.CommandService.Execute("configure_device",
                     new() { ["name"] = opts.GetValueOrDefault("name", ""), ["protocol"] = opts.GetValueOrDefault("protocol", ""), ["connection_info"] = opts.GetValueOrDefault("connection", "") }),
