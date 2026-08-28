@@ -27,6 +27,9 @@ namespace NavigatorHMI.Common
             public string Model { get; set; } = "";
             public string Depth { get; set; } = "";
             public string Context { get; set; } = "";
+
+            /// <summary>命令黑名单（K-6 安全闸）：默认含高风险下载命令；设置窗可配增删。</summary>
+            public List<string> Blacklist { get; set; } = new() { "deploy_project", "deploy_firmware" };
         }
 
         /// <summary>读取配置（损坏/缺失时返回全空默认值，不抛异常）。</summary>
@@ -48,6 +51,18 @@ namespace NavigatorHMI.Common
                     cfg.Depth = d.GetString() ?? "";
                 if (r.TryGetProperty("context", out var c) && c.ValueKind == JsonValueKind.String)
                     cfg.Context = c.GetString() ?? "";
+                // K-6：黑名单（数组；区分「缺失/损坏（回退默认）」与「合法空数组（用户清空，照用）」——清空必须可持久化）
+                if (r.TryGetProperty("blacklist", out var bl) && bl.ValueKind == JsonValueKind.Array)
+                {
+                    var list = new List<string>();
+                    bool valid = true;
+                    foreach (var item in bl.EnumerateArray())
+                    {
+                        if (item.ValueKind != JsonValueKind.String) { valid = false; break; }
+                        if (!string.IsNullOrWhiteSpace(item.GetString())) list.Add(item.GetString()!);
+                    }
+                    if (valid) cfg.Blacklist = list;   // 合法数组照用（空数组 = 用户清空黑名单）
+                }
             }
             catch { /* 损坏/不可读时用默认值，不阻断 */ }
             return cfg;
@@ -67,6 +82,7 @@ namespace NavigatorHMI.Common
                     model = cfg.Model,
                     depth = cfg.Depth,
                     context = cfg.Context,
+                    blacklist = cfg.Blacklist ?? new List<string>(),
                 };
                 File.WriteAllText(ConfigPath, JsonSerializer.Serialize(json));
                 return true;

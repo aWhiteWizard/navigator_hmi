@@ -1371,6 +1371,8 @@ namespace NavigatorHMI.ViewModels
 
         private void SaveAiConfig()
         {
+            // K-6：保留现有黑名单（Load 合并——否则构造全新配置会把用户在设置窗自定义的黑名单覆盖回默认）
+            var existing = AiConfigStore.Load();
             AiConfigStore.Save(new AiConfigStore.AiConfig
             {
                 ApiKey = _aiApiKey,
@@ -1378,6 +1380,7 @@ namespace NavigatorHMI.ViewModels
                 Model = _selectedAiModel.Key,
                 Depth = _selectedAiDepth.Key,
                 Context = _selectedAiContext.Key,
+                Blacklist = existing.Blacklist,
             });
         }
 
@@ -1480,6 +1483,7 @@ namespace NavigatorHMI.ViewModels
                                 return;
                             }
                             _aiBackend = localBackend;
+                            AIAgent.SetBlacklist(AiConfigStore.Load().Blacklist);   // K-6：持久化黑名单注入
                             _aiAgent = new AIAgent(CommandService, localBackend, enableTools: true, UiCommandDispatcher)
                             {
                                 MaxIterations = SelectedAiDepth.Key switch { "fast" => 4, "deep" => 16, _ => 8 },
@@ -1511,6 +1515,7 @@ namespace NavigatorHMI.ViewModels
                         ? "未配置云端 API Key：请在设置中填写，或设置环境变量 NAVIGATOR_HMI_AI_KEY / DEEPSEEK_API"
                         : "云端 API 不可用：请检查 API Key 与网络");
             }
+            AIAgent.SetBlacklist(AiConfigStore.Load().Blacklist);   // K-6：持久化黑名单注入
             _aiAgent = new AIAgent(CommandService, _aiBackend, enableTools, UiCommandDispatcher)
             {
                 MaxIterations = SelectedAiDepth.Key switch { "fast" => 4, "deep" => 16, _ => 8 },

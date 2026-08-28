@@ -27,10 +27,29 @@ namespace NavigatorHMI.AiAgent
         public const string CompleteSentinel = "__complete__";
 
         /// <summary>
-        /// 命令黑名单：默认**空**（AI 可执行全部命令——连接/部署/设备参数均放行，删除画面保护由 handler 层保证 Template/WorldMap 不可删）。
-        /// 命中黑名单的命令：不暴露给模型 + 执行时拒绝并提醒用户手动操作。
+        /// 命令黑名单（K-6 安全闸）：默认含高风险下载命令（deploy_project/deploy_firmware）——AI 不能执行，命中 BLOCKED + 提醒手动；
+        /// 设置窗 GUI 可配增删（AiConfigStore.Blacklist 持久化 → SetBlacklist 注入）。
         /// </summary>
-        private static readonly string[] BlacklistCommands = { };
+        private static List<string> _blacklist = new() { "deploy_project", "deploy_firmware" };
+
+        /// <summary>当前黑名单（只读视图）。</summary>
+        public static IReadOnlyList<string> Blacklist => _blacklist;
+
+        /// <summary>设置黑名单（GUI 设置窗保存后注入；幂等去重）。</summary>
+        public static void SetBlacklist(IEnumerable<string> names)
+            => _blacklist = (names ?? Enumerable.Empty<string>()).Distinct().ToList();
+
+        /// <summary>确认闸命令（K-6）：AI 发起这些操作需会话内用户明确授权（防误触）——未授权返回 CONFIRM_REQUIRED。
+        /// 含部署类（纵深防御：黑名单在则 BLOCKED 优先，用户移出黑名单后仍需确认——设计 P0 ② B2 SOFT 取保守值）。</summary>
+        private static readonly string[] ConfirmCommands = { "connect", "deploy_project", "deploy_firmware" };
+
+        /// <summary>确认命令中文别名（用户按提示回复「确认连接」等自然语言可授权——命令名 ASCII 与中文别名任一命中）。</summary>
+        private static readonly Dictionary<string, string[]> ConfirmAliases = new()
+        {
+            ["connect"] = new[] { "connect", "连接" },
+            ["deploy_project"] = new[] { "deploy_project", "下载工程", "部署工程" },
+            ["deploy_firmware"] = new[] { "deploy_firmware", "下载固件", "升级固件" },
+        };
 
         /// <summary>会话历史保留最近 N 轮 user/assistant 对（防长会话超模型上下文）；GUI 上下文长度选项可调。</summary>
         public int MaxHistoryTurns { get; set; } = 10;
@@ -41,7 +60,7 @@ namespace NavigatorHMI.AiAgent
             _backend = backend ?? throw new ArgumentNullException(nameof(backend));
             _enableTools = enableTools;
             _commandDispatcher = commandDispatcher;   // GUI 注入 Dispatcher：命令执行（改模型集合）必须在 UI 线程，防 CollectionView 跨线程异常
-            var defs = commands.GetAvailableCommands().Where(c => !BlacklistCommands.Contains(c.Name));   // 全量命令（黑名单除外）
+            var defs = commands.GetAvailableCommands().Where(c => !_blacklist.Contains(c.Name));   // 全量命令（黑名单除外）
             _toolsJson = _enableTools ? ToolsSchemaBuilder.Build(defs, compact: true) : "";   // 精简 schema（省略参数描述）：模型调工具准确率高；无工具模式空串（后端跳过 tools 注入）
             _history.Add(new ChatMessage("system", BuildSystemPrompt()));   // 会话首条：规则
         }
@@ -74,11 +93,19 @@ namespace NavigatorHMI.AiAgent
         private CommandResult ExecuteCommand(string name, Dictionary<string, object?> args)
         {
             // 操作清单记录提前：BLOCKED 拒绝、CLI 直接执行都计入（清单是 GUI 展示，但记录逻辑统一）
-            if (BlacklistCommands.Contains(name))
+            if (_blacklist.Contains(name))
             {
                 var blocked = CommandResult.Fail("BLOCKED", $"操作 \"{name}\" 已在 AI 黑名单中，AI 不能执行；请手动操作。");
                 _lastOperations.Add(new AiOperation(name, SummarizeArgs(args), false));
                 return blocked;
+            }
+            // K-6 确认闸：需确认命令（connect）——会话内用户明确授权才执行（防误触；授权检测最近 user 消息含确认词）
+            if (ConfirmCommands.Contains(name) && !UserApprovedSensitiveCommand(name))
+            {
+                var confirm = CommandResult.Fail("CONFIRM_REQUIRED",
+                    $"操作 \"{name}\" 需您确认——请明确回复「确认{name}」后重试（或手动 connect）。");
+                _lastOperations.Add(new AiOperation(name, SummarizeArgs(args), false));
+                return confirm;
             }
             if (_commandDispatcher == null)
             {
@@ -98,6 +125,20 @@ namespace NavigatorHMI.AiAgent
             }
             _lastOperations.Add(new AiOperation(name, SummarizeArgs(args), result.Success));
             return result;
+        }
+
+        /// <summary>K-6 确认闸授权检测：最近 user 消息含明确授权词（确认/同意）+ 命令名或中文别名。</summary>
+        private bool UserApprovedSensitiveCommand(string commandName)
+        {
+            var lastUser = _history.LastOrDefault(m => m.Role == "user")?.Content ?? "";
+            if (string.IsNullOrEmpty(lastUser)) return false;
+            var normalized = lastUser.ToLowerInvariant();
+            var confirm = normalized.Contains("确认") || normalized.Contains("同意");
+            if (!confirm) return false;
+            var cmdMention = normalized.Contains(commandName.ToLowerInvariant());
+            if (!cmdMention && ConfirmAliases.TryGetValue(commandName, out var aliases))
+                cmdMention = aliases.Any(a => normalized.Contains(a));
+            return cmdMention;
         }
 
         /// <summary>命令参数摘要（清单展示用：键=值，值裁剪防刷屏）。</summary>

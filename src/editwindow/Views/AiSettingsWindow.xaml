@@ -23,6 +23,20 @@
                      ToolTip="本地 GGUF 文件路径（如 D:\models\qwen2.5-7b-instruct-q4_k_m.gguf）"/>
             <Button Grid.Column="1" Content="浏览…" Height="28" Margin="6,0,0,0" Padding="10,0" Click="Browse_Click" Cursor="Hand"/>
         </Grid>
+        <TextBlock Text="命令黑名单（K-6 安全闸）" FontWeight="Bold" FontSize="13" Margin="0,16,0,4"/>
+        <TextBlock Text="黑名单命令 AI 不能执行（命中返回 BLOCKED，需手动操作）。默认含高风险下载命令。" TextWrapping="Wrap" Foreground="#666666" FontSize="11" Margin="0,0,0,6"/>
+        <ListBox x:Name="BlacklistBox" Height="90" FontSize="12" Margin="0,0,0,6"/>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="BlacklistAddBox" Height="26" FontSize="12" Padding="4,2" VerticalContentAlignment="Center"
+                     ToolTip="输入命令名（如 deploy_project）后点「添加」"/>
+            <Button Grid.Column="1" Content="添加" Height="26" Margin="6,0,0,0" Padding="10,0" Click="AddBlacklist_Click" Cursor="Hand"/>
+            <Button Grid.Column="2" Content="删除选中" Height="26" Margin="6,0,0,0" Padding="10,0" Click="RemoveBlacklist_Click" Cursor="Hand"/>
+        </Grid>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
             <Button Content="保存" Width="72" Height="28" Click="Save_Click" Background="#2D7DD2" Foreground="White" BorderThickness="0" Cursor="Hand"/>
             <Button Content="取消" Width="72" Height="28" Margin="8,0,0,0" Click="Cancel_Click" Cursor="Hand"/>
