@@ -7,8 +7,10 @@ namespace NavigatorHMI.Tests
 {
     /// <summary>
     /// K 循环 K-2：设备连接服务（ConnectionSession/DeviceConnectionService）与命令层门禁测试（2026-08-30）。
-    /// stub 模式模拟成功连接（K-8b FW 端点就绪前 CLI/测试用）。
+    /// stub 模式模拟成功连接（K-8b FW 端点前 CLI/测试用）。
+    /// 注：DeviceConnectionService 为 static 单例（UseStub/Session 跨测试共享）——与 DeployGateTests 同 collection 强制串行防竞争。
     /// </summary>
+    [Collection("设备连接")]
     public class DeviceConnectionTests : IDisposable
     {
         private readonly bool _prevStub = DeviceConnectionService.UseStub;
@@ -114,9 +116,9 @@ namespace NavigatorHMI.Tests
         // ── 本地假设备（HttpListener 127.0.0.1 随机端口）——真实路径四分支确定性覆盖 ──
         private static (HttpListener listener, string ip, int port) StartFakeDevice(string body)
         {
-            for (int attempt = 0; attempt < 3; attempt++)
+            for (int attempt = 0; attempt < 5; attempt++)
             {
-                var port = Random.Shared.Next(20000, 40000);
+                var port = Random.Shared.Next(25000, 50000);
                 try
                 {
                     var listener = new HttpListener();

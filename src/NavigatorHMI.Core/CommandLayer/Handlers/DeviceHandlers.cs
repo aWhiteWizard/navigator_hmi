@@ -159,7 +159,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
         }
     }
 
-    /// <summary>下载工程文件到设备。</summary>
+    /// <summary>下载工程文件到设备。K-3c：deploy 前置自动编译门禁——编译成功才允许传输；打包 zip 部署容器（K-4/K-8 接传输）。</summary>
     public class DeployProjectHandler : ICommandHandler
     {
         public CommandDefinition Definition => new()
@@ -168,7 +168,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
             Parameters = new()
             {
                 ["device_ip"] = new() { Type = "string", Required = true, Description = "目标设备 IP" },
-                ["file_path"] = new() { Type = "string", Required = false, Description = "工程文件路径（空=自动编译最新）" },
+                ["file_path"] = new() { Type = "string", Required = false, Description = "工程文件路径（兼容保留，当前恒自动编译当前工程）" },
             }
         };
         public ValidationResult Validate(Dictionary<string, object?> p)
@@ -178,8 +178,26 @@ namespace NavigatorHMI.CommandLayer.Handlers
         }
         public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
         {
-            // TODO: 真实部署需要编译 + HTTP POST。骨架模拟。
-            return CommandResult.Ok(new { message = "部署成功（骨架模式）" });
+            // K-3c：deploy 前置自动编译门禁——编译失败拒绝传输（compile-download §1.3 强耦合声明）
+            var compileResult = ProjectGenerator.Compile(project);
+            if (compileResult.HasErrors)
+                return CommandResult.Fail("COMPILE_FAILED",
+                    $"编译失败，拒绝传输: {string.Join("; ", compileResult.Errors.Take(5))}");
+
+            // 打包部署容器（manifest + app + res，zip）；失败转明确错误码（对齐 compile-download §2.3 IO 异常明确报错）
+            string deployZip;
+            try
+            {
+                var projectDir = Path.GetDirectoryName(project.ProjectFilePath) ?? ".";
+                deployZip = DeploymentPackageBuilder.Build(project, compileResult.OutputPath!, Path.Combine(projectDir, "output"));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                return CommandResult.Fail("PACKAGE_FAILED", $"部署包构建失败: {ex.Message}");
+            }
+
+            // TODO(K-4/K-8)：HTTP 传输 deployZip → FW 接收端 POST /api/transfer
+            return CommandResult.Ok(new { package = deployZip, message = "编译+打包完成（传输待 K-4/K-8 接收端就绪）" });
         }
     }
 

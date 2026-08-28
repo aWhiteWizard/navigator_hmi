@@ -7,7 +7,8 @@ namespace NavigatorHMI.Common
     /// </summary>
     /// <remarks>
     /// 输出格式为 ProtoBuf 二进制，与 FW 端 protobuf-cpp 兼容。
-    /// 校验包括：控件 ObjectName 去重、变量名去重、报警规则引用变量存在性。
+    /// 校验包括：控件 ObjectName 去重、变量名去重、报警规则引用变量存在性、BoundTag 悬空（控件/世界地图点）、
+    /// ListRef 存在性与类型匹配、画面名全局重复、StartScreen 存在性（K-3 P0 补强）。
     /// 有错误时不输出文件，返回错误列表供调用方展示。
     /// </remarks>
     public static class ProjectGenerator
@@ -62,6 +63,49 @@ namespace NavigatorHMI.Common
                 if (!tagNames.Contains(alarm.TagName))
                     result.Errors.Add($"报警 \"{alarm.Name}\" 引用的变量 \"{alarm.TagName}\" 不存在");
 
+            // 3a. 校验（K-3 P0 补强）：BoundTag 悬空——控件绑定变量不存在（含世界地图作业点/范围点）
+            foreach (var screen in project.Screens)
+                foreach (var w in screen.Widgets)
+                    if (!string.IsNullOrEmpty(w.BoundTag) && !tagNames.Contains(w.BoundTag))
+                        result.Errors.Add($"画面 \"{screen.Name}\" 控件 \"{w.ObjectName}\" 绑定的变量 \"{w.BoundTag}\" 不存在");
+            if (project.WorldMap != null)
+            {
+                foreach (var wp in project.WorldMap.WorkPoints)
+                    if (!string.IsNullOrEmpty(wp.BoundTag) && !tagNames.Contains(wp.BoundTag))
+                        result.Errors.Add($"作业点绑定的变量 \"{wp.BoundTag}\" 不存在");
+                foreach (var rp in project.WorldMap.WorkRangePoints)
+                    if (!string.IsNullOrEmpty(rp.BoundTag) && !tagNames.Contains(rp.BoundTag))
+                        result.Errors.Add($"范围点绑定的变量 \"{rp.BoundTag}\" 不存在");
+            }
+
+            // 3b. 校验（K-3 P0 补强）：ListRef 存在性 + 列表类型匹配——图片/文本列表/框架引用列表不存在或类型不符
+            var listDefs = project.Lists.ToDictionary(l => l.Name, l => l.Type);
+            foreach (var screen in project.Screens)
+                foreach (var w in screen.Widgets)
+                {
+                    if (w is not (ImageWidget or TextListWidget or FrameWidget)) continue;
+                    var listRef = (w as ImageWidget)?.ListRef ?? (w as TextListWidget)?.ListRef ?? (w as FrameWidget)?.ListRef;
+                    if (string.IsNullOrEmpty(listRef)) continue;
+                    if (!listDefs.TryGetValue(listRef, out var listType))
+                    {
+                        result.Errors.Add($"画面 \"{screen.Name}\" 控件 \"{w.ObjectName}\" 引用的列表 \"{listRef}\" 不存在");
+                        continue;
+                    }
+                    var needImage = w is ImageWidget or FrameWidget;
+                    if (needImage && listType != ListType.Image)
+                        result.Errors.Add($"画面 \"{screen.Name}\" 控件 \"{w.ObjectName}\" 引用 \"{listRef}\" 为文本列表（应为图片列表）");
+                    if (!needImage && listType != ListType.Text)
+                        result.Errors.Add($"画面 \"{screen.Name}\" 控件 \"{w.ObjectName}\" 引用 \"{listRef}\" 为图片列表（应为文本列表）");
+                }
+
+            // 3c. 校验（K-3 P0 补强）：画面名全局重复
+            foreach (var g in project.Screens.GroupBy(s => s.Name).Where(g => g.Count() > 1))
+                result.Errors.Add($"画面 \"{g.Key}\" 重复定义 ({g.Count()} 次)");
+
+            // 3d. 校验（K-3 P0 补强）：StartScreen 存在性
+            if (!string.IsNullOrEmpty(project.StartScreen) && !project.Screens.Any(s => s.Name == project.StartScreen))
+                result.Errors.Add($"启动画面 \"{project.StartScreen}\" 不存在");
+
             if (result.HasErrors)
                 return result;
 
@@ -77,9 +121,25 @@ namespace NavigatorHMI.Common
                 Path.GetFileNameWithoutExtension(project.ProjectFilePath) + ".navihmi");
 
             // 4.1 编译为契约 DTO（navihmi.proto 格式，FW 端 protoc 可解析；扁平化 Widget 继承）
+            // K-3：原子输出（同目录 .tmp + File.Replace/Move；失败清理临时文件、原产物完好——与 P1 原子保存同套路）
             var dto = ToDto(project);
-            using var fs = File.Create(outputPath);
-            Serializer.Serialize(fs, dto);
+            string tmpPath = outputPath + ".tmp";
+            try
+            {
+                using (var fs = File.Create(tmpPath))
+                {
+                    Serializer.Serialize(fs, dto);
+                }
+                if (File.Exists(outputPath))
+                    File.Replace(tmpPath, outputPath, null);
+                else
+                    File.Move(tmpPath, outputPath);
+            }
+            catch
+            {
+                try { if (File.Exists(tmpPath)) File.Delete(tmpPath); } catch { /* 清理失败不掩盖原异常 */ }
+                throw;
+            }
 
             result.OutputPath = outputPath;
             return result;
