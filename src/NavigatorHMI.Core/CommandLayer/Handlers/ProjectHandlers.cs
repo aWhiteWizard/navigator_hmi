@@ -49,7 +49,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
             project.Groups.Clear();
             CommandService.EnsureDefaultGroups(project);
 
-            ProjectFileService.Save(project, project.ProjectFilePath);
+            ProjectManager.Save(project, project.ProjectFilePath);
             return CommandResult.Ok(new { project_path = project.ProjectFilePath, screens = 2 });
         }
     }
@@ -94,7 +94,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
         {
             var sp = parameters.GetValueOrDefault("path")?.ToString();
             var target = string.IsNullOrEmpty(sp) ? project.ProjectFilePath : sp;
-            ProjectFileService.Save(project, target);
+            ProjectManager.Save(project, target);
             return CommandResult.Ok(new { path = target });
         }
     }

@@ -204,7 +204,7 @@ namespace NavigatorHMI.ViewModels
 
         private void SaveProject(HMIProject project, string filePath)
         {
-            ProjectFileService.Save(project, filePath);
+            ProjectManager.Save(project, filePath);
         }
     }
 }

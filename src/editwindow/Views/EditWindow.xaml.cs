@@ -53,7 +53,6 @@ namespace NavigatorHMI.Views
         /// <summary>当前激活的 Widget 创建策略，null 表示不在添加模式</summary>
         private IWidgetCreator? _currentWidgetCreator = null;
         private HMIProject _currentProject;
-        private bool _isProjectDirty;
         private bool _skipClosingCheck = false;
         /// <summary>缩放手柄静态回调引用（Closing 时比较清理，防闭包泄漏）。</summary>
         private Action? _resizeDragStartedCallback;
@@ -352,7 +351,7 @@ namespace NavigatorHMI.Views
 
             LoadCanvas(_viewModel.CurrentScreen);
 
-            _isProjectDirty = false;
+            _currentProject?.ClearDirty();   // K-1d：打开/切换工程后清脏（加载清脏在 ProjectFileService.Load）
             this.CheckBinding();
 
 
@@ -2545,9 +2544,10 @@ namespace NavigatorHMI.Views
         /// </summary>
         private void MarkProjectDirty()
         {
-            if (!_isProjectDirty)
+            // K 循环 K-1d：窗口级脏标记迁移模型级（IsDirty 唯一真源）；标题星号仅在 clean→dirty 跳变时更新（与旧窗口级逻辑等价）
+            if (_currentProject?.IsDirty != true)
             {
-                _isProjectDirty = true;
+                _currentProject?.MarkDirty();
                 this.Title = _currentProject.ProjectFilePath + "*";
             }
         }
@@ -3568,7 +3568,7 @@ namespace NavigatorHMI.Views
             if (!TryCloseProject(false))
                 return;
 
-            _isProjectDirty = false;
+            _currentProject?.ClearDirty();   // K-1d：关闭当前工程清脏
 
             WelComeWindow welcome = new WelComeWindow();
             welcome.Show();
@@ -3582,7 +3582,8 @@ namespace NavigatorHMI.Views
         /// </summary>
         private bool TryCloseProject(bool isAppClosing)
         {
-            if (string.IsNullOrEmpty(_currentProject.ProjectFilePath) || !_isProjectDirty)
+            // K-1d：读模型级 IsDirty（唯一真源）
+            if (string.IsNullOrEmpty(_currentProject.ProjectFilePath) || _currentProject.IsDirty != true)
                 return true;
 
             MessageBoxResult result = MessageBox.Show(
@@ -3611,8 +3612,7 @@ namespace NavigatorHMI.Views
         /// </summary>
         private void SaveProject(HMIProject project, string filePath)
         {
-            ProjectFileService.Save(project, filePath);
-            _isProjectDirty = false;
+            ProjectManager.Save(project, filePath);   // K-1c：统一保存入口（原子保存 + 清脏）
             this.Title = project.ProjectFilePath;
             _listManagerVM.RecheckImagePaths();   // 工程目录刚生效 → 重算图片路径标红状态
         }
@@ -4211,7 +4211,7 @@ namespace NavigatorHMI.Views
             // P7/#22：未保存检查 + 显式回欢迎窗（欢迎窗已关时防 App 因所有窗口关闭而退出）
             if (!TryCloseProject(false))
                 return;
-            _isProjectDirty = false;
+            _currentProject?.ClearDirty();   // K-1d：新建工程清脏（原窗口即将关闭）
 
             WelComeWindow welcome = new WelComeWindow();
             welcome.Show();
@@ -4280,7 +4280,6 @@ namespace NavigatorHMI.Views
                 project.LastModifiedTime = DateTime.UtcNow;
                 RecentProjectManager.Instance.AddRecentProject(dlg.FileName);
 
-                _isProjectDirty = false;
                 _skipClosingCheck = true;
                 var editWindow = new EditWindow(project);
                 editWindow.Show();
@@ -4296,10 +4295,10 @@ namespace NavigatorHMI.Views
             var dlg = new Microsoft.Win32.SaveFileDialog { Filter = "工程文件|*.hmiproj", DefaultExt = ".hmiproj" };
             if (dlg.ShowDialog() == true)
             {
-                ProjectFileService.Save(_currentProject, dlg.FileName);
-                _currentProject.ProjectFilePath = dlg.FileName;
+                ProjectManager.Save(_currentProject, dlg.FileName);   // K-1c：统一保存入口（原子保存 + 内部已置路径并清脏）
+                _currentProject.ProjectFilePath = dlg.FileName;       // 防御性同步内存路径（等值短路 no-op）
+                _currentProject.ClearDirty();                         // 防御性收尾（Save 已清脏）
                 _viewModel.CommandService.ReplaceProject(_currentProject);
-                _isProjectDirty = false;
                 Title = $"NavigatorHMI - {dlg.FileName}";
                 _listManagerVM.RecheckImagePaths();   // 另存后工程目录可能变更 → 重算图片路径标红状态
             }

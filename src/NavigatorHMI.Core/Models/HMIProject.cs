@@ -26,11 +26,9 @@ namespace NavigatorHMI.Common
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
         /// <summary>
-        /// 工程脏标记（[ProtoIgnore] 不落盘）——模型级脏标记基座（2026-08-30 K 循环 K-1a/b）。
-        /// 标量 setter 修改、Screens/Tags 集合增删改自动置脏；元素级修改经 <see cref="MarkDirty"/> 显式置脏
-        /// （K-1c GUI/命令层迁移接线）；保存成功/加载完成后 <see cref="ClearDirty"/> 清脏。
-        /// 运行时状态字段（CurrentScreenName）不置脏。
-        /// 注：当前应用侧仍以 EditWindow 窗口级 _isProjectDirty 为主，迁移完成前两套并存（K-1c 收敛后唯一真源）。
+        /// 工程脏标记（[ProtoIgnore] 不落盘）——**模型级唯一真源**（2026-08-30 K 循环 K-1a/d 迁移完成，EditWindow 窗口级已删）。
+        /// 标量 setter 修改、Screens/Tags 集合增删改自动置脏；元素级修改经 <see cref="MarkDirty"/> 显式置脏；
+        /// 保存成功/加载完成后 <see cref="ClearDirty"/> 清脏。运行时状态字段（CurrentScreenName）不置脏。
         /// </summary>
         [ProtoIgnore]
         public bool IsDirty { get; private set; }

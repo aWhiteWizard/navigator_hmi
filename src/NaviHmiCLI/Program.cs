@@ -515,7 +515,7 @@ public static class Program
         if (string.IsNullOrEmpty(project.ProjectFilePath)) return;
         try
         {
-            ProjectFileService.Save(project, project.ProjectFilePath);
+            ProjectManager.Save(project, project.ProjectFilePath);
         }
         catch (Exception ex)
         {
