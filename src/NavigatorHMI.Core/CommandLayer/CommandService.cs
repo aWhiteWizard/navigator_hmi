@@ -136,6 +136,8 @@ namespace NavigatorHMI.CommandLayer
                 ["connect"]          = new ConnectHandler(),
                 ["disconnect"]       = new DisconnectHandler(),   // K-2：断开设备连接（幂等）
                 ["scan_devices"]     = new ScanDevicesHandler(),
+                ["blink_device"]     = new BlinkDeviceHandler(),  // K-5：设备闪烁（定位）
+                ["vnc"]              = new VncHandler(),          // K-5：VNC 运行时启停
                 ["deploy_project"]   = new DeployProjectHandler(),
                 ["deploy_firmware"]  = new DeployFirmwareHandler(),
             };

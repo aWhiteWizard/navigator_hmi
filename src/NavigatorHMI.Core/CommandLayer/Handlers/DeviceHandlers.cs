@@ -196,8 +196,69 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 return CommandResult.Fail("PACKAGE_FAILED", $"部署包构建失败: {ex.Message}");
             }
 
-            // TODO(K-4/K-8)：HTTP 传输 deployZip → FW 接收端 POST /api/transfer
-            return CommandResult.Ok(new { package = deployZip, message = "编译+打包完成（传输待 K-4/K-8 接收端就绪）" });
+            // K-5：真实 HTTP 传输（POST /api/transfer——FW 接收端校验+原子替换+工程重载；失败一次直接报错不重试）
+            var ip = p["device_ip"]!.ToString()!;
+            var transfer = HttpDownloadClient.DeployAsync(ip, deployZip).GetAwaiter().GetResult();
+            if (!transfer.Success)
+                return CommandResult.Fail(transfer.Code, $"部署传输失败: {transfer.Message}");
+
+            return CommandResult.Ok(new { package = deployZip, message = transfer.Message });
+        }
+    }
+
+    /// <summary>设备闪烁指令（blink_device <ip> on|off——K-9 FW 覆盖层闪烁 ~1s；多设备定位）。</summary>
+    public class BlinkDeviceHandler : ICommandHandler
+    {
+        public CommandDefinition Definition => new()
+        {
+            Name = "blink_device", Description = "设备闪烁（定位）", RequiresConnection = true,
+            Parameters = new()
+            {
+                ["ip"] = new() { Type = "string", Required = true, Description = "目标设备 IP" },
+                ["enable"] = new() { Type = "enum", Required = true, EnumValues = new[] { "on", "off" }, Description = "on=开始闪烁 / off=停止" },
+            }
+        };
+        public ValidationResult Validate(Dictionary<string, object?> p)
+        {
+            if (!p.ContainsKey("ip") || string.IsNullOrWhiteSpace(p["ip"]?.ToString())) return ValidationResult.Fail("缺少必填参数: ip");
+            if (!p.ContainsKey("enable") || (p["enable"]?.ToString() is not ("on" or "off"))) return ValidationResult.Fail("enable 必须为 on 或 off");
+            return ValidationResult.Ok;
+        }
+        public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
+        {
+            var ip = p["ip"]!.ToString()!;
+            var enable = p["enable"]!.ToString() == "on";
+            var result = HttpDownloadClient.BlinkAsync(ip, enable).GetAwaiter().GetResult();
+            if (!result.Success) return CommandResult.Fail(result.Code, $"闪烁指令失败: {result.Message}");
+            return CommandResult.Ok(new { blink = enable });
+        }
+    }
+
+    /// <summary>VNC 运行时启停（vnc <ip> on|off——K-9 FW 运行时启停 5900，不重启工程）。</summary>
+    public class VncHandler : ICommandHandler
+    {
+        public CommandDefinition Definition => new()
+        {
+            Name = "vnc", Description = "VNC 运行时启停", RequiresConnection = true,
+            Parameters = new()
+            {
+                ["ip"] = new() { Type = "string", Required = true, Description = "目标设备 IP" },
+                ["enable"] = new() { Type = "enum", Required = true, EnumValues = new[] { "on", "off" }, Description = "on=启用 / off=停用" },
+            }
+        };
+        public ValidationResult Validate(Dictionary<string, object?> p)
+        {
+            if (!p.ContainsKey("ip") || string.IsNullOrWhiteSpace(p["ip"]?.ToString())) return ValidationResult.Fail("缺少必填参数: ip");
+            if (!p.ContainsKey("enable") || (p["enable"]?.ToString() is not ("on" or "off"))) return ValidationResult.Fail("enable 必须为 on 或 off");
+            return ValidationResult.Ok;
+        }
+        public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
+        {
+            var ip = p["ip"]!.ToString()!;
+            var enable = p["enable"]!.ToString() == "on";
+            var result = HttpDownloadClient.VncAsync(ip, enable).GetAwaiter().GetResult();
+            if (!result.Success) return CommandResult.Fail(result.Code, $"VNC 指令失败: {result.Message}");
+            return CommandResult.Ok(new { vnc = enable });
         }
     }
 

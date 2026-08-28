@@ -89,7 +89,8 @@ namespace NavigatorHMI.Common
             try
             {
                 using var client = new HttpClient { Timeout = TimeSpan.FromMilliseconds(ConnectTimeoutMs) };
-                var body = client.GetStringAsync($"http://{ip.Trim()}/api/device/info").GetAwaiter().GetResult();
+                // Task.Run 脱离调用方 SynchronizationContext（GUI 控制台 UI 线程同步调用——防 sync-over-async 死锁，K-5 审查）
+                var body = Task.Run(() => client.GetStringAsync($"http://{ip.Trim()}/api/device/info")).GetAwaiter().GetResult();
                 using var doc = JsonDocument.Parse(body);
                 var root = doc.RootElement;
                 var devModel = root.TryGetProperty("model", out var m) ? m.GetString() ?? "" : "";

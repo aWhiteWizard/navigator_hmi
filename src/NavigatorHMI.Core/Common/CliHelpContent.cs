@@ -35,11 +35,13 @@ namespace NavigatorHMI.Common
   configure-device --name <name> --protocol ModbusTCP --connection '<json>'  配置设备
   update-device --name <name> [--new-name <name>] [--protocol <...>] [--connection '<json>']  更新设备
   delete-device --name <name>                                               删除设备
-  connect --ip <addr> [--model NavigatorHMI] [--size-inch 7寸]   连接设备
+  connect --ip <addr> [--model NavigatorHMI-7] [--size-inch 7寸]   连接设备
   disconnect                                                     断开设备连接
   scan [--nic eth0]                            扫描设备
-  deploy-project --ip <addr> [--file <path>]   下载工程到设备
-  deploy-firmware --ip <addr> [--file <path>]  下载固件（OTA）
+  deploy-project --ip <addr> [--file <path>]   编译+打包+传输工程（deploy 前置编译门禁）
+  deploy-firmware --ip <addr> [--file <path>]  下载固件（OTA，D 批）
+  blink-device --ip <addr> --enable <on|off>   设备闪烁（定位）
+  vnc --ip <addr> --enable <on|off>            VNC 运行时启停
 
 set-property 属性键 (--screen <画面> --widget <控件> --key <键> --value <值>):
   文本: text | title | onText | offText

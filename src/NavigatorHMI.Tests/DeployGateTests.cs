@@ -51,14 +51,48 @@ namespace NavigatorHMI.Tests
         public void 编译成功_打包返回容器路径()
         {
             _project.Tags.Add(new Tag { Name = "温度", DataType = TagDataType.FLOAT });
+            // K-5：deploy 含真实传输——假设备接收（SUCCESSFUL_REBOOT）
+            var fakeIp = StartFakeDevice();
 
-            var result = _svc.Execute("deploy_project", new Dictionary<string, object?> { ["device_ip"] = "192.168.1.146" });
-            Assert.True(result.Success);
+            var result = _svc.Execute("deploy_project", new Dictionary<string, object?> { ["device_ip"] = fakeIp });
+            Assert.True(result.Success, result.ErrorMessage);
             Assert.NotNull(result.Data);
             var package = result.Data!.GetType().GetProperty("package")?.GetValue(result.Data) as string;
             Assert.NotNull(package);
             Assert.True(File.Exists(package), $"部署容器应存在: {package}");
             Assert.EndsWith(".deploy.zip", package);
+        }
+
+        /// <summary>假设备：/api/transfer 返回 SUCCESSFUL_REBOOT（模拟 FW 接收端）。</summary>
+        private string StartFakeDevice()
+        {
+            for (int attempt = 0; attempt < 5; attempt++)
+            {
+                var port = Random.Shared.Next(25000, 50000);
+                try
+                {
+                    var listener = new System.Net.HttpListener();
+                    listener.Prefixes.Add($"http://127.0.0.1:{port}/");
+                    listener.Start();
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            var ctx = await listener.GetContextAsync();
+                            var body = System.Text.Encoding.UTF8.GetBytes("{\"code\":\"SUCCESSFUL_REBOOT\",\"message\":\"部署成功\"}");
+                            ctx.Response.ContentType = "application/json";
+                            ctx.Response.ContentLength64 = body.Length;
+                            await ctx.Response.OutputStream.WriteAsync(body);
+                            ctx.Response.Close();
+                            listener.Stop();
+                        }
+                        catch { }
+                    });
+                    return $"127.0.0.1:{port}";
+                }
+                catch (System.Net.HttpListenerException) { }
+            }
+            throw new InvalidOperationException("无法启动假设备");
         }
     }
 }

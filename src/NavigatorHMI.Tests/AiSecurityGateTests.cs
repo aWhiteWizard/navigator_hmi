@@ -70,19 +70,20 @@ namespace NavigatorHMI.Tests
             try
             {
                 AIAgent.SetBlacklist(new List<string>());   // 清空黑名单
-                // deploy 需已连接（RequiresConnection 门禁）——stub 建立连接
+                // deploy 需已连接（RequiresConnection 门禁）+ 真实传输——stub 连接 + 假设备接收
                 DeviceConnectionService.UseStub = true;
                 DeviceConnectionService.Disconnect();
+                var fakeIp = StartFakeDevice();
                 try
                 {
                     var svc = NewService();
                     svc.Execute("connect", ConnectArgs());
-                    var agent = new AIAgent(svc, new FakeBackend("deploy_project", DeployArgs()));
+                    var agent = new AIAgent(svc, new FakeBackend("deploy_project", new Dictionary<string, object?> { ["device_ip"] = fakeIp }));
                     await agent.ChatAsync("确认下载工程");   // 移除黑名单后 deploy 仍需会话内确认（ConfirmCommands 纵深防御）
 
                     var op = Assert.Single(agent.LastOperations);
                     Assert.Equal("deploy_project", op.CommandName);
-                    Assert.True(op.Success);   // 移除黑名单 + 已连接 + 已确认 → 执行成功
+                    Assert.True(op.Success);   // 移除黑名单 + 已连接 + 已确认 + 假设备接收 → 执行成功
                 }
                 finally
                 {
@@ -91,6 +92,38 @@ namespace NavigatorHMI.Tests
                 }
             }
             finally { AIAgent.SetBlacklist(saved); }
+        }
+
+        /// <summary>假设备：/api/transfer 返回 SUCCESSFUL_REBOOT（模拟 FW 接收端）。</summary>
+        private static string StartFakeDevice()
+        {
+            for (int attempt = 0; attempt < 5; attempt++)
+            {
+                var port = Random.Shared.Next(25000, 50000);
+                try
+                {
+                    var listener = new System.Net.HttpListener();
+                    listener.Prefixes.Add($"http://127.0.0.1:{port}/");
+                    listener.Start();
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            var ctx = await listener.GetContextAsync();
+                            var body = System.Text.Encoding.UTF8.GetBytes("{\"code\":\"SUCCESSFUL_REBOOT\",\"message\":\"部署成功\"}");
+                            ctx.Response.ContentType = "application/json";
+                            ctx.Response.ContentLength64 = body.Length;
+                            await ctx.Response.OutputStream.WriteAsync(body);
+                            ctx.Response.Close();
+                            listener.Stop();
+                        }
+                        catch { }
+                    });
+                    return $"127.0.0.1:{port}";
+                }
+                catch (System.Net.HttpListenerException) { }
+            }
+            throw new InvalidOperationException("无法启动假设备");
         }
 
         [Fact]

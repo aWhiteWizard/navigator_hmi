@@ -162,6 +162,8 @@ public static class Program
             "scan"            => Cmd("scan_devices", Opt("nic", "eth0")),
             "deploy-project"  => Cmd("deploy_project", Require("ip", "device_ip"), OptMap("file", "file_path", "")),
             "deploy-firmware" => Cmd("deploy_firmware", Require("ip", "device_ip"), OptMap("file", "file_path", "")),
+            "blink-device"    => Cmd("blink_device", Require("ip"), Require("enable")),
+            "vnc"             => Cmd("vnc", Require("ip"), Require("enable")),
 
             // AI Agent（本地 LLM Function Calling）
             "ai"              => AiCommand(),
@@ -617,7 +619,7 @@ public static class Program
   用户: create-user, update-user, delete-user, list-users, create-group, update-group, delete-group
   世界地图: add-work-point, add-work-range-point, clear-work-range, delete-work-point, update-world-map
 报警: create-alarm, update-alarm, delete-alarm
-  设备: configure-device, update-device, delete-device, connect, disconnect, scan, deploy-project, deploy-firmware
+  设备: configure-device, update-device, delete-device, connect, disconnect, scan, deploy-project, deploy-firmware, blink-device, vnc
 
 set-property 属性键 (--screen <画面> --widget <控件> --key <键> --value <值>):
   文本: text | content | title | onText | offText
@@ -738,11 +740,13 @@ list-users
   configure-device       --name <name> --protocol <ModbusRTU|ModbusTCP|MQTT> --connection <json>
   update-device          --name <name> [--new-name <name>] [--protocol <...>] [--connection <json>]
   delete-device          --name <name>
-  connect                --ip <addr> [--model NavigatorHMI] [--size-inch 7寸]   # size-inch = 设备尺寸（profile 校验）
+  connect                --ip <addr> [--model NavigatorHMI-7] [--size-inch 7寸]   # size-inch = 设备尺寸（profile 校验）
   disconnect             断开设备连接
   scan                   [--nic eth0]
-  deploy-project         --ip <addr> [--file <path>]
-  deploy-firmware        --ip <addr> [--file <path>]
+  deploy-project         --ip <addr> [--file <path>]   编译+打包+传输工程（deploy 前置编译门禁）
+  deploy-firmware        --ip <addr> [--file <path>]   下载固件（OTA，D 批）
+  blink-device           --ip <addr> --enable <on|off>  设备闪烁（定位）
+  vnc                    --ip <addr> --enable <on|off>  VNC 运行时启停
 
 AI 命令:
   ai                     <指令> 或 --prompt <指令> [--mode rule|cloud|local]  规则映射默认（离线）；cloud=DeepSeek API FC；local=本地模型 FC
