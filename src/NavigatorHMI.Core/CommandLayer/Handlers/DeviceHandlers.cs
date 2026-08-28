@@ -91,7 +91,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
         }
     }
 
-    /// <summary>连接 HMI 设备（HTTP GET /api/device/info 验证型号）。</summary>
+    /// <summary>连接 HMI 设备（HTTP GET /api/device/info 验证型号/尺寸，经 DeviceConnectionService 服务单点建立会话）。</summary>
     public class ConnectHandler : ICommandHandler
     {
         public CommandDefinition Definition => new()
@@ -101,6 +101,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
             {
                 ["ip"] = new() { Type = "string", Required = true, Description = "设备 IP 地址" },
                 ["model"] = new() { Type = "string", DefaultValue = "NavigatorHMI", Description = "设备型号" },
+                ["size_inch"] = new() { Type = "string", Description = "设备尺寸（7寸/4寸，profile 校验）", KeepInCompact = true },
             }
         };
         public ValidationResult Validate(Dictionary<string, object?> p)
@@ -111,10 +112,33 @@ namespace NavigatorHMI.CommandLayer.Handlers
         }
         public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
         {
-            // TODO: 真实 HTTP 连接需要 HttpClient。骨架阶段模拟成功。
             var ip = p["ip"]!.ToString()!;
             var model = p.GetValueOrDefault("model")?.ToString() ?? "NavigatorHMI";
-            return CommandResult.Ok(new { ip, model, status = "connected", message = "连接成功（骨架模式）" });
+            var sizeInch = p.GetValueOrDefault("size_inch")?.ToString();
+            // K-2：真实连接经 DeviceConnectionService（HTTP GET /api/device/info；K-8b 端点就绪前 UseStub 可模拟）
+            var result = DeviceConnectionService.TestConnection(ip, model, sizeInch);
+            if (!result.Success)
+                return CommandResult.Fail(
+                    result.Status == DeviceTestStatus.DeviceMismatch ? "DEVICE_MISMATCH" : "CONNECTION_FAILED",
+                    result.Message);
+            var s = result.Session!;
+            return CommandResult.Ok(new { ip = s.Ip, model = s.Model, size_inch = s.SizeInch, firmware_version = s.FirmwareVersion, status = "connected" });
+        }
+    }
+
+    /// <summary>断开设备连接（幂等；CLI 对等 disconnect 命令，K-2）。</summary>
+    public class DisconnectHandler : ICommandHandler
+    {
+        public CommandDefinition Definition => new()
+        {
+            Name = "disconnect", Description = "断开设备连接", RequiresConnection = false,
+            Parameters = new()
+        };
+        public ValidationResult Validate(Dictionary<string, object?> p) => ValidationResult.Ok;
+        public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
+        {
+            DeviceConnectionService.Disconnect();
+            return CommandResult.Ok(new { status = "disconnected" });
         }
     }
 

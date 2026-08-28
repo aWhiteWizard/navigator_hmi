@@ -35,7 +35,8 @@ namespace NavigatorHMI.Common
   configure-device --name <name> --protocol ModbusTCP --connection '<json>'  配置设备
   update-device --name <name> [--new-name <name>] [--protocol <...>] [--connection '<json>']  更新设备
   delete-device --name <name>                                               删除设备
-  connect --ip <addr>                           连接设备
+  connect --ip <addr> [--model NavigatorHMI] [--size-inch 7寸]   连接设备
+  disconnect                                                     断开设备连接
   scan [--nic eth0]                            扫描设备
   deploy-project --ip <addr> [--file <path>]   下载工程到设备
   deploy-firmware --ip <addr> [--file <path>]  下载固件（OTA）

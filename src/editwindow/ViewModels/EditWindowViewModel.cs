@@ -1253,7 +1253,7 @@ namespace NavigatorHMI.ViewModels
         private static readonly HashSet<string> UndoNoGuidanceCommands = new()
         {
             "current_screen", "save_project", "compile", "list_users", "scan_devices",
-            "connect", "deploy_project", "deploy_firmware",
+            "connect", "disconnect", "deploy_project", "deploy_firmware",
         };
 
         /// <summary>按本次成功操作涉及的域生成撤销指引文案（只列出现过的域；其余默认归「对应管理器查看/处理」）。</summary>

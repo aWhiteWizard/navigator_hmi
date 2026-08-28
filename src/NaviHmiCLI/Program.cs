@@ -157,7 +157,8 @@ public static class Program
             "configure-device" => Cmd("configure_device", Require("name"), Require("protocol"), Require("connection", "connection_info")),
             "update-device"   => Cmd("update_device", Require("name"), OptIfProvided("new-name", "new_name"), OptIfProvided("protocol"), OptIfProvided("connection", "connection_info")),
             "delete-device"   => Cmd("delete_device", Require("name")),
-            "connect"         => Cmd("connect", Require("ip"), Opt("model", "NavigatorHMI")),
+            "connect"         => Cmd("connect", Require("ip"), Opt("model", "NavigatorHMI"), OptMap("size-inch", "size_inch", "")),
+            "disconnect"      => Cmd("disconnect"),
             "scan"            => Cmd("scan_devices", Opt("nic", "eth0")),
             "deploy-project"  => Cmd("deploy_project", Require("ip", "device_ip"), OptMap("file", "file_path", "")),
             "deploy-firmware" => Cmd("deploy_firmware", Require("ip", "device_ip"), OptMap("file", "file_path", "")),
@@ -616,7 +617,7 @@ public static class Program
   用户: create-user, update-user, delete-user, list-users, create-group, update-group, delete-group
   世界地图: add-work-point, add-work-range-point, clear-work-range, delete-work-point, update-world-map
 报警: create-alarm, update-alarm, delete-alarm
-  设备: configure-device, update-device, delete-device, connect, scan, deploy-project, deploy-firmware
+  设备: configure-device, update-device, delete-device, connect, disconnect, scan, deploy-project, deploy-firmware
 
 set-property 属性键 (--screen <画面> --widget <控件> --key <键> --value <值>):
   文本: text | content | title | onText | offText
@@ -737,7 +738,8 @@ list-users
   configure-device       --name <name> --protocol <ModbusRTU|ModbusTCP|MQTT> --connection <json>
   update-device          --name <name> [--new-name <name>] [--protocol <...>] [--connection <json>]
   delete-device          --name <name>
-  connect                --ip <addr> [--model NavigatorHMI]
+  connect                --ip <addr> [--model NavigatorHMI] [--size-inch 7寸]   # size-inch = 设备尺寸（profile 校验）
+  disconnect             断开设备连接
   scan                   [--nic eth0]
   deploy-project         --ip <addr> [--file <path>]
   deploy-firmware        --ip <addr> [--file <path>]

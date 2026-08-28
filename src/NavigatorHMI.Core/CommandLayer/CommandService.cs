@@ -8,7 +8,8 @@ namespace NavigatorHMI.CommandLayer
     /// 供 GUI ViewModel、CLI 和 AI Agent 统一调用——所有操作走同一入口，无特权路径。
     /// </summary>
     /// <remarks>
-    /// 线程安全: lock(_lock) 保证 Execute() 内所有 Handler 调用串行化，ReplaceProject 和 IsConnected 同步。
+    /// 线程安全: lock(_lock) 保证 Execute() 内所有 Handler 调用串行化，ReplaceProject 同步。
+    /// 设备连接状态（K-2）委托 DeviceConnectionService 会话（内部锁，见 DeviceConnectionService）。
     /// IDisposable: 当 connect 建立设备连接时需实现 IDisposable 管理生命周期。
     /// </remarks>
     public class CommandService : ICommandService
@@ -20,8 +21,8 @@ namespace NavigatorHMI.CommandLayer
         /// <summary>命令执行成功后触发（命令名, 参数, 结果）。供 ViewModel 做智能刷新。</summary>
         public event Action<string, Dictionary<string, object?>, CommandResult>? CommandExecuted;
 
-        /// <summary>设备连接状态。仅通过 ConnectHandler 成功执行后设为 true。</summary>
-        public bool IsConnected { get; private set; } = false;
+        /// <summary>设备连接状态（K-2：委托 DeviceConnectionService 会话，CLI/GUI 状态栏/面板三方对等）。</summary>
+        public bool IsConnected => DeviceConnectionService.Session != null;
 
         /// <summary>替换当前工程引用（open_project 等命令使用）。</summary>
         public void ReplaceProject(HMIProject newProject)
@@ -41,9 +42,6 @@ namespace NavigatorHMI.CommandLayer
             project.Groups.Add(new UserGroup { Name = "操作员", Permissions = { UserPermission.AlarmAck, UserPermission.ScreenEdit } });
             project.Groups.Add(new UserGroup { Name = "访客" });
         }
-
-        /// <summary>设置设备连接状态（仅供内部 connect 命令执行后调用）。</summary>
-        internal void SetConnected(bool connected) { lock (_lock) { IsConnected = connected; } }
 
         /// <summary>
         /// 初始化 CommandService 并注册全部命令处理器（工程/画面/控件/层级/布局/事件/剪贴板/字体/变量/报警/设备）。
@@ -136,6 +134,7 @@ namespace NavigatorHMI.CommandLayer
                 ["update_device"]    = new UpdateDeviceHandler(),
                 ["delete_device"]    = new DeleteDeviceHandler(),
                 ["connect"]          = new ConnectHandler(),
+                ["disconnect"]       = new DisconnectHandler(),   // K-2：断开设备连接（幂等）
                 ["scan_devices"]     = new ScanDevicesHandler(),
                 ["deploy_project"]   = new DeployProjectHandler(),
                 ["deploy_firmware"]  = new DeployFirmwareHandler(),
@@ -162,12 +161,9 @@ namespace NavigatorHMI.CommandLayer
                 return CommandResult.Fail("INVALID_PARAM", validation.Error!);
 
             if (handler.Definition.RequiresConnection && !IsConnected)
-                return CommandResult.Fail("NOT_CONNECTED", "请先连接设备 (connect 或 scan)");
+                return CommandResult.Fail("CONNECTION_REQUIRED", "请先连接设备 (connect)");
 
             var result = handler.Execute(_project, parameters);
-            // 骨架模式：connect 成功后先置连接状态（否则 RequiresConnection 命令永远 NOT_CONNECTED；
-            // 且须在 CommandExecuted 事件触发前置位，订阅者刷新连接状态 UI 时读到最新值）
-            if (result.Success && commandName == "connect") IsConnected = true;
             if (result.Success) SafeInvokeCommandExecuted(commandName, parameters, result);
             return result;
             }
