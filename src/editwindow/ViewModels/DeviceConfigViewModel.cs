@@ -113,7 +113,6 @@ namespace NavigatorHMI.ViewModels
                 CreateTime = DateTime.UtcNow,
                 Version = SelectedDeviceVersion.Version,
                 LastModifiedTime = DateTime.UtcNow,
-                Screens = new List<Screen>(),
                 ProjectFilePath = fullPath,
                 DeviceHeight = int.Parse(SelectedDeviceModel.Height),
                 DeviceWidth = int.Parse(SelectedDeviceModel.Width)

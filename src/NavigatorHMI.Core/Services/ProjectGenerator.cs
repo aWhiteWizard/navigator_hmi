@@ -104,7 +104,7 @@ namespace NavigatorHMI.Common
                 StartScreen = p.StartScreen,
                 WorldMap = p.WorldMap,
                 Screens = p.Screens.Select(ToScreen).ToList(),
-                Tags = p.Tags,
+                Tags = new List<Tag>(p.Tags),
                 Alarms = p.Alarms,
                 Devices = p.Devices,
                 Lists = p.Lists,

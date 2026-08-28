@@ -1024,7 +1024,7 @@ namespace NavigatorHMI.ViewModels
         /// <summary>X-1c：变量基准值变更前快照（拖拽绑变量点更新 BaseValue 用；Tags 全局单栈）。</summary>
         public void PushTagSnapshot()
         {
-            if (CurrentProject?.Tags != null) _undoManager.PushTagSnapshot(CurrentProject.Tags);
+            if (CurrentProject?.Tags != null) _undoManager.PushTagSnapshot(new List<Tag>(CurrentProject.Tags));
         }
         /// <summary>X-1c：变量撤销/重做后触发变量表格与地图点刷新（EditWindow 订阅）。</summary>
         public Action? TagUndoRequested { get; set; }
@@ -1093,7 +1093,7 @@ namespace NavigatorHMI.ViewModels
                     if (CurrentScreen != null && _undoManager.HasUndo(CurrentScreen)) best = Math.Max(best, _undoManager.WidgetsLatestVersion);
                     if (CurrentProject != null && _undoManager.HasTagUndo && best == _undoManager.TagLatestVersion)
                     {
-                        if (_undoManager.UndoTags(CurrentProject.Tags))
+                        if (_undoManager.UndoTags(new List<Tag>(CurrentProject.Tags)))
                         {
                             TagUndoRequested?.Invoke();
                             ProjectDirtyRequested?.Invoke();
@@ -1135,7 +1135,7 @@ namespace NavigatorHMI.ViewModels
                     if (CurrentScreen != null && _undoManager.HasRedo(CurrentScreen)) best = Math.Max(best, _undoManager.WidgetsRedoLatestVersion);
                     if (CurrentProject != null && _undoManager.HasTagRedo && best == _undoManager.TagRedoLatestVersion)
                     {
-                        if (_undoManager.RedoTags(CurrentProject.Tags))
+                        if (_undoManager.RedoTags(new List<Tag>(CurrentProject.Tags)))
                         {
                             TagRedoRequested?.Invoke();
                             ProjectDirtyRequested?.Invoke();
