@@ -1928,9 +1928,9 @@
                                     </TabControl>
                                 </Grid>
                                 <!-- L 循环 L-B1 设备管理面板内容（设备管理 Tab 激活时显示，与画布同一位置切换；复用 K-4 DevicePanelView） -->
-                                <Grid Grid.Row="1" Margin="3"
+                                <Grid Grid.Row="1" Margin="3" DataContext="{Binding DevicePanelVM}"
                                       Visibility="{Binding DataContext.DeviceActive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
-                                    <ctrl:DevicePanelView DataContext="{Binding DevicePanelVM, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                    <ctrl:DevicePanelView/>
                                 </Grid>
                                 <!-- 列表管理内容（Tab 激活时显示，与画布同一位置切换；Visibility 从 Window.DataContext 取防 DataContext 覆盖） -->
                                 <Grid Grid.Row="1" Margin="3" DataContext="{Binding ListManagerVM, RelativeSource={RelativeSource AncestorType=Window}}"
