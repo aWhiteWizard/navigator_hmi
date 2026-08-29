@@ -45,6 +45,32 @@ namespace NavigatorHMI.Common
         }
 
         /// <summary>
+        /// 收集工程目录 tiles/ 瓦片子目录（z/x/y.png，Web Mercator 结构）——世界地图离线瓦片随工程包下发。
+        /// target 保留 "tiles/..." 相对前缀（与 FW ZIP 直启格式一致）；白名单同资源收集（工程目录内）。
+        /// 去重键 = 工程内相对路径（瓦片路径 z/x/y.png 是语义标识：同内容不同路径的瓦片（空白/纯色块常见）
+        /// 必须各自入包，FW 按路径加载——不能用内容 sha256 去重，否则同内容瓦片被吞 → FW 按路径加载缺失（M-3 ① 审查修正）。
+        /// </summary>
+        private static void CollectTiles(string projectDir, Dictionary<string, (string Abs, string Rel)> resources)
+        {
+            if (string.IsNullOrWhiteSpace(projectDir)) return;
+            var tilesDir = Path.Combine(projectDir, "tiles");
+            if (!Directory.Exists(tilesDir)) return;
+            try
+            {
+                foreach (var file in Directory.EnumerateFiles(tilesDir, "*.png", SearchOption.AllDirectories))
+                {
+                    var rel = Path.GetRelativePath(projectDir, file);
+                    if (rel.StartsWith("..") || Path.IsPathRooted(rel)) continue;   // 白名单（理论不会触发，防御）
+                    resources.TryAdd(rel, (file, rel));
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.WriteLine($"[DeploymentPackageBuilder] 瓦片收集失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// 构建部署包 zip 容器并原子输出到 <paramref name="outputDir"/>。
         /// </summary>
         /// <param name="project">当前工程（资源路径相对工程目录解析）</param>
@@ -61,6 +87,7 @@ namespace NavigatorHMI.Common
             // 1. 收集资源（内容哈希去重：同内容只打一份；记录工程内相对路径）
             var projectDir = Path.GetDirectoryName(project.ProjectFilePath) ?? ".";
             var resources = new Dictionary<string, (string Abs, string Rel)>();   // sha256 → (源文件绝对路径, 工程内相对路径)
+            var tiles = new Dictionary<string, (string Abs, string Rel)>();       // sha256 → (瓦片绝对路径, 工程内相对路径)（M-3 ①：独立集合，target 保留根级 tiles/ 前缀与 FW ZIP 直启格式一致）
 
             void Collect(string path)
             {
@@ -86,6 +113,10 @@ namespace NavigatorHMI.Common
             foreach (var list in project.Lists.Where(l => l.Type == ListType.Image))
                 foreach (var item in list.Items)
                     Collect(item);
+
+            // M-3 ①：收集工程目录瓦片（tiles/ 子目录 z/x/y.png——世界地图离线瓦片，随工程包下发；
+            // 与 FW resolveProjectPackage ZIP 直启同格式（tiles/ 根级），HTTP 下载链路落盘后单文件加载也按此探测）
+            CollectTiles(projectDir, tiles);
 
             // 2. manifest + zip 容器（内存构建 → 原子落盘）
             var manifest = new List<ManifestEntry>();
@@ -127,6 +158,31 @@ namespace NavigatorHMI.Common
                             Sha256 = kv.Key
                         });
                     }
+
+                    // M-3 ①：瓦片（target 保留根级 "tiles/..." 前缀——与 FW ZIP 直启格式一致；
+                    // FW httreceiver 落盘按 target 到工程目录，单文件加载按同目录 tiles/ 探测）
+                    long tilesBytes = 0;
+                    foreach (var kv in tiles)
+                    {
+                        var target = kv.Key.Replace('\\', '/');   // 键=工程内相对路径（语义标识）
+                        var entry = zip.CreateEntry(target);
+                        using (var es = entry.Open())
+                        using (var fs = File.OpenRead(kv.Value.Abs))
+                            fs.CopyTo(es);
+                        tilesBytes += new FileInfo(kv.Value.Abs).Length;
+                        manifest.Add(new ManifestEntry
+                        {
+                            Name = Path.GetFileName(kv.Value.Abs),
+                            Type = TypeRes,
+                            Target = target,
+                            Size = new FileInfo(kv.Value.Abs).Length,
+                            Sha256 = Sha256OfFile(kv.Value.Abs)
+                        });
+                    }
+                    // 大小防护（M-3 ① 审查 🟡）：瓦片总和超 64MB 上传上限（FW kMaxUploadBytes）→ Trace 警告
+                    //（zip 整体内存构建 + 单次 POST——超大瓦片集会在 FW 端被拒收，此处尽早提示）
+                    if (tilesBytes > 64L * 1024 * 1024)
+                        System.Diagnostics.Trace.WriteLine($"[DeploymentPackageBuilder] 警告: 瓦片共 {tilesBytes / (1024 * 1024)}MB 超 64MB 上传上限，FW 将拒收——请缩小离线瓦片范围");
 
                     // manifest.json（UTF-8 无 BOM；CamelCase 策略——与 FW 端 httreceiver 读取的 type/target/sha256 小写契约对齐，
                     // L-A1 联调发现大小写不匹配：原 PascalCase "Type" 致 FW 找不到 app 条目）

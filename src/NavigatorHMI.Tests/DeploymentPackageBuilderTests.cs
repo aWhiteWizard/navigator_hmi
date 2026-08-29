@@ -186,5 +186,79 @@ namespace NavigatorHMI.Tests
             }
             finally { Directory.Delete(siblingDir, true); }
         }
+
+        // ── M-3 ①：世界地图瓦片打包（工程目录 tiles/ 子目录 z/x/y.png）──
+
+        [Fact]
+        public void 工程目录瓦片_打进包_根级tiles前缀()
+        {
+            // tiles/ 子目录 z/x/y.png 结构（Web Mercator）
+            WriteImage("tiles/10/807/420.png", new byte[] { 0x10 });
+            WriteImage("tiles/11/1615/840.png", new byte[] { 0x20 });
+
+            var zipPath = Build();
+            var files = ReadZip(zipPath);
+            var names = files.Select(f => f.Path).ToHashSet();
+            Assert.Contains("tiles/10/807/420.png", names);
+            Assert.Contains("tiles/11/1615/840.png", names);
+
+            // manifest 条目（type=res，target 保留根级 tiles/ 前缀——FW httreceiver 落盘到工程目录 tiles/，单文件加载按同目录探测）
+            var manifestBytes = files.First(f => f.Path == "manifest.json").Bytes;
+            var manifest = JsonSerializer.Deserialize<List<DeploymentPackageBuilder.ManifestEntry>>(
+                System.Text.Encoding.UTF8.GetString(manifestBytes),
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+            var tileEntries = manifest.Where(m => m.Target.StartsWith("tiles/")).ToList();
+            Assert.Equal(2, tileEntries.Count);
+            Assert.All(tileEntries, t => Assert.Equal("res", t.Type));
+        }
+
+        [Fact]
+        public void 工程目录无瓦片目录_不影响普通打包()
+        {
+            _project.Screens[0].Widgets.Add(new ImageWidget { ObjectName = "img1", ImagePath = "a.png" });
+            WriteImage("a.png", new byte[] { 0xAA });
+
+            var zipPath = Build();
+            var files = ReadZip(zipPath);
+            Assert.DoesNotContain(files, f => f.Path.StartsWith("tiles/"));
+            Assert.Contains("res/a.png", files.Select(f => f.Path));
+        }
+
+        [Fact]
+        public void 瓦片与图片资源_内容相同_各自入包不冲突()
+        {
+            // 同一内容文件同时被图片引用 + 位于 tiles/ —— target 不同（res/ vs tiles/），不因哈希去重互相吞
+            var content = new byte[] { 0x77 };
+            WriteImage("a.png", content);
+            WriteImage("tiles/10/807/420.png", content);
+            _project.Screens[0].Widgets.Add(new ImageWidget { ObjectName = "img1", ImagePath = "a.png" });
+
+            var zipPath = Build();
+            var files = ReadZip(zipPath);
+            Assert.Contains("res/a.png", files.Select(f => f.Path));
+            Assert.Contains("tiles/10/807/420.png", files.Select(f => f.Path));
+        }
+
+        [Fact]
+        public void 同内容不同路径瓦片_各自入包_不按内容去重()
+        {
+            // M-3 ① 审查修正：瓦片路径 z/x/y.png 是语义标识（FW 按路径加载）——同内容不同路径
+            // （空白/纯色块瓦片常见）必须各自入包；若按内容 sha256 去重会吞掉同内容瓦片 → FW 按路径加载缺失
+            var content = new byte[] { 0xAA, 0xBB };   // 两张同内容瓦片
+            WriteImage("tiles/10/807/420.png", content);
+            WriteImage("tiles/10/808/420.png", content);
+
+            var zipPath = Build();
+            var files = ReadZip(zipPath);
+            Assert.Contains("tiles/10/807/420.png", files.Select(f => f.Path));
+            Assert.Contains("tiles/10/808/420.png", files.Select(f => f.Path));
+
+            // manifest 两条独立条目
+            var manifestBytes = files.First(f => f.Path == "manifest.json").Bytes;
+            var manifest = JsonSerializer.Deserialize<List<DeploymentPackageBuilder.ManifestEntry>>(
+                System.Text.Encoding.UTF8.GetString(manifestBytes),
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+            Assert.Equal(2, manifest.Count(m => m.Target.StartsWith("tiles/")));
+        }
     }
 }
