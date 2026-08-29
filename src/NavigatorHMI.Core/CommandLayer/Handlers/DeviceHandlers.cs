@@ -142,7 +142,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
         }
     }
 
-    /// <summary>扫描网络中可用的 HMI 设备。</summary>
+    /// <summary>扫描网络中可用的 HMI 设备（2026-08-30 L 循环实现：设计文档方案 B HTTP 网段扫描——/24 子网遍历 + GET /api/device/info）。</summary>
     public class ScanDevicesHandler : ICommandHandler
     {
         public CommandDefinition Definition => new()
@@ -154,8 +154,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
         public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
         {
             var nic = p.GetValueOrDefault("nic")?.ToString() ?? "eth0";
-            // TODO: 真实网络扫描需要子网遍历。骨架返回空列表。
-            return CommandResult.Ok(new { nic, devices = Array.Empty<object>(), message = "扫描完成（骨架模式，未发现设备）" });
+            var devices = DeviceScanner.Scan(nic);
+            return CommandResult.Ok(new { nic, devices, count = devices.Count, message = $"扫描完成，发现 {devices.Count} 台设备" });
         }
     }
 

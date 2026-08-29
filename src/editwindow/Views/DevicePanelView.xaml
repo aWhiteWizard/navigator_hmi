@@ -8,6 +8,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
@@ -44,7 +45,7 @@
                     ToolTip="VNC 运行时启停（点击切换，端口见配置）"/>
         </StackPanel>
 
-        <!-- 状态信息 -->
+        <!-- 状态信息（简短状态；详细日志进主窗口「输出」窗口——2026-08-30 用户定） -->
         <Border Grid.Row="3" Background="#F5F5F5" BorderBrush="#DDDDDD" BorderThickness="1" Padding="8,6" Margin="0,0,0,8">
             <StackPanel>
                 <TextBlock Text="{Binding StatusText}" FontSize="12" TextWrapping="Wrap"/>
@@ -52,8 +53,24 @@
             </StackPanel>
         </Border>
 
+        <!-- 发现的设备表格（设计文档 property-device §3.2：IP/型号/ID，点击行自动填入并连接） -->
+        <GroupBox Grid.Row="4" Header="发现的设备" Margin="0,0,0,8" Padding="4">
+            <DataGrid ItemsSource="{Binding FoundDevices}" SelectedItem="{Binding SelectedDevice}"
+                      AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" HeadersVisibility="Column"
+                      GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12" RowHeight="24"
+                      MinHeight="80" MaxHeight="200"
+                      ToolTip="点击行 → 自动填入 IP+型号，再点「连接测试」建立会话">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="IP" Binding="{Binding Ip}" Width="*"/>
+                    <DataGridTextColumn Header="型号" Binding="{Binding Model}" Width="*"/>
+                    <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="*"/>
+                    <DataGridTextColumn Header="尺寸" Binding="{Binding SizeInch}" Width="Auto"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </GroupBox>
+
         <!-- 下载区（门禁灰显）-->
-        <StackPanel Grid.Row="4" Orientation="Horizontal">
+        <StackPanel Grid.Row="5" Orientation="Horizontal">
             <Button Content="下载工程" Height="30" Padding="16,0" Command="{Binding DeployCommand}" Cursor="Hand"
                     ToolTip="编译+打包+HTTP 传输（需已连接且型号支持部署）"/>
             <TextBlock Text="（需连接测试通过）" VerticalAlignment="Center" Margin="8,0,0,0" FontSize="11" Foreground="#999999"/>

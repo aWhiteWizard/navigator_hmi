@@ -100,6 +100,34 @@ namespace NavigatorHMI.ViewModels
         private string _progressText = "";
         public string ProgressText { get => _progressText; private set { if (_progressText != value) { _progressText = value; OnPropertyChanged(); } } }
 
+        /// <summary>发现的设备列表（搜索设备结果；设计文档 property-device §3.2：IP/型号/ID，点击行自动填入）。</summary>
+        public System.Collections.ObjectModel.ObservableCollection<ScannedDevice> FoundDevices { get; } = new();
+
+        private ScannedDevice? _selectedDevice;
+        /// <summary>选中的发现设备（点击表格行 → 自动填入 IP+型号并连接）。</summary>
+        public ScannedDevice? SelectedDevice
+        {
+            get => _selectedDevice;
+            set
+            {
+                if (!ReferenceEquals(_selectedDevice, value))
+                {
+                    _selectedDevice = value;
+                    OnPropertyChanged();
+                    if (value != null) ApplySelectedDevice(value);
+                }
+            }
+        }
+
+        /// <summary>点击发现设备行：自动填入 IP + 型号（设计文档：点击列表行 → 自动填入型号、ID、IP）。</summary>
+        private void ApplySelectedDevice(ScannedDevice dev)
+        {
+            Ip = dev.Ip;
+            var match = Profiles.FirstOrDefault(p => p.Model.Equals(dev.Model, StringComparison.OrdinalIgnoreCase));
+            if (match != null) SelectedProfile = match;
+            EmitOutput($"[搜索设备] 已选择 {dev.Ip}（{dev.Model}，ID={dev.Id}）——可点「连接测试」建立会话");
+        }
+
         // ── 门禁（连接 + 能力两层）──
         private bool _canOperate;
         public bool CanOperate { get => _canOperate; private set { if (_canOperate != value) { _canOperate = value; OnPropertyChanged(); } } }
@@ -158,25 +186,89 @@ namespace NavigatorHMI.ViewModels
             }
         }
 
-        /// <summary>搜索设备（用户 2026-08-30 定：选网卡后可用；走命令层 scan_devices——PC SSH/HTTP 扫描，结果写输出窗口）。</summary>
+        /// <summary>搜索设备（用户 2026-08-30 定：选网卡后可用；走命令层 scan_devices——HTTP 网段扫描，结果填设备列表表格 + 日志进输出窗口）。</summary>
         private async Task ExecuteScanAsync()
         {
             if (!CanScan) return;
             StatusText = "搜索中…";
-            EmitOutput($"[搜索设备] 网卡 {SelectedNic} 扫描中…");
+            EmitOutput($"[搜索设备] 网卡 {SelectedNic} 扫描中…（/24 子网 HTTP 探测）");
             var result = await Task.Run(() => _commandService.Execute("scan_devices",
                 new Dictionary<string, object?> { ["nic"] = SelectedNic }));
+            FoundDevices.Clear();
+            SelectedDevice = null;
             if (result.Success)
             {
-                var data = result.Data?.ToString() ?? "";
-                StatusText = "搜索完成";
-                EmitOutput($"[搜索设备] ✓ {data}");
+                // 命令层返回 { nic, devices:[{ip,model,id,sizeInch,version}], count, message }
+                var devices = ExtractDevices(result.Data);
+                foreach (var d in devices) FoundDevices.Add(d);
+                StatusText = $"搜索完成，发现 {devices.Count} 台设备";
+                EmitOutput($"[搜索设备] ✓ 发现 {devices.Count} 台设备（点击表格行自动填入并连接）");
             }
             else
             {
                 StatusText = $"搜索失败: {result.ErrorMessage}";
                 EmitOutput($"[搜索设备] ✗ [{result.ErrorCode}] {result.ErrorMessage}");
             }
+        }
+
+        /// <summary>从命令层 scan_devices 结果提取设备列表（Data 为匿名对象 {nic,devices:[...],count,message} 或 JSON 字符串）。</summary>
+        private static List<ScannedDevice> ExtractDevices(object? data)
+        {
+            var result = new List<ScannedDevice>();
+            if (data == null) return result;
+            try
+            {
+                // 形态 1：匿名对象（CommandService 不序列化 Data——反射读 devices 属性）
+                var devicesProp = data.GetType().GetProperty("devices");
+                if (devicesProp != null)
+                {
+                    var raw = devicesProp.GetValue(data) as System.Collections.IEnumerable;
+                    if (raw != null)
+                    {
+                        foreach (var item in raw)
+                        {
+                            if (item == null) continue;
+                            var dev = new ScannedDevice
+                            {
+                                Ip = GetProp(item, "ip"),
+                                Model = GetProp(item, "model"),
+                                Id = GetProp(item, "id"),
+                                SizeInch = GetProp(item, "sizeInch"),
+                                Version = GetProp(item, "version")
+                            };
+                            if (!string.IsNullOrWhiteSpace(dev.Ip)) result.Add(dev);
+                        }
+                        return result;
+                    }
+                }
+                // 形态 2：JSON 字符串
+                var json = data.ToString() ?? "";
+                using var doc = System.Text.Json.JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty("devices", out var arr) && arr.ValueKind == System.Text.Json.JsonValueKind.Array)
+                {
+                    foreach (var item in arr.EnumerateArray())
+                    {
+                        if (item.ValueKind != System.Text.Json.JsonValueKind.Object) continue;
+                        var dev = new ScannedDevice
+                        {
+                            Ip = item.TryGetProperty("ip", out var ip) ? ip.GetString() ?? "" : "",
+                            Model = item.TryGetProperty("model", out var m) ? m.GetString() ?? "" : "",
+                            Id = item.TryGetProperty("id", out var id) ? id.GetString() ?? "" : "",
+                            SizeInch = item.TryGetProperty("sizeInch", out var s) ? s.GetString() ?? "" : "",
+                            Version = item.TryGetProperty("version", out var v) ? v.GetString() ?? "" : ""
+                        };
+                        if (!string.IsNullOrWhiteSpace(dev.Ip)) result.Add(dev);
+                    }
+                }
+            }
+            catch { /* 解析失败返回空 */ }
+            return result;
+        }
+
+        private static string GetProp(object obj, string name)
+        {
+            try { return obj.GetType().GetProperty(name)?.GetValue(obj)?.ToString() ?? ""; }
+            catch { return ""; }
         }
 
         /// <summary>设备闪烁（on/off 状态机；走命令层——K-5 CLI 对等单一入口）。</summary>
