@@ -31,6 +31,8 @@ namespace NavigatorHMI.ViewModels
             // 直接开设备面板（未先开新建项目）时 DeviceProfileService.Profiles 为空 → 类型下拉空白；
             // Initialize 幂等（lock + 重载），重复调用安全
             DeviceProfileService.Initialize(Path.Combine(AppContext.BaseDirectory, "device-profiles"));
+            // L-B2 诊断（2026-08-30 用户反馈类型仍空）：Trace 构造后 Profiles 数量，便于定位（服务层测试已证 Initialize 后非空）
+            System.Diagnostics.Trace.WriteLine($"[DevicePanelVM] Initialize 后 Profiles={DeviceProfileService.Profiles.Count}, dir={Path.Combine(AppContext.BaseDirectory, "device-profiles")}");
             DeviceProfileService.ProfilesChanged += OnProfilesChanged;
             DeviceConnectionService.SessionChanged += OnSessionChanged;
             RefreshProfiles();

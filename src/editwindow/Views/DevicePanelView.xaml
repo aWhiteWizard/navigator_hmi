@@ -36,7 +36,7 @@
             <Button Content="搜索设备" Height="26" Padding="10,0" Margin="0,0,8,0" Cursor="Hand" IsEnabled="False"
                     ToolTip="局域网扫描（V1.1 后续扩展）"/>
             <Button Content="设备闪烁" Height="26" Padding="10,0" Margin="0,0,8,0" Command="{Binding BlinkCommand}" Cursor="Hand"/>
-            <CheckBox Content="VNC" VerticalAlignment="Center" IsChecked="{Binding VncOn}" Command="{Binding VncCommand}"
+            <CheckBox Content="VNC" VerticalAlignment="Center" IsChecked="{Binding VncOn, Mode=OneWay}" Command="{Binding VncCommand}"
                       ToolTip="VNC 运行时启停（5900）"/>
         </StackPanel>
 
