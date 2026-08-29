@@ -8,6 +8,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -32,7 +33,7 @@
                       DisplayMemberPath="Model" ToolTip="设备型号（device-profile 驱动）"/>
         </Grid>
 
-        <!-- 搜索 / 闪烁 / VNC 开关（下拉右侧横排）-->
+        <!-- 搜索 / 闪烁（下拉右侧横排；VNC 已单独成行——M-2 用户 2026-08-30 定）-->
         <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,8">
             <TextBlock Text="网卡:" VerticalAlignment="Center" Margin="0,0,4,0" ToolTip="搜索设备用的网卡"/>
             <ComboBox Width="90" Height="26" ItemsSource="{Binding NicList}" SelectedItem="{Binding SelectedNic}"
@@ -40,13 +41,19 @@
             <Button Content="搜索设备" Height="26" Padding="10,0" Margin="4,0,0,0" Command="{Binding ScanCommand}" Cursor="Hand"
                     ToolTip="按所选网卡扫描局域网设备（需先选网卡）"/>
             <Button Content="设备闪烁" Height="26" Padding="10,0" Margin="4,0,0,0" Command="{Binding BlinkCommand}" Cursor="Hand"/>
+        </StackPanel>
+
+        <!-- VNC 行（M-2：VNC 组件单独一行——启停应用按钮 + 打开查看器；打开查看器仅 VNC 启用后可用）-->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,8">
             <!-- VNC 单独应用按钮（用户 2026-08-30 定：非 CheckBox，点击切换启停）-->
-            <Button Content="{Binding VncButtonText}" Height="26" Padding="10,0" Margin="4,0,0,0" Command="{Binding VncCommand}" Cursor="Hand"
+            <Button Content="{Binding VncButtonText}" Height="26" Padding="10,0" Command="{Binding VncCommand}" Cursor="Hand"
                     ToolTip="VNC 运行时启停（点击切换，端口见配置）"/>
+            <Button Content="打开 VNC 查看器" Height="26" Padding="10,0" Margin="4,0,0,0" Command="{Binding OpenViewerCommand}" Cursor="Hand"
+                    ToolTip="启动 VncViewer.exe 连接当前会话设备（需 VNC 已启用）"/>
         </StackPanel>
 
         <!-- 发现的设备表格（设计文档 property-device §3.2：IP/型号/ID，点击行自动填入并连接；日志统一进主窗口「输出」窗口） -->
-        <GroupBox Grid.Row="3" Header="发现的设备" Margin="0,0,0,8" Padding="4">
+        <GroupBox Grid.Row="4" Header="发现的设备" Margin="0,0,0,8" Padding="4">
             <DataGrid ItemsSource="{Binding FoundDevices}" SelectedItem="{Binding SelectedDevice}"
                       AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" HeadersVisibility="Column"
                       GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12" RowHeight="24"
@@ -62,7 +69,7 @@
         </GroupBox>
 
         <!-- 下载区（门禁灰显）-->
-        <StackPanel Grid.Row="4" Orientation="Horizontal">
+        <StackPanel Grid.Row="5" Orientation="Horizontal">
             <Button Content="下载工程" Height="30" Padding="16,0" Command="{Binding DeployCommand}" Cursor="Hand"
                     ToolTip="编译+打包+HTTP 传输（需已连接且型号支持部署）"/>
             <TextBlock Text="（需连接测试通过）" VerticalAlignment="Center" Margin="8,0,0,0" FontSize="11" Foreground="#999999"/>

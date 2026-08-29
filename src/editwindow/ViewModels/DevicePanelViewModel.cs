@@ -33,6 +33,7 @@ namespace NavigatorHMI.ViewModels
             VncCommand = new AsyncRelayCommand(ExecuteVncAsync, () => IsConnected);
             DeployCommand = new AsyncRelayCommand(ExecuteDeployAsync, () => CanOperate);
             ScanCommand = new AsyncRelayCommand(ExecuteScanAsync, () => !string.IsNullOrWhiteSpace(SelectedNic));
+            OpenViewerCommand = new AsyncRelayCommand(ExecuteOpenViewerAsync, () => VncOn);
             // L-B2 修复（2026-08-30）：确保服务初始化——Initialize 此前仅在新建项目对话框构造时调用，
             // 直接开设备面板（未先开新建项目）时 DeviceProfileService.Profiles 为空 → 类型下拉空白；
             // Initialize 幂等（lock + 重载），重复调用安全
@@ -80,7 +81,7 @@ namespace NavigatorHMI.ViewModels
         public bool VncOn
         {
             get => _vncOn;
-            private set { if (_vncOn != value) { _vncOn = value; OnPropertyChanged(); OnPropertyChanged(nameof(VncButtonText)); } }
+            private set { if (_vncOn != value) { _vncOn = value; OnPropertyChanged(); OnPropertyChanged(nameof(VncButtonText)); OpenViewerCommand.NotifyCanExecuteChanged(); } }
         }
 
         /// <summary>VNC 应用按钮文案（用户定：VNC 单独应用按钮——未开显示「VNC 启用」，已开显示「VNC 停止」）。</summary>
@@ -149,6 +150,8 @@ namespace NavigatorHMI.ViewModels
         public IAsyncRelayCommand VncCommand { get; }
         public IAsyncRelayCommand DeployCommand { get; }
         public IAsyncRelayCommand ScanCommand { get; }
+        /// <summary>打开 VNC 查看器（M-2：仅 VNC 已启用时可执行——CanExecute 绑 VncOn）。</summary>
+        public IAsyncRelayCommand OpenViewerCommand { get; }
 
         /// <summary>连接测试（三分：已连接/无法连接/型号·尺寸不匹配——固件版本不匹配 K-3 版本比对后补）。</summary>
         private async Task ExecuteConnectAsync()
@@ -304,6 +307,64 @@ namespace NavigatorHMI.ViewModels
                 new Dictionary<string, object?> { ["ip"] = DeviceConnectionService.Session.Ip, ["enable"] = target ? "on" : "off" }));
             VncOn = result.Success && target;
             ProgressText = result.Success ? "" : $"VNC 指令失败: {result.ErrorMessage}";
+        }
+
+        /// <summary>
+        /// 打开 VNC 查看器（M-2）：启动 VncViewer.exe 连接当前会话设备 {ip}:5900。
+        /// 候选路径：应用同目录 VncViewer.exe 优先，开发机 Release 输出路径兜底（外部程序不随包分发）。
+        /// 注（M-2 审查 CONFLICT_SOFT）：端口取默认 5900——FW 端 VNC 端口可配置（fwconfig.h vncPort()，
+        /// /etc/navigatorhmi/fw-config.json vnc.port + NAVIHMI_VNC_PORT 覆盖），默认值 5900 一致可用；
+        /// 若设备端改端口，查看器将连不上（端口字段扩展留后续，本循环边界不动 FW 端）。
+        /// </summary>
+        private async Task ExecuteOpenViewerAsync()
+        {
+            var session = DeviceConnectionService.Session;
+            if (session == null) return;
+            if (!VncOn)
+            {
+                EmitOutput("[VNC 查看器] 请先启用 VNC 再打开查看器");
+                return;
+            }
+            var exe = ResolveVncViewerPath();
+            if (exe == null)
+            {
+                EmitOutput("[VNC 查看器] 未找到 VncViewer.exe（同目录/开发机 Release 输出路径均无）——请将 VncViewer.exe 放到组态软件同目录");
+                return;
+            }
+            var args = $"{session.Ip}:5900";
+            EmitOutput($"[VNC 查看器] 启动 {exe} {args}");
+            try
+            {
+                using var p = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = exe,
+                    Arguments = args,
+                    UseShellExecute = true
+                });
+                ProgressText = p != null ? "VNC 查看器已启动" : "VNC 查看器启动失败";
+            }
+            catch (Exception ex)
+            {
+                EmitOutput($"[VNC 查看器] 启动失败: {ex.Message}");
+                ProgressText = $"VNC 查看器启动失败: {ex.Message}";
+            }
+            await Task.CompletedTask;
+        }
+
+        /// <summary>探测 VncViewer.exe 路径（应用同目录优先，开发机 Release 输出路径兜底）。</summary>
+        private static string? ResolveVncViewerPath()
+        {
+            var candidates = new[]
+            {
+                Path.Combine(AppContext.BaseDirectory, "VncViewer.exe"),
+                // 开发机已知 Release 输出路径（外部程序不随包分发，兜底便于本地调试）
+                @"D:\workspace\code\VncViewer\bin\Release\net9.0-windows\VncViewer.exe"
+            };
+            foreach (var c in candidates)
+            {
+                if (File.Exists(c)) return c;
+            }
+            return null;
         }
 
         /// <summary>下载工程（deploy 前置自动编译门禁 + CheckVersion 版本比对 + HTTP 传输——命令层统一链路）。</summary>
