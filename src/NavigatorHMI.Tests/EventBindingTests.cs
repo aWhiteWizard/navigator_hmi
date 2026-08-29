@@ -178,5 +178,24 @@ namespace NavigatorHMI.Tests
             Assert.True(r.Success, r.ErrorMessage);   // 去空白规范化命中
             Assert.Equal("设备详情", p.Screens[0].Widgets[0].Events.Single().Actions.Single().Parameters["target_screen"]);
         }
+
+        // ── M-3 ③：StopRuntime 动作（运行时停止）──
+
+        [Fact]
+        public void addEvent_stopRuntime_落库与protobufRoundTrip()
+        {
+            var (svc, p) = Create();
+            var r = svc.Execute("add_event", P("测试画面", "button_1", "onClick", "stop_runtime"));
+            Assert.True(r.Success, r.ErrorMessage);
+            var we = p.Screens[0].Widgets[0].Events.Single();
+            Assert.Equal(ActionType.stop_runtime, we.Actions.Single().Type);
+
+            // protobuf round-trip：枚举新值（=17，与 proto ACT_STOP_RUNTIME 对齐）序列化回读一致（契约三方同步，2026-08-30）
+            using var ms = new System.IO.MemoryStream();
+            ProtoBuf.Serializer.Serialize(ms, we);
+            ms.Position = 0;
+            var back = ProtoBuf.Serializer.Deserialize<WidgetEvent>(ms);
+            Assert.Equal(ActionType.stop_runtime, back.Actions.Single().Type);
+        }
     }
 }

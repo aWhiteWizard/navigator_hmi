@@ -52,6 +52,7 @@ namespace NavigatorHMI.ViewModels
             [ActionType.get_datetime] = "读取日期时间",
             [ActionType.acknowledge_alarm] = "确认报警",
             [ActionType.set_system_time] = "修改系统时间",
+            [ActionType.stop_runtime] = "运行时停止",
         };
 
         /// <summary>控件类型（Type 名）→ 可用事件列表（DESIGN §2；图形类/Label 无事件；进度条 onProgressComplete）。</summary>

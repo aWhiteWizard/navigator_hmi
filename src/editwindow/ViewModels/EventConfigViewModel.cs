@@ -27,7 +27,7 @@ namespace NavigatorHMI.ViewModels
     private static readonly Dictionary<string, ActionType[]> FunctionGroupActionMap = new()
     {
         ["变量操作"] = new[] { ActionType.tag_write, ActionType.tag_add, ActionType.tag_subtract, ActionType.tag_toggle, ActionType.set_bit, ActionType.reset_bit },
-        ["画面导航"] = new[] { ActionType.screen_switch, ActionType.screen_prev, ActionType.screen_next },
+        ["画面导航"] = new[] { ActionType.screen_switch, ActionType.screen_prev, ActionType.screen_next, ActionType.stop_runtime },
         ["控件与界面"] = new[] { ActionType.set_property, ActionType.show_popup },
         ["通知与报警"] = new[] { ActionType.send_notification, ActionType.acknowledge_alarm },
         ["日期时间"] = new[] { ActionType.set_datetime, ActionType.get_datetime, ActionType.set_system_time },
@@ -477,6 +477,7 @@ namespace NavigatorHMI.ViewModels
             ActionType.screen_switch => new() { ("target_screen", "目标画面", "screen", null) },
             ActionType.screen_prev => new(),
             ActionType.screen_next => new(),
+            ActionType.stop_runtime => new(),
             ActionType.show_popup => new() { ("content", "内容/画面", "string", null) },
             ActionType.set_property => new() { ("widget_name", "控件", "widget", null), ("key", "属性", "enum", SetPropertyKeys), ("value", "值", "string", null) },
             ActionType.send_notification => new() { ("topic", "主题", "string", null), ("message", "消息", "string", null) },

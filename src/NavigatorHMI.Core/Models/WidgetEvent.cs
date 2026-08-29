@@ -85,7 +85,9 @@ namespace NavigatorHMI.Common
         /// <summary>确认报警</summary>
         acknowledge_alarm,
         /// <summary>修改系统时间（设备 RTC）</summary>
-        set_system_time
+        set_system_time,
+        /// <summary>运行时停止（退出当前工程回导航首页；FW onStopRuntime→QML stopRuntime；M-3 2026-08-30）</summary>
+        stop_runtime
     }
 
     /// <summary>
