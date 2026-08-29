@@ -4232,8 +4232,12 @@ namespace NavigatorHMI.Views
             var anchorable = DockManager.Layout.Descendents()
                 .OfType<LayoutAnchorable>()
                 .FirstOrDefault(a => a.ContentId == contentId);
-            if (anchorable != null && !anchorable.IsVisible)
-                anchorable.Show();
+            if (anchorable != null)
+            {
+                if (!anchorable.IsVisible) anchorable.Show();
+                // L-B1 用户定：日志自动切出输出窗口——激活该 Tab（同 Pane 多 Tab 时切到前台）
+                anchorable.IsActive = true;
+            }
         }
         private void ToggleToolbarBlock_Click(object sender, RoutedEventArgs e)
         {

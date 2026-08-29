@@ -211,14 +211,14 @@ namespace NavigatorHMI.ViewModels
             }
         }
 
-        /// <summary>从命令层 scan_devices 结果提取设备列表（Data 为匿名对象 {nic,devices:[...],count,message} 或 JSON 字符串）。</summary>
+        /// <summary>从命令层 scan_devices 结果提取设备列表（Data 为匿名对象 {nic,devices:[...],count,message}——devices 是 List&lt;ScannedDevice&gt;）。</summary>
         private static List<ScannedDevice> ExtractDevices(object? data)
         {
             var result = new List<ScannedDevice>();
             if (data == null) return result;
             try
             {
-                // 形态 1：匿名对象（CommandService 不序列化 Data——反射读 devices 属性）
+                // 形态 1：匿名对象（CommandService 不序列化 Data——反射读 devices 属性，元素即 ScannedDevice）
                 var devicesProp = data.GetType().GetProperty("devices");
                 if (devicesProp != null)
                 {
@@ -227,16 +227,22 @@ namespace NavigatorHMI.ViewModels
                     {
                         foreach (var item in raw)
                         {
-                            if (item == null) continue;
-                            var dev = new ScannedDevice
+                            if (item is ScannedDevice sd)   // 元素已是 ScannedDevice——直接取（避免反射大小写坑）
                             {
-                                Ip = GetProp(item, "ip"),
-                                Model = GetProp(item, "model"),
-                                Id = GetProp(item, "id"),
-                                SizeInch = GetProp(item, "sizeInch"),
-                                Version = GetProp(item, "version")
-                            };
-                            if (!string.IsNullOrWhiteSpace(dev.Ip)) result.Add(dev);
+                                if (!string.IsNullOrWhiteSpace(sd.Ip)) result.Add(sd);
+                            }
+                            else if (item != null)
+                            {
+                                var dev = new ScannedDevice
+                                {
+                                    Ip = GetProp(item, "ip"),
+                                    Model = GetProp(item, "model"),
+                                    Id = GetProp(item, "id"),
+                                    SizeInch = GetProp(item, "sizeInch"),
+                                    Version = GetProp(item, "version")
+                                };
+                                if (!string.IsNullOrWhiteSpace(dev.Ip)) result.Add(dev);
+                            }
                         }
                         return result;
                     }
@@ -267,7 +273,12 @@ namespace NavigatorHMI.ViewModels
 
         private static string GetProp(object obj, string name)
         {
-            try { return obj.GetType().GetProperty(name)?.GetValue(obj)?.ToString() ?? ""; }
+            try
+            {
+                // 大小写不敏感（匿名对象属性可能 PascalCase——ScannedDevice.Ip 等）
+                var prop = obj.GetType().GetProperty(name, System.Reflection.BindingFlags.IgnoreCase | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                return prop?.GetValue(obj)?.ToString() ?? "";
+            }
             catch { return ""; }
         }
 
