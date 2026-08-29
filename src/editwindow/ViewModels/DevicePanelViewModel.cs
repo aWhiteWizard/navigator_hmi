@@ -36,6 +36,7 @@ namespace NavigatorHMI.ViewModels
             DeviceProfileService.ProfilesChanged += OnProfilesChanged;
             DeviceConnectionService.SessionChanged += OnSessionChanged;
             RefreshProfiles();
+            RefreshNicList();
             OnSessionChanged(DeviceConnectionService.Session);
         }
 
@@ -70,7 +71,25 @@ namespace NavigatorHMI.ViewModels
         public bool BlinkOn { get => _blinkOn; private set { if (_blinkOn != value) { _blinkOn = value; OnPropertyChanged(); } } }
 
         private bool _vncOn;
-        public bool VncOn { get => _vncOn; private set { if (_vncOn != value) { _vncOn = value; OnPropertyChanged(); } } }
+        public bool VncOn
+        {
+            get => _vncOn;
+            private set { if (_vncOn != value) { _vncOn = value; OnPropertyChanged(); OnPropertyChanged(nameof(VncButtonText)); } }
+        }
+
+        /// <summary>VNC 应用按钮文案（用户定：VNC 单独应用按钮——未开显示「VNC 启用」，已开显示「VNC 停止」）。</summary>
+        public string VncButtonText => VncOn ? "VNC 停止" : "VNC 启用";
+
+        /// <summary>网卡列表（搜索设备用；用户定：搜索设备需先选网卡）。</summary>
+        public List<string> NicList { get; private set; } = new();
+
+        private string _selectedNic = "";
+        /// <summary>选中的网卡（扫描设备用）。</summary>
+        public string SelectedNic
+        {
+            get => _selectedNic;
+            set { if (_selectedNic != value) { _selectedNic = value; OnPropertyChanged(); } }
+        }
 
         private string _progressText = "";
         public string ProgressText { get => _progressText; private set { if (_progressText != value) { _progressText = value; OnPropertyChanged(); } } }
@@ -137,11 +156,11 @@ namespace NavigatorHMI.ViewModels
             ProgressText = result.Success ? "" : $"闪烁指令失败: {result.ErrorMessage}";
         }
 
-        /// <summary>VNC 运行时启停（走命令层；勾选即发——点击时序 OnToggle 先于 Command，此处 VncOn 已是用户意图）。</summary>
+        /// <summary>VNC 运行时启停（走命令层；应用按钮点击切换——2026-08-30 用户定 VNC 单独应用按钮，取反 VncOn 为用户意图）。</summary>
         private async Task ExecuteVncAsync()
         {
             if (DeviceConnectionService.Session == null) return;
-            var target = VncOn;   // 点击时绑定值已翻转 = 用户意图（勿取反——取反即方向颠倒）
+            var target = !VncOn;   // 应用按钮：点击切换（原 CheckBox 语义是勾选即发值已翻转——按钮语义改为取反）
             ProgressText = target ? "VNC 启用指令发送中…" : "VNC 停用指令发送中…";
             var result = await Task.Run(() => _commandService.Execute("vnc",
                 new Dictionary<string, object?> { ["ip"] = DeviceConnectionService.Session.Ip, ["enable"] = target ? "on" : "off" }));
@@ -177,6 +196,29 @@ namespace NavigatorHMI.ViewModels
             OnPropertyChanged(nameof(SelectedProfile));
             ConnectCommand.NotifyCanExecuteChanged();
             RefreshGate();   // profile 热更新致 Capability.Deploy 变化 → 下载门禁联动
+        }
+
+        /// <summary>枚举本机网卡（搜索设备用；用户 2026-08-30 定：搜索设备需先选网卡）。</summary>
+        private void RefreshNicList()
+        {
+            var nics = new List<string>();
+            try
+            {
+                foreach (var nic in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
+                {
+                    if (nic.OperationalStatus == System.Net.NetworkInformation.OperationalStatus.Up)
+                        nics.Add(nic.Name);
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.WriteLine($"[DevicePanelVM] 网卡枚举失败: {ex.Message}");
+            }
+            NicList = nics;
+            if (SelectedNic == "" || !nics.Contains(SelectedNic))
+                SelectedNic = nics.FirstOrDefault() ?? "";
+            OnPropertyChanged(nameof(NicList));
+            OnPropertyChanged(nameof(SelectedNic));
         }
 
         /// <summary>会话变化（可能后台线程——封送后更新门禁与状态栏）。</summary>

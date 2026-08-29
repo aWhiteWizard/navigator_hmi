@@ -1519,7 +1519,7 @@
                                                     </StackPanel>
                                                 </Border>
                                                 <DataTemplate.Triggers>
-                                                    <!-- 当前编辑页高亮；变量管理器/通讯/列表激活时画面 Tab 不高亮（高亮互斥，避免双蓝） -->
+                                                    <!-- 当前编辑页高亮；变量管理器/通讯/列表/报警/用户/设备管理激活时画面 Tab 不高亮（高亮互斥，避免双蓝） -->
                                                     <MultiDataTrigger>
                                                         <MultiDataTrigger.Conditions>
                                                             <Condition Binding="{Binding IsCurrent}" Value="True"/>
@@ -1528,6 +1528,7 @@
                                                             <Condition Binding="{Binding DataContext.ListManagerActive, RelativeSource={RelativeSource AncestorType=Window}}" Value="False"/>
                                                             <Condition Binding="{Binding DataContext.AlarmActive, RelativeSource={RelativeSource AncestorType=Window}}" Value="False"/>
                                                             <Condition Binding="{Binding DataContext.UserActive, RelativeSource={RelativeSource AncestorType=Window}}" Value="False"/>
+                                                            <Condition Binding="{Binding DataContext.DeviceActive, RelativeSource={RelativeSource AncestorType=Window}}" Value="False"/>
                                                         </MultiDataTrigger.Conditions>
                                                         <Setter TargetName="TabBorder" Property="Background" Value="#0078D4"/>
                                                         <Setter TargetName="TabBorder" Property="BorderBrush" Value="#0078D4"/>
