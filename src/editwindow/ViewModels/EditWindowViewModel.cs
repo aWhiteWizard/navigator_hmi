@@ -1159,6 +1159,7 @@ namespace NavigatorHMI.ViewModels
             TreeRoots.Add(BuildListRootNode());
             TreeRoots.Add(BuildAlarmRootNode());
             TreeRoots.Add(BuildUserRootNode());
+            TreeRoots.Add(BuildDeviceRootNode());   // L 循环 L-B1：设备管理独立根节点（构造时即加入——用户实测「点编译后才出现」根因：构造方法漏加）
 
             // 默认选中世界地图画面（旧工程缺 WorldMap 时兜底退回全局画面——FirstOrDefault 防抛异常）
             CurrentScreen = project.Screens.FirstOrDefault(s => s.Type == ScreenType.WorldMap)

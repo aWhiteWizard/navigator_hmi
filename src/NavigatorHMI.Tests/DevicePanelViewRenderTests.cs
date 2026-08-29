@@ -3,6 +3,7 @@ using NavigatorHMI.ViewModels;
 using NavigatorHMI.Views;
 using System.Linq;
 using System.Windows;
+using System.Windows.Controls;
 using Xunit;
 
 namespace NavigatorHMI.Tests
@@ -14,10 +15,15 @@ namespace NavigatorHMI.Tests
         public void DevicePanelView_类型下拉有选项()
         {
             // WPF UI 需 STA 线程（xUnit 默认 MTA）
+            RunOnSta(RunTest);
+        }
+
+        private static void RunOnSta(System.Action action)
+        {
             Exception? threadEx = null;
             var t = new System.Threading.Thread(() =>
             {
-                try { RunTest(); }
+                try { action(); }
                 catch (Exception ex) { threadEx = ex; }
             });
             t.SetApartmentState(System.Threading.ApartmentState.STA);
