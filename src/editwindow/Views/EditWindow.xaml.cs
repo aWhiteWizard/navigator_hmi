@@ -2695,8 +2695,12 @@ namespace NavigatorHMI.Views
 
         private void OnWidgetPropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
-            // 排除选中态（瞬态，不持久化，不标脏）
+            // 排除瞬态属性（不持久化，不标脏）：
+            //  IsSelected——选中态高亮；
+            //  DisplayText——派生显示属性（1Hz 时钟 DateTimeWidget.RefreshDisplay 每秒通知刷新实时时间，
+            //  未绑定控件同理），非持久化数据，变化不应标脏（M-1：标题栏脏标记误报根因①）。
             if (e.PropertyName == nameof(Widget.IsSelected)) return;
+            if (e.PropertyName == nameof(Widget.DisplayText)) return;
             MarkProjectDirty();
         }
 
@@ -2716,6 +2720,8 @@ namespace NavigatorHMI.Views
 
         private void OnScreenPropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
+            // 排除 IsCurrent（瞬态高亮属性，[ProtoIgnore] 不持久化，切画面即改——M-1：脏标记误报根因②）
+            if (e.PropertyName == nameof(Screen.IsCurrent)) return;
             MarkProjectDirty();
         }
 
