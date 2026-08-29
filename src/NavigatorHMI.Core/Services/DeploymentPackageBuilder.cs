@@ -128,11 +128,12 @@ namespace NavigatorHMI.Common
                         });
                     }
 
-                    // manifest.json（UTF-8 无 BOM）
+                    // manifest.json（UTF-8 无 BOM；CamelCase 策略——与 FW 端 httreceiver 读取的 type/target/sha256 小写契约对齐，
+                    // L-A1 联调发现大小写不匹配：原 PascalCase "Type" 致 FW 找不到 app 条目）
                     var mEntry = zip.CreateEntry("manifest.json");
                     using (var es = mEntry.Open())
                     {
-                        var json = JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true });
+                        var json = JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
                         var bytes = Encoding.UTF8.GetBytes(json);
                         es.Write(bytes, 0, bytes.Length);
                     }

@@ -73,10 +73,11 @@ namespace NavigatorHMI.Tests
             Assert.Contains("app/app.navihmi", names);
             Assert.Contains("res/a.png", names);
 
-            // manifest 内容校验
+            // manifest 内容校验（PropertyNameCaseInsensitive：序列化已切 CamelCase——L-A1 联调与 FW 契约对齐）
             var manifestBytes = files.First(f => f.Path == "manifest.json").Bytes;
             var manifest = JsonSerializer.Deserialize<List<DeploymentPackageBuilder.ManifestEntry>>(
-                System.Text.Encoding.UTF8.GetString(manifestBytes))!;
+                System.Text.Encoding.UTF8.GetString(manifestBytes),
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
             Assert.Equal(2, manifest.Count);
             Assert.Equal("app", manifest[0].Type);
             Assert.Equal("app/app.navihmi", manifest[0].Target);
