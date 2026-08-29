@@ -141,6 +141,16 @@ namespace NavigatorHMI.Common
             set { if (_deviceHeight != value) { _deviceHeight = value; OnPropertyChanged(); MarkDirty(); } }
         }
 
+        private string _deviceModel = "";
+
+        /// <summary>目标设备型号（device-profile 驱动，如 NavigatorHMI-7；新建项目时按所选型号写入，FW 身份推导优先用）</summary>
+        [ProtoMember(22)]
+        public string DeviceModel
+        {
+            get => _deviceModel;
+            set { if (_deviceModel != value) { _deviceModel = value; OnPropertyChanged(); MarkDirty(); } }
+        }
+
         // ═══════════════════════════════════════════
         // v2.0 新增字段 (ProtoMember 9+)
         // ═══════════════════════════════════════════

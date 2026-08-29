@@ -172,7 +172,8 @@ namespace NavigatorHMI.ViewModels
                 LastModifiedTime = DateTime.UtcNow,
                 ProjectFilePath = fullPath,
                 DeviceHeight = int.Parse(SelectedDeviceModel.Height),
-                DeviceWidth = int.Parse(SelectedDeviceModel.Width)
+                DeviceWidth = int.Parse(SelectedDeviceModel.Width),
+                DeviceModel = SelectedDeviceModel.Name   // K-9 评论5：型号写入工程（FW 身份推导优先用）
             };
             newProject.Screens.Add(new Screen { Name = "世界地图", Type = ScreenType.WorldMap, Height=newProject.DeviceHeight, Width=newProject.DeviceWidth });
             newProject.Screens.Add(new Screen { Name = "全局画面", Type = ScreenType.Template, Height = newProject.DeviceHeight, Width = newProject.DeviceWidth });

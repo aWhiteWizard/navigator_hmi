@@ -171,6 +171,7 @@ namespace NavigatorHMI.Common
                 Users = p.Users,      // W1 用户系统（编译进 .navihmi，FW 登录/权限/密码策略）
                 Groups = p.Groups,
                 Security = p.Security,
+                DeviceModel = p.DeviceModel,   // K-9 评论5：设备型号写入契约（FW 身份推导优先用）
             };
         }
 

@@ -42,6 +42,8 @@ namespace NavigatorHMI.Common
         [ProtoMember(18)] public List<UserAccount> Users { get; set; } = new();
         [ProtoMember(19)] public List<UserGroup> Groups { get; set; } = new();
         [ProtoMember(20)] public SecuritySettings Security { get; set; } = new();
+        [ProtoMember(21)] public bool EnableVnc { get; set; }
+        [ProtoMember(22)] public string DeviceModel { get; set; } = "";   // 设备型号（device-profile 写入；FW 身份推导优先用）
     }
 
     /// <summary>编译产物画面（navihmi.proto Screen）。</summary>

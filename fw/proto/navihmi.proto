@@ -173,6 +173,7 @@ message HMIProject {
   repeated UserGroup groups = 19;
   SecuritySettings security = 20;
   bool enable_vnc = 21;       // 启用 VNC 镜像（eglfs 物理屏照常，额外开 5900 远程显示通道；默认关=零开销）
+  string device_model = 22;   // 设备型号（PC 端 device-profile 写入，如 NavigatorHMI-7；FW 身份推导优先用，兼容旧工程空=按分辨率兜底）
 }
 
 message Screen {
