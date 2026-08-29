@@ -16,9 +16,14 @@ namespace NavigatorHMI.ViewModels
     {
         private readonly ICommandService _commandService;
 
+        /// <summary>输出窗口日志请求（L-B4/L-B1：连接测试/扫描结果写入主窗口「输出」窗口——EditWindow 订阅后 AppendOutput）。</summary>
+        public event Action<string>? OutputRequested;
+
         public event PropertyChangedEventHandler? PropertyChanged;
         private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+
+        private void EmitOutput(string text) => OutputRequested?.Invoke(text);
 
         public DevicePanelViewModel(ICommandService commandService)
         {
@@ -27,6 +32,7 @@ namespace NavigatorHMI.ViewModels
             BlinkCommand = new AsyncRelayCommand(ExecuteBlinkAsync, () => IsConnected);
             VncCommand = new AsyncRelayCommand(ExecuteVncAsync, () => IsConnected);
             DeployCommand = new AsyncRelayCommand(ExecuteDeployAsync, () => CanOperate);
+            ScanCommand = new AsyncRelayCommand(ExecuteScanAsync, () => !string.IsNullOrWhiteSpace(SelectedNic));
             // L-B2 修复（2026-08-30）：确保服务初始化——Initialize 此前仅在新建项目对话框构造时调用，
             // 直接开设备面板（未先开新建项目）时 DeviceProfileService.Profiles 为空 → 类型下拉空白；
             // Initialize 幂等（lock + 重载），重复调用安全
@@ -88,7 +94,7 @@ namespace NavigatorHMI.ViewModels
         public string SelectedNic
         {
             get => _selectedNic;
-            set { if (_selectedNic != value) { _selectedNic = value; OnPropertyChanged(); } }
+            set { if (_selectedNic != value) { _selectedNic = value; OnPropertyChanged(); ScanCommand.NotifyCanExecuteChanged(); } }
         }
 
         private string _progressText = "";
@@ -99,6 +105,9 @@ namespace NavigatorHMI.ViewModels
         public bool CanOperate { get => _canOperate; private set { if (_canOperate != value) { _canOperate = value; OnPropertyChanged(); } } }
 
         public bool CanConnect => !string.IsNullOrWhiteSpace(Ip) && SelectedProfile != null;
+
+        /// <summary>搜索可用：已选网卡。</summary>
+        public bool CanScan => !string.IsNullOrWhiteSpace(SelectedNic);
 
         private void RefreshGate()
         {
@@ -111,6 +120,7 @@ namespace NavigatorHMI.ViewModels
         public IAsyncRelayCommand BlinkCommand { get; }
         public IAsyncRelayCommand VncCommand { get; }
         public IAsyncRelayCommand DeployCommand { get; }
+        public IAsyncRelayCommand ScanCommand { get; }
 
         /// <summary>连接测试（三分：已连接/无法连接/型号·尺寸不匹配——固件版本不匹配 K-3 版本比对后补）。</summary>
         private async Task ExecuteConnectAsync()
@@ -119,6 +129,7 @@ namespace NavigatorHMI.ViewModels
             IsConnected = false;
             StatusText = "测试中…";
             ProgressText = "";
+            EmitOutput($"[连接测试] 测试 {Ip.Trim()} ({SelectedProfile?.Model})…");
             var profile = SelectedProfile!;
             DeviceTestResult result;
             try
@@ -130,17 +141,41 @@ namespace NavigatorHMI.ViewModels
             {
                 // L-B3 修复（2026-08-30）：Task.Run 内异常静默吞掉致连接无反馈——捕获并显示
                 StatusText = $"连接测试异常: {ex.Message}";
+                EmitOutput($"[连接测试] ✗ 异常: {ex.Message}");
                 return;
             }
             if (result.Success)
             {
                 var s = result.Session!;
                 StatusText = $"已连接 {s.Ip} · {s.Model} · 固件 {s.FirmwareVersion ?? "?"}";
+                EmitOutput($"[连接测试] ✓ 已连接 {s.Ip} · {s.Model} · 固件 {s.FirmwareVersion ?? "?"}");
                 IsConnected = true;
             }
             else
             {
                 StatusText = result.Message;
+                EmitOutput($"[连接测试] ✗ {result.Message}");
+            }
+        }
+
+        /// <summary>搜索设备（用户 2026-08-30 定：选网卡后可用；走命令层 scan_devices——PC SSH/HTTP 扫描，结果写输出窗口）。</summary>
+        private async Task ExecuteScanAsync()
+        {
+            if (!CanScan) return;
+            StatusText = "搜索中…";
+            EmitOutput($"[搜索设备] 网卡 {SelectedNic} 扫描中…");
+            var result = await Task.Run(() => _commandService.Execute("scan_devices",
+                new Dictionary<string, object?> { ["nic"] = SelectedNic }));
+            if (result.Success)
+            {
+                var data = result.Data?.ToString() ?? "";
+                StatusText = "搜索完成";
+                EmitOutput($"[搜索设备] ✓ {data}");
+            }
+            else
+            {
+                StatusText = $"搜索失败: {result.ErrorMessage}";
+                EmitOutput($"[搜索设备] ✗ [{result.ErrorCode}] {result.ErrorMessage}");
             }
         }
 

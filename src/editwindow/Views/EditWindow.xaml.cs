@@ -203,6 +203,9 @@ namespace NavigatorHMI.Views
             // L-B4 输出窗口：设备命令（connect/disconnect/blink/vnc/deploy）结果日志聚合 → 输出窗口自动弹出
             _viewModel.CommandService.CommandExecuted += OnOutputCommandExecuted;
 
+            // L-B1：设备面板内部操作（连接测试/搜索——不走命令层）日志 → 输出窗口
+            _viewModel.DevicePanelVM.OutputRequested += OnDevicePanelOutput;
+
             // 画布缩放
             DrawingCanvas.LayoutTransform = _canvasScale;
 
@@ -2538,6 +2541,7 @@ namespace NavigatorHMI.Views
         {
             DeviceConnectionService.SessionChanged -= OnConnectionSessionChanged;   // K-4：状态栏退订（防闭包持有已关闭窗口）
             _viewModel.CommandService.CommandExecuted -= OnOutputCommandExecuted;   // L-B4：输出窗口日志订阅退订
+            _viewModel.DevicePanelVM.OutputRequested -= OnDevicePanelOutput;   // L-B1：设备面板输出订阅退订
             _clockTimer.Stop();   // D6：关闭停止画布时钟
             if (SelectorHelper.ResizeDragStarted == _resizeDragStartedCallback)
                 SelectorHelper.ResizeDragStarted = null;
@@ -4890,13 +4894,19 @@ namespace NavigatorHMI.Views
             }));
         }
 
-        /// <summary>L-B4：设备命令（connect/disconnect/blink/vnc/deploy）结果日志聚合到输出窗口（可能后台线程——封送）。</summary>
+        /// <summary>L-B4：设备命令（connect/disconnect/blink/vnc/deploy/scan）结果日志聚合到输出窗口（可能后台线程——封送）。</summary>
         private void OnOutputCommandExecuted(string cmdName, Dictionary<string, object?> parameters, NavigatorHMI.CommandLayer.CommandResult result)
         {
-            if (cmdName is not ("connect" or "disconnect" or "blink_device" or "vnc" or "deploy_project" or "deploy_firmware")) return;
+            if (cmdName is not ("connect" or "disconnect" or "blink_device" or "vnc" or "deploy_project" or "deploy_firmware" or "scan_devices")) return;
             var ok = result.Success ? "✓" : $"✗ [{result.ErrorCode}]";
             var msg = result.Success ? (result.Data?.ToString() ?? "") : result.ErrorMessage;
             AppendOutput($"[{cmdName}] {ok} {msg}");
+        }
+
+        /// <summary>L-B1：设备面板内部操作（连接测试/搜索）日志 → 输出窗口（DevicePanelVM.OutputRequested 触发）。</summary>
+        private void OnDevicePanelOutput(string text)
+        {
+            AppendOutput(text);
         }
 
         private static string[] ParseCliLine(string line)
