@@ -1118,6 +1118,8 @@
                           Click="ToggleAnchorable_Click" Tag="property"/>
                 <MenuItem Header="CLI 控制台" IsCheckable="True" IsChecked="True"
                           Click="ToggleAnchorable_Click" Tag="cli"/>
+                <MenuItem Header="输出窗口" IsCheckable="True" IsChecked="True"
+                          Click="ToggleAnchorable_Click" Tag="output" ToolTip="编译/连接/命令日志聚合（L-B4）"/>
                 <Separator/>
                 <MenuItem Header="恢复默认布局" Click="ResetLayout_Click" ToolTip="恢复首次打开时的默认布局（左栏上下排布）"/>
             </MenuItem>
@@ -1257,6 +1259,12 @@
                                         <HierarchicalDataTemplate DataType="{x:Type vm:UserRootNode}" ItemsSource="{Binding Children}">
                                             <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
                                         </HierarchicalDataTemplate>
+                                        <HierarchicalDataTemplate DataType="{x:Type vm:DeviceRootNode}" ItemsSource="{Binding Children}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="✅" Visibility="{Binding IsCurrent, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,4,0" FontSize="12"/>
+                                                <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
+                                            </StackPanel>
+                                        </HierarchicalDataTemplate>
                                         <DataTemplate DataType="{x:Type vm:VariableManagerNode}">
                                             <!-- 与画面节点一致的选中样式（✅ 高亮 + 默认字体颜色） -->
                                             <StackPanel Orientation="Horizontal">
@@ -1364,6 +1372,28 @@
                                 <!-- 画布顶部页面标签栏：画面 Tab（打开才显示）+ 变量管理器 Tab（固定），点击切换，可关闭 -->
                                 <Border Grid.Row="0" Background="#F0F0F0" BorderBrush="LightGray" BorderThickness="0,0,0,1" Padding="4,2">
                                     <StackPanel Orientation="Horizontal">
+                                        <!-- L 循环 L-B1 设备管理 Tab（由项目树「设备管理」根节点双击打开，打开才显示，激活高亮；✕ 关闭） -->
+                                        <Border x:Name="DeviceTab" BorderThickness="1" CornerRadius="3" Padding="6,3" Margin="0,0,4,0"
+                                                Cursor="Hand" MouseLeftButtonDown="DeviceTab_Click"
+                                                Visibility="{Binding DeviceTabOpen, Converter={StaticResource BoolToVisibilityConverter}}">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="#E0E0E0"/>
+                                                    <Setter Property="BorderBrush" Value="#B0B0B0"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding DeviceActive}" Value="True">
+                                                            <Setter Property="Background" Value="#0078D4"/>
+                                                            <Setter Property="BorderBrush" Value="#0078D4"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="设备管理" FontSize="12" VerticalAlignment="Center"/>
+                                                <TextBlock Text=" ✕" FontSize="10" Foreground="#888888" VerticalAlignment="Center" Margin="4,0,0,0"
+                                                           Cursor="Hand" MouseLeftButtonDown="DeviceTabClose_Click"/>
+                                            </StackPanel>
+                                        </Border>
                                         <!-- 变量管理器 Tab（由「通信变量→变量」树节点双击打开，打开才显示，激活高亮） -->
                                         <Border x:Name="VarManagerTab" BorderThickness="1" CornerRadius="3" Padding="6,3" Margin="0,0,4,0"
                                                 Cursor="Hand" MouseLeftButtonDown="VarManagerTab_Click"
@@ -1566,7 +1596,7 @@
                                         <Style TargetType="Border">
                                             <Setter Property="Visibility" Value="Visible"/>
                                             <Style.Triggers>
-                                                <!-- 变量管理器/通讯/列表/报警/用户激活时隐藏画布（同一位置切换）
+                                                <!-- 变量管理器/通讯/列表/报警/用户/设备管理激活时隐藏画布（同一位置切换）
                                                      用 Hidden 而非 Collapsed：不销毁画布大量控件的布局树，切页/切回更快；
                                                      Hidden 不渲染且不参与命中测试，变量/通讯/列表 Grid 在 Z 序上正常显示 -->
                                                 <MultiDataTrigger>
@@ -1576,6 +1606,7 @@
                                                         <Condition Binding="{Binding ListManagerActive}" Value="False"/>
                                                         <Condition Binding="{Binding AlarmActive}" Value="False"/>
                                                         <Condition Binding="{Binding UserActive}" Value="False"/>
+                                                        <Condition Binding="{Binding DeviceActive}" Value="False"/>
                                                     </MultiDataTrigger.Conditions>
                                                     <Setter Property="Visibility" Value="Visible"/>
                                                 </MultiDataTrigger>
@@ -1592,6 +1623,9 @@
                                                     <Setter Property="Visibility" Value="Hidden"/>
                                                 </DataTrigger>
                                                 <DataTrigger Binding="{Binding UserActive}" Value="True">
+                                                    <Setter Property="Visibility" Value="Hidden"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding DeviceActive}" Value="True">
                                                     <Setter Property="Visibility" Value="Hidden"/>
                                                 </DataTrigger>
                                             </Style.Triggers>
@@ -1892,6 +1926,11 @@
                                         </TabItem>
                                     </TabControl>
                                 </Grid>
+                                <!-- L 循环 L-B1 设备管理面板内容（设备管理 Tab 激活时显示，与画布同一位置切换；复用 K-4 DevicePanelView） -->
+                                <Grid Grid.Row="1" Margin="3"
+                                      Visibility="{Binding DataContext.DeviceActive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
+                                    <ctrl:DevicePanelView DataContext="{Binding DevicePanelVM, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                </Grid>
                                 <!-- 列表管理内容（Tab 激活时显示，与画布同一位置切换；Visibility 从 Window.DataContext 取防 DataContext 覆盖） -->
                                 <Grid Grid.Row="1" Margin="3" DataContext="{Binding ListManagerVM, RelativeSource={RelativeSource AncestorType=Window}}"
                                       Visibility="{Binding DataContext.ListManagerActive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
@@ -2105,10 +2144,6 @@
                                     </ScrollViewer>
                                 </Grid>
                             </avalon:LayoutAnchorable>
-                            <!-- K-4: 设备管理面板（连接测试/闪烁/VNC 开关/下载工程，门禁灰显）-->
-                            <avalon:LayoutAnchorable Title="设备管理" ContentId="device">
-                                <ctrl:DevicePanelView x:Name="DevicePanel" DataContext="{Binding DevicePanelVM, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                            </avalon:LayoutAnchorable>
                         </avalon:LayoutAnchorablePane>
                     </avalon:LayoutPanel>
 
@@ -2132,7 +2167,16 @@
                                 </Grid>
                             </Grid>
                         </avalon:LayoutAnchorable>
-                                            </avalon:LayoutAnchorablePane>
+                        <!-- L 循环 L-B4: 输出窗口（编译/连接/命令日志聚合，视图菜单开关；CLI 控制台同 Pane Tab）-->
+                        <avalon:LayoutAnchorable Title="输出" ContentId="output">
+                            <Grid Background="#1E1E1E">
+                                <ScrollViewer x:Name="OutputScroller" VerticalScrollBarVisibility="Auto">
+                                    <TextBox x:Name="OutputBox" IsReadOnly="True" FontFamily="Consolas" FontSize="12"
+                                             Background="#1E1E1E" Foreground="#D4D4D4" BorderThickness="0" TextWrapping="Wrap"/>
+                                </ScrollViewer>
+                            </Grid>
+                        </avalon:LayoutAnchorable>
+                    </avalon:LayoutAnchorablePane>
                 </avalon:LayoutPanel>
             </avalon:LayoutRoot>
         </avalon:DockingManager>

@@ -200,6 +200,9 @@ namespace NavigatorHMI.Views
             DeviceConnectionService.SessionChanged += OnConnectionSessionChanged;
             UpdateConnectionStatusBar();
 
+            // L-B4 输出窗口：设备命令（connect/disconnect/blink/vnc/deploy）结果日志聚合 → 输出窗口自动弹出
+            _viewModel.CommandService.CommandExecuted += OnOutputCommandExecuted;
+
             // 画布缩放
             DrawingCanvas.LayoutTransform = _canvasScale;
 
@@ -2534,6 +2537,7 @@ namespace NavigatorHMI.Views
         private void EditWindow_Closed(object? sender, EventArgs e)
         {
             DeviceConnectionService.SessionChanged -= OnConnectionSessionChanged;   // K-4：状态栏退订（防闭包持有已关闭窗口）
+            _viewModel.CommandService.CommandExecuted -= OnOutputCommandExecuted;   // L-B4：输出窗口日志订阅退订
             _clockTimer.Stop();   // D6：关闭停止画布时钟
             if (SelectorHelper.ResizeDragStarted == _resizeDragStartedCallback)
                 SelectorHelper.ResizeDragStarted = null;
@@ -3693,6 +3697,20 @@ namespace NavigatorHMI.Views
             _viewModel.CloseVariableManagerTab();
             e.Handled = true;
         }
+
+        /// <summary>L-B1：点击「设备管理」标签激活（Tab 已开）。</summary>
+        private void DeviceTab_Click(object sender, MouseButtonEventArgs e)
+        {
+            _viewModel.ActivateDevice();
+            e.Handled = true;
+        }
+
+        /// <summary>L-B1：关闭「设备管理」Tab（当前激活时切回当前画面）。</summary>
+        private void DeviceTabClose_Click(object sender, MouseButtonEventArgs e)
+        {
+            _viewModel.CloseDeviceTab();
+            e.Handled = true;
+        }
         #endregion
 
 
@@ -3807,13 +3825,16 @@ namespace NavigatorHMI.Views
         /// </summary>
         private void BuildProject_Click(object sender, RoutedEventArgs e)
         {
+            AppendOutput($"[编译] 开始编译 {DateTime.Now:HH:mm:ss}");
             var result = _viewModel.CommandService.Execute("compile", new());
 
             if (!result.Success)
             {
+                AppendOutput($"[编译] ✗ [{result.ErrorCode}] {result.ErrorMessage}");
                 MessageBox.Show($"[{result.ErrorCode}] {result.ErrorMessage}", "编译失败", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
+            AppendOutput($"[编译] ✓ 编译成功，输出: {result.Data}");
             MessageBox.Show($"编译成功！\n输出: {result.Data}", "完成", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         #endregion
@@ -4830,6 +4851,16 @@ namespace NavigatorHMI.Views
             Dispatcher.Invoke(() =>
             {
                 CliOutput.AppendText(text + "\n");
+                // L-B4 输出窗口：命令/编译/连接日志聚合同步到「输出」窗口 + 自动弹出（用户定：有信息自动弹出）
+                if (OutputBox != null)
+                {
+                    OutputBox.AppendText(text + "\n");
+                    Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+                    {
+                        if (OutputScroller != null) OutputScroller.ScrollToEnd();
+                        else OutputBox.ScrollToEnd();
+                    }));
+                }
                 // 输出更新后自动滚动到新一行：延后到布局完成后（AppendText 只触发 InvalidateMeasure，
                 // 立即 ScrollToEnd 时 ScrollableHeight 还是旧值，连续多行会停在旧底部）
                 Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
@@ -4840,6 +4871,32 @@ namespace NavigatorHMI.Views
                         CliOutput.ScrollToEnd();
                 }));
             });
+        }
+
+        /// <summary>L-B4：编译/连接日志直接写入输出窗口（自动弹出）。BeginInvoke 异步封送——OnOutputCommandExecuted 可能后台线程持锁回调（审查🟡4：同步 Invoke 会与 UI 线程互等死锁）。</summary>
+        private void AppendOutput(string text)
+        {
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                ShowAnchorable("output");   // 有信息自动弹出输出窗口（用户 2026-08-30 定）
+                if (OutputBox != null)
+                {
+                    OutputBox.AppendText(text + "\n");
+                    Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+                    {
+                        if (OutputScroller != null) OutputScroller.ScrollToEnd();
+                    }));
+                }
+            }));
+        }
+
+        /// <summary>L-B4：设备命令（connect/disconnect/blink/vnc/deploy）结果日志聚合到输出窗口（可能后台线程——封送）。</summary>
+        private void OnOutputCommandExecuted(string cmdName, Dictionary<string, object?> parameters, NavigatorHMI.CommandLayer.CommandResult result)
+        {
+            if (cmdName is not ("connect" or "disconnect" or "blink_device" or "vnc" or "deploy_project" or "deploy_firmware")) return;
+            var ok = result.Success ? "✓" : $"✗ [{result.ErrorCode}]";
+            var msg = result.Success ? (result.Data?.ToString() ?? "") : result.ErrorMessage;
+            AppendOutput($"[{cmdName}] {ok} {msg}");
         }
 
         private static string[] ParseCliLine(string line)

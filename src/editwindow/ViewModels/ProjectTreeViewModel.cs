@@ -405,5 +405,20 @@ namespace NavigatorHMI.ViewModels
             DoubleClickCommand = new RelayCommand(() => _parent.NotifyUserSecuritySelected());
         }
     }
+
+    /// <summary>「设备管理」根节点（L 循环 L-B1 用户定：与通信变量/用户/报警/列表同等级的独立根；双击打开设备管理画布 Tab）。</summary>
+    public class DeviceRootNode : ProjectTreeViewModel
+    {
+        public DeviceRootNode()
+        {
+            Name = "设备管理";
+            DoubleClickCommand = new RelayCommand(NotifyDeviceManagerSelected);
+        }
+
+        /// <summary>根节点双击被触发（上层打开设备管理画布 Tab）。</summary>
+        public event Action? OnDeviceManagerSelected;
+
+        internal void NotifyDeviceManagerSelected() => OnDeviceManagerSelected?.Invoke();
+    }
 }
  

@@ -1,4 +1,6 @@
+using System;
 using System.ComponentModel;
+using System.IO;
 using System.Runtime.CompilerServices;
 using CommunityToolkit.Mvvm.Input;
 using NavigatorHMI.CommandLayer;
@@ -25,6 +27,10 @@ namespace NavigatorHMI.ViewModels
             BlinkCommand = new AsyncRelayCommand(ExecuteBlinkAsync, () => IsConnected);
             VncCommand = new AsyncRelayCommand(ExecuteVncAsync, () => IsConnected);
             DeployCommand = new AsyncRelayCommand(ExecuteDeployAsync, () => CanOperate);
+            // L-B2 修复（2026-08-30）：确保服务初始化——Initialize 此前仅在新建项目对话框构造时调用，
+            // 直接开设备面板（未先开新建项目）时 DeviceProfileService.Profiles 为空 → 类型下拉空白；
+            // Initialize 幂等（lock + 重载），重复调用安全
+            DeviceProfileService.Initialize(Path.Combine(AppContext.BaseDirectory, "device-profiles"));
             DeviceProfileService.ProfilesChanged += OnProfilesChanged;
             DeviceConnectionService.SessionChanged += OnSessionChanged;
             RefreshProfiles();
@@ -93,8 +99,18 @@ namespace NavigatorHMI.ViewModels
             StatusText = "测试中…";
             ProgressText = "";
             var profile = SelectedProfile!;
-            var result = await Task.Run(() =>
-                DeviceConnectionService.TestConnection(Ip.Trim(), profile.Model, profile.SizeInch));
+            DeviceTestResult result;
+            try
+            {
+                result = await Task.Run(() =>
+                    DeviceConnectionService.TestConnection(Ip.Trim(), profile.Model, profile.SizeInch));
+            }
+            catch (Exception ex)
+            {
+                // L-B3 修复（2026-08-30）：Task.Run 内异常静默吞掉致连接无反馈——捕获并显示
+                StatusText = $"连接测试异常: {ex.Message}";
+                return;
+            }
             if (result.Success)
             {
                 var s = result.Session!;

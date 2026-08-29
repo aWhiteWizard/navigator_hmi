@@ -103,6 +103,7 @@ namespace NavigatorHMI.ViewModels
             ListManagerActive = false;
             UserActive = false;
             AlarmActive = false;
+            DeviceActive = false;   // L-B1 互斥（审查🔴#1）
             RefreshTreeCurrentStatus();
         }
 
@@ -115,6 +116,7 @@ namespace NavigatorHMI.ViewModels
             ListManagerActive = false;
             UserActive = false;
             AlarmActive = false;
+            DeviceActive = false;   // L-B1 互斥（审查🔴#1）
             RefreshTreeCurrentStatus();
         }
 
@@ -157,6 +159,7 @@ namespace NavigatorHMI.ViewModels
             ListManagerActive = false;
             UserActive = false;
             AlarmActive = false;
+            DeviceActive = false;   // L-B1 互斥（审查🔴#1）
             RefreshTreeCurrentStatus();
         }
 
@@ -169,6 +172,7 @@ namespace NavigatorHMI.ViewModels
             ListManagerActive = false;
             UserActive = false;
             AlarmActive = false;
+            DeviceActive = false;   // L-B1 互斥（审查🔴#1）
             RefreshTreeCurrentStatus();
         }
 
@@ -244,6 +248,7 @@ namespace NavigatorHMI.ViewModels
             CommunicationActive = false;
             AlarmActive = false;
             UserActive = false;
+            DeviceActive = false;   // L-B1 互斥（审查🔴#1）
             RefreshTreeCurrentStatus();
         }
 
@@ -258,6 +263,7 @@ namespace NavigatorHMI.ViewModels
             CommunicationActive = false;
             AlarmActive = false;
             UserActive = false;
+            DeviceActive = false;   // L-B1 互斥（审查🔴#1）
             RefreshTreeCurrentStatus();
         }
 
@@ -300,6 +306,7 @@ namespace NavigatorHMI.ViewModels
             CommunicationActive = false;
             ListManagerActive = false;
             UserActive = false;
+            DeviceActive = false;   // L-B1 互斥（审查🔴#1）
             RefreshTreeCurrentStatus();
         }
 
@@ -312,6 +319,7 @@ namespace NavigatorHMI.ViewModels
             CommunicationActive = false;
             ListManagerActive = false;
             UserActive = false;
+            DeviceActive = false;   // L-B1 互斥（审查🔴#1）
             RefreshTreeCurrentStatus();
         }
 
@@ -351,6 +359,60 @@ namespace NavigatorHMI.ViewModels
             set { if (_userPanelPage != value) { _userPanelPage = value; OnPropertyChanged(); RefreshTreeCurrentStatus(); } }   // 子页切换同步树叶子高亮（与 ListManagerSelectedIndex 对齐）
         }
 
+        // ═══════════════════════════════════════════
+        // L 循环 L-B1 设备管理面板（项目树独立根节点 → 画布 Tab；与变量/通讯/用户互斥）
+        // ═══════════════════════════════════════════
+
+        private bool _deviceTabOpen;
+        /// <summary>设备管理 Tab 是否打开。</summary>
+        public bool DeviceTabOpen
+        {
+            get => _deviceTabOpen;
+            set { if (_deviceTabOpen != value) { _deviceTabOpen = value; OnPropertyChanged(); } }
+        }
+
+        private bool _deviceActive;
+        /// <summary>当前内容是否为设备管理面板。</summary>
+        public bool DeviceActive
+        {
+            get => _deviceActive;
+            set { if (_deviceActive != value) { _deviceActive = value; OnPropertyChanged(); } }
+        }
+
+        /// <summary>打开设备管理面板（树根节点双击触发；与其它画布 Tab 互斥）。</summary>
+        public void OpenDeviceManager()
+        {
+            if (!DeviceTabOpen) DeviceTabOpen = true;
+            VariableManagerActive = false;
+            CommunicationActive = false;
+            ListManagerActive = false;
+            AlarmActive = false;
+            UserActive = false;
+            DeviceActive = true;
+            RefreshTreeCurrentStatus();
+        }
+
+        /// <summary>激活设备管理（Tab 已开时点击标签栏——不重复开）。</summary>
+        public void ActivateDevice()
+        {
+            if (!DeviceTabOpen) DeviceTabOpen = true;
+            VariableManagerActive = false;
+            CommunicationActive = false;
+            ListManagerActive = false;
+            AlarmActive = false;
+            UserActive = false;
+            DeviceActive = true;
+            RefreshTreeCurrentStatus();
+        }
+
+        /// <summary>关闭设备管理 Tab。</summary>
+        public void CloseDeviceTab()
+        {
+            if (DeviceActive) DeviceActive = false;
+            DeviceTabOpen = false;
+            RefreshTreeCurrentStatus();
+        }
+
         private void OpenUserPanelInternal(int page)
         {
             UserTabOpen = true;
@@ -360,6 +422,7 @@ namespace NavigatorHMI.ViewModels
             CommunicationActive = false;
             ListManagerActive = false;
             AlarmActive = false;
+            DeviceActive = false;   // L-B1 互斥（审查🔴#1）
             RefreshUserPanel();   // W3b：打开面板同步用户/组/策略数据
             RefreshTreeCurrentStatus();
         }
@@ -381,6 +444,7 @@ namespace NavigatorHMI.ViewModels
             CommunicationActive = false;
             ListManagerActive = false;
             AlarmActive = false;
+            DeviceActive = false;   // L-B1 互斥（审查🔴#1）
             UserActive = true;
             RefreshUserPanel();
             RefreshTreeCurrentStatus();
@@ -749,6 +813,7 @@ namespace NavigatorHMI.ViewModels
             ListManagerActive = false;
             UserActive = false;
             AlarmActive = false;
+            DeviceActive = false;   // L-B1 互斥（审查🔴#1）
             CurrentScreen = screen;   // 可能短路（值未变），短路时树高亮靠下方 RefreshTreeCurrentStatus 兜底
             RefreshTreeCurrentStatus();
         }
@@ -778,6 +843,7 @@ namespace NavigatorHMI.ViewModels
                 ListManagerActive = false;
                 AlarmActive = false;
                 UserActive = false;
+                DeviceActive = false;   // L-B1 互斥（审查🔴#1）
 
                 // 打开画面 → 自动加入标签集合（打开才显示标签）
                 EnsureScreenOpen(value);
@@ -800,15 +866,15 @@ namespace NavigatorHMI.ViewModels
         {
             foreach (var root in TreeRoots)
             {
-                UpdateNodeRecursive(root, CurrentScreen, VariableManagerActive, CommunicationActive, ListManagerActive, AlarmActive, UserActive, UserPanelPage, ListManagerListType);
+                UpdateNodeRecursive(root, CurrentScreen, VariableManagerActive, CommunicationActive, ListManagerActive, AlarmActive, UserActive, DeviceActive, UserPanelPage, ListManagerListType);
             }
         }
 
-        private static void UpdateNodeRecursive(ProjectTreeViewModel node, Screen currentScreen, bool variableManagerActive, bool communicationActive, bool listManagerActive, bool alarmActive, bool userActive, int userPanelPage, ListType listManagerListType)
+        private static void UpdateNodeRecursive(ProjectTreeViewModel node, Screen currentScreen, bool variableManagerActive, bool communicationActive, bool listManagerActive, bool alarmActive, bool userActive, bool deviceActive, int userPanelPage, ListType listManagerListType)
         {
             if (node is ScreenItemNode screenNode)
             {
-                screenNode.IsCurrent = !variableManagerActive && !communicationActive && !listManagerActive && !alarmActive && !userActive && (screenNode.Screen == currentScreen);
+                screenNode.IsCurrent = !variableManagerActive && !communicationActive && !listManagerActive && !alarmActive && !userActive && !deviceActive && (screenNode.Screen == currentScreen);
             }
             else if (node is VariableManagerNode vmNode)
             {
@@ -842,9 +908,13 @@ namespace NavigatorHMI.ViewModels
             {
                 usNode.IsCurrent = userActive && userPanelPage == 2;
             }
+            else if (node is DeviceRootNode deviceRootNode)
+            {
+                deviceRootNode.IsCurrent = deviceActive;   // L-B1：设备管理根节点激活高亮（审查🔴#2）
+            }
             foreach (var child in node.Children)
             {
-                UpdateNodeRecursive(child, currentScreen, variableManagerActive, communicationActive, listManagerActive, alarmActive, userActive, userPanelPage, listManagerListType);
+                UpdateNodeRecursive(child, currentScreen, variableManagerActive, communicationActive, listManagerActive, alarmActive, userActive, deviceActive, userPanelPage, listManagerListType);
             }
         }
 
@@ -950,6 +1020,7 @@ namespace NavigatorHMI.ViewModels
             TreeRoots.Add(BuildListRootNode());
             TreeRoots.Add(BuildAlarmRootNode());
             TreeRoots.Add(BuildUserRootNode());
+            TreeRoots.Add(BuildDeviceRootNode());   // L 循环 L-B1：设备管理独立根节点（与通信变量/用户/报警/列表同等级）
         }
 
         /// <summary>构建「通信变量」根节点（含「变量」/「通讯」子节点，双击在画布位置打开对应 Tab）。</summary>
@@ -985,6 +1056,14 @@ namespace NavigatorHMI.ViewModels
             node.OnUserNameSelected += OpenUserPanel;
             node.OnUserGroupSelected += OpenUserGroupPanel;
             node.OnUserSecuritySelected += OpenUserSecurityPanel;
+            return node;
+        }
+
+        /// <summary>L 循环 L-B1 构建「设备管理」根节点（双击打开设备管理画布 Tab）。</summary>
+        private DeviceRootNode BuildDeviceRootNode()
+        {
+            var node = new DeviceRootNode();
+            node.OnDeviceManagerSelected += OpenDeviceManager;
             return node;
         }
         // 撤销操作执行后触发，用于通知 View 层标记工程已修改
