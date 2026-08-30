@@ -1779,11 +1779,14 @@ namespace NavigatorHMI.Views
 
             var geos = new List<GeoPoint>();
             // 1) 作业点（绑 GPS 变量取基准值 / 固定值）——C12-7 复用 ResolveWorkPointGeo（与 overlay 渲染语义一致）
+            // N-6（2026-08-30）：跳过 (0,0) 未配置坐标（与 FW computeBounds 一致，防把 0 度线拉进视口；合法 (0,0)=几内亚湾被跳过——中国场景无影响）
             foreach (var wp in project.WorldMap?.WorkPoints ?? new())
-                if (ResolveWorkPointGeo(project, wp.BoundTag, wp.FixedPoint) is { } wg) geos.Add(wg);
+                if (ResolveWorkPointGeo(project, wp.BoundTag, wp.FixedPoint) is { } wg && !(wg.Longitude == 0 && wg.Latitude == 0))
+                    geos.Add(wg);
             // 2) 作业范围点并入包围盒（围栏顶点也要被视口自适应覆盖）
             foreach (var rp in project.WorldMap?.WorkRangePoints ?? new())
-                if (ResolveWorkPointGeo(project, rp.BoundTag, rp.FixedPoint) is { } rg) geos.Add(rg);
+                if (ResolveWorkPointGeo(project, rp.BoundTag, rp.FixedPoint) is { } rg && !(rg.Longitude == 0 && rg.Latitude == 0))
+                    geos.Add(rg);
 
             if (geos.Count == 0)
             {
@@ -4904,10 +4907,11 @@ namespace NavigatorHMI.Views
             }));
         }
 
-        /// <summary>L-B4：设备命令（connect/disconnect/blink/vnc/deploy/scan）结果日志聚合到输出窗口（可能后台线程——封送）。</summary>
+        /// <summary>L-B4：设备命令（connect/disconnect/blink/vnc/deploy/scan）结果日志聚合到输出窗口（可能后台线程——封送）。
+        /// N-3 审查 🟡 修复：命令清单复用 IsDeviceRuntimeCommand（消除第二份硬编码清单，防新增设备命令漂移）。</summary>
         private void OnOutputCommandExecuted(string cmdName, Dictionary<string, object?> parameters, NavigatorHMI.CommandLayer.CommandResult result)
         {
-            if (cmdName is not ("connect" or "disconnect" or "blink_device" or "vnc" or "deploy_project" or "deploy_firmware" or "scan_devices")) return;
+            if (!EditWindowViewModel.IsDeviceRuntimeCommand(cmdName)) return;
             var ok = result.Success ? "✓" : $"✗ [{result.ErrorCode}]";
             var msg = result.Success ? (result.Data?.ToString() ?? "") : result.ErrorMessage;
             AppendOutput($"[{cmdName}] {ok} {msg}");

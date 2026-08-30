@@ -925,6 +925,15 @@ namespace NavigatorHMI.ViewModels
         /// <summary>批量命令抑制中间全量重建（批量拖拽等场景：调用方循环后统一刷新一次，防 N 次重建卡顿）。</summary>
         public bool SuppressRefresh { get; set; }
 
+        /// <summary>设备操作命令（连接/断开/扫描/下载/闪烁/VNC/固件下载）——不修改工程数据，成功执行不应标脏/刷新。
+        /// N 循环 N-3（2026-08-30 用户 Check）：设备管理面板操作后工程标题变修改状态——根因=这些命令走命令层成功即触发
+        /// CommandExecuted → OnCommandExecuted 统一标脏；设备操作仅改运行时状态（DeviceConnectionService/HTTP），
+        /// 工程 IsDirty 不受影响。configure_device/update_device/delete_device（设备通信配置=工程数据）不在排除清单，仍标脏。
+        /// 静态谓词（审查建议：供测试断言命令分类，防黑名单漂移；public 供测试程序集访问）。</summary>
+        public static bool IsDeviceRuntimeCommand(string cmdName)
+            => cmdName is "connect" or "disconnect" or "scan_devices" or "deploy_project"
+                or "blink_device" or "vnc" or "deploy_firmware";
+
         /// <summary>CommandService 执行命令成功后，智能刷新 UI。</summary>
         private void OnCommandExecuted(string cmdName, Dictionary<string, object?> parameters, CommandResult result)
         {
@@ -933,6 +942,11 @@ namespace NavigatorHMI.ViewModels
             {
                 System.Windows.Application.Current.Dispatcher.BeginInvoke(
                     new Action(() => OnCommandExecuted(cmdName, parameters, result)));
+                return;
+            }
+            // 设备操作命令（连接/断开/扫描/下载/闪烁/VNC/固件下载）——不修改工程数据，成功执行不应标脏/刷新
+            if (IsDeviceRuntimeCommand(cmdName))
+            {
                 return;
             }
             // bind_tag 只影响运行时绑定，设计态无视觉/树/标签变化：跳过全量重建（防属性面板选中丢失），仅标脏

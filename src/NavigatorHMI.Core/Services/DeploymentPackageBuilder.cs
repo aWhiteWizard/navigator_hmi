@@ -10,7 +10,7 @@ namespace NavigatorHMI.Common
     /// 容器结构（compile-download §2.1，与 .fw 组件表同构）：
     ///   manifest.json：{ name, type("app"/"res"), target, size, sha256, version }[]
     ///   app/app.navihmi   —— 编译主包（type=app）
-    ///   res/&lt;相对路径&gt;  —— 工程引用资源（图片/图片列表项；type=res；内容 SHA256 去重；target 保留工程内相对子目录路径防同名冲突）
+    ///   res/&lt;相对路径&gt;  —— 工程引用资源（图片/图片列表项；type=res；去重键=工程内相对路径（N-7，路径是语义标识，FW 按 imagePath 加载——同内容不同路径各自入包，禁止内容哈希去重）；target 保留工程内相对子目录路径防同名冲突）
     /// 资源收集：控件 ImagePath + 图片列表 Items（相对工程目录）；RTSP 流 URL 不入包；target 白名单=工程目录内（Path.GetRelativePath 防穿越）。
     /// 注：执行书目标含字体/本地视频收集，模型当前无对应字段（字体=字体族名非文件；Frame 视频源属 D 批）——三类可落地资源先行。
     /// </summary>
@@ -37,7 +37,7 @@ namespace NavigatorHMI.Common
             /// <summary>字节数。</summary>
             public long Size { get; set; }
 
-            /// <summary>SHA256（内容哈希，去重键）。</summary>
+            /// <summary>SHA256（内容哈希，校验用；N-7 去重键已改工程内相对路径——哈希仅作完整性校验，不再承担去重）。</summary>
             public string Sha256 { get; set; } = "";
 
             /// <summary>版本（主包=工程版本；资源=1）。</summary>
@@ -84,10 +84,11 @@ namespace NavigatorHMI.Common
                 throw new FileNotFoundException($"编译产物不存在: {navihmiPath}");
             if (string.IsNullOrEmpty(outputDir)) throw new ArgumentNullException(nameof(outputDir));
 
-            // 1. 收集资源（内容哈希去重：同内容只打一份；记录工程内相对路径）
+            // 1. 收集资源（去重键 = 工程内相对路径：路径是语义标识，FW 按 imagePath 加载——同内容不同路径的图片必须各自入包；
+            //    不能用内容 sha256 去重，否则同内容图片被吞 → FW 按路径加载缺失（N-7，对齐瓦片 M-3 ① rel 键先例））
             var projectDir = Path.GetDirectoryName(project.ProjectFilePath) ?? ".";
-            var resources = new Dictionary<string, (string Abs, string Rel)>();   // sha256 → (源文件绝对路径, 工程内相对路径)
-            var tiles = new Dictionary<string, (string Abs, string Rel)>();       // sha256 → (瓦片绝对路径, 工程内相对路径)（M-3 ①：独立集合，target 保留根级 tiles/ 前缀与 FW ZIP 直启格式一致）
+            var resources = new Dictionary<string, (string Abs, string Rel)>();   // 工程内相对路径 → (源文件绝对路径, 工程内相对路径)
+            var tiles = new Dictionary<string, (string Abs, string Rel)>();       // 工程内相对路径 → (瓦片绝对路径, 工程内相对路径)（M-3 ①：独立集合，target 保留根级 tiles/ 前缀与 FW ZIP 直启格式一致）
 
             void Collect(string path)
             {
@@ -101,7 +102,7 @@ namespace NavigatorHMI.Common
                 var rel = Path.GetRelativePath(projectDir, abs);
                 if (rel.StartsWith("..") || Path.IsPathRooted(rel)) return;
                 if (!File.Exists(abs)) return;
-                resources.TryAdd(Sha256OfFile(abs), (abs, rel));
+                resources.TryAdd(rel, (abs, rel));   // N-7：键改工程内相对路径（rel 是语义标识；同内容不同路径各自入包）
             }
 
             foreach (var screen in project.Screens)
@@ -155,7 +156,7 @@ namespace NavigatorHMI.Common
                             Type = TypeRes,
                             Target = target,
                             Size = new FileInfo(kv.Value.Abs).Length,
-                            Sha256 = kv.Key
+                            Sha256 = Sha256OfFile(kv.Value.Abs)   // N-7：键已改 rel 路径，manifest 哈希须单独计算（原 kv.Key 即 sha256）
                         });
                     }
 

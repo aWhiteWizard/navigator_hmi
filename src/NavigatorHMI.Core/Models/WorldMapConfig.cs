@@ -52,7 +52,8 @@ namespace NavigatorHMI.Common
         [ProtoMember(10)]
         public List<WidgetEvent> Events { get; set; } = new();
 
-        /// <summary>锁定预览：运行时禁止平移/缩放与点击切换（配合组态侧 ZoomToBox 一次性框选视口）。</summary>
+        /// <summary>锁定预览：运行时禁平移/缩放；点击切换由 FW 无条件执行，不受锁影响（配合组态侧 ZoomToBox 一次性框选视口）。
+        /// N-4（2026-08-30）：注释同步新语义——ViewLocked 只禁平移缩放，不拦点击切换（M 循环已修 FW 行为）。</summary>
         [ProtoMember(11)]
         public bool ViewLocked { get; set; }
     }

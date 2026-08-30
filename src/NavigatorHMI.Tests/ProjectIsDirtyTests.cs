@@ -1,12 +1,17 @@
 using System.Collections.ObjectModel;
+using NavigatorHMI.CommandLayer;
 using NavigatorHMI.Common;
+using NavigatorHMI.ViewModels;
 
 namespace NavigatorHMI.Tests
 {
     /// <summary>
     /// K 循环：工程脏标记 IsDirty 模型级单点化 + 原子保存测试（2026-08-30）。
     /// 覆盖：标量/集合置脏、运行时字段不置脏、Save/Load 清脏、原子保存失败保护。
+    /// N 循环 N-3（2026-08-30）：设备操作命令不标脏——谓词断言 + disconnect 零网络成功路径。
+    /// 注：disconnect 测试触碰 DeviceConnectionService（static 单例）——与 DeviceConnectionTests 同 collection 串行。
     /// </summary>
+    [Collection("设备连接")]
     public class ProjectIsDirtyTests
     {
         private static HMIProject NewProject()
@@ -174,6 +179,40 @@ namespace NavigatorHMI.Tests
             p.Tags = new ObservableCollection<Tag>();
             p.Tags.Add(new Tag { Name = "温度", DataType = TagDataType.FLOAT });
             Assert.True(p.IsDirty);
+        }
+
+        // ── N 循环 N-3（2026-08-30）：设备操作命令不标脏 ──
+
+        [Fact]
+        public void 设备操作命令清单_谓词断言_7运行时命令排除_3配置命令保留()
+        {
+            // 守卫 UI 排除逻辑（OnCommandExecuted 开头 IsDeviceRuntimeCommand 短路）：黑名单漂移即红
+            string[] runtimeCommands = { "connect", "disconnect", "scan_devices", "deploy_project", "blink_device", "vnc", "deploy_firmware" };
+            foreach (var cmd in runtimeCommands)
+                Assert.True(EditWindowViewModel.IsDeviceRuntimeCommand(cmd), $"{cmd} 应为设备运行时命令（不标脏）");
+
+            // 设备通信配置 = 工程数据，仍标脏（不在排除清单）
+            string[] configCommands = { "configure_device", "update_device", "delete_device" };
+            foreach (var cmd in configCommands)
+                Assert.False(EditWindowViewModel.IsDeviceRuntimeCommand(cmd), $"{cmd} 为设备通信配置，应标脏（不排除）");
+        }
+
+        [Fact]
+        public void disconnect成功路径_触发命令事件且工程不标脏()
+        {
+            // disconnect 零网络成功路径（RequiresConnection=false，幂等）：
+            // 成功 → CommandExecuted 触发（真实链路中 OnCommandExecuted 会命中谓词排除短路）→ 工程 IsDirty 不受影响
+            var p = NewProject();
+            p.ClearDirty();
+            var svc = new CommandService(p);
+
+            string? fired = null;
+            svc.CommandExecuted += (name, _, _) => fired = name;
+
+            var result = svc.Execute("disconnect", new Dictionary<string, object?>());
+            Assert.True(result.Success, $"{result.ErrorCode} {result.ErrorMessage}");
+            Assert.Equal("disconnect", fired);        // 成功路径确实触发了统一标脏入口事件
+            Assert.False(p.IsDirty, "disconnect 仅断开运行时会话，不应置脏工程");
         }
     }
 }

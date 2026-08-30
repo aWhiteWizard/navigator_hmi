@@ -337,7 +337,7 @@ message WorldMapConfig {
   repeated MapWorkPoint work_points = 8;        // 作业点（蓝点）
   repeated WorkRangePoint work_range_points = 9; // 作业范围点（围栏顶点，红点）
   repeated WidgetEvent events = 10;             // 点击切换画面事件（地图级）
-  bool view_locked = 11;                        // 锁定预览（禁平移缩放/点击切换）
+  bool view_locked = 11;                        // 锁定预览：运行时禁平移/缩放；点击切换无条件执行，不受锁影响
 }
 
 message GeoPoint {

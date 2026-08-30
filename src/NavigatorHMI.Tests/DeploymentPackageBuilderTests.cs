@@ -88,8 +88,10 @@ namespace NavigatorHMI.Tests
         }
 
         [Fact]
-        public void 同内容资源_哈希去重_只打一份()
+        public void 同内容资源_不同路径_各自入包_不按内容去重()
         {
+            // N-7（2026-08-30）：去重键由 sha256 改为工程内相对路径——图片路径是语义标识（FW 按 imagePath 加载），
+            // 同内容不同路径的图片必须各自入包；原「同内容只打一份」语义取消（对齐瓦片 M-3 ① rel 键先例）
             var content = new byte[] { 0x11, 0x22 };
             WriteImage("a.png", content);
             WriteImage("b.png", content);   // 同内容不同名
@@ -98,8 +100,18 @@ namespace NavigatorHMI.Tests
 
             var zipPath = Build();
             var files = ReadZip(zipPath);
-            Assert.Equal(1, files.Count(f => f.Path.StartsWith("res/")));
-            Assert.Equal(3, files.Count);   // manifest + app + res×1
+            Assert.Contains("res/a.png", files.Select(f => f.Path));
+            Assert.Contains("res/b.png", files.Select(f => f.Path));
+            Assert.Equal(2, files.Count(f => f.Path.StartsWith("res/")));
+            Assert.Equal(4, files.Count);   // manifest + app + res×2
+
+            // manifest 两条独立条目，sha256 各自计算（键已改 rel，哈希不再等于字典键）
+            var manifestBytes = files.First(f => f.Path == "manifest.json").Bytes;
+            var manifest = JsonSerializer.Deserialize<List<DeploymentPackageBuilder.ManifestEntry>>(
+                System.Text.Encoding.UTF8.GetString(manifestBytes),
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+            Assert.Equal(2, manifest.Count(m => m.Type == "res"));
+            Assert.All(manifest.Where(m => m.Type == "res"), m => Assert.Equal(64, m.Sha256.Length));   // SHA256 hex 长度
         }
 
         [Fact]
