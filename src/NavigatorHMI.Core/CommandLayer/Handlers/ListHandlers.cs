@@ -1,7 +1,56 @@
+using System.IO;
 using NavigatorHMI.Common;
 
 namespace NavigatorHMI.CommandLayer.Handlers
 {
+    /// <summary>
+    /// 图片列表项路径规范化（D-B2，2026-08-30）——AI/CLI 传绝对路径入库是 N+20「图片列表不显示」第二根因：
+    /// DeploymentPackageBuilder 白名单拒绝工程目录外路径（Path.GetRelativePath 以 .. 开头）→ 打包不入包 → 设备端无图。
+    /// 规则：
+    ///   绝对路径在工程目录内 → 自动相对化（Path.GetRelativePath，统一正斜杠）；
+    ///   绝对路径在工程目录外 → 拒绝（INVALID_PARAM，白名单必拒，早失败优于打包后设备缺图）；
+    ///   相对路径 → 归一化去 .. 段后保留（防 AI/CLI 传 "../outside.png" 绕过白名单静默拒收——晚失败同病）；
+    ///   工程未保存（无目录）→ 无法校验，原样保留（GUI 同语义）。
+    /// 注：与 GUI 浏览选择（EditWindow.xaml.cs L1299-1316）差异——GUI 目录外保留绝对路径（预览用），
+    /// 命令层严格拒绝目录外（部署必然失败）；GUI 面板 PathValid 仍按旧规则标绿，见 D 执行书记录。
+    /// </summary>
+    internal static class ImageListItemSanitizer
+    {
+        public static string? Sanitize(string raw, string projectDir, out string? error)
+        {
+            error = null;
+            var p = ListDisplayResolver.StripQuotes(raw);
+            if (p.Length == 0) return raw;
+            if (string.IsNullOrEmpty(projectDir)) return raw;   // 工程未保存：无从校验/相对化
+            string abs;
+            try
+            {
+                // 统一解析为完整路径再判归属：相对路径也过 GetFullPath（去 .. 段归一化，防 ../ 绕过白名单）
+                abs = Path.GetFullPath(Path.Combine(projectDir, p));
+            }
+            catch (Exception ex)   // 非法路径（含无效字符等）
+            {
+                error = $"图片路径 \"{raw}\" 无效: {ex.Message}";
+                return null;
+            }
+            try
+            {
+                var rel = Path.GetRelativePath(projectDir, abs);
+                if (rel.StartsWith("..") || Path.IsPathRooted(rel))
+                {
+                    error = $"图片路径 \"{raw}\" 不在工程目录内（{projectDir}），部署包白名单将拒绝，无法下载到设备";
+                    return null;
+                }
+                return rel.Replace('\\', '/');   // 统一正斜杠（与打包/设备端加载一致）
+            }
+            catch (Exception ex)   // 盘符差异/路径非法（GetRelativePath 可抛）
+            {
+                error = $"图片路径 \"{raw}\" 无效: {ex.Message}";
+                return null;
+            }
+        }
+    }
+
     /// <summary>解析 items 参数：支持 List&lt;string&gt;（GUI 传对象数组）或 "|" 分隔字符串（CLI），统一为 List&lt;string&gt;。</summary>
     internal static class ListItemsParser
     {
@@ -56,6 +105,22 @@ namespace NavigatorHMI.CommandLayer.Handlers
             if (!Enum.TryParse<ListType>(p["type"]!.ToString(), ignoreCase: true, out var type))
                 return CommandResult.Fail("INVALID_PARAM", $"未知列表类型: {p["type"]}（Text/Image）");
             var items = ListItemsParser.Parse(p.GetValueOrDefault("items")) ?? new List<string>();
+
+            // D-B2：图片列表项路径校验（绝对路径在工程目录内 → 相对化；目录外 → 拒绝早失败）
+            if (type == ListType.Image)
+            {
+                var projectDir = Path.GetDirectoryName(project.ProjectFilePath) ?? "";
+                var normalized = new List<string>(items.Count);
+                foreach (var it in items)
+                {
+                    var ok = ImageListItemSanitizer.Sanitize(it, projectDir, out var err);
+                    if (ok == null)
+                        return CommandResult.Fail("INVALID_PARAM", err ?? "图片路径无效");
+                    normalized.Add(ok);
+                }
+                items = normalized;
+            }
+
             project.Lists.Add(new ListDef { Name = name, Type = type, Items = items });
             return CommandResult.Ok(new { list_name = name, type = type.ToString(), item_count = items.Count });
         }
@@ -89,6 +154,31 @@ namespace NavigatorHMI.CommandLayer.Handlers
             var list = project.Lists.FirstOrDefault(l => l.Name == name);
             if (list == null) return CommandResult.Fail("NOT_FOUND", $"列表 \"{name}\" 不存在");
 
+            // 两段式（D-B2 审查修复）：先全量解析/校验 items（含图片路径规范化），全过再应用 rename+替换——
+            // 否则 rename 先落库、items 校验失败 → 半应用（改名成功但内容未改，UI 显示不一致）
+            List<string>? normalizedItems = null;
+            if (p.TryGetValue("items", out var items) && items != null)
+            {
+                var parsed = ListItemsParser.Parse(items);
+                if (parsed != null)
+                {
+                    normalizedItems = parsed;
+                    if (list.Type == ListType.Image)
+                    {
+                        var projectDir = Path.GetDirectoryName(project.ProjectFilePath) ?? "";
+                        var normalized = new List<string>(parsed.Count);
+                        foreach (var it in parsed)
+                        {
+                            var ok = ImageListItemSanitizer.Sanitize(it, projectDir, out var err);
+                            if (ok == null)
+                                return CommandResult.Fail("INVALID_PARAM", err ?? "图片路径无效");
+                            normalized.Add(ok);
+                        }
+                        normalizedItems = normalized;
+                    }
+                }
+            }
+
             // 重命名：唯一性校验 + 级联同步控件 ListRef（反射遍历 Widget，兼容 ImageWidget/FrameWidget/TextListWidget）
             // ⚠️ 不能提前 return：items 替换分支须独立可达（cli-param-sanitize §12 显式清空语义）
             // new_name 无清空语义：仅判非 null，由内层 Trim + 长度守卫统一净化空白串
@@ -110,15 +200,11 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 }
             }
 
-            // items 提供则整体替换（GUI 面板增删改项后提交全量）
-            if (p.TryGetValue("items", out var items) && items != null)
+            // items 提供则整体替换（GUI 面板增删改项后提交全量；已在上方两段式完成校验/规范化）
+            if (normalizedItems != null)
             {
-                var parsed = ListItemsParser.Parse(items);
-                if (parsed != null)
-                {
-                    list.Items.Clear();
-                    list.Items.AddRange(parsed);
-                }
+                list.Items.Clear();
+                list.Items.AddRange(normalizedItems);
             }
             return CommandResult.Ok(new { list_name = list.Name });
         }
