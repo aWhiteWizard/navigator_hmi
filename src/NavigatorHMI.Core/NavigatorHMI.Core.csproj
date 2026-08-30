@@ -8,9 +8,15 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="BruTile" Version="6.0.0" />
     <PackageReference Include="LLamaSharp" Version="0.27.0" />
     <PackageReference Include="LLamaSharp.Backend.Cpu" Version="0.27.0" />
+    <PackageReference Include="Mapsui" Version="5.1.0" />
+    <PackageReference Include="Mapsui.Nts" Version="5.1.0" />
+    <PackageReference Include="Mapsui.Rendering.Skia" Version="5.1.0" />
+    <PackageReference Include="Mapsui.Tiling" Version="5.1.0" />
     <PackageReference Include="protobuf-net" Version="3.2.56" />
+    <PackageReference Include="SkiaSharp" Version="3.119.2" />
   </ItemGroup>
 
 </Project>

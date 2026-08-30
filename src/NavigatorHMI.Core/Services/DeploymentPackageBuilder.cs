@@ -115,9 +115,23 @@ namespace NavigatorHMI.Common
                 foreach (var item in list.Items)
                     Collect(item);
 
+            // N-1：锁定视角底图（PC 编译时拼好的单张 PNG，worldmap_bg.png 在工程目录）——作为 res 随包下发，
+            // FW 落盘工程目录后 HmiWorldMap 探测加载（有底图时瓦片层/模拟底图隐藏）
+            bool hasBackground = false;
+            {
+                string bgPath = Path.Combine(projectDir, WorldMapScreenshotGenerator.BackgroundFileName);
+                if (File.Exists(bgPath))
+                {
+                    resources.TryAdd(WorldMapScreenshotGenerator.BackgroundFileName, (bgPath, WorldMapScreenshotGenerator.BackgroundFileName));
+                    hasBackground = true;
+                }
+            }
+
             // M-3 ①：收集工程目录瓦片（tiles/ 子目录 z/x/y.png——世界地图离线瓦片，随工程包下发；
             // 与 FW resolveProjectPackage ZIP 直启同格式（tiles/ 根级），HTTP 下载链路落盘后单文件加载也按此探测）
-            CollectTiles(projectDir, tiles);
+            // N-1：有锁定底图时不收集瓦片（底图替代瓦片铺贴——设备端显示单张底图，无需 z/x/y 瓦片；避免体积超 64MB）
+            if (!hasBackground)
+                CollectTiles(projectDir, tiles);
 
             // 2. manifest + zip 容器（内存构建 → 原子落盘）
             var manifest = new List<ManifestEntry>();

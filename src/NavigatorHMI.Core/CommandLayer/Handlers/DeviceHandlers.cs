@@ -184,11 +184,32 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 return CommandResult.Fail("COMPILE_FAILED",
                     $"编译失败，拒绝传输: {string.Join("; ", compileResult.Errors.Take(5))}");
 
+            var projectDir = Path.GetDirectoryName(project.ProjectFilePath) ?? ".";
+
+            // N-1：锁定视角底图生成（PC 拼单张 PNG 随包下发；缓存 = 组态软件 map-cache/ + 工程 tiles/ 已有瓦片；
+            // 无缓存瓦片且联网不可用 → 拒绝部署（用户 2026-08-30 定：不用模拟底图）
+            // 审查 🟡：map-cache/ 无条件创建并加入缓存——首次部署联网下载的瓦片写入该目录，后续无网可复用
+            try
+            {
+                var caches = new List<string>();
+                string mapCache = Path.Combine(AppContext.BaseDirectory, "map-cache");
+                Directory.CreateDirectory(mapCache);   // 无条件创建（下载瓦片恒写此目录，供后续无网复用）
+                caches.Add(mapCache);
+                string projTiles = Path.Combine(projectDir, "tiles");
+                if (Directory.Exists(projTiles)) caches.Add(projTiles);
+                var shotErr = WorldMapScreenshotGenerator.Generate(project, projectDir, caches, allowNetwork: true);
+                if (shotErr != null)
+                    return CommandResult.Fail("MAPSHOT_FAILED", $"世界地图底图生成失败：{shotErr}");
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            {
+                return CommandResult.Fail("MAPSHOT_FAILED", $"世界地图底图生成异常: {ex.Message}");
+            }
+
             // 打包部署容器（manifest + app + res，zip）；失败转明确错误码（对齐 compile-download §2.3 IO 异常明确报错）
             string deployZip;
             try
             {
-                var projectDir = Path.GetDirectoryName(project.ProjectFilePath) ?? ".";
                 deployZip = DeploymentPackageBuilder.Build(project, compileResult.OutputPath!, Path.Combine(projectDir, "output"));
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
