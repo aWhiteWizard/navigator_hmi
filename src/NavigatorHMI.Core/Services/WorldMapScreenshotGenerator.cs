@@ -15,6 +15,9 @@ public static class WorldMapScreenshotGenerator
     public const string AmapTileUrlTemplate =
         "https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}";
 
+    /// <summary>高德瓦片服务子域序号（URL {s} 占位符取值；webrd01~webrd04，外部契约固定 4 个，非业务魔法数字）。</summary>
+    private static readonly string[] AmapSubdomains = { "1", "2", "3", "4" };
+
     /// <summary>底图文件名（工程目录，随包下发）。</summary>
     public const string BackgroundFileName = "worldmap_bg.png";
 
@@ -127,8 +130,11 @@ public static class WorldMapScreenshotGenerator
 
     private static byte[]? DownloadTile(int z, int x, int y, string? writeCacheTo, Action<string> log)
     {
+        // 高德瓦片 URL 的 {s} 占位符 = 子域序号（webrd01~webrd04，AmapTileUrlTemplate L16）
+        // 4 个子域用于负载均衡；按瓦片坐标 (x+y+z)%4 散列选子域——同瓦片恒落同一子域（缓存友好），
+        // 相邻瓦片分散到不同子域（防单子域热点）。AmapSubdomains 为高德服务固定子域编号（外部契约）
         string url = AmapTileUrlTemplate
-            .Replace("{s}", (new[] { "1", "2", "3", "4" })[(x + y + z) % 4])
+            .Replace("{s}", AmapSubdomains[(x + y + z) % 4])
             .Replace("{x}", x.ToString()).Replace("{y}", y.ToString()).Replace("{z}", z.ToString());
         using var client = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(15) };
         client.DefaultRequestHeaders.UserAgent.ParseAdd("NavigatorHMI/1.0");
