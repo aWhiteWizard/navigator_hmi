@@ -143,7 +143,7 @@ namespace NavigatorHMI.Common
 
         private string _deviceModel = "";
 
-        /// <summary>目标设备型号（device-profile 驱动，如 NavigatorHMI-7；新建项目时按所选型号写入，FW 身份推导优先用）</summary>
+        /// <summary>工程目标设备型号（device-profile 驱动，如 NavigatorHMI-7；新建项目时按所选型号写入；设备身份由设备自身配置决定，与工程无关——2026-08-30 用户 Check 指正）</summary>
         [ProtoMember(22)]
         public string DeviceModel
         {
