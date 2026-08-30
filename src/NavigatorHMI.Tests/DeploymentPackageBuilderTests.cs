@@ -192,7 +192,9 @@ namespace NavigatorHMI.Tests
         [Fact]
         public void 工程目录瓦片_打进包_根级tiles前缀()
         {
-            // tiles/ 子目录 z/x/y.png 结构（Web Mercator）
+            // tiles/ 子目录 z/x/y.png 结构（Web Mercator）——路径样例 z=10/x=807/y=420、z=11/x=1615/y=840，
+            // 非业务常量：仅验证「tiles/ 子目录被收集、target 保留根级前缀」的打包行为（2026-08-30 用户代码评论澄清：
+            // 0x10/0x20 是临时 PNG 文件内容字节，路径是测试样例——与真实工程瓦片区域无关，不会丢地图）
             WriteImage("tiles/10/807/420.png", new byte[] { 0x10 });
             WriteImage("tiles/11/1615/840.png", new byte[] { 0x20 });
 
@@ -208,7 +210,7 @@ namespace NavigatorHMI.Tests
                 System.Text.Encoding.UTF8.GetString(manifestBytes),
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
             var tileEntries = manifest.Where(m => m.Target.StartsWith("tiles/")).ToList();
-            Assert.Equal(2, tileEntries.Count);
+            Assert.Equal(2, tileEntries.Count);   // 本测试场景固定写入 2 张瓦片 → 断言 2 条条目（评论：数量断言绑定测试场景，非生产逻辑）
             Assert.All(tileEntries, t => Assert.Equal("res", t.Type));
         }
 
@@ -244,6 +246,8 @@ namespace NavigatorHMI.Tests
         {
             // M-3 ① 审查修正：瓦片路径 z/x/y.png 是语义标识（FW 按路径加载）——同内容不同路径
             // （空白/纯色块瓦片常见）必须各自入包；若按内容 sha256 去重会吞掉同内容瓦片 → FW 按路径加载缺失
+            // （2026-08-30 用户代码评论澄清：0xAA,0xBB 是临时 PNG 内容字节（两瓦片同内容），路径是测试样例——
+            // 与工程区域（成都/北京）无关；真实瓦片区域由工程配置的 bounds 决定，此处不涉及丢地图）
             var content = new byte[] { 0xAA, 0xBB };   // 两张同内容瓦片
             WriteImage("tiles/10/807/420.png", content);
             WriteImage("tiles/10/808/420.png", content);

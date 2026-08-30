@@ -34,12 +34,16 @@ namespace NavigatorHMI.Tests
 
         private void RunTest()
         {
+            // 渲染尺寸常量（2026-08-30 用户代码评论：Magic number 命名化——面板最小尺寸）
+            const double RenderWidth = 400;
+            const double RenderHeight = 300;
+
             var vm = new DevicePanelViewModel(new MockCommandService());
             var view = new DevicePanelView { DataContext = vm };
 
             // 强制布局渲染（WPF 无窗口也可走 Measure/Arrange 初始化绑定）
-            view.Measure(new Size(400, 300));
-            view.Arrange(new Rect(0, 0, 400, 300));
+            view.Measure(new Size(RenderWidth, RenderHeight));
+            view.Arrange(new Rect(0, 0, RenderWidth, RenderHeight));
             view.UpdateLayout();
 
             // 查找 ComboBox（x:Name 未设，用逻辑树遍历）
@@ -52,9 +56,11 @@ namespace NavigatorHMI.Tests
             var srcList = src!.Cast<object>().ToList();
             Assert.True(srcList.Count > 0, $"ItemsSource 应有选项，实际 {srcList.Count}");
             // DisplayMemberPath="Model"——源对象是 DeviceProfile，取 Model 属性验证
+            // （2026-08-30 用户代码评论：型号名与 device-profile 内置默认对齐——用常量表达「断言的是内置默认 7寸 型号」）
+            const string DefaultSevenInchModel = "NavigatorHMI-7";
             var first = srcList[0];
             var model = first.GetType().GetProperty("Model")?.GetValue(first)?.ToString() ?? "";
-            Assert.Equal("NavigatorHMI-7", model);
+            Assert.Equal(DefaultSevenInchModel, model);
 
             vm.Dispose();
         }

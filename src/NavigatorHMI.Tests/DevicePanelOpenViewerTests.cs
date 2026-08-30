@@ -57,7 +57,9 @@ namespace NavigatorHMI.Tests
         [Fact]
         public void VNC启用后_打开查看器按钮可点_断开后复位灰显()
         {
-            // stub 建立会话（VncOn=false 初始）
+            // stub 建立会话（VncOn=false 初始）——IP/型号为**模拟会话参数**（2026-08-30 用户代码评论：
+            // DeviceConnectionService.UseStub=true 模拟连接成功，不真实联网探测；测试只验证 OpenViewerCommand
+            // 门禁（CanExecute 跟随 VncOn），不依赖真实设备 IP——若改真实 IP 需设备在线，测试将不稳定）
             var result = DeviceConnectionService.TestConnection("192.168.1.146", "NavigatorHMI-7");
             Assert.True(result.Success);
 

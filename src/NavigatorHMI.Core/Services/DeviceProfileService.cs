@@ -5,6 +5,9 @@ namespace NavigatorHMI.Common
     /// <summary>设备能力（device-profile capability 字段；承接 A1 门禁 + 编译/传输能力）。</summary>
     public class DeviceCapability
     {
+        /// <summary>VNC 默认端口（与 FW fw-config.json vnc.port 默认一致；device-profile 能力文件可覆盖）。</summary>
+        public const int DefaultVncPort = 5900;
+
         /// <summary>支持固件升级（flash）。</summary>
         public bool Flash { get; set; } = true;
 
@@ -25,6 +28,14 @@ namespace NavigatorHMI.Common
 
         /// <summary>上传大小上限（MB）。</summary>
         public int UploadSizeLimitMB { get; set; } = 64;
+
+        /// <summary>
+        /// VNC 端口（2026-08-30 用户代码评论：5900 魔法数字统一配置文件读取——device-profile 能力文件可配，
+        /// 默认 5900 与 FW fw-config.json vnc.port 默认一致）。
+        /// 场景限定（审查 B2）：设备改端口需**两端同步**——PC 能力文件 vncPort + FW fw-config.json vnc.port
+        /// （env 覆盖时含 NAVIHMI_VNC_PORT）；单端修改会导致查看器连不上（一端监听新端口、另一端仍 5900）。
+        /// </summary>
+        public int VncPort { get; set; } = DefaultVncPort;
     }
 
     /// <summary>画布限制（P1 画布适配用；本循环仅建模）。</summary>

@@ -73,10 +73,18 @@ namespace NavigatorHMI.Common
             finally { sem.Release(); }
         }
 
-        /// <summary>网卡 → /24 子网全部 IP（网卡本地 IP 前三段 + 1..254）。</summary>
+        /// <summary>
+        /// 网卡 → 全部 /24 子网 IP（网卡每个 IPv4 地址前三段 + 1..254，跨网段去重）。
+        /// 2026-08-30 用户代码评论修复：原实现仅取第一个 /24 子网（`return result` 提前返回）——
+        /// 网卡配置多网段跃点 IP（如 192.168.1.x / 192.168.10.x / 192.168.20.x）时只扫到第一段，
+        /// 其余网段设备扫不到；改为遍历网卡全部 IPv4 地址的子网。
+        /// 审查 B2：扫描范围 = 网卡 IPv4 地址数 × 254（同网段多地址经 Distinct 去重）；
+        /// 并发上限 ConcurrentLimit=20 不变，最坏耗时约 (254×N/20)×500ms（N=2 约 12.7s，Task.Run 内不冻 UI）。
+        /// </summary>
         private static List<string> GetSubnetIps(string nicName)
         {
             var result = new List<string>();
+            var prefixes = new HashSet<string>(StringComparer.Ordinal);   // 网段前缀去重（同 /24 多地址只扫一次）
             try
             {
                 foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
@@ -88,10 +96,11 @@ namespace NavigatorHMI.Common
                         if (addr.Address.AddressFamily != AddressFamily.InterNetwork) continue;   // 仅 IPv4
                         var ip = addr.Address.ToString();
                         var prefix = ip.Substring(0, ip.LastIndexOf('.') + 1);   // 如 "192.168.1."
+                        if (!prefixes.Add(prefix)) continue;   // 同网段已收集，跳过
                         for (int i = 1; i <= 254; i++)
                             result.Add(prefix + i);
-                        return result;
                     }
+                    break;   // 只扫目标网卡（匹配到即结束；多 IPv4 地址全收集后 break）
                 }
             }
             catch { }

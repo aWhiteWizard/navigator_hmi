@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using CommunityToolkit.Mvvm.Input;
 using NavigatorHMI.CommandLayer;
@@ -310,11 +311,12 @@ namespace NavigatorHMI.ViewModels
         }
 
         /// <summary>
-        /// 打开 VNC 查看器（M-2）：启动 VncViewer.exe 连接当前会话设备 {ip}:5900。
+        /// 打开 VNC 查看器（M-2）：启动 VncViewer.exe 连接当前会话设备 {ip}:{port}。
         /// 候选路径：应用同目录 VncViewer.exe 优先，开发机 Release 输出路径兜底（外部程序不随包分发）。
-        /// 注（M-2 审查 CONFLICT_SOFT）：端口取默认 5900——FW 端 VNC 端口可配置（fwconfig.h vncPort()，
-        /// /etc/navigatorhmi/fw-config.json vnc.port + NAVIHMI_VNC_PORT 覆盖），默认值 5900 一致可用；
-        /// 若设备端改端口，查看器将连不上（端口字段扩展留后续，本循环边界不动 FW 端）。
+        /// 端口（2026-08-30 用户代码评论）：不再写死 5900——从设备能力文件读（DeviceCapability.VncPort，
+        /// device-profile 可配，默认 5900 与 FW fw-config.json vnc.port 一致）。
+        /// 场景限定（审查 B2）：设备改端口需两端同步（PC 能力文件 vncPort + FW fw-config.json vnc.port；
+        /// env 覆盖时含 NAVIHMI_VNC_PORT）；单端修改会导致查看器连不上。
         /// </summary>
         private async Task ExecuteOpenViewerAsync()
         {
@@ -331,7 +333,11 @@ namespace NavigatorHMI.ViewModels
                 EmitOutput("[VNC 查看器] 未找到 VncViewer.exe（同目录/开发机 Release 输出路径均无）——请将 VncViewer.exe 放到组态软件同目录");
                 return;
             }
-            var args = $"{session.Ip}:5900";
+            // 端口以会话设备型号为准（审查建议 3：防连接后切换下拉选型导致端口错用；默认一致无实际影响，防御性）
+            var port = DeviceProfileService.Profiles
+                .FirstOrDefault(p => p.Model.Equals(session.Model, StringComparison.OrdinalIgnoreCase))
+                ?.Capability.VncPort ?? DeviceCapability.DefaultVncPort;
+            var args = $"{session.Ip}:{port}";
             EmitOutput($"[VNC 查看器] 启动 {exe} {args}");
             try
             {
