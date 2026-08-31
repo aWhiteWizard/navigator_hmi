@@ -153,6 +153,25 @@ namespace NavigatorHMI.Common
             }
         }
 
+        /// <summary>设备信息查询（GET /api/device/info——型号/尺寸/ID/固件版本；A1 连接测试三分数据源）。
+        /// D1：固件版本前置检查用（/api/device/info version = 固件版本，术语口径 FW httreceiver L150）。</summary>
+        public static async Task<(bool Ok, string? Version, string? Error)> GetDeviceInfoAsync(string ip, CancellationToken ct = default)
+        {
+            try
+            {
+                using var client = new HttpClient { Timeout = TimeSpan.FromMilliseconds(EventTimeoutMs) };
+                var body = await client.GetStringAsync($"http://{ip}/api/device/info", ct).ConfigureAwait(false);
+                using var doc = JsonDocument.Parse(body);
+                var root = doc.RootElement;
+                var ver = root.TryGetProperty("version", out var v) ? v.GetString() : null;
+                return (true, ver, null);
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or UriFormatException or ArgumentException or InvalidOperationException)
+            {
+                return (false, null, $"设备信息查询失败: {ex.Message}");
+            }
+        }
+
         /// <summary>POST JSON 到设备端点（vnc/blink）。</summary>
         private static async Task<DeviceOpResult> PostJsonAsync(string ip, string endpoint, string json, CancellationToken ct)
         {

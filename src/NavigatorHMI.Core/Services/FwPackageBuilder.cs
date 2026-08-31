@@ -68,13 +68,17 @@ namespace NavigatorHMI.Common
         /// </summary>
         public static BuildResult Build(string version, string outputDir, params Component[] components)
         {
-            // 审查复审 🟡：version 字符白名单——防 "..\x" 等注入穿越 outputDir（fwName 拼入 Path.Combine）
+            // 版本号规范 x.y.z 纯数字段（审查 🟡：与 CompareVersions 非数字段→0 口径统一——
+            // 禁止 "1.2.3-rc1" 等后缀，防打包器放行但比较器误判旧版；字符白名单防路径穿越）
             if (string.IsNullOrWhiteSpace(version))
                 throw new ArgumentException("固件版本必填", nameof(version));
-            if (!version.All(c => char.IsAsciiLetterOrDigit(c) || c == '.' || c == '_' || c == '-'))
-                throw new ArgumentException($"固件版本 \"{version}\" 含非法字符（仅允许字母/数字/./_/-）", nameof(version));
             if (version.Length > 16)
                 throw new ArgumentException($"固件版本 \"{version}\" 超长（>16），.fw header version 定长字段不支持", nameof(version));
+            if (!version.All(c => char.IsAsciiDigit(c) || c == '.'))
+                throw new ArgumentException($"固件版本 \"{version}\" 非法（仅允许数字与点，格式 x.y.z）", nameof(version));
+            var verSegs = version.Split('.');
+            if (verSegs.Length > 3 || verSegs.Any(string.IsNullOrEmpty))
+                throw new ArgumentException($"固件版本 \"{version}\" 非法（格式 x.y.z 三段，每段非空数字）", nameof(version));
             if (components == null || components.Length == 0)
                 throw new ArgumentException("至少需要一个组件", nameof(components));
             if (string.IsNullOrWhiteSpace(outputDir))

@@ -287,7 +287,9 @@ namespace NavigatorHMI.CommandLayer.Handlers
         }
     }
 
-    /// <summary>下载固件到设备并触发 OTA。</summary>
+    /// <summary>下载固件到设备并触发 OTA（D 循环批 2 D1 落地：.fw 版本前置检查 + 上传 /api/transfer）。
+    /// 链路：file_path 定位 .fw（未指定→默认目录扫描）→ 版本检查（GET /api/device/info version vs .fw header version，
+    /// 一致跳过/旧→提示）→ POST /api/transfer（FW 区分 .navihmi/.fw 走 OTA 安装）→ 进度回调（可选）。</summary>
     public class DeployFirmwareHandler : ICommandHandler
     {
         public CommandDefinition Definition => new()
@@ -296,7 +298,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
             Parameters = new()
             {
                 ["device_ip"] = new() { Type = "string", Required = true, Description = "目标设备 IP" },
-                ["file_path"] = new() { Type = "string", Required = false, Description = "固件文件路径" },
+                ["file_path"] = new() { Type = "string", Required = false, Description = "固件文件路径（.fw；未指定→默认目录最新）" },
+                ["progress"] = new() { Type = "object", Required = false, Description = "进度回调（GUI 内部用）" },
             }
         };
         public ValidationResult Validate(Dictionary<string, object?> p)
@@ -306,8 +309,111 @@ namespace NavigatorHMI.CommandLayer.Handlers
         }
         public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
         {
-            // TODO: 真实固件部署需要文件传输 + OTA 触发。骨架模拟。
-            return CommandResult.Ok(new { message = "固件部署成功（骨架模式）" });
+            var ip = p["device_ip"]!.ToString()!;
+
+            // 1. 定位 .fw 文件（未指定 → 默认目录最新 NavigatorHMI_v*.fw）
+            var fwPath = p.TryGetValue("file_path", out var fp) && fp is string s && !string.IsNullOrWhiteSpace(s)
+                ? s : FindLatestFw(AppContext.BaseDirectory);
+            if (fwPath == null || !File.Exists(fwPath))
+                return CommandResult.Fail("FILE_NOT_FOUND", "固件文件不存在（请提供 file_path 或确认默认目录有 .fw 产物）");
+            if (!fwPath.EndsWith(".fw", StringComparison.OrdinalIgnoreCase))
+                return CommandResult.Fail("INVALID_PARAM", $"固件文件必须是 .fw 格式: {fwPath}");
+
+            // 2. 读 .fw header version（magic 4B + version 16B；<20B 报损坏——审查 🟡 防短文件误报魔数非法）
+            string fwVersion;
+            try
+            {
+                var fileLen = new FileInfo(fwPath).Length;
+                if (fileLen < 20)
+                    return CommandResult.Fail("INVALID_PARAM", $".fw 文件损坏（过短 {fileLen}B，至少需 header magic+version 20B）: {fwPath}");
+                using var fs = File.OpenRead(fwPath);
+                var magic = new byte[4];
+                if (fs.Read(magic, 0, 4) != 4)
+                    return CommandResult.Fail("INVALID_PARAM", $".fw 文件读取失败（magic 读不完整）: {fwPath}");
+                if (System.Text.Encoding.ASCII.GetString(magic) != FwPackageBuilder.Magic)
+                    return CommandResult.Fail("INVALID_PARAM", $".fw 魔数非法（非 NHFW 包）: {fwPath}");
+                var vbuf = new byte[16];
+                if (fs.Read(vbuf, 0, 16) != 16)
+                    return CommandResult.Fail("INVALID_PARAM", $".fw 文件损坏（version 段读不完整）: {fwPath}");
+                fwVersion = System.Text.Encoding.ASCII.GetString(vbuf).Trim();
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                return CommandResult.Fail("INVALID_PARAM", $"固件文件读取失败: {ex.Message}");
+            }
+
+            // 3. 版本检查前置（GET /api/device/info version = 固件版本，术语口径 FW httreceiver）
+            try
+            {
+                var (ok, devVer, err) = HttpDownloadClient.GetDeviceInfoAsync(ip).GetAwaiter().GetResult();
+                if (!ok)
+                    return CommandResult.Fail("VERSION_CHECK_FAILED", $"固件版本查询失败: {err}");
+                if (devVer == fwVersion)
+                    return CommandResult.Fail("VERSION_SAME", $"设备已是固件 {fwVersion}，无需升级");
+                if (!string.IsNullOrEmpty(devVer) && CompareVersions(fwVersion, devVer) < 0)
+                    return CommandResult.Fail("VERSION_OLDER", $"固件 {fwVersion} 旧于设备当前 {devVer}，已拒绝（如需降级请人工确认）");
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+            {
+                return CommandResult.Fail("UNREACHABLE", $"无法连接设备 {ip}: {ex.Message}");
+            }
+
+            // 4. 上传（POST /api/transfer——FW 魔数区分 .navihmi/.fw 走 OTA 安装；进度回调可选）
+            try
+            {
+                var progressCb = p.TryGetValue("progress", out var prog) ? prog as Func<int, string, bool> : null;
+                var transfer = progressCb != null
+                    ? HttpDownloadClient.DeployAsync(ip, fwPath, progressCb).GetAwaiter().GetResult()
+                    : HttpDownloadClient.DeployAsync(ip, fwPath).GetAwaiter().GetResult();
+                if (!transfer.Success)
+                    return CommandResult.Fail(transfer.Code, $"固件传输失败: {transfer.Message}");
+                return CommandResult.Ok(new { package = fwPath, version = fwVersion, message = transfer.Message });
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
+            {
+                return CommandResult.Fail("UNREACHABLE", $"固件传输失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>默认目录查找最新 .fw（NavigatorHMI_v&lt;版本&gt;.fw——按**语义版本**降序取最新，审查 🔴 修复：
+        /// 原字典序使 v1.10.0 &lt; v1.9.0 误取旧版；同版本冲突回退文件名序保证确定性）。</summary>
+        internal static string? FindLatestFw(string dir)
+        {
+            if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return null;
+            return Directory.EnumerateFiles(dir, "NavigatorHMI_v*.fw")
+                .OrderByDescending(f => ParseFwVersion(f))
+                .ThenBy(f => f, StringComparer.OrdinalIgnoreCase)   // 同版本确定性
+                .FirstOrDefault();
+        }
+
+        /// <summary>从 .fw 文件名提取语义版本元组（NavigatorHMI_v1.2.3.fw → [1,2,3]；解析失败 → [0,0,0] 沉底）。</summary>
+        internal static (int, int, int) ParseFwVersion(string fwPath)
+        {
+            var name = Path.GetFileNameWithoutExtension(fwPath);   // NavigatorHMI_v1.2.3
+            var idx = name.IndexOf("_v", StringComparison.Ordinal);
+            if (idx < 0) return (0, 0, 0);
+            var ver = name[(idx + 2)..];
+            return CompareVersionsTuple(ver);
+        }
+
+        /// <summary>语义版本 → 三段数字元组（缺段/非数字段按 0）。</summary>
+        internal static (int, int, int) CompareVersionsTuple(string v)
+        {
+            var segs = v.Split('.');
+            int Get(int i) => i < segs.Length && int.TryParse(segs[i], out var n) ? n : 0;
+            return (Get(0), Get(1), Get(2));
+        }
+
+        /// <summary>语义版本比较（x.y.z 三段数字；不同长度按缺失段 0 处理）。返回负数=a&lt;b。</summary>
+        internal static int CompareVersions(string a, string b)
+        {
+            int[] Parse(string s) => s.Split('.').Select(seg =>
+                int.TryParse(seg, out var n) ? n : 0).Concat(new[] { 0, 0, 0 }).Take(3).ToArray();
+            var pa = Parse(a);
+            var pb = Parse(b);
+            for (int i = 0; i < 3; i++)
+                if (pa[i] != pb[i]) return pa[i] < pb[i] ? -1 : 1;
+            return 0;
         }
     }
 
