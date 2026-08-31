@@ -218,8 +218,12 @@ namespace NavigatorHMI.CommandLayer.Handlers
             }
 
             // K-5：真实 HTTP 传输（POST /api/transfer——FW 接收端校验+原子替换+工程重载；失败一次直接报错不重试）
+            // D-B4：可选 progress 参数（Func<int,string,bool>）——GUI 传轮询回调（设备端真实进度），CLI 不传
             var ip = p["device_ip"]!.ToString()!;
-            var transfer = HttpDownloadClient.DeployAsync(ip, deployZip).GetAwaiter().GetResult();
+            var progressCb = p.TryGetValue("progress", out var prog) ? prog as Func<int, string, bool> : null;
+            var transfer = progressCb != null
+                ? HttpDownloadClient.DeployAsync(ip, deployZip, progressCb).GetAwaiter().GetResult()
+                : HttpDownloadClient.DeployAsync(ip, deployZip).GetAwaiter().GetResult();
             if (!transfer.Success)
                 return CommandResult.Fail(transfer.Code, $"部署传输失败: {transfer.Message}");
 

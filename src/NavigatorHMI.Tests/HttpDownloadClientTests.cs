@@ -30,8 +30,8 @@ namespace NavigatorHMI.Tests
             try { Directory.Delete(_dir, true); } catch { }
         }
 
-        /// <summary>假设备：按路径返回预置响应（transfer→deployResponse / 其余 OK）。</summary>
-        private string StartFakeDevice(string deployResponse, out string ipWithPort)
+        /// <summary>假设备：按路径返回预置响应（transfer→deployResponse / progress→progressSequence 依次 / 其余 OK）。</summary>
+        private string StartFakeDevice(string deployResponse, out string ipWithPort, string[]? progressSequence = null)
         {
             for (int attempt = 0; attempt < 5; attempt++)
             {
@@ -41,6 +41,7 @@ namespace NavigatorHMI.Tests
                     var listener = new HttpListener();
                     listener.Prefixes.Add($"http://127.0.0.1:{port}/");
                     listener.Start();
+                    var progressIdx = 0;
                     _ = Task.Run(async () =>
                     {
                         try
@@ -49,12 +50,17 @@ namespace NavigatorHMI.Tests
                             {
                                 var ctx = await listener.GetContextAsync();
                                 var path = ctx.Request.Url?.AbsolutePath ?? "";
-                                var body = path switch
+                                string body;
+                                if (path == "/api/transfer") body = deployResponse;
+                                else if (path == "/api/progress" && progressSequence != null)
                                 {
-                                    "/api/transfer" => deployResponse,
-                                    "/api/version" => "{\"version\":\"1.0\"}",
-                                    _ => "{\"code\":\"OK\"}",
-                                };
+                                    // D-B4：按序返回设备进度（越界返回最后一个——轮询直到 100 后由 PC 侧终止）
+                                    var idx = Math.Min(progressIdx, progressSequence.Length - 1);
+                                    body = progressSequence[idx];
+                                    progressIdx++;
+                                }
+                                else if (path == "/api/version") body = "{\"version\":\"1.0\"}";
+                                else body = "{\"code\":\"OK\"}";
                                 var buf = Encoding.UTF8.GetBytes(body);
                                 ctx.Response.ContentType = "application/json";
                                 ctx.Response.ContentLength64 = buf.Length;
@@ -144,6 +150,93 @@ namespace NavigatorHMI.Tests
             StartFakeDevice("{\"code\":\"SUCCESSFUL_REBOOT\",\"message\":\"部署成功\"}", out var ip);
             var result = svc.Execute("deploy_project", new Dictionary<string, object?> { ["device_ip"] = ip });
             Assert.True(result.Success, result.ErrorMessage);
+        }
+
+        [Fact]
+        public async Task Deploy_进度回调_收到设备进度序列()
+        {
+            // D-B4：假设备按序返回进度 5→45→100（设备端接收→解压→完成），PC 轮询回调应依次收到
+            var zip = await MakeProject();
+            var progressSequence = new[]
+            {
+                "{\"progress\":5,\"stage\":\"接收完成，开始安装\",\"active\":true}",
+                "{\"progress\":45,\"stage\":\"解压安装包…\",\"active\":true}",
+                "{\"progress\":100,\"stage\":\"安装完成\",\"active\":false}",
+            };
+            StartFakeDevice("{\"code\":\"SUCCESSFUL_REBOOT\",\"message\":\"部署成功\",\"stage\":\"Finish\"}", out var ip, progressSequence);
+
+            var received = new List<int>();
+            var result = await HttpDownloadClient.DeployAsync(ip, zip, (pct, stage) => { received.Add(pct); return true; });
+
+            Assert.True(result.Success, result.Message);
+            Assert.Contains(5, received);
+            Assert.Contains(45, received);
+            Assert.Contains(100, received);
+        }
+
+        [Fact]
+        public async Task Deploy_进度回调_返回false提前终止()
+        {
+            // D-B4：回调返回 false → 轮询提前终止（不阻塞整体部署成功）
+            var zip = await MakeProject();
+            var progressSequence = new[]
+            {
+                "{\"progress\":5,\"stage\":\"接收完成\",\"active\":true}",
+                "{\"progress\":45,\"stage\":\"解压安装包…\",\"active\":true}",
+                "{\"progress\":100,\"stage\":\"安装完成\",\"active\":false}",
+            };
+            StartFakeDevice("{\"code\":\"SUCCESSFUL_REBOOT\",\"message\":\"部署成功\"}", out var ip, progressSequence);
+
+            var calls = 0;
+            var result = await HttpDownloadClient.DeployAsync(ip, zip, (pct, stage) => { calls++; return calls < 2; });
+
+            Assert.True(result.Success, result.Message);
+            Assert.Equal(2, calls);   // 第一次回调（5%）→ 返回 true；第二次（45%）→ 返回 false 终止
+        }
+
+        [Fact]
+        public async Task Deploy_设备端失败_进度负值_不挂起()
+        {
+            // D-B4 审查修复：设备端早失败（progress=-1）→ 轮询须终止（曾见 active 后 -1），DeployAsync 限时返回失败
+            var zip = await MakeProject();
+            var progressSequence = new[]
+            {
+                "{\"progress\":5,\"stage\":\"接收完成\",\"active\":true}",
+                "{\"progress\":-1,\"stage\":\"SHA256 校验失败\",\"active\":false}",
+            };
+            StartFakeDevice("{\"code\":\"TRANSFER_FAILED\",\"message\":\"SHA256 校验失败\",\"stage\":\"Install\"}", out var ip, progressSequence);
+
+            var received = new List<int>();
+            var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));   // 防挂起硬兜底
+            var result = await HttpDownloadClient.DeployAsync(ip, zip, (pct, stage) => { received.Add(pct); return true; }, cts.Token);
+
+            Assert.False(result.Success);
+            Assert.Equal("TRANSFER_FAILED", result.Code);
+            Assert.Contains(5, received);   // 曾见正进度，随后 -1 触发终止
+        }
+
+        [Fact]
+        public async Task Deploy_陈旧100_仍持续轮询到新进度()
+        {
+            // D-B4 审查修复：上次部署残留 (100,false) 首个响应 → 不得立即当完成（防进度条假满）——
+            // 需本会话见过正进度/active 才认完成；后续 5→45→100 应被正常收到
+            var zip = await MakeProject();
+            var progressSequence = new[]
+            {
+                "{\"progress\":100,\"stage\":\"安装完成\",\"active\":false}",   // 陈旧残留（首次响应）
+                "{\"progress\":5,\"stage\":\"接收完成\",\"active\":true}",
+                "{\"progress\":45,\"stage\":\"解压安装包…\",\"active\":true}",
+                "{\"progress\":100,\"stage\":\"安装完成\",\"active\":false}",
+            };
+            StartFakeDevice("{\"code\":\"SUCCESSFUL_REBOOT\",\"message\":\"部署成功\"}", out var ip, progressSequence);
+
+            var received = new List<int>();
+            var result = await HttpDownloadClient.DeployAsync(ip, zip, (pct, stage) => { received.Add(pct); return true; });
+
+            Assert.True(result.Success, result.Message);
+            Assert.Contains(5, received);    // 陈旧 100 未阻断后续新进度
+            Assert.Contains(45, received);
+            Assert.Contains(100, received);
         }
 
         [Fact]

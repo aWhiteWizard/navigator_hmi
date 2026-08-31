@@ -102,6 +102,14 @@ namespace NavigatorHMI.ViewModels
         private string _progressText = "";
         public string ProgressText { get => _progressText; private set { if (_progressText != value) { _progressText = value; OnPropertyChanged(); } } }
 
+        private double _progressValue;
+        /// <summary>D-B4：下载进度（0~100，设备端真实进度轮询）。</summary>
+        public double ProgressValue { get => _progressValue; private set { if (Math.Abs(_progressValue - value) > 0.01) { _progressValue = value; OnPropertyChanged(); } } }
+
+        private bool _progressVisible;
+        /// <summary>D-B4：进度条可见（传输中显示，完成/失败隐藏）。</summary>
+        public bool ProgressVisible { get => _progressVisible; private set { if (_progressVisible != value) { _progressVisible = value; OnPropertyChanged(); } } }
+
         /// <summary>发现的设备列表（搜索设备结果；设计文档 property-device §3.2：IP/型号/ID，点击行自动填入）。</summary>
         public System.Collections.ObjectModel.ObservableCollection<ScannedDevice> FoundDevices { get; } = new();
 
@@ -373,13 +381,35 @@ namespace NavigatorHMI.ViewModels
             return null;
         }
 
-        /// <summary>下载工程（deploy 前置自动编译门禁 + CheckVersion 版本比对 + HTTP 传输——命令层统一链路）。</summary>
+        /// <summary>下载工程（deploy 前置自动编译门禁 + CheckVersion 版本比对 + HTTP 传输——命令层统一链路）。
+        /// D-B4：进度条显示设备端真实进度（轮询 /api/progress；回调在后台线程，Dispatcher 封送 UI 更新）。</summary>
         private async Task ExecuteDeployAsync()
         {
             if (!CanOperate || DeviceConnectionService.Session == null) return;
             ProgressText = "编译+打包+传输中…（deploy 前置编译门禁）";
+            ProgressVisible = true;
+            ProgressValue = 0;
+            var dispatcher = System.Windows.Application.Current?.Dispatcher;
+            // 进度回调：0~100 + 阶段描述（后台线程调用——封送 UI 线程更新）
+            Func<int, string, bool> progress = (pct, stage) =>
+            {
+                if (dispatcher != null && !dispatcher.CheckAccess())
+                    dispatcher.BeginInvoke(new Action(() => { ProgressValue = pct; ProgressText = $"下载中… {pct}%（{stage}）"; }));
+                else
+                {
+                    ProgressValue = pct;
+                    ProgressText = $"下载中… {pct}%（{stage}）";
+                }
+                return true;
+            };
             var result = await Task.Run(() => _commandService.Execute("deploy_project",
-                new Dictionary<string, object?> { ["device_ip"] = DeviceConnectionService.Session.Ip }));
+                new Dictionary<string, object?>
+                {
+                    ["device_ip"] = DeviceConnectionService.Session.Ip,
+                    ["progress"] = progress,
+                }));
+            ProgressVisible = false;
+            ProgressValue = 100;
             ProgressText = result.Success ? "部署完成" : $"部署失败: {result.ErrorMessage}";
         }
 
