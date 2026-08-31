@@ -19,7 +19,7 @@ namespace NavigatorHMI.Common
         /// <summary>manifest 条目类型：app（.navihmi 主包）。</summary>
         public const string TypeApp = "app";
 
-        /// <summary>manifest 条目类型：res（资源文件）。与 .fw 组件表 app/boot/rootfs/uboot 为两套独立枚举（compile-download §2.1 审查澄清）。</summary>
+        /// <summary>manifest 条目类型：res（资源文件）。与 .fw 组件表（app/rootfs/kernel，2026-08-30 用户分组定稿）为两套独立枚举（compile-download §2.1 审查澄清）。</summary>
         public const string TypeRes = "res";
 
         /// <summary>manifest 条目（序列化 JSON；type 枚举 app/res 独立定义——本类内 manifest 专属）。</summary>
