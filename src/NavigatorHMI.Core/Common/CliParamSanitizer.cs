@@ -2,7 +2,8 @@ namespace NavigatorHMI.Common
 {
     /// <summary>
     /// CLI 与 GUI 共用的参数安全净化（三级分类）。
-    /// - 路径类（允许 / \）：只拦 .. 和绝对路径（connection/project 豁免绝对路径——connection 承载 JSON 设备地址、project 为工程文件任意目录场景）
+    /// - 路径类（允许 / \）：只拦 .. 和绝对路径（connection/project/file 豁免绝对路径——connection 承载 JSON 设备地址、
+    ///   project 为工程文件任意目录场景、file 为固件/工程包文件任意目录场景（D 循环 OTA，2026-08-30 用户裁决：输入固件路径方案））
     /// - 标识符类：拦 .. / \
     /// - 自由文本类（描述/消息等）：只拦 ..
     /// 由 NaviHmiCLI.Program.SanitizeParam 与 EditWindow.SanitizeCliParams 双端调用，
@@ -31,7 +32,8 @@ namespace NavigatorHMI.Common
                 if (hasUpDir) return $"参数 --{key} 包含非法字符 '..' : {value}";
                 // connection 接受 JSON 格式，允许绝对路径（如 /dev/ttyUSB0 应包在 JSON 内）
                 // project 放开绝对路径（工程文件在任意目录是正常使用场景；'..' 已单独拦截防目录逃逸）
-                if (Path.IsPathRooted(value) && key is not ("connection" or "project"))
+                // file 放开绝对路径（固件/工程包文件在任意目录是正常使用场景，D 循环 OTA 用户裁决）
+                if (Path.IsPathRooted(value) && key is not ("connection" or "project" or "file"))
                     return $"参数 --{key} 不允许绝对路径: {value}";
             }
             else if (isNameParam && (hasUpDir || hasSeparator))

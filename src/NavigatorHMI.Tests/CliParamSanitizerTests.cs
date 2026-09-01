@@ -31,7 +31,17 @@ namespace NavigatorHMI.Tests
         public void 路径类_绝对路径拒绝()
         {
             Assert.NotNull(CliParamSanitizer.Validate("path", "D:\\data\\x.hmiproj"));   // path 非豁免
-            Assert.NotNull(CliParamSanitizer.Validate("file", "/etc/passwd"));
+            Assert.NotNull(CliParamSanitizer.Validate("source", "D:\\data\\x.png"));    // source 非豁免
+        }
+
+        [Fact]
+        public void file_绝对路径豁免_但双点仍拦()
+        {
+            // file 为固件/工程包文件任意目录场景（D 循环 OTA 用户裁决：输入固件路径方案）——绝对路径放行，'..' 仍拦
+            Assert.Null(CliParamSanitizer.Validate("file", "D:\\workspace\\fw\\NavigatorHMI_v1.1.1.fw"));
+            Assert.Null(CliParamSanitizer.Validate("file", "/mnt/fw/NavigatorHMI_v1.1.1.fw"));
+            Assert.NotNull(CliParamSanitizer.Validate("file", "D:\\..\\secret.fw"));
+            Assert.NotNull(CliParamSanitizer.Validate("file", "../secret.fw"));
         }
 
         [Fact]
