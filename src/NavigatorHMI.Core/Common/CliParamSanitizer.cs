@@ -33,7 +33,8 @@ namespace NavigatorHMI.Common
                 // connection 接受 JSON 格式，允许绝对路径（如 /dev/ttyUSB0 应包在 JSON 内）
                 // project 放开绝对路径（工程文件在任意目录是正常使用场景；'..' 已单独拦截防目录逃逸）
                 // file 放开绝对路径（固件/工程包文件在任意目录是正常使用场景，D 循环 OTA 用户裁决）
-                if (Path.IsPathRooted(value) && key is not ("connection" or "project" or "file"))
+                // path 放开绝对路径（create-project --path 工程目录任意位置，O 轮 CLI 建工程实测——同 project 语义）
+                if (Path.IsPathRooted(value) && key is not ("connection" or "project" or "file" or "path"))
                     return $"参数 --{key} 不允许绝对路径: {value}";
             }
             else if (isNameParam && (hasUpDir || hasSeparator))

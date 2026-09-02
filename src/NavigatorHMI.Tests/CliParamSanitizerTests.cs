@@ -30,7 +30,7 @@ namespace NavigatorHMI.Tests
         [Fact]
         public void 路径类_绝对路径拒绝()
         {
-            Assert.NotNull(CliParamSanitizer.Validate("path", "D:\\data\\x.hmiproj"));   // path 非豁免
+            Assert.NotNull(CliParamSanitizer.Validate("output", "D:\\data\\x.hmiproj"));   // output 非豁免
             Assert.NotNull(CliParamSanitizer.Validate("source", "D:\\data\\x.png"));    // source 非豁免
         }
 
@@ -42,6 +42,14 @@ namespace NavigatorHMI.Tests
             Assert.Null(CliParamSanitizer.Validate("file", "/mnt/fw/NavigatorHMI_v1.1.1.fw"));
             Assert.NotNull(CliParamSanitizer.Validate("file", "D:\\..\\secret.fw"));
             Assert.NotNull(CliParamSanitizer.Validate("file", "../secret.fw"));
+        }
+
+        [Fact]
+        public void path_绝对路径豁免_但双点仍拦()
+        {
+            // path 为 create-project --path 工程目录任意位置场景（O 轮 CLI 建工程实测）——绝对路径放行，'..' 仍拦
+            Assert.Null(CliParamSanitizer.Validate("path", "D:\\任意目录\\新建工程"));
+            Assert.NotNull(CliParamSanitizer.Validate("path", "D:\\..\\x"));
         }
 
         [Fact]
