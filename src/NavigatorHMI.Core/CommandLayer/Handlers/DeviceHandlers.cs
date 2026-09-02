@@ -343,15 +343,21 @@ namespace NavigatorHMI.CommandLayer.Handlers
             }
 
             // 3. 版本检查前置（GET /api/device/info version = 固件版本，术语口径 FW httreceiver）
+            // B-4 修复（2026-08-30）：同/旧判定统一走语义比较——设备端 version 返回 "vX.Y.Z"（带 v 前缀），
+            // 若用字符串精确相等判同版本，"v1.1.1" vs "1.1.1" 永不相等 → VERSION_SAME 永不触发 → 同版本重复升级。
             try
             {
                 var (ok, devVer, err) = HttpDownloadClient.GetDeviceInfoAsync(ip).GetAwaiter().GetResult();
                 if (!ok)
                     return CommandResult.Fail("VERSION_CHECK_FAILED", $"固件版本查询失败: {err}");
-                if (devVer == fwVersion)
-                    return CommandResult.Fail("VERSION_SAME", $"设备已是固件 {fwVersion}，无需升级");
-                if (!string.IsNullOrEmpty(devVer) && CompareVersions(fwVersion, devVer) < 0)
-                    return CommandResult.Fail("VERSION_OLDER", $"固件 {fwVersion} 旧于设备当前 {devVer}，已拒绝（如需降级请人工确认）");
+                if (!string.IsNullOrEmpty(devVer))
+                {
+                    var cmp = CompareVersions(fwVersion, devVer);
+                    if (cmp == 0)
+                        return CommandResult.Fail("VERSION_SAME", $"设备已是固件 {fwVersion}，无需升级");
+                    if (cmp < 0)
+                        return CommandResult.Fail("VERSION_OLDER", $"固件 {fwVersion} 旧于设备当前 {devVer}，已拒绝（如需降级请人工确认）");
+                }
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
             {
@@ -404,11 +410,14 @@ namespace NavigatorHMI.CommandLayer.Handlers
             return (Get(0), Get(1), Get(2));
         }
 
-        /// <summary>语义版本比较（x.y.z 三段数字；不同长度按缺失段 0 处理）。返回负数=a&lt;b。</summary>
+        /// <summary>语义版本比较（x.y.z 三段数字；不同长度按缺失段 0 处理）。返回负数=a&lt;b。
+        /// B-4 修复（2026-08-30）：归一 "v" 前缀——设备端 /api/device/info version 返回 "vX.Y.Z"
+        /// （FW DeviceInfo::appVersion = "v"+常量），.fw header version 为 "X.Y.Z"——不归一则设备版本
+        /// 首段 "v1" 解析为 0 → 设备永远判 0 → VERSION_SAME/VERSION_OLDER 永不触发（同版本仍升级）。</summary>
         internal static int CompareVersions(string a, string b)
         {
             int[] Parse(string s) => s.Split('.').Select(seg =>
-                int.TryParse(seg, out var n) ? n : 0).Concat(new[] { 0, 0, 0 }).Take(3).ToArray();
+                int.TryParse(seg.TrimStart('v'), out var n) ? n : 0).Concat(new[] { 0, 0, 0 }).Take(3).ToArray();
             var pa = Parse(a);
             var pb = Parse(b);
             for (int i = 0; i < 3; i++)

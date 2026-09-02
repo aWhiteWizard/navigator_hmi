@@ -109,6 +109,22 @@ namespace NavigatorHMI.Tests
         }
 
         [Fact]
+        public void 同版本_设备带v前缀_触发跳过()
+        {
+            // B-4 修复回归：真实 FW /api/device/info version 返回 "vX.Y.Z"（带 v 前缀）——
+            // 不归一 v 则设备版本首段 "v1" 解析 0 → 同版本也被判"包新"→ 重复升级（VERSION_SAME 永不触发）
+            var fwSame = MakeFw("1.1.1");
+            var ip = StartFakeDevice("v1.1.1", "{}");   // 设备 version 带 v（真实 FW 格式）
+            var r = Exec(fwSame, ip);
+            Assert.Equal("VERSION_SAME", r.ErrorCode);   // 同版本（忽略 v 前缀）→ 跳过
+
+            var fwOldV = MakeFw("1.1.0");
+            var ip2 = StartFakeDevice("v1.1.1", "{}");
+            var r2 = Exec(fwOldV, ip2);
+            Assert.Equal("VERSION_OLDER", r2.ErrorCode);   // 设备 v1.1.1 归一后 1.1.0 旧 → 拒绝
+        }
+
+        [Fact]
         public void 最新固件定位_语义版本排序()
         {
             // 审查 🔴 修复验证：v1.9.0 与 v1.10.0 并存必须选 v1.10.0（字典序会误选 v1.9.0）
