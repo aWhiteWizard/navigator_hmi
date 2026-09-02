@@ -40,9 +40,21 @@ namespace NavigatorHMI.ViewModels
             DeployCommand = new AsyncRelayCommand(ExecuteDeployAsync, () => CanOperate);
             ScanCommand = new AsyncRelayCommand(ExecuteScanAsync, () => !string.IsNullOrWhiteSpace(SelectedNic));
             OpenViewerCommand = new AsyncRelayCommand(ExecuteOpenViewerAsync, () => VncOn);
-            // O-C C-4 设备升级页：固件库刷新（无会话也可——纯本地目录枚举）+ 升级命令（门禁：已连接 + 已选固件）
-            RefreshFirmwareCommand = new AsyncRelayCommand(ExecuteRefreshFirmwareAsync, () => IsConnected);
+            // O-C C-4 设备升级页：固件库刷新（**本地目录枚举，无需连接**——Check 修复：编辑固件库目录后未连接也可扫）
+            RefreshFirmwareCommand = new AsyncRelayCommand(ExecuteRefreshFirmwareAsync);
             UpgradeFirmwareCommand = new AsyncRelayCommand(ExecuteUpgradeFirmwareAsync, () => CanUpgrade);
+            // Check 修复（2026-09）：固件库目录持久化——**仅当用户显式保存过目录（store 非空）才恢复并覆盖根**；
+            // 无持久化时不动全局根（保持默认运行目录 firmware/ 或测试注入的隔离根——🟡3 防 VM 构造覆盖测试全局根）
+            var persistedDir = LoadPersistedFirmwareFolder();
+            if (!string.IsNullOrEmpty(persistedDir))
+            {
+                _firmwareFolderText = persistedDir;
+                FirmwareFolderService.Initialize(persistedDir);
+            }
+            else
+            {
+                _firmwareFolderText = FirmwareFolderService.DefaultRoot;
+            }
             // L-B2 修复（2026-08-30）：确保服务初始化——Initialize 此前仅在新建项目对话框构造时调用，
             // 直接开设备面板（未先开新建项目）时 DeviceProfileService.Profiles 为空 → 类型下拉空白；
             // Initialize 幂等（lock + 重载），重复调用安全
@@ -107,8 +119,68 @@ namespace NavigatorHMI.ViewModels
         }
 
         // ── O-C C-4 固件文件夹（升级页）──
-        /// <summary>固件库根目录（按尺寸分子目录，见 FirmwareFolderService）。</summary>
-        public string FirmwareFolderText => FirmwareFolderService.DefaultRoot;
+        // Check 修复（2026-09 用户反馈）：固件库目录**可编辑**——原只读只能刷新；编辑目录 → 切换固件库根
+        // （FirmwareFolderService.Initialize）+ 持久化 %APPDATA%\NavigatorHMI\firmware-dir.txt（下次启动记住）。
+        private string _firmwareFolderText;
+        /// <summary>固件库根目录（可编辑：输入新目录切换固件库位置；空/默认 = 运行目录 firmware/）。</summary>
+        public string FirmwareFolderText
+        {
+            get => _firmwareFolderText;
+            set
+            {
+                var v = (value ?? "").Trim();
+                if (_firmwareFolderText == v) return;
+                // 空 → 还原默认并回填显示（🟡4：文本框不空白——显示实际生效的默认根，避免「空白但实际有值」困惑）
+                if (string.IsNullOrEmpty(v))
+                {
+                    FirmwareFolderService.Initialize(null);   // 先还原默认根（再读——顺序：还原后才取得到默认值）
+                    _firmwareFolderText = FirmwareFolderService.DefaultRoot;
+                    PersistFirmwareFolder("");
+                    OnPropertyChanged();
+                    _ = RefreshFirmwareForSessionAsync();
+                    return;
+                }
+                _firmwareFolderText = v;
+                // 输入目录（不存在也不拒绝——刷新时提示，允许先输入后建目录）
+                FirmwareFolderService.Initialize(v);
+                PersistFirmwareFolder(v);
+                OnPropertyChanged();
+                _ = RefreshFirmwareForSessionAsync();   // 换目录立即重刷固件列表
+            }
+        }
+
+        /// <summary>固件库根目录持久化文件（%APPDATA%\NavigatorHMI\firmware-dir.txt——用户级，跨会话记住；
+        /// internal 可注入：测试/便携版可改路径）。</summary>
+        internal static string FirmwareDirStorePath { get; set; } = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NavigatorHMI", "firmware-dir.txt");
+
+        private static void PersistFirmwareFolder(string dir)
+        {
+            try
+            {
+                var appData = Path.GetDirectoryName(FirmwareDirStorePath)!;
+                Directory.CreateDirectory(appData);
+                File.WriteAllText(FirmwareDirStorePath, dir);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.WriteLine($"[DevicePanelVM] 固件库目录持久化失败: {ex.Message}");
+            }
+        }
+
+        internal static string? LoadPersistedFirmwareFolder()
+        {
+            try
+            {
+                if (!File.Exists(FirmwareDirStorePath)) return null;
+                var v = File.ReadAllText(FirmwareDirStorePath).Trim();
+                return string.IsNullOrEmpty(v) ? null : v;
+            }
+            catch
+            {
+                return null;
+            }
+        }
 
         /// <summary>固件条目（路径 + 显示名）。</summary>
         public class FirmwareEntry
@@ -244,7 +316,7 @@ namespace NavigatorHMI.ViewModels
         public IAsyncRelayCommand ScanCommand { get; }
         /// <summary>打开 VNC 查看器（M-2：仅 VNC 已启用时可执行——CanExecute 绑 VncOn）。</summary>
         public IAsyncRelayCommand OpenViewerCommand { get; }
-        /// <summary>刷新固件库（O-C C-4：按当前会话尺寸枚举固件文件夹；需已连接——尺寸来自会话）。</summary>
+        /// <summary>刷新固件库（O-C C-4：本地目录枚举——无需连接；尺寸取会话/连接页选中 profile）。</summary>
         public IAsyncRelayCommand RefreshFirmwareCommand { get; }
         /// <summary>升级到所选固件（O-C C-4：deploy_firmware——版本前置三分 + 上传进度；门禁：已连接 + 已选固件）。</summary>
         public IAsyncRelayCommand UpgradeFirmwareCommand { get; }
@@ -299,7 +371,7 @@ namespace NavigatorHMI.ViewModels
             }
         }
 
-        /// <summary>刷新固件库按钮（O-C C-4：需已连接——按会话尺寸枚举该尺寸固件文件夹）。</summary>
+        /// <summary>刷新固件库按钮（O-C C-4：本地目录枚举——无需连接；按尺寸扫固件库并自动选最新）。</summary>
         private async Task ExecuteRefreshFirmwareAsync()
         {
             await RefreshFirmwareForSessionAsync();
@@ -322,21 +394,36 @@ namespace NavigatorHMI.ViewModels
             AppendUpgradeLog($"手动选择固件: {path}");
         }
 
-        /// <summary>按当前会话型号尺寸刷新固件库：定位 firmware/&lt;尺寸&gt;/ 子目录 → 语义最新自动选中。</summary>
+        /// <summary>按型号尺寸刷新固件库：定位 固件库根/&lt;尺寸&gt;/ 子目录 → 语义最新自动选中。
+        /// Check 修复（2026-09）：**不依赖连接**（本地目录枚举）——尺寸取会话型号 profile，未连接时取连接页选中 profile
+        /// （默认 7 寸——构造 SelectedProfile 预置），无 profile → 清列表提示。编辑固件库目录后即可立即扫描反馈。</summary>
         private async Task RefreshFirmwareForSessionAsync()
         {
+            // 尺寸：会话型号 → 连接页选中 profile（未连接也可用）→ null
+            string? size = null;
             var session = DeviceConnectionService.Session;
-            if (session == null)
+            if (session != null)
+                size = DeviceProfileService.GetByModel(session.Model)?.SizeInch ?? session.SizeInch;
+            size ??= SelectedProfile?.SizeInch;
+
+            string[] list;
+            if (string.IsNullOrEmpty(size))
             {
-                FirmwareFiles.Clear();
-                SelectedFirmware = null;
-                FirmwareProgressText = "未连接（升级需先连接设备）";
-                return;
+                list = Array.Empty<string>();
             }
-            // 尺寸优先取会话型号对应 profile（会话 SizeInch 与 profile 应一致——K-2 校验），
-            // 未知型号 → 会话回显尺寸兜底
-            var size = DeviceProfileService.GetByModel(session.Model)?.SizeInch ?? session.SizeInch;
-            var list = FirmwareFolderService.ListForSize(size);
+            else
+            {
+                try
+                {
+                    // 🟡2 健壮性：枚举包 try/catch——目录无权限/被删（竞态）时降级空列表 + 日志，不抛进 setter/Click
+                    list = FirmwareFolderService.ListForSize(size).ToArray();
+                }
+                catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException or ArgumentException)
+                {
+                    list = Array.Empty<string>();
+                    System.Diagnostics.Trace.WriteLine($"[DevicePanelVM] 固件库枚举失败（{size}）: {ex.Message}");
+                }
+            }
             await Task.CompletedTask;   // 同步枚举；保持 async 签名（后续可扩展目录监视）
             var dispatcher = System.Windows.Application.Current?.Dispatcher;
             void Apply()
@@ -344,9 +431,17 @@ namespace NavigatorHMI.ViewModels
                 FirmwareFiles = new ObservableCollection<FirmwareEntry>(
                     list.Select(p => new FirmwareEntry { Path = p }));
                 SelectedFirmware = FirmwareFiles.FirstOrDefault();
-                AppendUpgradeLog(list.Count == 0
-                    ? $"固件库 {FirmwareFolderService.DirForSize(size)} 无 NavigatorHMI_v*.fw——请放入该尺寸固件或点「浏览…」手动选择"
-                    : $"固件库 {FirmwareFolderService.DirForSize(size)}：发现 {list.Count} 个 .fw（自动选最新 {SelectedFirmware?.DisplayName}）");
+                if (string.IsNullOrEmpty(size))
+                {
+                    AppendUpgradeLog("固件库扫描：请先在「设备连接」页选择设备型号，或连接设备后按会话尺寸扫描");
+                }
+                else
+                {
+                    var dir = FirmwareFolderService.DirForSize(size);
+                    AppendUpgradeLog(list.Length == 0
+                        ? $"固件库 {dir} 无 NavigatorHMI_v*.fw——请将 .fw 放入该尺寸子目录，或点「浏览…」手动选择"
+                        : $"固件库 {dir}：发现 {list.Length} 个 .fw（自动选最新 {SelectedFirmware?.DisplayName}）");
+                }
                 OnPropertyChanged(nameof(FirmwareFolderText));
             }
             if (dispatcher != null && !dispatcher.CheckAccess()) dispatcher.BeginInvoke(new Action(Apply));
@@ -683,11 +778,13 @@ namespace NavigatorHMI.ViewModels
                 StatusText = "未连接";
                 BlinkOn = false;   // 断开后状态复位（防重连显示旧状态）
                 VncOn = false;
-                // O-C C-4：断开 → 固件库清空（升级页灰显提示先连接）
-                FirmwareFiles.Clear();
-                SelectedFirmware = null;
-                FirmwareProgressText = "未连接（升级需先连接设备）";
+                FirmwareProgressText = "";
                 FirmwareProgressVisible = false;
+                // Check 修复（2026-09）：断开**不清固件库**——固件库是本地目录浏览（可编辑目录/未连接扫描），
+                // 与连接无关；升级按钮门禁（CanUpgrade=IsConnected）已保证未连接不可点升级，列表保留供选择浏览。
+                // 按连接页选中 profile 重扫（无 profile 则保留当前列表——本地浏览语义）
+                if (SelectedProfile != null)
+                    _ = RefreshFirmwareForSessionAsync();
             }
             ConnectCommand.NotifyCanExecuteChanged();
             DisconnectCommand.NotifyCanExecuteChanged();

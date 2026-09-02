@@ -29,5 +29,25 @@ namespace NavigatorHMI.Views
                 vm.SetManualFirmware(dlg.FileName);
             }
         }
+
+        /// <summary>「浏览…」选固件库根目录（Check 修复 2026-09：目录编辑用文件夹选择器而非纯手输）——OpenFolderDialog
+        /// 写入 VM.FirmwareFolderText（setter 触发切换固件库根 + 持久化 + 自动刷新列表）。</summary>
+        private void BrowseFirmwareFolder_Click(object sender, System.Windows.RoutedEventArgs e)
+        {
+            if (DataContext is not DevicePanelViewModel vm) return;
+            var dlg = new Microsoft.Win32.OpenFolderDialog
+            {
+                Title = "选择固件库根目录（其下按尺寸分子目录，如 7寸/）",
+                Multiselect = false
+            };
+            // 初始目录 = 当前固件库根（存在时）——OpenFolderDialog 需绝对路径
+            var cur = vm.FirmwareFolderText;
+            if (!string.IsNullOrWhiteSpace(cur) && System.IO.Directory.Exists(cur))
+                dlg.InitialDirectory = cur;
+            if (dlg.ShowDialog() == true)
+            {
+                vm.FirmwareFolderText = dlg.FolderName;
+            }
+        }
     }
 }

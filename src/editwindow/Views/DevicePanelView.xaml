@@ -47,7 +47,7 @@
                 <!-- 搜索（网卡 + 扫描）+ 设备闪烁（确认目标设备——C-2 括号语义） -->
                 <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,8">
                     <TextBlock Text="网卡:" VerticalAlignment="Center" Margin="0,0,4,0" ToolTip="搜索设备用的网卡"/>
-                    <ComboBox Width="90" Height="26" ItemsSource="{Binding NicList}" SelectedItem="{Binding SelectedNic}"
+                    <ComboBox Width="200" Height="26" ItemsSource="{Binding NicList}" SelectedItem="{Binding SelectedNic}"
                               VerticalContentAlignment="Center" ToolTip="选择搜索设备用的网卡"/>
                     <Button Content="搜索设备" Height="26" Padding="10,0" Margin="4,0,0,0" Command="{Binding ScanCommand}" Cursor="Hand"
                             ToolTip="按所选网卡扫描局域网设备（需先选网卡）"/>
@@ -123,9 +123,13 @@
                     <StackPanel>
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="固件库目录:" VerticalAlignment="Center"/>
-                            <TextBox Text="{Binding FirmwareFolderText, Mode=OneWay}" IsReadOnly="True" Width="260" Height="24"
-                                     VerticalContentAlignment="Center" Margin="6,0,0,0" ToolTip="组态软件固件库根目录（firmware/ 下按尺寸分子目录）"/>
-                            <Button Content="刷新" Height="24" Padding="8,0" Margin="4,0,0,0" Command="{Binding RefreshFirmwareCommand}" Cursor="Hand"/>
+                            <TextBox Text="{Binding FirmwareFolderText, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="220" Height="24"
+                                     VerticalContentAlignment="Center" Margin="6,0,0,0"
+                                     ToolTip="固件库根目录（可手输或点「浏览…」选目录；目录下按尺寸分子目录，如 7寸/）"/>
+                            <Button Content="浏览…" Height="24" Padding="8,0" Margin="4,0,0,0" Click="BrowseFirmwareFolder_Click" Cursor="Hand"
+                                    ToolTip="选择固件库根目录（文件夹选择器）"/>
+                            <Button Content="刷新" Height="24" Padding="8,0" Margin="4,0,0,0" Command="{Binding RefreshFirmwareCommand}" Cursor="Hand"
+                                    ToolTip="按当前固件库目录重扫该尺寸下 .fw"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
                             <TextBlock Text="匹配固件:" VerticalAlignment="Center"/>

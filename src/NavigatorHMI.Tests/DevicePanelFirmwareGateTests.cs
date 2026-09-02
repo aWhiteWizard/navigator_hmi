@@ -19,14 +19,19 @@ namespace NavigatorHMI.Tests
     public class DevicePanelFirmwareGateTests : IDisposable
     {
         private readonly string _fwDir;
+        private readonly string _storePath;
         private readonly string _prevFwRoot;
+        private readonly string _prevStorePath;
         private readonly bool _prevStub = DeviceConnectionService.UseStub;
 
         public DevicePanelFirmwareGateTests()
         {
             _prevFwRoot = FirmwareFolderService.DefaultRoot;
+            _prevStorePath = DevicePanelViewModel.FirmwareDirStorePath;
             _fwDir = Path.Combine(Path.GetTempPath(), "navihmi_fwgate_" + Guid.NewGuid().ToString("N")[..6]);
+            _storePath = Path.Combine(Path.GetTempPath(), "navihmi_fwdir_" + Guid.NewGuid().ToString("N")[..6] + ".txt");
             FirmwareFolderService.Initialize(_fwDir);
+            DevicePanelViewModel.FirmwareDirStorePath = _storePath;   // 持久化隔离到临时文件（防 %APPDATA% 真实配置干扰）
             DeviceConnectionService.Disconnect();
             DeviceConnectionService.UseStub = true;
         }
@@ -36,7 +41,9 @@ namespace NavigatorHMI.Tests
             DeviceConnectionService.Disconnect();
             DeviceConnectionService.UseStub = _prevStub;
             FirmwareFolderService.Initialize(null);
+            DevicePanelViewModel.FirmwareDirStorePath = _prevStorePath;
             try { Directory.Delete(_fwDir, true); } catch { }
+            try { File.Delete(_storePath); } catch { }
         }
 
         private static string MakeFw(string dir, string version)
@@ -98,12 +105,12 @@ namespace NavigatorHMI.Tests
                 Assert.True(vm.UpgradeFirmwareCommand.CanExecute(null));
                 Assert.True(vm.DisconnectCommand.CanExecute(null), "已连接时断开按钮可点");
 
-                // 断开 → 固件库清空 + 门禁复位（须在 Dispose 前——Dispose 取消订阅后 IsConnected 不再更新）
+                // 断开 → 门禁复位（CanUpgrade 灰显）——固件库**保留**（Check 修复 2026-09：本地目录浏览与连接无关，
+                // 断开不清列表；未连接不可升级由 CanUpgrade=IsConnected 保证）
                 DeviceConnectionService.Disconnect();
                 Assert.False(vm.IsConnected);
-                Assert.Empty(vm.FirmwareFiles);
-                Assert.Null(vm.SelectedFirmware);
-                Assert.False(vm.CanUpgrade);
+                Assert.False(vm.CanUpgrade, "断开后不可升级");
+                Assert.False(vm.UpgradeFirmwareCommand.CanExecute(null));
             }
             finally { vm.Dispose(); }
         }
@@ -125,6 +132,62 @@ namespace NavigatorHMI.Tests
                 Assert.True(vm.CanUpgrade);
             }
             finally { vm.Dispose(); }
+        }
+
+        [Fact]
+        public void 编辑固件库目录_切换根并持久化()
+        {
+            // Check 修复（2026-09）：固件库目录可编辑——setter 更新 FirmwareFolderService 根 + 持久化到隔离 store
+            var newRoot = Path.Combine(Path.GetTempPath(), "navihmi_fwroot_" + Guid.NewGuid().ToString("N")[..6]);
+            MakeFw(Path.Combine(newRoot, "4寸"), "2.0.0");   // 新根下 4寸 子目录（与默认 7寸 区分）
+
+            var vm = new DevicePanelViewModel(new FirmwareOkCommandService());
+            try
+            {
+                vm.FirmwareFolderText = newRoot;
+                Assert.Equal(newRoot, vm.FirmwareFolderText);
+                Assert.Equal(newRoot, FirmwareFolderService.DefaultRoot);   // 服务根已切换
+                // 持久化已写（setter 内 PersistFirmwareFolder）
+                Assert.True(File.Exists(_storePath));
+                Assert.Equal(newRoot, File.ReadAllText(_storePath).Trim());
+
+                // 新 VM 构造读持久化 → 恢复上次目录（跨会话记住）
+                var vm2 = new DevicePanelViewModel(new FirmwareOkCommandService());
+                try
+                {
+                    Assert.Equal(newRoot, vm2.FirmwareFolderText);
+                    Assert.Equal(newRoot, FirmwareFolderService.DefaultRoot);
+                }
+                finally { vm2.Dispose(); }
+            }
+            finally { vm.Dispose(); }
+
+            // 空值 → 还原默认（运行目录 firmware/，非 newRoot）+ store 清空 + 文本框回填默认根显示（🟡1/🟡4 真实验证）
+            var vm3 = new DevicePanelViewModel(new FirmwareOkCommandService());
+            try
+            {
+                var defaultRoot = FirmwareFolderService.DefaultRoot;   // 当前（测试注入 _fwDir）
+                vm3.FirmwareFolderText = "";
+                // setter 空值分支：Initialize(null) → 默认根（运行目录 firmware/，≠ _fwDir ≠ newRoot）
+                Assert.NotEqual(newRoot, FirmwareFolderService.DefaultRoot);
+                Assert.NotEqual(defaultRoot, FirmwareFolderService.DefaultRoot);   // 已脱离测试注入根（还原默认）
+                Assert.False(FirmwareFolderService.DefaultRoot.StartsWith(_fwDir, StringComparison.OrdinalIgnoreCase));
+                // 文本框回填实际默认根（不空白——🟡4）
+                Assert.Equal(FirmwareFolderService.DefaultRoot, vm3.FirmwareFolderText);
+                // store 清空（持久化空 → 下次启动回默认）
+                Assert.True(File.Exists(_storePath));
+                Assert.Equal("", File.ReadAllText(_storePath).Trim());
+
+                // 新 VM 构造（store 空）→ 不 Initialize（保持当前默认根）
+                var vm4 = new DevicePanelViewModel(new FirmwareOkCommandService());
+                try
+                {
+                    Assert.Equal(FirmwareFolderService.DefaultRoot, vm4.FirmwareFolderText);
+                }
+                finally { vm4.Dispose(); }
+            }
+            finally { vm3.Dispose(); }
+            try { Directory.Delete(newRoot, true); } catch { }
         }
     }
 }
