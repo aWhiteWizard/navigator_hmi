@@ -70,8 +70,10 @@ namespace NavigatorHMI.Tests
         }
 
         [Fact]
-        public void 图片列表_工程目录外绝对路径_拒绝()
+        public void 图片列表_工程目录外绝对路径_保留原值_打包时收集()
         {
+            // O-A1（2026-08-30 用户语义修正）：目录外绝对路径不再拒绝——路径只是"找文件"线索，
+            // 打包时 DeploymentPackageBuilder 收集文件本身入包（设备不关心 PC 路径）
             var dir = NewTempDir("out");
             var outside = Path.Combine(NewTempDir("outside"), "a.png");
             File.WriteAllBytes(outside, new byte[] { 1, 2, 3 });
@@ -79,10 +81,8 @@ namespace NavigatorHMI.Tests
 
             var result = ExecCreate(p, "Image", outside);
 
-            Assert.False(result.Success);
-            Assert.Equal("INVALID_PARAM", result.ErrorCode);
-            Assert.Contains("不在工程目录内", result.ErrorMessage);
-            Assert.Empty(p.Lists);   // 拒绝时列表不创建
+            Assert.True(result.Success);
+            Assert.Equal(outside, p.Lists.Single().Items[0]);   // 目录外绝对路径保留原值入库
         }
 
         [Fact]
@@ -123,8 +123,9 @@ namespace NavigatorHMI.Tests
         }
 
         [Fact]
-        public void 图片列表_update_目录外绝对路径_拒绝()
+        public void 图片列表_update_目录外绝对路径_保留替换()
         {
+            // O-A1：update_list 目录外绝对路径同样保留（打包时收集）
             var dir = NewTempDir("upd");
             var p = ProjectWith(dir);
             Assert.True(ExecCreate(p, "Image", "images/ok.png").Success);
@@ -136,9 +137,8 @@ namespace NavigatorHMI.Tests
                 ["name"] = "图片列表", ["items"] = outside
             });
 
-            Assert.False(result.Success);
-            Assert.Equal("INVALID_PARAM", result.ErrorCode);
-            Assert.Equal("images/ok.png", p.Lists.Single().Items[0]);   // 原项不被破坏
+            Assert.True(result.Success);
+            Assert.Equal(outside, p.Lists.Single().Items[0]);   // 目录外绝对路径替换成功
         }
 
         [Fact]
@@ -147,13 +147,11 @@ namespace NavigatorHMI.Tests
             var dir = NewTempDir("atomic");
             var p = ProjectWith(dir);
             Assert.True(ExecCreate(p, "Image", "images/ok.png").Success);
-            var outside = Path.Combine(NewTempDir("outside_atomic"), "c.png");
-            File.WriteAllBytes(outside, new byte[] { 1, 2, 3 });
 
-            // rename + 非法 items 同传：两段式应先校验 items → 失败 → rename 不落库（防半应用）
+            // rename + 非法 items（../ 目录逃逸，O-A1 仍拒绝）同传：两段式应先校验 items → 失败 → rename 不落库（防半应用）
             var result = new UpdateListHandler().Execute(p, new Dictionary<string, object?>
             {
-                ["name"] = "图片列表", ["new_name"] = "改名列表", ["items"] = outside
+                ["name"] = "图片列表", ["new_name"] = "改名列表", ["items"] = "../outside.png"
             });
 
             Assert.False(result.Success);

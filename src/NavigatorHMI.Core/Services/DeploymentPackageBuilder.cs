@@ -2,6 +2,7 @@ using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using ProtoBuf;
 
 namespace NavigatorHMI.Common
 {
@@ -11,7 +12,10 @@ namespace NavigatorHMI.Common
     ///   manifest.json：{ name, type("app"/"res"), target, size, sha256, version }[]
     ///   app/app.navihmi   —— 编译主包（type=app）
     ///   res/&lt;相对路径&gt;  —— 工程引用资源（图片/图片列表项；type=res；去重键=工程内相对路径（N-7，路径是语义标识，FW 按 imagePath 加载——同内容不同路径各自入包，禁止内容哈希去重）；target 保留工程内相对子目录路径防同名冲突）
-    /// 资源收集：控件 ImagePath + 图片列表 Items（相对工程目录）；RTSP 流 URL 不入包；target 白名单=工程目录内（Path.GetRelativePath 防穿越）。
+    /// 资源收集：控件 ImagePath + 图片列表 Items——**无论路径**（O-A1 用户语义：PC 路径只是找文件线索，
+    /// 任意路径图片都收集文件本身入包 res/；目录内保留相对子目录，目录外 basename 唯一化）；
+    /// 打包时改写 .navihmi 图片引用为包内相对 res 路径（FW resolveResPath 拼 <root>/res/ 加载，设备不关心 PC 路径）；
+    /// RTSP 流 URL 不入包；瓦片收集保持工程目录内白名单。
     /// 注：执行书目标含字体/本地视频收集，模型当前无对应字段（字体=字体族名非文件；Frame 视频源属 D 批）——三类可落地资源先行。
     /// </summary>
     public static class DeploymentPackageBuilder
@@ -84,36 +88,121 @@ namespace NavigatorHMI.Common
                 throw new FileNotFoundException($"编译产物不存在: {navihmiPath}");
             if (string.IsNullOrEmpty(outputDir)) throw new ArgumentNullException(nameof(outputDir));
 
-            // 1. 收集资源（去重键 = 工程内相对路径：路径是语义标识，FW 按 imagePath 加载——同内容不同路径的图片必须各自入包；
+            // 1. 收集资源（去重键 = 包内相对路径：路径是语义标识，FW 按 imagePath 加载——同内容不同路径的图片必须各自入包；
             //    不能用内容 sha256 去重，否则同内容图片被吞 → FW 按路径加载缺失（N-7，对齐瓦片 M-3 ① rel 键先例））
+            //    O-A1（2026-08-30 用户语义）：图片引用**无论路径**（绝对/相对/工程目录外）都收集文件本身入包——
+            //    PC 路径只是"找文件"的线索；目录内保留相对子目录，目录外按文件名唯一化（防重名冲突）；
+            //    同时维护「模型路径 → 包内相对 res 路径」映射，打包时改写 .navihmi 图片引用为包内路径
+            //    （FW resolveResPath 拼 <root>/res/ 前缀加载，设备端不关心 PC 路径）。
             var projectDir = Path.GetDirectoryName(project.ProjectFilePath) ?? ".";
-            var resources = new Dictionary<string, (string Abs, string Rel)>();   // 工程内相对路径 → (源文件绝对路径, 工程内相对路径)
+            var resources = new Dictionary<string, (string Abs, string Rel)>();   // 包内相对路径(res 下) → (源文件绝对路径, 包内相对路径)
             var tiles = new Dictionary<string, (string Abs, string Rel)>();       // 工程内相对路径 → (瓦片绝对路径, 工程内相对路径)（M-3 ①：独立集合，target 保留根级 tiles/ 前缀与 FW ZIP 直启格式一致）
+            var imagePathMap = new Dictionary<string, string>();                  // 模型图片引用原值 → 包内相对 res 路径（.navihmi 改写用，O-A1）
+            var usedPackNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);   // 已占用包内名（目录外 basename 唯一化）
 
-            void Collect(string path)
+            // 目录外收集护栏（审查 🟡，2026-08-30 信任边界决策：图片引用是用户显式内容（GUI 对话框/命令层），
+            // 用户语义授权「任意路径收集文件本身」；为防「打包任意系统文件」外传原语，目录外仅接受常见图片扩展名；
+            // 工程目录内引用不受限（工程内资源用户自行管理）；AI 通道（update_widget imagePath 无净化）属既有
+            // 缺口——见 4_bugs cli-param-sanitize 豁免场景限定，随护栏记录信任边界）
+            var imageExts = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
-                if (string.IsNullOrWhiteSpace(path)) return;
-                // RTSP 流 URL 不入包（网络流，2026-08-29 用户定）
-                if (path.StartsWith("rtsp://", StringComparison.OrdinalIgnoreCase)) return;
+                ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp", ".svg", ".ico"
+            };
+
+            // 解析单条图片引用 → (源绝对路径, 是否工程目录内)；不可收集（空/RTSP/../逃逸/目录外非图片扩展名/文件不存在）返回 null：
+            //   绝对路径（无 ..，用户文件对话框正常场景，O-A1）→ 目录外也收集；相对路径 ../ 逃逸 → 拦截（防目录穿越打包任意文件）
+            (string Abs, bool Inside)? ResolveFile(string path)
+            {
+                if (string.IsNullOrWhiteSpace(path)) return null;
+                if (path.StartsWith("rtsp://", StringComparison.OrdinalIgnoreCase)) return null;   // RTSP 流 URL 不入包
                 string abs;
-                try { abs = Path.GetFullPath(Path.Combine(projectDir, path)); }
-                catch { return; }
-                // target 白名单：资源必须位于工程目录内（GetRelativePath 防 C:\proj 与 C:\proj2 前缀陷阱 + 盘符根目录）
+                try
+                {
+                    abs = Path.IsPathRooted(path)
+                        ? Path.GetFullPath(path)
+                        : Path.GetFullPath(Path.Combine(projectDir, path));
+                }
+                catch { return null; }
+                if (!File.Exists(abs)) return null;
                 var rel = Path.GetRelativePath(projectDir, abs);
-                if (rel.StartsWith("..") || Path.IsPathRooted(rel)) return;
-                if (!File.Exists(abs)) return;
-                resources.TryAdd(rel, (abs, rel));   // N-7：键改工程内相对路径（rel 是语义标识；同内容不同路径各自入包）
+                bool inside = !rel.StartsWith("..") && !Path.IsPathRooted(rel);
+                if (!inside)
+                {
+                    if (!Path.IsPathRooted(path)) return null;                      // 相对路径解析越界（../ 逃逸）→ 拦截
+                    if (!imageExts.Contains(Path.GetExtension(abs))) return null;   // 目录外护栏：仅图片扩展名
+                }
+                return (abs, inside);
             }
 
+            // 包内名唯一化（目录外 basename 冲突加序号；目录内规范名不参与改名）
+            string? UniquePack(string pack)
+            {
+                if (!usedPackNames.Contains(pack)) { usedPackNames.Add(pack); return pack; }
+                var stem = Path.GetFileNameWithoutExtension(pack);
+                var ext = Path.GetExtension(pack);
+                for (int i = 2; i < 1000; i++)
+                {
+                    var c = $"{stem}_{i}{ext}";
+                    if (!usedPackNames.Contains(c)) { usedPackNames.Add(c); return c; }
+                }
+                return null;   // 唯一化失败（需 998+ 同名文件，理论不可达；失败即放弃该文件不入包）
+            }
+
+            // 引用来源汇总（widget ImagePath + 图片列表 items）
+            var imageRefs = new List<string>();
             foreach (var screen in project.Screens)
                 foreach (var w in screen.Widgets)
                 {
-                    if (w is ImageWidget img) Collect(img.ImagePath);
-                    else if (w is FrameWidget fr) Collect(fr.ImagePath);
+                    if (w is ImageWidget img) imageRefs.Add(img.ImagePath);
+                    else if (w is FrameWidget fr) imageRefs.Add(fr.ImagePath);
                 }
             foreach (var list in project.Lists.Where(l => l.Type == ListType.Image))
-                foreach (var item in list.Items)
-                    Collect(item);
+                imageRefs.AddRange(list.Items);
+
+            // 两遍制收集（审查 🟡 修复：目录内引用优先——相对/规范名优先级高，防「目录内 a.png 与目录外 a.png 共存
+            // 时由遍历序决定谁活」的收集次序依赖错图）：
+            //   第一遍目录内（pack=工程内相对路径，规范名直接占用）；第二遍目录外绝对引用（basename，对已占名唯一化）。
+            // imagePathMap **无条件登记**（审查 🟡 修复：同一文件被相对/绝对两种拼写各引用一次时，pack 相同、
+            // resources 按 pack 去重第二次 TryAdd 失败——但两条引用都必须改写为包内路径，否则 .navihmi 残留
+            // 盘符路径 → FW 拼错缺图（N+20 根因②模式））。
+            // 目录外文件按 abs 缓存包名（复审 🟡：同一目录外文件被多条引用时复用同一包名——不按出现次数重复
+            // 唯一化产生 name_2 孤儿条目，设备端不受影响但浪费体积/上传）
+            var absPackMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            void CollectPass(bool wantInside)
+            {
+                foreach (var modelPath in imageRefs)
+                {
+                    var f = ResolveFile(modelPath);
+                    if (f == null) continue;
+                    if (f.Value.Inside != wantInside) continue;
+                    string pack;
+                    if (f.Value.Inside)
+                    {
+                        pack = Path.GetRelativePath(projectDir, f.Value.Abs).Replace('\\', '/');
+                        usedPackNames.Add(pack);   // 目录内规范名占用（同文件 rel+abs 双拼写重复 Add 幂等）
+                    }
+                    else
+                    {
+                        if (!absPackMap.TryGetValue(f.Value.Abs, out pack!))
+                        {
+                            var p = UniquePack(Path.GetFileName(f.Value.Abs));
+                            if (p == null) continue;
+                            pack = p;
+                            absPackMap[f.Value.Abs] = pack;
+                        }
+                        // 复用已有包名（同文件多引用不重复入包）
+                    }
+                    imagePathMap[modelPath] = pack;                 // map 无条件登记（多拼写各自登记）
+                    resources.TryAdd(pack, (f.Value.Abs, pack));    // 资源按 pack 去重（同 pack 同文件共用一份）
+                }
+            }
+            CollectPass(wantInside: true);
+            CollectPass(wantInside: false);
+
+            // 审查 🟡：跳过引用汇总 Trace（文件缺失/RTSP/目录外非图片扩展名/.. 逃逸——避免静默缺图无反馈，对齐瓦片 >64MB Trace 先例）
+            int skippedRefs = imageRefs.Count(r => !string.IsNullOrEmpty(r) && !imagePathMap.ContainsKey(r));
+            if (skippedRefs > 0)
+                System.Diagnostics.Trace.WriteLine($"[DeploymentPackageBuilder] 警告: {skippedRefs} 条图片引用未收集入包（文件缺失/RTSP 流/目录外非图片/.. 逃逸）——设备端将缺图，请检查引用路径");
 
             // N-1：锁定视角底图（PC 编译时拼好的单张 PNG，worldmap_bg.png 在工程目录）——作为 res 随包下发，
             // FW 落盘工程目录后 HmiWorldMap 探测加载（有底图时瓦片层/模拟底图隐藏）
@@ -140,18 +229,47 @@ namespace NavigatorHMI.Common
             {
                 using (var zip = new ZipArchive(ms, ZipArchiveMode.Create, leaveOpen: true))
                 {
-                    // app 主包
+                    // app 主包（O-A1：图片引用改写为包内路径——反序列化 NavihmiProject 遍历图片列表 items + 控件 ImagePath，
+                    // 命中收集映射则替换为包内相对 res 路径；失败回退原样（旧包/契约异常不阻塞部署，Trace 告警））
+                    byte[] appBytes;
+                    try
+                    {
+                        NavihmiProject dto;
+                        using (var inMs = new MemoryStream(File.ReadAllBytes(navihmiPath)))
+                            dto = Serializer.Deserialize<NavihmiProject>(inMs);
+                        bool changed = false;
+                        foreach (var lst in dto.Lists.Where(l => l.Type == ListType.Image))
+                            for (int i = 0; i < lst.Items.Count; i++)
+                                if (imagePathMap.TryGetValue(lst.Items[i], out var packName))
+                                { lst.Items[i] = packName; changed = true; }
+                        foreach (var sc in dto.Screens)
+                            foreach (var w in sc.Widgets)
+                                if (!string.IsNullOrEmpty(w.ImagePath) && imagePathMap.TryGetValue(w.ImagePath, out var packName))
+                                { w.ImagePath = packName; changed = true; }
+                        if (changed)
+                        {
+                            using var outMs = new MemoryStream();
+                            Serializer.Serialize(outMs, dto);
+                            appBytes = outMs.ToArray();
+                        }
+                        else appBytes = File.ReadAllBytes(navihmiPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Trace.WriteLine($"[DeploymentPackageBuilder] .navihmi 图片引用改写失败(回退原样): {ex.Message}");
+                        appBytes = File.ReadAllBytes(navihmiPath);
+                    }
                     var appEntry = zip.CreateEntry("app/app.navihmi");
                     using (var es = appEntry.Open())
-                    using (var fs = File.OpenRead(navihmiPath))
-                        fs.CopyTo(es);
-                    var appSha = Sha256OfFile(navihmiPath);
+                        es.Write(appBytes, 0, appBytes.Length);
+                    // manifest 校验按**入包内容**算（改写后 appBytes 的 sha/size——FW 端按 manifest 校验落盘内容）
+                    var appSha = Convert.ToHexString(SHA256.HashData(appBytes)).ToLowerInvariant();
                     manifest.Add(new ManifestEntry
                     {
                         Name = "app",
                         Type = TypeApp,
                         Target = "app/app.navihmi",
-                        Size = new FileInfo(navihmiPath).Length,
+                        Size = appBytes.Length,
                         Sha256 = appSha,
                         Version = string.IsNullOrEmpty(project.Version) ? "1" : project.Version
                     });

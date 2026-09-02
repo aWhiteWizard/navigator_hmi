@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Text.Json;
 using NavigatorHMI.Common;
+using ProtoBuf;
 
 namespace NavigatorHMI.Tests
 {
@@ -275,6 +276,188 @@ namespace NavigatorHMI.Tests
                 System.Text.Encoding.UTF8.GetString(manifestBytes),
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
             Assert.Equal(2, manifest.Count(m => m.Target.StartsWith("tiles/")));
+        }
+
+        // ── O-A1：任意路径图片收集入包 + .navihmi 引用改写为包内路径（2026-08-30 用户语义）──
+
+        /// <summary>写一个含给定 ImagePath/列表项的合法 .navihmi（NavihmiProject），供改写验证。</summary>
+        private void WriteValidNavihmi(string? imagePath = null, string? listItem = null, params string[] extraImages)
+        {
+            var dto = new NavihmiProject { Name = "部署测试", Version = "1.0" };
+            if (imagePath != null)
+                dto.Screens.Add(new NavihmiScreen { Name = "画面A", Type = ScreenType.Custom,
+                    Widgets = { new NavihmiWidget { ObjectName = "img1", Type = NavihmiWidgetType.Image, ImagePath = imagePath } } });
+            foreach (var extra in extraImages)
+            {
+                if (dto.Screens.Count == 0)
+                    dto.Screens.Add(new NavihmiScreen { Name = "画面A", Type = ScreenType.Custom });
+                dto.Screens[0].Widgets.Add(new NavihmiWidget { ObjectName = "img_" + Guid.NewGuid().ToString("N").Substring(0, 6), Type = NavihmiWidgetType.Image, ImagePath = extra });
+            }
+            if (listItem != null)
+                dto.Lists.Add(new ListDef { Name = "图片列表", Type = ListType.Image, Items = { listItem } });
+            using var ms = new MemoryStream();
+            Serializer.Serialize(ms, dto);
+            File.WriteAllBytes(_navihmiPath, ms.ToArray());
+        }
+
+        private static NavihmiProject ReadNavihmiFromZip(List<(string Path, byte[] Bytes)> files)
+        {
+            var app = files.First(f => f.Path == "app/app.navihmi").Bytes;
+            using var ms = new MemoryStream(app);
+            return Serializer.Deserialize<NavihmiProject>(ms);
+        }
+
+        [Fact]
+        public void 控件目录外绝对路径图片_收集入包并改写navihmi引用()
+        {
+            // O-A1（用户语义）：控件 ImagePath 为工程目录外绝对路径（用户文件对话框正常场景）→ 收集文件本身入包 res/<basename>，
+            // 且 .navihmi 内 ImagePath 改写为包内相对路径（FW 拼 <root>/res/ 加载——设备不关心 PC 路径）
+            var outsideDir = Path.Combine(Path.GetTempPath(), "navihmi_outside_dir_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(outsideDir);
+            var outsideImg = Path.Combine(outsideDir, "avatar.png");
+            File.WriteAllBytes(outsideImg, new byte[] { 0x99 });
+            try
+            {
+                _project.Screens[0].Widgets.Add(new ImageWidget { ObjectName = "img1", ImagePath = outsideImg });
+                WriteValidNavihmi(imagePath: outsideImg);
+
+                var zipPath = Build();
+                var files = ReadZip(zipPath);
+                Assert.Contains("res/avatar.png", files.Select(f => f.Path));   // 目录外文件入包（basename）
+
+                var dto = ReadNavihmiFromZip(files);
+                Assert.Equal("avatar.png", dto.Screens[0].Widgets[0].ImagePath);   // 改写为包内相对路径
+            }
+            finally { try { Directory.Delete(outsideDir, true); } catch { } }
+        }
+
+        [Fact]
+        public void 图片列表目录外绝对路径项_收集入包并改写navihmi列表()
+        {
+            var outsideDir = Path.Combine(Path.GetTempPath(), "navihmi_outside_list_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(outsideDir);
+            var outsideImg = Path.Combine(outsideDir, "welcome.PNG");
+            File.WriteAllBytes(outsideImg, new byte[] { 0x77 });
+            try
+            {
+                _project.Lists.Add(new ListDef { Name = "图片列表", Type = ListType.Image, Items = { outsideImg } });
+                WriteValidNavihmi(listItem: outsideImg);
+
+                var zipPath = Build();
+                var files = ReadZip(zipPath);
+                Assert.Contains("res/welcome.PNG", files.Select(f => f.Path));
+
+                var dto = ReadNavihmiFromZip(files);
+                Assert.Equal("welcome.PNG", dto.Lists[0].Items[0]);   // 列表项改写为包内相对路径
+            }
+            finally { try { Directory.Delete(outsideDir, true); } catch { } }
+        }
+
+        [Fact]
+        public void 目录外同名图片_各自入包唯一化()
+        {
+            var outsideDir1 = Path.Combine(Path.GetTempPath(), "n1_" + Guid.NewGuid().ToString("N"));
+            var outsideDir2 = Path.Combine(Path.GetTempPath(), "n2_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(outsideDir1); Directory.CreateDirectory(outsideDir2);
+            var img1 = Path.Combine(outsideDir1, "same.png");
+            var img2 = Path.Combine(outsideDir2, "same.png");
+            File.WriteAllBytes(img1, new byte[] { 0x11 });
+            File.WriteAllBytes(img2, new byte[] { 0x22 });
+            try
+            {
+                _project.Screens[0].Widgets.Add(new ImageWidget { ObjectName = "img1", ImagePath = img1 });
+                _project.Screens[0].Widgets.Add(new ImageWidget { ObjectName = "img2", ImagePath = img2 });
+                WriteValidNavihmi(imagePath: img1);
+
+                var zipPath = Build();
+                var files = ReadZip(zipPath);
+                var resNames = files.Select(f => f.Path).Where(p => p.StartsWith("res/")).OrderBy(p => p).ToList();
+                Assert.Contains("res/same.png", resNames);
+                Assert.Contains("res/same_2.png", resNames);   // 第二个唯一化（加序号）
+            }
+            finally { try { Directory.Delete(outsideDir1, true); } catch { } try { Directory.Delete(outsideDir2, true); } catch { } }
+        }
+
+        [Fact]
+        public void 目录内与目录外同名_目录内优先_遍历序无关()
+        {
+            // 审查 🟡1 回归：目录内根引用 a.png 与目录外 a.png 共存——目录内（规范名）必须优先得 a.png，
+            // 目录外唯一化为 a_2.png；**目录外引用在前遍历序也不得错图**（修复前由遍历序决定谁活）
+            var outside = Path.Combine(NewTempDir("outside_same"), "a.png");
+            File.WriteAllBytes(outside, new byte[] { 0x22 });
+            WriteImage("a.png", new byte[] { 0x11 });   // 工程根目录 a.png
+            try
+            {
+                // 目录外引用在前（img1）——考验收集次序
+                _project.Screens[0].Widgets.Add(new ImageWidget { ObjectName = "img1", ImagePath = outside });
+                _project.Screens[0].Widgets.Add(new ImageWidget { ObjectName = "img2", ImagePath = "a.png" });
+                WriteValidNavihmi(imagePath: outside, extraImages: "a.png");
+
+                var zipPath = Build();
+                var files = ReadZip(zipPath);
+                Assert.Contains("res/a.png", files.Select(f => f.Path));      // 目录内规范名
+                Assert.Contains("res/a_2.png", files.Select(f => f.Path));    // 目录外唯一化
+
+                var dto = ReadNavihmiFromZip(files);
+                // 两个控件各自改写正确（目录外 img1 → a_2.png；目录内 img2 → a.png）
+                var paths = dto.Screens[0].Widgets.OrderBy(w => w.ObjectName).Select(w => w.ImagePath).ToList();
+                Assert.Equal("a.png", paths.Single(p => p == "a.png"));
+                Assert.Equal("a_2.png", paths.Single(p => p == "a_2.png"));
+            }
+            finally { try { Directory.Delete(Path.GetDirectoryName(outside)!, true); } catch { } }
+        }
+
+        [Fact]
+        public void 同文件相对与绝对双拼写_两引用都改写包内路径()
+        {
+            // 审查 🟡2 回归：同一文件被相对拼写（GUI 存相对）与绝对拼写（AI/CLI 传绝对）各引用一次——
+            // 两处引用都必须改写为包内路径（资源按包名一份；map 无条件登记，不留盘符路径在 .navihmi）
+            WriteImage("welcome.PNG", new byte[] { 0x33 });
+            var abs = Path.Combine(_dir, "welcome.PNG");
+            try
+            {
+                _project.Screens[0].Widgets.Add(new ImageWidget { ObjectName = "img1", ImagePath = "welcome.PNG" });
+                _project.Screens[0].Widgets.Add(new ImageWidget { ObjectName = "img2", ImagePath = abs });
+                WriteValidNavihmi(imagePath: "welcome.PNG", extraImages: abs);
+
+                var zipPath = Build();
+                var files = ReadZip(zipPath);
+                Assert.Equal(1, files.Count(f => f.Path == "res/welcome.PNG"));   // 资源按包名一份
+
+                var dto = ReadNavihmiFromZip(files);
+                Assert.All(dto.Screens[0].Widgets, w => Assert.Equal("welcome.PNG", w.ImagePath));   // 两引用都改写
+            }
+            finally { }
+        }
+
+        [Fact]
+        public void 目录外同文件被多个控件引用_单份入包_引用都改写同名()
+        {
+            // 复审 🟡：同一目录外文件被两条控件引用（相同绝对串，GUI 对话框选同一图常见）——
+            // 只入包一份（不产生 name_2 孤儿条目），两条引用都改写为同一包名
+            var outside = Path.Combine(NewTempDir("multi_ref"), "avatar.png");
+            File.WriteAllBytes(outside, new byte[] { 0x5A });
+            try
+            {
+                _project.Screens[0].Widgets.Add(new ImageWidget { ObjectName = "img1", ImagePath = outside });
+                _project.Screens[0].Widgets.Add(new ImageWidget { ObjectName = "img2", ImagePath = outside });
+                WriteValidNavihmi(imagePath: outside, extraImages: outside);
+
+                var zipPath = Build();
+                var files = ReadZip(zipPath);
+                Assert.Equal(1, files.Count(f => f.Path == "res/avatar.png"));   // 单份入包（无 avatar_2 孤儿）
+
+                var dto = ReadNavihmiFromZip(files);
+                Assert.All(dto.Screens[0].Widgets, w => Assert.Equal("avatar.png", w.ImagePath));
+            }
+            finally { try { Directory.Delete(Path.GetDirectoryName(outside)!, true); } catch { } }
+        }
+
+        private static string NewTempDir(string tag)
+        {
+            var dir = Path.Combine(Path.GetTempPath(), "navihmi_" + tag + "_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            return dir;
         }
     }
 }

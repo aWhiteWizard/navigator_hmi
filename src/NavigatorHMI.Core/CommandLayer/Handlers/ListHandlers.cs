@@ -4,15 +4,14 @@ using NavigatorHMI.Common;
 namespace NavigatorHMI.CommandLayer.Handlers
 {
     /// <summary>
-    /// 图片列表项路径规范化（D-B2，2026-08-30）——AI/CLI 传绝对路径入库是 N+20「图片列表不显示」第二根因：
-    /// DeploymentPackageBuilder 白名单拒绝工程目录外路径（Path.GetRelativePath 以 .. 开头）→ 打包不入包 → 设备端无图。
-    /// 规则：
+    /// 图片列表项路径规范化（D-B2，2026-08-30 + O-A1 修正）——AI/CLI 传绝对路径入库是 N+20「图片列表不显示」第二根因：
+    /// DeploymentPackageBuilder 白名单曾拒绝工程目录外路径 → 打包不入包 → 设备端无图。
+    /// 规则（O-A1 用户语义修正 2026-08-30：图片路径只是"找文件"线索，打包时收集文件本身入包，设备不关心 PC 路径）：
     ///   绝对路径在工程目录内 → 自动相对化（Path.GetRelativePath，统一正斜杠）；
-    ///   绝对路径在工程目录外 → 拒绝（INVALID_PARAM，白名单必拒，早失败优于打包后设备缺图）；
-    ///   相对路径 → 归一化去 .. 段后保留（防 AI/CLI 传 "../outside.png" 绕过白名单静默拒收——晚失败同病）；
-    ///   工程未保存（无目录）→ 无法校验，原样保留（GUI 同语义）。
-    /// 注：与 GUI 浏览选择（EditWindow.xaml.cs L1299-1316）差异——GUI 目录外保留绝对路径（预览用），
-    /// 命令层严格拒绝目录外（部署必然失败）；GUI 面板 PathValid 仍按旧规则标绿，见 D 执行书记录。
+    ///   绝对路径在工程目录外 → **保留原值入库**（不再拒绝——打包 DeploymentPackageBuilder O-A1 收集文件本身入包 res/）；
+    ///   相对路径逃逸（../ 归一化后越界）→ 仍拒绝（INVALID_PARAM，防目录穿越）；
+    ///   相对路径工程内 → 归一化保留；工程未保存（无目录）→ 原样保留（GUI 同语义）。
+    /// 注：GUI 浏览选择（EditWindow.xaml.cs L1299-1316）目录外保留绝对路径（预览用）——现与命令层语义一致（O-A1）。
     /// </summary>
     internal static class ImageListItemSanitizer
     {
@@ -38,7 +37,11 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 var rel = Path.GetRelativePath(projectDir, abs);
                 if (rel.StartsWith("..") || Path.IsPathRooted(rel))
                 {
-                    error = $"图片路径 \"{raw}\" 不在工程目录内（{projectDir}），部署包白名单将拒绝，无法下载到设备";
+                    // O-A1（2026-08-30 用户语义）：目录外不再拒绝——绝对路径是用户正常引用（文件对话框），
+                    // 打包时收集文件本身入包（DeploymentPackageBuilder O-A1）；仅相对路径逃逸（../）仍拒绝（安全）
+                    if (Path.IsPathRooted(p))
+                        return p;   // 绝对路径目录外：保留原值入库（打包收集，设备不关心 PC 路径）
+                    error = $"图片路径 \"{raw}\" 含目录逃逸（../），禁止引用工程外相对路径";
                     return null;
                 }
                 return rel.Replace('\\', '/');   // 统一正斜杠（与打包/设备端加载一致）
