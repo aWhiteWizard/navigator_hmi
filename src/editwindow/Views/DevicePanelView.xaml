@@ -5,83 +5,185 @@
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
     </UserControl.Resources>
-    <Grid Margin="8">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+    <!-- O 轮批 C C-1 设备管理四子页（N+31 v2）：TabControl 四页——设备连接/远程控制/设备升级/工程下载。
+         SelectedIndex 绑 EditWindowViewModel.DevicePanelPage（RelativeSource Window——本控件 DataContext=DevicePanelVM，
+         子页索引在窗口 VM 上，与树叶子高亮同步）；默认 0（设备连接）。 -->
+    <TabControl SelectedIndex="{Binding DataContext.DevicePanelPage, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=0}">
+        <!-- ═══ 页 0：设备连接（搜索/连接测试/断开/会话状态/闪烁确认目标） ═══ -->
+        <TabItem Header="设备连接">
+            <Grid Margin="6">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
 
-        <!-- 连接测试（最上方）-->
-        <Button Grid.Row="0" Content="连接测试" Height="30" Command="{Binding ConnectCommand}"
-                HorizontalAlignment="Left" Padding="16,0" Margin="0,0,0,8" Cursor="Hand"/>
+                <!-- 连接/断开 + 会话状态（门禁：连接后断开可用） -->
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                    <Button Content="连接测试" Height="30" Padding="16,0" Command="{Binding ConnectCommand}"
+                            HorizontalAlignment="Left" Cursor="Hand" ToolTip="HTTP GET /api/device/info 验证型号/尺寸并建立会话"/>
+                    <Button Content="断开" Height="30" Padding="16,0" Margin="8,0,0,0" Command="{Binding DisconnectCommand}" Cursor="Hand"
+                            ToolTip="断开当前设备会话（幂等）"/>
+                    <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" Margin="12,0,0,0" FontSize="12" Foreground="#555555"/>
+                </StackPanel>
 
-        <!-- IP + 设备类型（中间）-->
-        <Grid Grid.Row="1" Margin="0,0,0,8">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-            <TextBlock Text="IP:" VerticalAlignment="Center" Margin="0,0,6,0"/>
-            <TextBox Grid.Column="1" Text="{Binding Ip, UpdateSourceTrigger=PropertyChanged}" Height="26" VerticalContentAlignment="Center"
-                     ToolTip="设备 IP（如 192.168.1.146）" Padding="4,2"/>
-            <TextBlock Grid.Column="2" Text="类型:" VerticalAlignment="Center" Margin="10,0,6,0"/>
-            <ComboBox Grid.Column="3" ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}" Height="26" VerticalContentAlignment="Center"
-                      DisplayMemberPath="Model" ToolTip="设备型号（device-profile 驱动）"/>
-        </Grid>
+                <!-- IP + 设备型号（中间） -->
+                <Grid Grid.Row="1" Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="IP:" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                    <TextBox Grid.Column="1" Text="{Binding Ip, UpdateSourceTrigger=PropertyChanged}" Height="26" VerticalContentAlignment="Center"
+                             ToolTip="设备 IP（如 192.168.1.146）" Padding="4,2"/>
+                    <TextBlock Grid.Column="2" Text="类型:" VerticalAlignment="Center" Margin="10,0,6,0"/>
+                    <ComboBox Grid.Column="3" ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}" Height="26" VerticalContentAlignment="Center"
+                              DisplayMemberPath="Model" ToolTip="设备型号（device-profile 驱动）"/>
+                </Grid>
 
-        <!-- 搜索 / 闪烁（下拉右侧横排；VNC 已单独成行——M-2 用户 2026-08-30 定）-->
-        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,8">
-            <TextBlock Text="网卡:" VerticalAlignment="Center" Margin="0,0,4,0" ToolTip="搜索设备用的网卡"/>
-            <ComboBox Width="90" Height="26" ItemsSource="{Binding NicList}" SelectedItem="{Binding SelectedNic}"
-                      VerticalContentAlignment="Center" ToolTip="选择搜索设备用的网卡"/>
-            <Button Content="搜索设备" Height="26" Padding="10,0" Margin="4,0,0,0" Command="{Binding ScanCommand}" Cursor="Hand"
-                    ToolTip="按所选网卡扫描局域网设备（需先选网卡）"/>
-            <Button Content="设备闪烁" Height="26" Padding="10,0" Margin="4,0,0,0" Command="{Binding BlinkCommand}" Cursor="Hand"/>
-        </StackPanel>
+                <!-- 搜索（网卡 + 扫描）+ 设备闪烁（确认目标设备——C-2 括号语义） -->
+                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,8">
+                    <TextBlock Text="网卡:" VerticalAlignment="Center" Margin="0,0,4,0" ToolTip="搜索设备用的网卡"/>
+                    <ComboBox Width="90" Height="26" ItemsSource="{Binding NicList}" SelectedItem="{Binding SelectedNic}"
+                              VerticalContentAlignment="Center" ToolTip="选择搜索设备用的网卡"/>
+                    <Button Content="搜索设备" Height="26" Padding="10,0" Margin="4,0,0,0" Command="{Binding ScanCommand}" Cursor="Hand"
+                            ToolTip="按所选网卡扫描局域网设备（需先选网卡）"/>
+                    <Button Content="设备闪烁" Height="26" Padding="10,0" Margin="4,0,0,0" Command="{Binding BlinkCommand}" Cursor="Hand"
+                            ToolTip="目标设备闪烁 ~1s（确认扫描/连接的目标）"/>
+                </StackPanel>
 
-        <!-- VNC 行（M-2：VNC 组件单独一行——启停应用按钮 + 打开查看器；打开查看器仅 VNC 启用后可用）-->
-        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,8">
-            <!-- VNC 单独应用按钮（用户 2026-08-30 定：非 CheckBox，点击切换启停）-->
-            <Button Content="{Binding VncButtonText}" Height="26" Padding="10,0" Command="{Binding VncCommand}" Cursor="Hand"
-                    ToolTip="VNC 运行时启停（点击切换，端口见配置）"/>
-            <Button Content="打开 VNC 查看器" Height="26" Padding="10,0" Margin="4,0,0,0" Command="{Binding OpenViewerCommand}" Cursor="Hand"
-                    ToolTip="启动 VncViewer.exe 连接当前会话设备（需 VNC 已启用）"/>
-        </StackPanel>
+                <!-- 发现的设备表格（点击行自动填入并连接；日志进主窗口「输出」） -->
+                <GroupBox Grid.Row="3" Header="发现的设备" Margin="0,0,0,0" Padding="4">
+                    <DataGrid ItemsSource="{Binding FoundDevices}" SelectedItem="{Binding SelectedDevice}"
+                              AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" HeadersVisibility="Column"
+                              GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12" RowHeight="24"
+                              MinHeight="80" MaxHeight="220"
+                              ToolTip="点击行 → 自动填入 IP+型号，再点「连接测试」建立会话">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="IP" Binding="{Binding Ip}" Width="*"/>
+                            <DataGridTextColumn Header="型号" Binding="{Binding Model}" Width="*"/>
+                            <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="*"/>
+                            <DataGridTextColumn Header="尺寸" Binding="{Binding SizeInch}" Width="Auto"/>
+                            <DataGridTextColumn Header="版本" Binding="{Binding Version}" Width="Auto"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </GroupBox>
+            </Grid>
+        </TabItem>
 
-        <!-- 发现的设备表格（设计文档 property-device §3.2：IP/型号/ID，点击行自动填入并连接；日志统一进主窗口「输出」窗口） -->
-        <GroupBox Grid.Row="4" Header="发现的设备" Margin="0,0,0,8" Padding="4">
-            <DataGrid ItemsSource="{Binding FoundDevices}" SelectedItem="{Binding SelectedDevice}"
-                      AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" HeadersVisibility="Column"
-                      GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12" RowHeight="24"
-                      MinHeight="80" MaxHeight="200"
-                      ToolTip="点击行 → 自动填入 IP+型号，再点「连接测试」建立会话">
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="IP" Binding="{Binding Ip}" Width="*"/>
-                    <DataGridTextColumn Header="型号" Binding="{Binding Model}" Width="*"/>
-                    <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="*"/>
-                    <DataGridTextColumn Header="尺寸" Binding="{Binding SizeInch}" Width="Auto"/>
-                </DataGrid.Columns>
-            </DataGrid>
-        </GroupBox>
+        <!-- ═══ 页 1：远程控制（VNC 开关/查看器 + 操作日志；门禁 C-6：未连接灰显） ═══ -->
+        <TabItem Header="远程控制">
+            <Grid Margin="6">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                    <!-- VNC 单独应用按钮（点击切换启停） -->
+                    <Button Content="{Binding VncButtonText}" Height="26" Padding="10,0" Command="{Binding VncCommand}" Cursor="Hand"
+                            ToolTip="VNC 运行时启停（点击切换，端口见配置）"/>
+                    <Button Content="打开 VNC 查看器" Height="26" Padding="10,0" Margin="4,0,0,0" Command="{Binding OpenViewerCommand}" Cursor="Hand"
+                            ToolTip="启动 VncViewer.exe 连接当前会话设备（需 VNC 已启用）"/>
+                </StackPanel>
+                <TextBlock Grid.Row="1" Text="操作输出/日志见主窗口下方「输出」窗口（连接/闪烁/VNC 指令实时回显）。" FontSize="11"
+                           Foreground="#888888" Margin="0,0,0,8" TextWrapping="Wrap"/>
+                <GroupBox Grid.Row="2" Header="远程控制说明" Padding="4">
+                    <TextBlock FontSize="12" TextWrapping="Wrap" Foreground="#555555">
+                        远程控制需先在本页上方或「设备连接」页完成连接测试（未连接时按钮灰显）。
+                        启用 VNC 后可用 VncViewer 查看/操作设备画面；设备闪烁用于确认目标设备身份。
+                    </TextBlock>
+                </GroupBox>
+            </Grid>
+        </TabItem>
 
-        <!-- 下载区（门禁灰显）-->
-        <StackPanel Grid.Row="5" Orientation="Horizontal">
-            <Button Content="下载工程" Height="30" Padding="16,0" Command="{Binding DeployCommand}" Cursor="Hand"
-                    ToolTip="编译+打包+HTTP 传输（需已连接且型号支持部署）"/>
-            <TextBlock Text="（需连接测试通过）" VerticalAlignment="Center" Margin="8,0,0,0" FontSize="11" Foreground="#999999"/>
-            <!-- D-B4：下载进度条（设备端真实进度，PC 同步显示）-->
-            <ProgressBar Width="140" Height="14" Margin="10,0,0,0" VerticalAlignment="Center"
-                         Minimum="0" Maximum="100" Value="{Binding ProgressValue, Mode=OneWay}"
-                         Visibility="{Binding ProgressVisible, Converter={StaticResource BoolToVisibilityConverter}}"/>
-            <TextBlock Text="{Binding ProgressText}" VerticalAlignment="Center" Margin="8,0,0,0" FontSize="11" Foreground="#555555"
-                       TextTrimming="CharacterEllipsis" MaxWidth="180"/>
-        </StackPanel>
-    </Grid>
+        <!-- ═══ 页 2：设备升级（当前版本 + 固件文件夹方案 + 进度/重启确认；门禁 C-6） ═══ -->
+        <TabItem Header="设备升级">
+            <Grid Margin="6">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- 设备当前版本 + 会话型号 -->
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                    <TextBlock Text="设备当前版本:" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding DeviceVersionText}" VerticalAlignment="Center" FontWeight="Bold" Margin="6,0,0,0"/>
+                </StackPanel>
+
+                <!-- 固件文件夹方案（N+29 定稿）：专门固件目录按尺寸组织；升级时按连接设备尺寸自动取该尺寸最新 .fw，不输路径 -->
+                <GroupBox Grid.Row="1" Header="固件文件夹（按尺寸自动匹配）" Margin="0,0,0,8" Padding="4">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="固件库目录:" VerticalAlignment="Center"/>
+                            <TextBox Text="{Binding FirmwareFolderText, Mode=OneWay}" IsReadOnly="True" Width="260" Height="24"
+                                     VerticalContentAlignment="Center" Margin="6,0,0,0" ToolTip="组态软件固件库根目录（firmware/ 下按尺寸分子目录）"/>
+                            <Button Content="刷新" Height="24" Padding="8,0" Margin="4,0,0,0" Command="{Binding RefreshFirmwareCommand}" Cursor="Hand"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                            <TextBlock Text="匹配固件:" VerticalAlignment="Center"/>
+                            <ComboBox Width="280" Height="26" ItemsSource="{Binding FirmwareFiles}" SelectedItem="{Binding SelectedFirmware}"
+                                      VerticalContentAlignment="Center" Margin="6,0,0,0" DisplayMemberPath="DisplayName"
+                                      ToolTip="该尺寸固件库下全部 .fw（自动选语义最新；也可下拉手动选历史版本）"/>
+                            <Button Content="浏览…" Height="26" Padding="10,0" Margin="4,0,0,0" Click="BrowseFirmware_Click" Cursor="Hand"
+                                    ToolTip="手动选择任意位置 .fw（覆盖固件文件夹匹配——--file 语义）"/>
+                        </StackPanel>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- 升级操作 + 进度 -->
+                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,8">
+                    <Button Content="升级到所选固件" Height="30" Padding="16,0" Command="{Binding UpgradeFirmwareCommand}" Cursor="Hand"
+                            ToolTip="版本前置检查（同版本跳过/旧版拒绝）→ 上传 → 设备校验安装 → 重启（需已连接）"/>
+                    <ProgressBar Width="140" Height="14" Margin="10,0,0,0" VerticalAlignment="Center"
+                                 Minimum="0" Maximum="100" Value="{Binding FirmwareProgressValue, Mode=OneWay}"
+                                 Visibility="{Binding FirmwareProgressVisible, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                    <TextBlock Text="{Binding FirmwareProgressText}" VerticalAlignment="Center" Margin="8,0,0,0" FontSize="11" Foreground="#555555"
+                               TextTrimming="CharacterEllipsis" MaxWidth="220"/>
+                </StackPanel>
+
+                <TextBlock Grid.Row="3" Text="升级会触发设备重启（app 原子替换；当前工程数据在独立 userdata 分区不受影响）。" FontSize="11"
+                           Foreground="#888888" Margin="0,0,0,8" TextWrapping="Wrap"/>
+
+                <!-- 升级日志（版本前置结果/传输状态实时回显） -->
+                <GroupBox Grid.Row="4" Header="升级记录" Padding="4" Margin="0,0,0,0">
+                    <TextBox Text="{Binding UpgradeLog, Mode=OneWay}" IsReadOnly="True" Height="90" FontSize="11"
+                             VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" BorderThickness="0"/>
+                </GroupBox>
+            </Grid>
+        </TabItem>
+
+        <!-- ═══ 页 3：工程下载（下载 + D-B4 进度条回归；门禁 C-6） ═══ -->
+        <TabItem Header="工程下载">
+            <Grid Margin="6">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                    <Button Content="下载工程到设备" Height="30" Padding="16,0" Command="{Binding DeployCommand}" Cursor="Hand"
+                            ToolTip="编译+打包+HTTP 传输（需已连接且型号支持部署——deploy 前置自动编译门禁）"/>
+                    <TextBlock Text="（需连接测试通过）" VerticalAlignment="Center" Margin="8,0,0,0" FontSize="11" Foreground="#999999"/>
+                </StackPanel>
+                <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8">
+                    <!-- D-B4：下载进度条（设备端真实进度轮询，PC 同步显示） -->
+                    <ProgressBar Width="180" Height="14" VerticalAlignment="Center"
+                                 Minimum="0" Maximum="100" Value="{Binding ProgressValue, Mode=OneWay}"
+                                 Visibility="{Binding ProgressVisible, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                    <TextBlock Text="{Binding ProgressText}" VerticalAlignment="Center" Margin="8,0,0,0" FontSize="11" Foreground="#555555"
+                               TextTrimming="CharacterEllipsis" MaxWidth="260"/>
+                </StackPanel>
+                <TextBlock Grid.Row="2" Text="下载 = 编译当前工程 → 打包 .navihmi 部署容器 → HTTP 传输到设备（进度条为设备端真实进度）。" FontSize="11"
+                           Foreground="#888888" TextWrapping="Wrap"/>
+            </Grid>
+        </TabItem>
+    </TabControl>
 </UserControl>

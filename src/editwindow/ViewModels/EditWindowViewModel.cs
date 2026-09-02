@@ -360,7 +360,7 @@ namespace NavigatorHMI.ViewModels
         }
 
         // ═══════════════════════════════════════════
-        // L 循环 L-B1 设备管理面板（项目树独立根节点 → 画布 Tab；与变量/通讯/用户互斥）
+        // O 轮批 C C-1 设备管理四子页（N+31 v2：树「设备管理」容器父节点 → 设备连接/远程控制/设备升级/工程下载）
         // ═══════════════════════════════════════════
 
         private bool _deviceTabOpen;
@@ -379,8 +379,16 @@ namespace NavigatorHMI.ViewModels
             set { if (_deviceActive != value) { _deviceActive = value; OnPropertyChanged(); } }
         }
 
-        /// <summary>打开设备管理面板（树根节点双击触发；与其它画布 Tab 互斥）。</summary>
-        public void OpenDeviceManager()
+        private int _devicePanelPage;
+        /// <summary>设备管理子页（0=设备连接 1=远程控制 2=设备升级 3=工程下载）。</summary>
+        public int DevicePanelPage
+        {
+            get => _devicePanelPage;
+            set { if (_devicePanelPage != value) { _devicePanelPage = value; OnPropertyChanged(); RefreshTreeCurrentStatus(); } }   // 子页切换同步树叶子高亮
+        }
+
+        /// <summary>打开设备管理 Tab 并切到指定子页（树四叶子双击触发；与其它画布 Tab 互斥）。</summary>
+        public void OpenDeviceManager(int page = 0)
         {
             if (!DeviceTabOpen) DeviceTabOpen = true;
             VariableManagerActive = false;
@@ -389,10 +397,21 @@ namespace NavigatorHMI.ViewModels
             AlarmActive = false;
             UserActive = false;
             DeviceActive = true;
+            // 无条件刷新树高亮：DevicePanelPage 可能已等于目标页（page=0 首开）——setter 内刷新不触发，此处兜底
+            DevicePanelPage = page;
             RefreshTreeCurrentStatus();
         }
 
-        /// <summary>激活设备管理（Tab 已开时点击标签栏——不重复开）。</summary>
+        /// <summary>打开设备管理-设备连接子页（树「设备连接」叶子双击）。</summary>
+        public void OpenDeviceConnect() => OpenDeviceManager(0);
+        /// <summary>打开设备管理-远程控制子页（树「远程控制」叶子双击）。</summary>
+        public void OpenRemoteControl() => OpenDeviceManager(1);
+        /// <summary>打开设备管理-设备升级子页（树「设备升级」叶子双击）。</summary>
+        public void OpenDeviceUpgrade() => OpenDeviceManager(2);
+        /// <summary>打开设备管理-工程下载子页（树「工程下载」叶子双击）。</summary>
+        public void OpenProjectDownload() => OpenDeviceManager(3);
+
+        /// <summary>激活设备管理（Tab 已开时点击标签栏——不重复开，保持当前子页）。</summary>
         public void ActivateDevice()
         {
             if (!DeviceTabOpen) DeviceTabOpen = true;
@@ -866,11 +885,11 @@ namespace NavigatorHMI.ViewModels
         {
             foreach (var root in TreeRoots)
             {
-                UpdateNodeRecursive(root, CurrentScreen, VariableManagerActive, CommunicationActive, ListManagerActive, AlarmActive, UserActive, DeviceActive, UserPanelPage, ListManagerListType);
+                UpdateNodeRecursive(root, CurrentScreen, VariableManagerActive, CommunicationActive, ListManagerActive, AlarmActive, UserActive, DeviceActive, UserPanelPage, ListManagerListType, DevicePanelPage);
             }
         }
 
-        private static void UpdateNodeRecursive(ProjectTreeViewModel node, Screen currentScreen, bool variableManagerActive, bool communicationActive, bool listManagerActive, bool alarmActive, bool userActive, bool deviceActive, int userPanelPage, ListType listManagerListType)
+        private static void UpdateNodeRecursive(ProjectTreeViewModel node, Screen currentScreen, bool variableManagerActive, bool communicationActive, bool listManagerActive, bool alarmActive, bool userActive, bool deviceActive, int userPanelPage, ListType listManagerListType, int devicePanelPage)
         {
             if (node is ScreenItemNode screenNode)
             {
@@ -908,13 +927,26 @@ namespace NavigatorHMI.ViewModels
             {
                 usNode.IsCurrent = userActive && userPanelPage == 2;
             }
-            else if (node is DeviceRootNode deviceRootNode)
+            // O 轮批 C C-1：设备管理四子页叶子高亮（deviceActive && 对应子页）
+            else if (node is DeviceConnectNode dcNode)
             {
-                deviceRootNode.IsCurrent = deviceActive;   // L-B1：设备管理根节点激活高亮（审查🔴#2）
+                dcNode.IsCurrent = deviceActive && devicePanelPage == 0;
+            }
+            else if (node is RemoteControlNode rcNode)
+            {
+                rcNode.IsCurrent = deviceActive && devicePanelPage == 1;
+            }
+            else if (node is DeviceUpgradeNode duNode)
+            {
+                duNode.IsCurrent = deviceActive && devicePanelPage == 2;
+            }
+            else if (node is ProjectDownloadNode pdNode)
+            {
+                pdNode.IsCurrent = deviceActive && devicePanelPage == 3;
             }
             foreach (var child in node.Children)
             {
-                UpdateNodeRecursive(child, currentScreen, variableManagerActive, communicationActive, listManagerActive, alarmActive, userActive, deviceActive, userPanelPage, listManagerListType);
+                UpdateNodeRecursive(child, currentScreen, variableManagerActive, communicationActive, listManagerActive, alarmActive, userActive, deviceActive, userPanelPage, listManagerListType, devicePanelPage);
             }
         }
 
@@ -1073,11 +1105,14 @@ namespace NavigatorHMI.ViewModels
             return node;
         }
 
-        /// <summary>L 循环 L-B1 构建「设备管理」根节点（双击打开设备管理画布 Tab）。</summary>
+        /// <summary>O 轮批 C C-1 构建「设备管理」容器根节点（四子节点：设备连接/远程控制/设备升级/工程下载，双击各开子页）。</summary>
         private DeviceRootNode BuildDeviceRootNode()
         {
             var node = new DeviceRootNode();
-            node.OnDeviceManagerSelected += OpenDeviceManager;
+            node.OnDeviceConnectSelected += OpenDeviceConnect;
+            node.OnRemoteControlSelected += OpenRemoteControl;
+            node.OnDeviceUpgradeSelected += OpenDeviceUpgrade;
+            node.OnProjectDownloadSelected += OpenProjectDownload;
             return node;
         }
         // 撤销操作执行后触发，用于通知 View 层标记工程已修改

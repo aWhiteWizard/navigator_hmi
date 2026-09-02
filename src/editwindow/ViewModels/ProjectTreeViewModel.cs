@@ -406,19 +406,77 @@ namespace NavigatorHMI.ViewModels
         }
     }
 
-    /// <summary>「设备管理」根节点（L 循环 L-B1 用户定：与通信变量/用户/报警/列表同等级的独立根；双击打开设备管理画布 Tab）。</summary>
+    /// <summary>
+    /// 「设备管理」根节点（O 轮批 C C-1 重构，N+31 v2 方案：容器父节点，双击不打开单面板）——
+    /// 展开四子节点：设备连接 / 远程控制 / 设备升级 / 工程下载，各双击打开独立子页（对齐用户节点模式）。
+    /// </summary>
     public class DeviceRootNode : ProjectTreeViewModel
     {
         public DeviceRootNode()
         {
             Name = "设备管理";
-            DoubleClickCommand = new RelayCommand(NotifyDeviceManagerSelected);
+            Children.Add(new DeviceConnectNode(this));
+            Children.Add(new RemoteControlNode(this));
+            Children.Add(new DeviceUpgradeNode(this));
+            Children.Add(new ProjectDownloadNode(this));
         }
 
-        /// <summary>根节点双击被触发（上层打开设备管理画布 Tab）。</summary>
-        public event Action? OnDeviceManagerSelected;
+        public event Action? OnDeviceConnectSelected;
+        public event Action? OnRemoteControlSelected;
+        public event Action? OnDeviceUpgradeSelected;
+        public event Action? OnProjectDownloadSelected;
+        internal void NotifyDeviceConnectSelected() => OnDeviceConnectSelected?.Invoke();
+        internal void NotifyRemoteControlSelected() => OnRemoteControlSelected?.Invoke();
+        internal void NotifyDeviceUpgradeSelected() => OnDeviceUpgradeSelected?.Invoke();
+        internal void NotifyProjectDownloadSelected() => OnProjectDownloadSelected?.Invoke();
+    }
 
-        internal void NotifyDeviceManagerSelected() => OnDeviceManagerSelected?.Invoke();
+    /// <summary>「设备连接」叶子节点：双击打开设备连接子页（搜索/连接测试/断开/会话状态/闪烁确认）。</summary>
+    public class DeviceConnectNode : ProjectTreeViewModel
+    {
+        private readonly DeviceRootNode _parent;
+        public DeviceConnectNode(DeviceRootNode parent)
+        {
+            _parent = parent;
+            Name = "设备连接";
+            DoubleClickCommand = new RelayCommand(() => _parent.NotifyDeviceConnectSelected());
+        }
+    }
+
+    /// <summary>「远程控制」叶子节点：双击打开远程控制子页（VNC 开关/查看器/闪烁）。</summary>
+    public class RemoteControlNode : ProjectTreeViewModel
+    {
+        private readonly DeviceRootNode _parent;
+        public RemoteControlNode(DeviceRootNode parent)
+        {
+            _parent = parent;
+            Name = "远程控制";
+            DoubleClickCommand = new RelayCommand(() => _parent.NotifyRemoteControlSelected());
+        }
+    }
+
+    /// <summary>「设备升级」叶子节点：双击打开设备升级子页（固件文件夹/版本前置/进度/重启确认）。</summary>
+    public class DeviceUpgradeNode : ProjectTreeViewModel
+    {
+        private readonly DeviceRootNode _parent;
+        public DeviceUpgradeNode(DeviceRootNode parent)
+        {
+            _parent = parent;
+            Name = "设备升级";
+            DoubleClickCommand = new RelayCommand(() => _parent.NotifyDeviceUpgradeSelected());
+        }
+    }
+
+    /// <summary>「工程下载」叶子节点：双击打开工程下载子页（下载 + D-B4 进度条）。</summary>
+    public class ProjectDownloadNode : ProjectTreeViewModel
+    {
+        private readonly DeviceRootNode _parent;
+        public ProjectDownloadNode(DeviceRootNode parent)
+        {
+            _parent = parent;
+            Name = "工程下载";
+            DoubleClickCommand = new RelayCommand(() => _parent.NotifyProjectDownloadSelected());
+        }
     }
 }
  

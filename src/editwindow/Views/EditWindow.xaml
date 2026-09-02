@@ -1260,11 +1260,33 @@
                                             <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
                                         </HierarchicalDataTemplate>
                                         <HierarchicalDataTemplate DataType="{x:Type vm:DeviceRootNode}" ItemsSource="{Binding Children}">
+                                            <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
+                                        </HierarchicalDataTemplate>
+                                        <!-- O 轮批 C C-1 设备管理四子节点（✅ 高亮随子页激活） -->
+                                        <DataTemplate DataType="{x:Type vm:DeviceConnectNode}">
                                             <StackPanel Orientation="Horizontal">
                                                 <TextBlock Text="✅" Visibility="{Binding IsCurrent, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,4,0" FontSize="12"/>
-                                                <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
+                                                <TextBlock Text="{Binding Name}"/>
                                             </StackPanel>
-                                        </HierarchicalDataTemplate>
+                                        </DataTemplate>
+                                        <DataTemplate DataType="{x:Type vm:RemoteControlNode}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="✅" Visibility="{Binding IsCurrent, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,4,0" FontSize="12"/>
+                                                <TextBlock Text="{Binding Name}"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                        <DataTemplate DataType="{x:Type vm:DeviceUpgradeNode}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="✅" Visibility="{Binding IsCurrent, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,4,0" FontSize="12"/>
+                                                <TextBlock Text="{Binding Name}"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                        <DataTemplate DataType="{x:Type vm:ProjectDownloadNode}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="✅" Visibility="{Binding IsCurrent, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,4,0" FontSize="12"/>
+                                                <TextBlock Text="{Binding Name}"/>
+                                            </StackPanel>
+                                        </DataTemplate>
                                         <DataTemplate DataType="{x:Type vm:VariableManagerNode}">
                                             <!-- 与画面节点一致的选中样式（✅ 高亮 + 默认字体颜色） -->
                                             <StackPanel Orientation="Horizontal">
