@@ -37,7 +37,7 @@ namespace NavigatorHMI.Views
             if (DataContext is not DevicePanelViewModel vm) return;
             var dlg = new Microsoft.Win32.OpenFolderDialog
             {
-                Title = "选择固件库根目录（其下按尺寸分子目录，如 7寸/）",
+                Title = "选择固件库根目录（直接存放 NavigatorHMI_7inch_vX.Y.Z.fw 等固件）",
                 Multiselect = false
             };
             // 初始目录 = 当前固件库根（存在时）——OpenFolderDialog 需绝对路径

@@ -65,8 +65,14 @@ namespace NavigatorHMI.Common
         /// <summary>
         /// 打包 .fw（NHFW header + 组件表 + payload）。组件按传入顺序拼接（表序 = payload 序）。
         /// version 定长 16B 右补空格；sha256 定长 64B hex 右补空格（对齐两端互读）。
+        /// 输出命名（2026-09 Check 标准）：sizeInch 提供时 = NavigatorHMI_&lt;尺寸&gt;inch_v&lt;版本&gt;.fw
+        /// （7寸→7inch，映射见 FirmwareFolderService.SizeToInchTag）；sizeInch=null = 旧命名 NavigatorHMI_v&lt;版本&gt;.fw（兼容）。
         /// </summary>
         public static BuildResult Build(string version, string outputDir, params Component[] components)
+            => Build(version, null, outputDir, components);
+
+        /// <summary>带尺寸命名的 Build（sizeInch 如 "7寸"——输出 NavigatorHMI_7inch_v&lt;版本&gt;.fw）。</summary>
+        public static BuildResult Build(string version, string? sizeInch, string outputDir, params Component[] components)
         {
             // 版本号规范 x.y.z 纯数字段（审查 🟡：与 CompareVersions 非数字段→0 口径统一——
             // 禁止 "1.2.3-rc1" 等后缀，防打包器放行但比较器误判旧版；字符白名单防路径穿越）
@@ -138,7 +144,10 @@ namespace NavigatorHMI.Common
             ms.Write(payloadBytes);
 
             // 原子输出（tmp + 替换；失败清理 tmp——审查 🟡，对齐 DeploymentPackageBuilder 原子写先例）
-            var fwName = $"NavigatorHMI_v{version}.fw";
+            // 2026-09 命名标准：sizeInch 提供 → NavigatorHMI_<尺寸>inch_v<版本>.fw（FirmwareFolderService.SizeToInchTag 映射）
+            var fwName = string.IsNullOrEmpty(sizeInch)
+                ? $"NavigatorHMI_v{version}.fw"   // 旧命名兼容
+                : $"NavigatorHMI_{NavigatorHMI.Core.Services.FirmwareFolderService.SizeToInchTag(sizeInch)}_v{version}.fw";
             Directory.CreateDirectory(outputDir);
             var outputPath = Path.Combine(outputDir, fwName);
             var tmp = outputPath + ".tmp";

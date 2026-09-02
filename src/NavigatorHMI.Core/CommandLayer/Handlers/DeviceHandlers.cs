@@ -311,7 +311,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
         {
             var ip = p["device_ip"]!.ToString()!;
 
-            // 1. 定位 .fw 文件（未指定 → 默认目录最新 NavigatorHMI_v*.fw）
+            // 1. 定位 .fw 文件（未指定 → 默认目录最新，兼容新旧命名 NavigatorHMI_v*.fw / NavigatorHMI_7inch_v*.fw）
             var fwPath = p.TryGetValue("file_path", out var fp) && fp is string s && !string.IsNullOrWhiteSpace(s)
                 ? s : FindLatestFw(AppContext.BaseDirectory);
             if (fwPath == null || !File.Exists(fwPath))
@@ -381,18 +381,21 @@ namespace NavigatorHMI.CommandLayer.Handlers
             }
         }
 
-        /// <summary>默认目录查找最新 .fw（NavigatorHMI_v&lt;版本&gt;.fw——按**语义版本**降序取最新，审查 🔴 修复：
-        /// 原字典序使 v1.10.0 &lt; v1.9.0 误取旧版；同版本冲突回退文件名序保证确定性）。</summary>
+        /// <summary>默认目录查找最新 .fw（新标准 NavigatorHMI_&lt;尺寸&gt;inch_v&lt;版本&gt;.fw；兼容旧 NavigatorHMI_v&lt;版本&gt;.fw——
+        /// 按**语义版本**降序取最新，审查 🔴 修复：原字典序使 v1.10.0 &lt; v1.9.0 误取旧版；同版本冲突回退文件名序保证确定性）。</summary>
         internal static string? FindLatestFw(string dir)
         {
             if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return null;
-            return Directory.EnumerateFiles(dir, "NavigatorHMI_v*.fw")
+            // 匹配两种命名：NavigatorHMI_v1.2.3.fw（旧）与 NavigatorHMI_7inch_v1.2.3.fw（新）——共同特征 = "NavigatorHMI_" 开头 + 含 "_v"
+            return Directory.EnumerateFiles(dir, "NavigatorHMI_*.fw")
+                .Where(f => Path.GetFileName(f).Contains("_v", StringComparison.Ordinal))
                 .OrderByDescending(f => ParseFwVersion(f))
                 .ThenBy(f => f, StringComparer.OrdinalIgnoreCase)   // 同版本确定性
                 .FirstOrDefault();
         }
 
-        /// <summary>从 .fw 文件名提取语义版本元组（NavigatorHMI_v1.2.3.fw → [1,2,3]；解析失败 → [0,0,0] 沉底）。</summary>
+        /// <summary>从 .fw 文件名提取语义版本元组（NavigatorHMI_v1.2.3.fw 或 NavigatorHMI_7inch_v1.2.3.fw → [1,2,3]；
+        /// 从 "_v" 后截取——两种命名均含 "_v"；解析失败 → [0,0,0] 沉底）。</summary>
         internal static (int, int, int) ParseFwVersion(string fwPath)
         {
             var name = Path.GetFileNameWithoutExtension(fwPath);   // NavigatorHMI_v1.2.3

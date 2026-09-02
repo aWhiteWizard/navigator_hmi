@@ -394,7 +394,7 @@ namespace NavigatorHMI.ViewModels
             AppendUpgradeLog($"手动选择固件: {path}");
         }
 
-        /// <summary>按型号尺寸刷新固件库：定位 固件库根/&lt;尺寸&gt;/ 子目录 → 语义最新自动选中。
+        /// <summary>按型号尺寸刷新固件库：扫 固件库根 下该尺寸固件（文件名 NavigatorHMI_&lt;尺寸&gt;inch_vX.Y.Z.fw）→ 语义最新自动选中。
         /// Check 修复（2026-09）：**不依赖连接**（本地目录枚举）——尺寸取会话型号 profile，未连接时取连接页选中 profile
         /// （默认 7 寸——构造 SelectedProfile 预置），无 profile → 清列表提示。编辑固件库目录后即可立即扫描反馈。</summary>
         private async Task RefreshFirmwareForSessionAsync()
@@ -437,10 +437,11 @@ namespace NavigatorHMI.ViewModels
                 }
                 else
                 {
-                    var dir = FirmwareFolderService.DirForSize(size);
+                    // 2026-09 标准修订：平铺命名 NavigatorHMI_<尺寸>inch_v<版本>.fw（无子目录）——提示放根目录 + 命名
+                    var inch = FirmwareFolderService.SizeToInchTag(size);
                     AppendUpgradeLog(list.Length == 0
-                        ? $"固件库 {dir} 无 NavigatorHMI_v*.fw——请将 .fw 放入该尺寸子目录，或点「浏览…」手动选择"
-                        : $"固件库 {dir}：发现 {list.Length} 个 .fw（自动选最新 {SelectedFirmware?.DisplayName}）");
+                        ? $"固件库 {FirmwareFolderService.DefaultRoot} 无 {inch} 固件——请放入 NavigatorHMI_{inch}_vX.Y.Z.fw，或点「浏览…」手动选择"
+                        : $"固件库 {FirmwareFolderService.DefaultRoot}：发现 {list.Length} 个 {inch} 固件（自动选最新 {SelectedFirmware?.DisplayName}）");
                 }
                 OnPropertyChanged(nameof(FirmwareFolderText));
             }

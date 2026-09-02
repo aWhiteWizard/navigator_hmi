@@ -7,7 +7,9 @@ namespace NavigatorHMI.Tests
     /// <summary>
     /// D 循环批 2 D1（2026-08-30）：FwPackageBuilder .fw 打包器 round-trip 自检——
     /// magic/version/组件表/sha256 定长字段布局校验（两端互读契约：PC 打包器 ↔ Docker pack_fw.py ↔ FW otaupdater）。
+    /// 注：并入「设备连接」collection（🟡3 集成测试改 FirmwareFolderService 全局根——串行防并行污染）。
     /// </summary>
+    [Collection("设备连接")]
     public class FwPackageBuilderTests : IDisposable
     {
         private readonly string _dir;
@@ -150,6 +152,31 @@ namespace NavigatorHMI.Tests
             Assert.Throws<ArgumentException>(() =>
                 FwPackageBuilder.Build("1.0.0.0.0.0.0.0.0.0", _dir,
                     new FwPackageBuilder.Component { Name = "app", Type = "app", Target = "/usr/bin/navigatorhmi-fw", FilePath = app }));
+        }
+
+        [Fact]
+        public void 带尺寸打包_产物命名7inch_可被尺寸扫描命中()
+        {
+            // 🟡3 集成契约：4 参 Build（sizeInch）→ NavigatorHMI_7inch_v<版本>.fw → FirmwareFolderService.ListForSize("7寸") 可扫到
+            var app = MakeFile("app.bin", new byte[] { 1 });
+            var result = FwPackageBuilder.Build("1.1.3", "7寸", _dir,
+                new FwPackageBuilder.Component { Name = "app", Type = "app", Target = "/usr/bin/navigatorhmi-fw", FilePath = app });
+            Assert.Equal("NavigatorHMI_7inch_v1.1.3.fw", Path.GetFileName(result.Path));
+
+            // 以 _dir 为固件库根扫描（改全局根前保存/还原——并入「设备连接」collection 串行防并行污染）
+            var prevRoot = NavigatorHMI.Core.Services.FirmwareFolderService.DefaultRoot;
+            try
+            {
+                NavigatorHMI.Core.Services.FirmwareFolderService.Initialize(_dir);
+                var found = NavigatorHMI.Core.Services.FirmwareFolderService.FindLatestForSize("7寸");
+                Assert.NotNull(found);
+                Assert.Equal(result.Path, found);
+                Assert.Null(NavigatorHMI.Core.Services.FirmwareFolderService.FindLatestForSize("4寸"));   // 异尺寸不混入
+            }
+            finally
+            {
+                NavigatorHMI.Core.Services.FirmwareFolderService.Initialize(prevRoot);
+            }
         }
     }
 }

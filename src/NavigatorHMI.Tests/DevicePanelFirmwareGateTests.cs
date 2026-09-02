@@ -46,10 +46,14 @@ namespace NavigatorHMI.Tests
             try { File.Delete(_storePath); } catch { }
         }
 
-        private static string MakeFw(string dir, string version)
+        /// <summary>平铺建固件（2026-09 标准：文件名带尺寸段 NavigatorHMI_&lt;inch&gt;_v&lt;ver&gt;.fw；sizeInch=null → 旧命名）。</summary>
+        private static string MakeFw(string dir, string version, string? sizeInch = null)
         {
             Directory.CreateDirectory(dir);
-            var p = Path.Combine(dir, $"NavigatorHMI_v{version}.fw");
+            var name = string.IsNullOrEmpty(sizeInch)
+                ? $"NavigatorHMI_v{version}.fw"
+                : $"NavigatorHMI_{NavigatorHMI.Core.Services.FirmwareFolderService.SizeToInchTag(sizeInch)}_v{version}.fw";
+            var p = Path.Combine(dir, name);
             File.WriteAllBytes(p, new byte[] { 1, 2, 3 });
             return p;
         }
@@ -85,9 +89,9 @@ namespace NavigatorHMI.Tests
         [Fact]
         public void 连接成功_按会话尺寸刷新固件库_自动选最新_断开复位()
         {
-            // stub 会话型号 NavigatorHMI-7 → profile.SizeInch "7寸" → firmware/7寸/ 子目录
-            var newest = MakeFw(Path.Combine(_fwDir, "7寸"), "1.10.0");
-            MakeFw(Path.Combine(_fwDir, "7寸"), "1.9.0");
+            // stub 会话型号 NavigatorHMI-7 → profile.SizeInch "7寸" → 平铺根下 7inch 固件（2026-09 标准命名）
+            var newest = MakeFw(_fwDir, "1.10.0", "7寸");
+            MakeFw(_fwDir, "1.9.0", "7寸");
             var r = DeviceConnectionService.TestConnection("192.168.1.146", "NavigatorHMI-7");
             Assert.True(r.Success);
 
@@ -118,7 +122,7 @@ namespace NavigatorHMI.Tests
         [Fact]
         public void 手动选包_入列置顶_选中()
         {
-            var outside = MakeFw(_fwDir, "9.9.9");   // 目录外/手动（根目录不在 7寸 子目录 → 不自动出现）
+            var outside = MakeFw(_fwDir, "9.9.9");   // 手动/目录外（旧命名无尺寸段——不自动出现在 7inch 列表，手动置顶）
             var r = DeviceConnectionService.TestConnection("192.168.1.146", "NavigatorHMI-7");
             Assert.True(r.Success);
 
@@ -139,7 +143,7 @@ namespace NavigatorHMI.Tests
         {
             // Check 修复（2026-09）：固件库目录可编辑——setter 更新 FirmwareFolderService 根 + 持久化到隔离 store
             var newRoot = Path.Combine(Path.GetTempPath(), "navihmi_fwroot_" + Guid.NewGuid().ToString("N")[..6]);
-            MakeFw(Path.Combine(newRoot, "4寸"), "2.0.0");   // 新根下 4寸 子目录（与默认 7寸 区分）
+            MakeFw(newRoot, "2.0.0", "4寸");   // 新根平铺 4inch 固件（4寸 命名——切根后 4寸 尺寸可扫到此固件）
 
             var vm = new DevicePanelViewModel(new FirmwareOkCommandService());
             try
