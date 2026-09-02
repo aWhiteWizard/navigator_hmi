@@ -41,3 +41,5 @@ models/
 gantt.md
 image/
 linux_sdk/
+
+.fw_build/
