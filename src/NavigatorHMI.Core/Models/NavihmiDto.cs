@@ -9,7 +9,9 @@ namespace NavigatorHMI.Common
         Switch = 6, Line = 7, Circle = 8, Ellipse = 9, IOField = 10,
         CheckBox = 11, TextList = 12, Frame = 13, ProgressBar = 14, DateTime = 15,
         Window = 16,   // W1：窗口控件（UserView/AlarmView/RobotList）
-        Polygon = 17   // 多边形
+        Polygon = 17,   // 多边形
+        TrendChart = 18,   // P-4：趋势图控件（2026-09-02）
+        HistoryView = 19   // P-5：历史记录控件（2026-09-02，枚举一次到位）
     }
 
     /// <summary>
@@ -128,5 +130,15 @@ namespace NavigatorHMI.Common
         [ProtoMember(53)] public List<RobotSlotBinding> RobotSlots { get; set; } = new();
         // ── 多边形（64）──
         [ProtoMember(64)] public List<PointD> Points { get; set; } = new();       // Polygon 顶点画面坐标
+        // ── P-4 趋势图（65-72，与 proto 对齐；2026-09-02）──
+        [ProtoMember(65)] public int TrendMode { get; set; }                     // TrendChart：0=时间-数据 1=变量A-B（零值=0）
+        [ProtoMember(66)] public string TrendTagA { get; set; } = "";            // 趋势变量 A
+        [ProtoMember(67)] public string TrendTagB { get; set; } = "";            // 趋势变量 B（变量A-B模式）
+        [ProtoMember(68)] public int SampleIntervalMs { get; set; }              // 采样间隔 ms（默认 1000——零值由 FW 兜底默认）
+        [ProtoMember(69)] public int TimeWindowSeconds { get; set; }             // 时间窗 s（默认 60）
+        [ProtoMember(70)] public string LineColor { get; set; } = "";            // 曲线颜色
+        [ProtoMember(71)] public double LineWidth { get; set; }                  // 曲线粗细
+        [ProtoMember(72)] public int RefreshRateMs { get; set; }                 // 刷新率 ms（默认 500）
+        // ── P-5 历史记录（73+，2026-09-02，P-5 落地）──
     }
 }

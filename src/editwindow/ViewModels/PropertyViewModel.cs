@@ -35,7 +35,8 @@ namespace NavigatorHMI.ViewModels
         ProgressBarWidget,
         DateTimeWidget,
         WindowWidget,
-        PolygonWidget   // 世界地图批 3：多边形
+        PolygonWidget,   // 世界地图批 3：多边形
+        TrendChartWidget   // P-4：趋势图控件（2026-09-02）
     }
 
     /// <summary>
@@ -319,6 +320,7 @@ namespace NavigatorHMI.ViewModels
                          DateTimeWidget => PropertyTargetType.DateTimeWidget,
                          WindowWidget => PropertyTargetType.WindowWidget,
                          PolygonWidget => PropertyTargetType.PolygonWidget,   // 世界地图批 3
+                         TrendChartWidget => PropertyTargetType.TrendChartWidget,   // P-4
                          _ => PropertyTargetType.None
                      };
                      OnPropertyChanged(nameof(SelectedObjectType));
@@ -370,6 +372,7 @@ namespace NavigatorHMI.ViewModels
                     RefreshRobotSlots();   // WindowBoundDevice setter 内已刷新变量列表（去重）
                     break;
                 case PolygonWidget pg: PolygonFillColor = pg.FillColor; PolygonStrokeColor = pg.StrokeColor; PolygonStrokeThickness = pg.StrokeThickness; break;
+                case TrendChartWidget tc: LoadTrendChartProperties(tc); break;   // P-4：属性在 partial 文件（PropertyViewModel.TrendChart.cs）
                         }
 
                         // 绑定变量（基类通用属性，选中控件时同步下拉 + 刷新变量列表）

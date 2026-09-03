@@ -79,6 +79,8 @@ enum WidgetType {
   W_DATETIME = 15;
   W_WINDOW = 16;         // 窗口控件（UserView/AlarmView/RobotList，见 window_type）
   W_POLYGON = 17;        // 多边形（世界地图图形控件）
+  W_TREND_CHART = 18;    // P-4：趋势图控件（2026-09-02）
+  W_HISTORY_VIEW = 19;   // P-5：历史记录控件（2026-09-02，枚举一次到位）
 }
 
 enum EventType {
@@ -261,6 +263,16 @@ message Widget {
   repeated RobotSlotBinding robot_slots = 53;  // RobotList 机器人绑定组
   // 多边形（W_POLYGON=17）
   repeated PointD points = 64;   // Polygon 顶点画面坐标
+  // P-4 趋势图（W_TREND_CHART=18，65-72；2026-09-02，与 NavihmiDto 对齐）
+  int32 trend_mode = 65;         // 0=时间-数据（默认） 1=变量A-B（零值=0）
+  string trend_tag_a = 66;       // 趋势变量 A
+  string trend_tag_b = 67;       // 趋势变量 B（变量A-B模式）
+  int32 sample_interval_ms = 68; // 采样间隔 ms（PC 默认 1000；零值 FW 兜底默认）
+  int32 time_window_seconds = 69; // 时间窗 s（PC 默认 60）
+  string line_color = 70;        // 曲线颜色（CSS）
+  double line_width = 71;        // 曲线粗细
+  int32 refresh_rate_ms = 72;    // 刷新率 ms（PC 默认 500）
+  // P-5 历史记录（W_HISTORY_VIEW=19，73+；2026-09-02，P-5 落地）
 }
 
 message RobotSlotBinding {

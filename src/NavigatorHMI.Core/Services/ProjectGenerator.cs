@@ -68,6 +68,29 @@ namespace NavigatorHMI.Common
                 foreach (var w in screen.Widgets)
                     if (!string.IsNullOrEmpty(w.BoundTag) && !tagNames.Contains(w.BoundTag))
                         result.Errors.Add($"画面 \"{screen.Name}\" 控件 \"{w.ObjectName}\" 绑定的变量 \"{w.BoundTag}\" 不存在");
+
+            // 3a-P4. 校验（P-4，2026-09-02）：趋势图 TrendTagA/B 变量存在性 + 数值类型（TagCompatibility.Numeric 口径）
+            foreach (var screen in project.Screens)
+                foreach (var w in screen.Widgets)
+                    if (w is TrendChartWidget tc)
+                    {
+                        var tags = project.Tags;
+                        if (!string.IsNullOrEmpty(tc.TrendTagA) && !tagNames.Contains(tc.TrendTagA))
+                            result.Errors.Add($"画面 \"{screen.Name}\" 趋势图 \"{w.ObjectName}\" 变量 A \"{tc.TrendTagA}\" 不存在");
+                        if (!string.IsNullOrEmpty(tc.TrendTagB) && !tagNames.Contains(tc.TrendTagB))
+                            result.Errors.Add($"画面 \"{screen.Name}\" 趋势图 \"{w.ObjectName}\" 变量 B \"{tc.TrendTagB}\" 不存在");
+                        // XY 模式必须配置变量 B（时间-数据只需 A）
+                        if (tc.TrendMode == TrendMode.XY && string.IsNullOrEmpty(tc.TrendTagB))
+                            result.Errors.Add($"画面 \"{screen.Name}\" 趋势图 \"{w.ObjectName}\" 变量A-B 模式需配置变量 B");
+                        // 类型：趋势绑数值变量（与 TagCompatibility 口径一致——BOOL/INT16/UINT16/INT32/FLOAT）
+                        bool numericOk(Tag t) => TagCompatibility.IsNumericCompatible(t.DataType);
+                        var ta = tags.FirstOrDefault(t => t.Name == tc.TrendTagA);
+                        if (ta != null && !numericOk(ta))
+                            result.Errors.Add($"画面 \"{screen.Name}\" 趋势图 \"{w.ObjectName}\" 变量 A \"{tc.TrendTagA}\" 类型 {ta.DataType} 非数值（趋势需 BOOL/INT16/UINT16/INT32/FLOAT）");
+                        var tb = tags.FirstOrDefault(t => t.Name == tc.TrendTagB);
+                        if (tb != null && !numericOk(tb))
+                            result.Errors.Add($"画面 \"{screen.Name}\" 趋势图 \"{w.ObjectName}\" 变量 B \"{tc.TrendTagB}\" 类型 {tb.DataType} 非数值（趋势需 BOOL/INT16/UINT16/INT32/FLOAT）");
+                    }
             if (project.WorldMap != null)
             {
                 foreach (var wp in project.WorldMap.WorkPoints)
@@ -316,6 +339,13 @@ namespace NavigatorHMI.Common
                 dto.Type = NavihmiWidgetType.Polygon;
                 dto.FillColor = pg.FillColor; dto.StrokeColor = pg.StrokeColor; dto.StrokeThickness = pg.StrokeThickness;
                 dto.Points = pg.Points;
+            });
+            Register<TrendChartWidget>((tc, dto) =>
+            {
+                dto.Type = NavihmiWidgetType.TrendChart; dto.TrendMode = (int)tc.TrendMode;
+                dto.TrendTagA = tc.TrendTagA; dto.TrendTagB = tc.TrendTagB;
+                dto.SampleIntervalMs = tc.SampleIntervalMs; dto.TimeWindowSeconds = tc.TimeWindowSeconds;
+                dto.LineColor = tc.LineColor; dto.LineWidth = tc.LineWidth; dto.RefreshRateMs = tc.RefreshRateMs;
             });
             Register<WindowWidget>((ww, dto) =>
             {

@@ -132,6 +132,7 @@ namespace NavigatorHMI.Common
 [ProtoInclude(115, typeof(DateTimeWidget))]
 [ProtoInclude(116, typeof(WindowWidget))]
 [ProtoInclude(117, typeof(PolygonWidget))]
+[ProtoInclude(118, typeof(TrendChartWidget))]   // P-4：趋势图控件（2026-09-02）
 public abstract class Widget : INotifyPropertyChanged
 {
     private double _x;
@@ -738,6 +739,65 @@ public class PolygonWidget : Widget
     /// <summary>描边粗细（像素）</summary>
     [ProtoMember(5)]
     public double StrokeThickness { get => _strokeThickness; set { _strokeThickness = Math.Round(value, 3); OnPropertyChanged(); } }
+}
+
+/// <summary>趋势图模式（P-4；枚举默认值=0 零值纪律）。</summary>
+public enum TrendMode
+{
+    /// <summary>时间-数据（单变量实时曲线，默认）</summary>
+    TimeSeries = 0,
+    /// <summary>变量A-B（X-Y 散点）</summary>
+    XY = 1
+}
+
+/// <summary>
+/// 趋势图控件（P-4，2026-09-02；v1.1-design §5.3 C1）。
+/// 时间-数据模式：单变量随时间的实时曲线；变量A-B模式：两变量 X-Y 散点（时间戳对齐）。
+/// 属性：TrendTagA/B（绑变量名）、SampleInterval（采样间隔 ms）、TimeWindow（显示时间窗 s）、
+/// LineColor/LineWidth（曲线样式）、RefreshRate（刷新率 ms）。
+/// </summary>
+[ProtoContract]
+public class TrendChartWidget : Widget
+{
+    private TrendMode _trendMode = TrendMode.TimeSeries;
+    /// <summary>趋势模式（时间-数据=0 默认 / 变量A-B=1）</summary>
+    [ProtoMember(1)]
+    public TrendMode TrendMode { get => _trendMode; set { _trendMode = value; OnPropertyChanged(); } }
+
+    private string _trendTagA = "";
+    /// <summary>趋势变量 A（时间-数据模式主变量 / 变量A-B模式 X 轴变量）</summary>
+    [ProtoMember(2)]
+    public string TrendTagA { get => _trendTagA; set { _trendTagA = value; OnPropertyChanged(); } }
+
+    private string _trendTagB = "";
+    /// <summary>趋势变量 B（仅变量A-B模式，Y 轴变量）</summary>
+    [ProtoMember(3)]
+    public string TrendTagB { get => _trendTagB; set { _trendTagB = value; OnPropertyChanged(); } }
+
+    private int _sampleIntervalMs = 1000;
+    /// <summary>采样间隔（毫秒，默认 1000）</summary>
+    [ProtoMember(4)]
+    public int SampleIntervalMs { get => _sampleIntervalMs; set { _sampleIntervalMs = value; OnPropertyChanged(); } }
+
+    private int _timeWindowSeconds = 60;
+    /// <summary>显示时间窗（秒，默认 60）</summary>
+    [ProtoMember(5)]
+    public int TimeWindowSeconds { get => _timeWindowSeconds; set { _timeWindowSeconds = value; OnPropertyChanged(); } }
+
+    private string _lineColor = "#1E90FF";
+    /// <summary>曲线颜色（CSS 格式）</summary>
+    [ProtoMember(6)]
+    public string LineColor { get => _lineColor; set { _lineColor = value; OnPropertyChanged(); } }
+
+    private double _lineWidth = 1.5;
+    /// <summary>曲线粗细（像素）</summary>
+    [ProtoMember(7)]
+    public double LineWidth { get => _lineWidth; set { _lineWidth = Math.Round(value, 3); OnPropertyChanged(); } }
+
+    private int _refreshRateMs = 500;
+    /// <summary>刷新率（毫秒，默认 500）</summary>
+    [ProtoMember(8)]
+    public int RefreshRateMs { get => _refreshRateMs; set { _refreshRateMs = value; OnPropertyChanged(); } }
 }
 
 /// <summary>

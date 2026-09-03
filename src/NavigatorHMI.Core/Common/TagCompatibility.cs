@@ -55,6 +55,8 @@ namespace NavigatorHMI.Common
             NumericDisplayWidget or ProgressBarWidget => TagRequirement.Numeric,
             // 列表消费控件（Image/Frame/TextList）：绑定数值变量 = 显示索引（0=第1项）
             ImageWidget or FrameWidget or TextListWidget => TagRequirement.Numeric,
+            // P-4 趋势图：绑数值变量（时间-数据/变量A-B 曲线数据）
+            TrendChartWidget => TagRequirement.Numeric,
             // 日期时间控件：仅绑 DATETIME 变量
             DateTimeWidget => TagRequirement.DateTime,
             _ => TagRequirement.Any,

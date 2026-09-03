@@ -38,6 +38,7 @@ namespace NavigatorHMI.Views.Helpers
         public DataTemplate DefaultTemplate { get; set; } = null!;
     public DataTemplate WindowTemplate { get; set; } = null!;   // W4：窗口控件（UserView/AlarmView/RobotList）
     public DataTemplate PolygonTemplate { get; set; } = null!;   // 世界地图批 3：多边形
+    public DataTemplate TrendChartTemplate { get; set; } = null!;   // P-4：趋势图（PC 静态占位预览）
 
         /// <summary>
         /// 根据 item 运行时类型选择对应的 DataTemplate。
@@ -65,6 +66,7 @@ namespace NavigatorHMI.Views.Helpers
                 DateTimeWidget => DateTimeTemplate,
                 WindowWidget => WindowTemplate,
                 PolygonWidget => PolygonTemplate,
+                TrendChartWidget => TrendChartTemplate,   // P-4
                 RectangleWidget => DefaultTemplate,
                 _ => DefaultTemplate
             };
@@ -133,7 +135,8 @@ namespace NavigatorHMI.Views.Helpers
                 DateTimeTemplate = CreateDateTimeTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
                 DefaultTemplate = CreateRectangleTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
                 WindowTemplate = CreateWindowTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
-                PolygonTemplate = CreatePolygonTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler)
+                PolygonTemplate = CreatePolygonTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
+                TrendChartTemplate = CreateTrendChartTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler)   // P-4
             };
 
             itemsControl.ItemTemplateSelector = selector;
@@ -505,6 +508,38 @@ namespace NavigatorHMI.Views.Helpers
             poly.SetBinding(Polygon.StrokeThicknessProperty, new Binding("StrokeThickness"));
             canvas.AppendChild(poly);
             dt.VisualTree = WrapWithBorder(canvas, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU);
+            return dt;
+        }
+
+        /// <summary>P-4：趋势图模板——PC 静态占位预览（设计态无实时数据）：浅底 + 标题（ObjectName/模式/绑变量）
+        /// + 模拟折线（示意曲线形态，不绑定数据——运行时由 FW 渲染真实曲线）。</summary>
+        private static DataTemplate CreateTrendChartTemplate(RoutedEventHandler click, MouseButtonEventHandler pmLBD, MouseButtonEventHandler mLBD,
+            MouseEventHandler mMove, MouseButtonEventHandler mLBU, MouseButtonEventHandler pmRBD, MouseButtonEventHandler mRBU)
+        {
+            var dt = new DataTemplate();
+            var border = new FrameworkElementFactory(typeof(Border));
+            border.SetValue(Border.BackgroundProperty, new SolidColorBrush(Color.FromRgb(0xF5, 0xF7, 0xFA)));
+            border.SetValue(Border.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(0xB0, 0xB8, 0xC4)));
+            border.SetValue(Border.BorderThicknessProperty, new Thickness(1));
+
+            var grid = new FrameworkElementFactory(typeof(Grid));
+            var title = new FrameworkElementFactory(typeof(TextBlock));
+            title.SetValue(TextBlock.TextProperty, "📈 趋势图");   // 设计态占位标题（运行时控件名称在 FW 渲染）
+            title.SetValue(TextBlock.HorizontalAlignmentProperty, System.Windows.HorizontalAlignment.Center);
+            title.SetValue(TextBlock.VerticalAlignmentProperty, System.Windows.VerticalAlignment.Top);
+            title.SetValue(TextBlock.MarginProperty, new Thickness(4));
+            title.SetValue(TextBlock.FontSizeProperty, 11d);
+            title.SetValue(TextBlock.ForegroundProperty, Brushes.DimGray);
+            var hint = new FrameworkElementFactory(typeof(TextBlock));
+            hint.SetValue(TextBlock.TextProperty, "绑变量: 设计态静态预览（运行时 FW 渲染）");
+            hint.SetValue(TextBlock.HorizontalAlignmentProperty, System.Windows.HorizontalAlignment.Center);
+            hint.SetValue(TextBlock.VerticalAlignmentProperty, System.Windows.VerticalAlignment.Center);
+            hint.SetValue(TextBlock.FontSizeProperty, 10d);
+            hint.SetValue(TextBlock.ForegroundProperty, Brushes.Gray);
+            grid.AppendChild(title);
+            grid.AppendChild(hint);
+            border.AppendChild(grid);
+            dt.VisualTree = WrapWithBorder(border, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU);
             return dt;
         }
     }

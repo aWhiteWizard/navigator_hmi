@@ -985,7 +985,77 @@
                                         <ComboBoxItem Content="yyyy-MM-dd HH:mm:ss"/><ComboBoxItem Content="yyyy-MM-dd"/><ComboBoxItem Content="HH:mm:ss"/><ComboBoxItem Content="yyyy/MM/dd HH:mm:ss"/><ComboBoxItem Content="yyyy年MM月dd日"/><ComboBoxItem Content="HH:mm"/><ComboBoxItem Content="yyyy:MM:dd HH:mm:ss"/></ComboBox>
             </Grid>
         </StackPanel></DataTemplate>
-        <!-- W4 窗口控件属性（UserView/AlarmView/RobotList 共用 + 各自开关） -->
+        <!-- P-4 趋势图控件属性（2026-09-02；TrendTagA/B 下拉复用变量选项；B 行仅变量A-B 模式可见） -->
+        <DataTemplate x:Key="PropTrendChart"><StackPanel>
+            <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
+            <Separator Margin="4,2"/>
+            <TextBlock Text="趋势" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="模式:" Style="{StaticResource PropLabel}"/>
+                <ComboBox Grid.Column="1" SelectedItem="{Binding TrendMode}" ItemsSource="{Binding TrendModeOptions}" Style="{StaticResource PropComboBox}" ToolTip="时间-数据：单变量实时曲线；变量A-B：两变量 X-Y 散点（设计态固定——用户拍板）">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock>
+                                <TextBlock.Style><Style TargetType="TextBlock">
+                                    <Setter Property="Text" Value="时间-数据"/>
+                                    <Style.Triggers><DataTrigger Binding="{Binding}" Value="XY"><Setter Property="Text" Value="变量A-B"/></DataTrigger></Style.Triggers>
+                                </Style></TextBlock.Style>
+                            </TextBlock>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="变量A:" Style="{StaticResource PropLabel}"/>
+                <!-- 🔴 修复（审查 2026-09-02）：ItemsSource=Tag 对象集合 + VM 属性 string → 必须 SelectedValue+SelectedValuePath="Name"
+                     （wpf-combobox-style §2 同款：SelectedItem 绑对象经 ToString 装载空白/回写损坏） -->
+                <ComboBox Grid.Column="1" SelectedValue="{Binding TrendTagA}" SelectedValuePath="Name" ItemsSource="{Binding TrendTagAOptions}" Style="{StaticResource PropComboBox}" ToolTip="趋势变量 A（时间-数据主变量 / 变量A-B X 轴；选「（无绑定）」解除）">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate><TextBlock><TextBlock.Style><Style TargetType="TextBlock">
+                            <Setter Property="Text" Value="{Binding Name}"/>
+                            <Style.Triggers><DataTrigger Binding="{Binding Name}" Value=""><Setter Property="Text" Value="（无绑定）"/><Setter Property="Foreground" Value="#777777"/></DataTrigger></Style.Triggers>
+                        </Style></TextBlock.Style></TextBlock></DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </Grid>
+            <Grid Visibility="{Binding IsXyMode, Converter={StaticResource BoolToVisibilityConverter}}"><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="变量B:" Style="{StaticResource PropLabel}"/>
+                <ComboBox Grid.Column="1" SelectedValue="{Binding TrendTagB}" SelectedValuePath="Name" ItemsSource="{Binding TrendTagBOptions}" Style="{StaticResource PropComboBox}" ToolTip="趋势变量 B（变量A-B 模式 Y 轴）">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate><TextBlock><TextBlock.Style><Style TargetType="TextBlock">
+                            <Setter Property="Text" Value="{Binding Name}"/>
+                            <Style.Triggers><DataTrigger Binding="{Binding Name}" Value=""><Setter Property="Text" Value="（无绑定）"/><Setter Property="Foreground" Value="#777777"/></DataTrigger></Style.Triggers>
+                        </Style></TextBlock.Style></TextBlock></DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </Grid>
+            <Separator Margin="4,2"/>
+            <TextBlock Text="采样与时间窗" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="采样间隔:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding SampleIntervalMs, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" ToolTip="采样间隔（毫秒，100~60000，默认 1000）" KeyDown="PropField_KeyDown"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="时间窗:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding TimeWindowSeconds, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" ToolTip="显示时间窗（秒，5~3600，默认 60）" KeyDown="PropField_KeyDown"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="刷新率:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding RefreshRateMs, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" ToolTip="曲线刷新率（毫秒，50~10000，默认 500）" KeyDown="PropField_KeyDown"/>
+            </Grid>
+            <Separator Margin="4,2"/>
+            <TextBlock Text="曲线样式" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="颜色:" Style="{StaticResource PropLabel}"/>
+                <ctrl:ColorPickerControl Grid.Column="1" Value="{Binding LineColor, Mode=TwoWay}" ToolTip="曲线颜色"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="线宽:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding LineWidth, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" ToolTip="曲线粗细（像素）" KeyDown="PropField_KeyDown"/>
+            </Grid>
+        </StackPanel></DataTemplate>
         <DataTemplate x:Key="PropWindow"><StackPanel>
             <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
@@ -1385,6 +1455,7 @@
                                         <Button Content="User View" Tag="UserView" Click="ToggleAddWidgetMode" ToolTip="用户视图控件（头像/用户名/角色/模式/登录）"/>
                                         <Button Content="Alarm View" Tag="AlarmView" Click="ToggleAddWidgetMode" ToolTip="报警视图控件（活动报警列表/级别色标/确认）"/>
                                         <Button Content="Robot List" Tag="RobotList" Click="ToggleAddWidgetMode" ToolTip="机器人列表控件（卡片网格/绑定变量驱动）"/>
+                                        <Button Content="Trend Chart" Tag="TrendChart" Click="ToggleAddWidgetMode" ToolTip="趋势图控件（P-4：时间-数据实时曲线 / 变量A-B 散点 + 采样间隔）"/>
                                     </StackPanel></TabItem>
                                 </TabControl>
                             </avalon:LayoutAnchorable>
@@ -2144,6 +2215,7 @@
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="DateTimeWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropDateTime}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="WindowWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropWindow}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="PolygonWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropPolygon}"/></DataTrigger>
+                                                    <DataTrigger Binding="{Binding SelectedObjectType}" Value="TrendChartWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropTrendChart}"/></DataTrigger>
                                                 </Style.Triggers>
                                             </Style></ContentControl.Style></ContentControl>
                                             <!-- 事件栏（DESIGN-EVENTS.md §4：选中控件且支持事件时显示可用事件 + 配置入口） -->

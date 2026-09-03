@@ -30,7 +30,7 @@ namespace NavigatorHMI.Tests
             // 下界护栏：反射机制必须正常工作（空集合会让下方 Assert.Empty 假通过——防 vacuous）
             Assert.NotEmpty(declared);
             Assert.Contains(typeof(ButtonWidget), declared);
-            Assert.Equal(18, declared.Count);   // 定值锁：当前控件类型总数（新增控件时同步更新，防反射静默失效）
+            Assert.Equal(19, declared.Count);   // 定值锁：当前控件类型总数（18 + P-4 TrendChart；新增控件时同步更新，防反射静默失效）
 
             var registered = ProjectGenerator.RegisteredWidgetTypes.ToHashSet();
             var missing = declared.Where(t => !registered.Contains(t)).ToList();
@@ -66,6 +66,7 @@ namespace NavigatorHMI.Tests
             yield return new object[] { new DateTimeWidget(), NavihmiWidgetType.DateTime };
             yield return new object[] { new WindowWidget { Type = WindowType.UserView }, NavihmiWidgetType.Window };
             yield return new object[] { new PolygonWidget(), NavihmiWidgetType.Polygon };
+            yield return new object[] { new TrendChartWidget(), NavihmiWidgetType.TrendChart };
         }
 
         [Theory]

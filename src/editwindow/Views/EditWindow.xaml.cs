@@ -3441,6 +3441,7 @@ namespace NavigatorHMI.Views
                 "AlarmView" => new WindowWidgetCreator(WindowType.AlarmView),
                 "RobotList" => new WindowWidgetCreator(WindowType.RobotList),
                 "Polygon" => new PolygonWidgetCreator(),
+                "TrendChart" => new TrendChartWidgetCreator(),   // P-4：趋势图（单点式）
                 _ => null
             };
 
