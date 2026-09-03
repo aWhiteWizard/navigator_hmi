@@ -40,8 +40,12 @@ namespace NavigatorHMI.ViewModels
 
     /// <summary>
     /// 属性窗口的 ViewModel，持有当前选中的 Widget 或 Screen 并暴露其属性供绑定。
+    /// P-2d（2026-09-02）：改 partial——本批仅开放 partial 能力（存量区段拆分随各批落地），
+    /// 新控件属性（TrendChart 等）落独立 partial 文件（PropertyViewModel.TrendChart.cs），
+    /// 不再堆入主文件（v1.1-design §5.3「改什么拆什么」；partial 各部分同 namespace/同访问级别，
+    /// INotifyPropertyChanged 在主文件一处声明即对整个类生效）。
     /// </summary>
-    public class PropertyViewModel : INotifyPropertyChanged
+    public partial class PropertyViewModel : INotifyPropertyChanged
     {
         /// <summary>事件栏：当前选中控件可用事件行（DESIGN-EVENTS.md §4）。</summary>
         public ObservableCollection<EventRowVM> EventRows { get; } = new();
