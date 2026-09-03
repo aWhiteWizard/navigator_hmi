@@ -44,16 +44,24 @@
                               DisplayMemberPath="Model" ToolTip="设备型号（device-profile 驱动）"/>
                 </Grid>
 
-                <!-- 搜索（网卡 + 扫描）+ 设备闪烁（确认目标设备——C-2 括号语义） -->
-                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,8">
+                <!-- 搜索（网卡 + 扫描）+ 设备闪烁（确认目标设备——C-2 括号语义）
+                     P-1（2026-09-02）：网卡下拉 ×3 至 600——弹性星列列级 MaxWidth 600 封顶（容器收窄收缩防裁切，
+                     宽时按钮紧贴输入框、空白落行尾；审查 🟡 弹性化 + 复审 🟡 列级封顶建议采纳） -->
+                <Grid Grid.Row="2" Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*" MaxWidth="600"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
                     <TextBlock Text="网卡:" VerticalAlignment="Center" Margin="0,0,4,0" ToolTip="搜索设备用的网卡"/>
-                    <ComboBox Width="200" Height="26" ItemsSource="{Binding NicList}" SelectedItem="{Binding SelectedNic}"
+                    <ComboBox Grid.Column="1" Height="26" ItemsSource="{Binding NicList}" SelectedItem="{Binding SelectedNic}"
                               VerticalContentAlignment="Center" ToolTip="选择搜索设备用的网卡"/>
-                    <Button Content="搜索设备" Height="26" Padding="10,0" Margin="4,0,0,0" Command="{Binding ScanCommand}" Cursor="Hand"
+                    <Button Grid.Column="2" Content="搜索设备" Height="26" Padding="10,0" Margin="4,0,0,0" Command="{Binding ScanCommand}" Cursor="Hand"
                             ToolTip="按所选网卡扫描局域网设备（需先选网卡）"/>
-                    <Button Content="设备闪烁" Height="26" Padding="10,0" Margin="4,0,0,0" Command="{Binding BlinkCommand}" Cursor="Hand"
+                    <Button Grid.Column="3" Content="设备闪烁" Height="26" Padding="10,0" Margin="4,0,0,0" Command="{Binding BlinkCommand}" Cursor="Hand"
                             ToolTip="目标设备闪烁 ~1s（确认扫描/连接的目标）"/>
-                </StackPanel>
+                </Grid>
 
                 <!-- 发现的设备表格（点击行自动填入并连接；日志进主窗口「输出」） -->
                 <GroupBox Grid.Row="3" Header="发现的设备" Margin="0,0,0,0" Padding="4">
@@ -121,16 +129,25 @@
                 <!-- 固件文件夹方案（N+29 定稿）：专门固件目录按尺寸组织；升级时按连接设备尺寸自动取该尺寸最新 .fw，不输路径 -->
                 <GroupBox Grid.Row="1" Header="固件文件夹（按尺寸自动匹配）" Margin="0,0,0,8" Padding="4">
                     <StackPanel>
-                        <StackPanel Orientation="Horizontal">
+                        <!-- P-1（2026-09-02）：固件库目录 ×3 至 660——弹性星列列级 MaxWidth 660 封顶（容器收窄收缩防裁切，
+                             宽时按钮紧贴输入框、空白落行尾；审查 🟡 弹性化 + 复审 🟡 列级封顶建议采纳；
+                             与下行「匹配固件」口径差异可接受——字段性质不同） -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*" MaxWidth="660"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
                             <TextBlock Text="固件库目录:" VerticalAlignment="Center"/>
-                            <TextBox Text="{Binding FirmwareFolderText, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="220" Height="24"
+                            <TextBox Grid.Column="1" Text="{Binding FirmwareFolderText, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Height="24"
                                      VerticalContentAlignment="Center" Margin="6,0,0,0"
                                      ToolTip="固件库根目录（可手输或点「浏览…」选目录；直接放 NavigatorHMI_7inch_vX.Y.Z.fw 等固件）"/>
-                            <Button Content="浏览…" Height="24" Padding="8,0" Margin="4,0,0,0" Click="BrowseFirmwareFolder_Click" Cursor="Hand"
+                            <Button Grid.Column="2" Content="浏览…" Height="24" Padding="8,0" Margin="4,0,0,0" Click="BrowseFirmwareFolder_Click" Cursor="Hand"
                                     ToolTip="选择固件库根目录（文件夹选择器）"/>
-                            <Button Content="刷新" Height="24" Padding="8,0" Margin="4,0,0,0" Command="{Binding RefreshFirmwareCommand}" Cursor="Hand"
+                            <Button Grid.Column="3" Content="刷新" Height="24" Padding="8,0" Margin="4,0,0,0" Command="{Binding RefreshFirmwareCommand}" Cursor="Hand"
                                     ToolTip="按当前固件库目录重扫该尺寸下 .fw"/>
-                        </StackPanel>
+                        </Grid>
                         <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
                             <TextBlock Text="匹配固件:" VerticalAlignment="Center"/>
                             <ComboBox Width="280" Height="26" ItemsSource="{Binding FirmwareFiles}" SelectedItem="{Binding SelectedFirmware}"
