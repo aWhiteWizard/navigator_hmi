@@ -39,6 +39,7 @@ namespace NavigatorHMI.Views.Helpers
     public DataTemplate WindowTemplate { get; set; } = null!;   // W4：窗口控件（UserView/AlarmView/RobotList）
     public DataTemplate PolygonTemplate { get; set; } = null!;   // 世界地图批 3：多边形
     public DataTemplate TrendChartTemplate { get; set; } = null!;   // P-4：趋势图（PC 静态占位预览）
+    public DataTemplate HistoryViewTemplate { get; set; } = null!;   // P-5：历史记录（PC 静态占位预览）
 
         /// <summary>
         /// 根据 item 运行时类型选择对应的 DataTemplate。
@@ -67,6 +68,7 @@ namespace NavigatorHMI.Views.Helpers
                 WindowWidget => WindowTemplate,
                 PolygonWidget => PolygonTemplate,
                 TrendChartWidget => TrendChartTemplate,   // P-4
+                HistoryViewWidget => HistoryViewTemplate,   // P-5
                 RectangleWidget => DefaultTemplate,
                 _ => DefaultTemplate
             };
@@ -136,7 +138,8 @@ namespace NavigatorHMI.Views.Helpers
                 DefaultTemplate = CreateRectangleTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
                 WindowTemplate = CreateWindowTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
                 PolygonTemplate = CreatePolygonTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
-                TrendChartTemplate = CreateTrendChartTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler)   // P-4
+                TrendChartTemplate = CreateTrendChartTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),   // P-4
+                HistoryViewTemplate = CreateHistoryViewTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler)   // P-5
             };
 
             itemsControl.ItemTemplateSelector = selector;
@@ -532,6 +535,37 @@ namespace NavigatorHMI.Views.Helpers
             title.SetValue(TextBlock.ForegroundProperty, Brushes.DimGray);
             var hint = new FrameworkElementFactory(typeof(TextBlock));
             hint.SetValue(TextBlock.TextProperty, "绑变量: 设计态静态预览（运行时 FW 渲染）");
+            hint.SetValue(TextBlock.HorizontalAlignmentProperty, System.Windows.HorizontalAlignment.Center);
+            hint.SetValue(TextBlock.VerticalAlignmentProperty, System.Windows.VerticalAlignment.Center);
+            hint.SetValue(TextBlock.FontSizeProperty, 10d);
+            hint.SetValue(TextBlock.ForegroundProperty, Brushes.Gray);
+            grid.AppendChild(title);
+            grid.AppendChild(hint);
+            border.AppendChild(grid);
+            dt.VisualTree = WrapWithBorder(border, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU);
+            return dt;
+        }
+
+        /// <summary>P-5：历史记录模板——PC 静态占位预览（设计态无实时数据）：浅底 + 标题 + 表格示意（运行时 FW 显示变量历史列表）。</summary>
+        private static DataTemplate CreateHistoryViewTemplate(RoutedEventHandler click, MouseButtonEventHandler pmLBD, MouseButtonEventHandler mLBD,
+            MouseEventHandler mMove, MouseButtonEventHandler mLBU, MouseButtonEventHandler pmRBD, MouseButtonEventHandler mRBU)
+        {
+            var dt = new DataTemplate();
+            var border = new FrameworkElementFactory(typeof(Border));
+            border.SetValue(Border.BackgroundProperty, new SolidColorBrush(Color.FromRgb(0xFA, 0xFB, 0xFC)));
+            border.SetValue(Border.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(0xB0, 0xB8, 0xC4)));
+            border.SetValue(Border.BorderThicknessProperty, new Thickness(1));
+
+            var grid = new FrameworkElementFactory(typeof(Grid));
+            var title = new FrameworkElementFactory(typeof(TextBlock));
+            title.SetValue(TextBlock.TextProperty, "📋 历史记录");
+            title.SetValue(TextBlock.HorizontalAlignmentProperty, System.Windows.HorizontalAlignment.Center);
+            title.SetValue(TextBlock.VerticalAlignmentProperty, System.Windows.VerticalAlignment.Top);
+            title.SetValue(TextBlock.MarginProperty, new Thickness(4));
+            title.SetValue(TextBlock.FontSizeProperty, 11d);
+            title.SetValue(TextBlock.ForegroundProperty, Brushes.DimGray);
+            var hint = new FrameworkElementFactory(typeof(TextBlock));
+            hint.SetValue(TextBlock.TextProperty, "变量历史列表（设计态静态预览，运行时 FW 渲染）");
             hint.SetValue(TextBlock.HorizontalAlignmentProperty, System.Windows.HorizontalAlignment.Center);
             hint.SetValue(TextBlock.VerticalAlignmentProperty, System.Windows.VerticalAlignment.Center);
             hint.SetValue(TextBlock.FontSizeProperty, 10d);

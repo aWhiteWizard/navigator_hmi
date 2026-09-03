@@ -1056,6 +1056,23 @@
                 <TextBox Grid.Column="1" Text="{Binding LineWidth, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" ToolTip="曲线粗细（像素）" KeyDown="PropField_KeyDown"/>
             </Grid>
         </StackPanel></DataTemplate>
+        <!-- P-5 历史记录控件属性（2026-09-02：变量列表多变量逗号分隔 + 数据库路径） -->
+        <DataTemplate x:Key="PropHistoryView"><StackPanel>
+            <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
+            <Separator Margin="4,2"/>
+            <TextBlock Text="历史" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="变量:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding HistoryTagsText, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"
+                         TextWrapping="Wrap" AcceptsReturn="False" ToolTip="历史变量（多变量逗号分隔；运行时在控件内下拉切换选变量看历史）" KeyDown="PropField_KeyDown"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="数据库:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding HistoryDbPath, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" ToolTip="历史数据库路径（空=设备端默认 navihmi_history.db）" KeyDown="PropField_KeyDown"/>
+            </Grid>
+        </StackPanel></DataTemplate>
         <DataTemplate x:Key="PropWindow"><StackPanel>
             <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
@@ -1095,8 +1112,20 @@
             <!-- AlarmView -->
             <TextBlock Text="AlarmView" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="显示模式:" Style="{StaticResource PropLabel}"/>
+                <!-- P-5（2026-09-02）：DisplayMode 设计态固定（用户拍板）——要两模式放两个 AlarmView -->
+                <ComboBox Grid.Column="1" SelectedItem="{Binding WindowDisplayMode}" ItemsSource="{Binding WindowDisplayModeOptions}" Style="{StaticResource PropComboBox}" ToolTip="当前报警：活动列表+确认；报警缓冲区：全部历史滚动+清除（未确认活动不清除）。设计态固定——要两模式放两个 AlarmView">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate><TextBlock><TextBlock.Style><Style TargetType="TextBlock">
+                            <Setter Property="Text" Value="当前报警"/>
+                            <Style.Triggers><DataTrigger Binding="{Binding}" Value="History"><Setter Property="Text" Value="报警缓冲区"/></DataTrigger></Style.Triggers>
+                        </Style></TextBlock.Style></TextBlock></DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="含历史:" Style="{StaticResource PropLabel}"/>
-                <CheckBox Grid.Column="1" IsChecked="{Binding WindowShowHistory}" VerticalAlignment="Center" ToolTip="false=仅活动报警"/>
+                <CheckBox Grid.Column="1" IsChecked="{Binding WindowShowHistory}" VerticalAlignment="Center" ToolTip="false=仅活动报警（旧字段兼容；新工程用上方显示模式）"/>
             </Grid>
             <!-- RobotList：卡片尺寸 + 信息开关 + 绑定设备 + 选中变量 -->
             <TextBlock Text="RobotList 卡片" Style="{StaticResource PropGroupHeader}"/>
@@ -1456,6 +1485,7 @@
                                         <Button Content="Alarm View" Tag="AlarmView" Click="ToggleAddWidgetMode" ToolTip="报警视图控件（活动报警列表/级别色标/确认）"/>
                                         <Button Content="Robot List" Tag="RobotList" Click="ToggleAddWidgetMode" ToolTip="机器人列表控件（卡片网格/绑定变量驱动）"/>
                                         <Button Content="Trend Chart" Tag="TrendChart" Click="ToggleAddWidgetMode" ToolTip="趋势图控件（P-4：时间-数据实时曲线 / 变量A-B 散点 + 采样间隔）"/>
+                                        <Button Content="History View" Tag="HistoryView" Click="ToggleAddWidgetMode" ToolTip="历史记录控件（P-5：选定变量历史列表 + 数据库路径，多变量运行时切换）"/>
                                     </StackPanel></TabItem>
                                 </TabControl>
                             </avalon:LayoutAnchorable>
@@ -2216,6 +2246,7 @@
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="WindowWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropWindow}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="PolygonWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropPolygon}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="TrendChartWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropTrendChart}"/></DataTrigger>
+                                                    <DataTrigger Binding="{Binding SelectedObjectType}" Value="HistoryViewWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropHistoryView}"/></DataTrigger>
                                                 </Style.Triggers>
                                             </Style></ContentControl.Style></ContentControl>
                                             <!-- 事件栏（DESIGN-EVENTS.md §4：选中控件且支持事件时显示可用事件 + 配置入口） -->

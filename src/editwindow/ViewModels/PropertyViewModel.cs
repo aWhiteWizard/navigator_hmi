@@ -36,7 +36,8 @@ namespace NavigatorHMI.ViewModels
         DateTimeWidget,
         WindowWidget,
         PolygonWidget,   // 世界地图批 3：多边形
-        TrendChartWidget   // P-4：趋势图控件（2026-09-02）
+        TrendChartWidget,   // P-4：趋势图控件（2026-09-02）
+        HistoryViewWidget   // P-5：历史记录控件（2026-09-02）
     }
 
     /// <summary>
@@ -321,6 +322,7 @@ namespace NavigatorHMI.ViewModels
                          WindowWidget => PropertyTargetType.WindowWidget,
                          PolygonWidget => PropertyTargetType.PolygonWidget,   // 世界地图批 3
                          TrendChartWidget => PropertyTargetType.TrendChartWidget,   // P-4
+                         HistoryViewWidget => PropertyTargetType.HistoryViewWidget,   // P-5
                          _ => PropertyTargetType.None
                      };
                      OnPropertyChanged(nameof(SelectedObjectType));
@@ -363,6 +365,7 @@ namespace NavigatorHMI.ViewModels
                     WindowBorderColor = ww.BorderColor;
                     WindowShowUserName = ww.ShowUserName; WindowShowRole = ww.ShowRole; WindowShowMode = ww.ShowMode;
                     WindowShowHistory = ww.ShowHistory;
+                    WindowDisplayMode = ww.DisplayMode;   // P-5：AlarmView 显示模式
                     WindowCardWidth = ww.CardWidth; WindowCardHeight = ww.CardHeight;
                     WindowCardShowNumber = ww.CardShowNumber; WindowCardShowStatus = ww.CardShowStatus; WindowCardShowLocation = ww.CardShowLocation;
                     WindowSelectedTag = ww.SelectedTag;
@@ -373,6 +376,7 @@ namespace NavigatorHMI.ViewModels
                     break;
                 case PolygonWidget pg: PolygonFillColor = pg.FillColor; PolygonStrokeColor = pg.StrokeColor; PolygonStrokeThickness = pg.StrokeThickness; break;
                 case TrendChartWidget tc: LoadTrendChartProperties(tc); break;   // P-4：属性在 partial 文件（PropertyViewModel.TrendChart.cs）
+                case HistoryViewWidget hv: LoadHistoryViewProperties(hv); break;   // P-5：属性在 partial 文件（PropertyViewModel.HistoryView.cs）
                         }
 
                         // 绑定变量（基类通用属性，选中控件时同步下拉 + 刷新变量列表）
@@ -505,6 +509,9 @@ namespace NavigatorHMI.ViewModels
                     break;
                 case nameof(WindowWidget.ShowHistory):
                     if (_selectedWidget is WindowWidget wh) WindowShowHistory = wh.ShowHistory;
+                    break;
+                case nameof(WindowWidget.DisplayMode):
+                    if (_selectedWidget is WindowWidget wdm) WindowDisplayMode = wdm.DisplayMode;   // P-5
                     break;
                 case nameof(WindowWidget.CardWidth):
                     if (_selectedWidget is WindowWidget wcw) WindowCardWidth = wcw.CardWidth;
@@ -1951,6 +1958,10 @@ namespace NavigatorHMI.ViewModels
         public bool WindowShowMode { get => _windowShowMode; set { if (_windowShowMode != value) { _windowShowMode = value; OnPropertyChanged(); if (!_syncingFromModel && _selectedWidget is WindowWidget ww) { BeforeModify?.Invoke(); ww.ShowMode = value; } } } }
         private bool _windowShowHistory;
         public bool WindowShowHistory { get => _windowShowHistory; set { if (_windowShowHistory != value) { _windowShowHistory = value; OnPropertyChanged(); if (!_syncingFromModel && _selectedWidget is WindowWidget ww) { BeforeModify?.Invoke(); ww.ShowHistory = value; } } } }
+        private AlarmDisplayMode _windowDisplayMode = AlarmDisplayMode.Current;
+        /// <summary>AlarmView 显示模式（P-5，2026-09-02：当前报警=0 默认 / 报警缓冲区=1；设计态固定——要两模式放两个 AlarmView）。</summary>
+        public AlarmDisplayMode WindowDisplayMode { get => _windowDisplayMode; set { if (_windowDisplayMode != value) { _windowDisplayMode = value; OnPropertyChanged(); if (!_syncingFromModel && _selectedWidget is WindowWidget ww) { BeforeModify?.Invoke(); ww.DisplayMode = value; } } } }
+        public Array WindowDisplayModeOptions => Enum.GetValues(typeof(AlarmDisplayMode));
         private double _windowCardWidth = 120;
         public double WindowCardWidth { get => _windowCardWidth; set { if (_windowCardWidth != value) { _windowCardWidth = value; OnPropertyChanged(); if (!_syncingFromModel && _selectedWidget is WindowWidget ww) { BeforeModify?.Invoke(); ww.CardWidth = value; } } } }
         private double _windowCardHeight = 110;

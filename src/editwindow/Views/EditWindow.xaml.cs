@@ -3442,6 +3442,7 @@ namespace NavigatorHMI.Views
                 "RobotList" => new WindowWidgetCreator(WindowType.RobotList),
                 "Polygon" => new PolygonWidgetCreator(),
                 "TrendChart" => new TrendChartWidgetCreator(),   // P-4：趋势图（单点式）
+                "HistoryView" => new HistoryViewWidgetCreator(),   // P-5：历史记录（单点式）
                 _ => null
             };
 

@@ -121,7 +121,8 @@ namespace NavigatorHMI.Tests
                 var ww = new WindowWidget
                 {
                     ObjectName = "win1", Type = WindowType.AlarmView, Title = "报警",
-                    BorderColor = "#112233", ShowTitleBar = true, ShowHistory = true, SelectedTag = "t1"
+                    BorderColor = "#112233", ShowTitleBar = true, ShowHistory = true, SelectedTag = "t1",
+                    DisplayMode = AlarmDisplayMode.History   // P-5：DisplayMode→DTO 54
                 };
                 p.Screens[0].Widgets.Add(ww);
 
@@ -137,6 +138,7 @@ namespace NavigatorHMI.Tests
                 Assert.True(dto.ShowTitleBar);
                 Assert.True(dto.ShowHistory);
                 Assert.Equal("t1", dto.SelectedTag);
+                Assert.Equal((int)AlarmDisplayMode.History, dto.DisplayMode);   // P-5
             }
             finally
             {
