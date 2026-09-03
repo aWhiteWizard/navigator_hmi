@@ -133,6 +133,7 @@ namespace NavigatorHMI.Common
 [ProtoInclude(116, typeof(WindowWidget))]
 [ProtoInclude(117, typeof(PolygonWidget))]
 [ProtoInclude(118, typeof(TrendChartWidget))]   // P-4：趋势图控件（2026-09-02）
+[ProtoInclude(119, typeof(HistoryViewWidget))]   // P-5：历史记录控件（2026-09-02）
 public abstract class Widget : INotifyPropertyChanged
 {
     private double _x;

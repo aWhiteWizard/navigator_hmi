@@ -128,6 +128,8 @@ namespace NavigatorHMI.Common
         [ProtoMember(51)] public bool CardShowLocation { get; set; }
         [ProtoMember(52)] public string BoundDevice { get; set; } = "";
         [ProtoMember(53)] public List<RobotSlotBinding> RobotSlots { get; set; } = new();
+        // ── P-5 AlarmView 显示模式（54，窗口区空洞；2026-09-02）──
+        [ProtoMember(54)] public int DisplayMode { get; set; }                    // WindowWidget DisplayMode：0=当前报警 1=报警缓冲区
         // ── 多边形（64）──
         [ProtoMember(64)] public List<PointD> Points { get; set; } = new();       // Polygon 顶点画面坐标
         // ── P-4 趋势图（65-72，与 proto 对齐；2026-09-02）──
@@ -139,6 +141,8 @@ namespace NavigatorHMI.Common
         [ProtoMember(70)] public string LineColor { get; set; } = "";            // 曲线颜色
         [ProtoMember(71)] public double LineWidth { get; set; }                  // 曲线粗细
         [ProtoMember(72)] public int RefreshRateMs { get; set; }                 // 刷新率 ms（默认 500）
-        // ── P-5 历史记录（73+，2026-09-02，P-5 落地）──
+        // ── P-5 历史记录（73-74；2026-09-02）──
+        [ProtoMember(73)] public List<string> HistoryTags { get; set; } = new();  // HistoryView 变量列表（多变量）
+        [ProtoMember(74)] public string HistoryDbPath { get; set; } = "";         // HistoryView 数据库路径（空=设备端默认 navihmi_history.db）
     }
 }

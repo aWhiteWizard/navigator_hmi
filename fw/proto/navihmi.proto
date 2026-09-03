@@ -261,6 +261,7 @@ message Widget {
   bool card_show_location = 51;  // RobotList 卡片显示位置
   string bound_device = 52;      // RobotList 绑定设备
   repeated RobotSlotBinding robot_slots = 53;  // RobotList 机器人绑定组
+  int32 display_mode = 54;   // P-5: AlarmView 显示模式（0=当前报警 1=报警缓冲区；WindowWidget DisplayMode——54 窗口区空洞）
   // 多边形（W_POLYGON=17）
   repeated PointD points = 64;   // Polygon 顶点画面坐标
   // P-4 趋势图（W_TREND_CHART=18，65-72；2026-09-02，与 NavihmiDto 对齐）
@@ -272,7 +273,9 @@ message Widget {
   string line_color = 70;        // 曲线颜色（CSS）
   double line_width = 71;        // 曲线粗细
   int32 refresh_rate_ms = 72;    // 刷新率 ms（PC 默认 500）
-  // P-5 历史记录（W_HISTORY_VIEW=19，73+；2026-09-02，P-5 落地）
+  // P-5 历史记录（W_HISTORY_VIEW=19，73-74；2026-09-02）
+  repeated string history_tags = 73;    // HistoryView 变量列表（多变量，运行时切换）
+  string history_db_path = 74;          // HistoryView 数据库路径（空=设备端默认 navihmi_history.db）
 }
 
 message RobotSlotBinding {

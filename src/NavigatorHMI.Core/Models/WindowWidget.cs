@@ -16,6 +16,15 @@ namespace NavigatorHMI.Common
         RobotList
     }
 
+    /// <summary>AlarmView 显示模式（P-5，2026-09-02；v1.1-design §5.3——设计态固定，用户拍板；零值=当前报警）。</summary>
+    public enum AlarmDisplayMode
+    {
+        /// <summary>当前报警（默认：alarmEngine.activeAlarms 活动列表 + 级别色标/确认/全选确认）</summary>
+        Current = 0,
+        /// <summary>报警缓冲区（queryAlarmHistory 全部历史滚动 + 清除按钮——未确认的活动报警不清除）</summary>
+        History = 1
+    }
+
     /// <summary>RobotList 机器人绑定组（DESIGN-WINDOWS.md §5：每台机器人五变量；INPC——绑定表编辑标脏）。</summary>
     [ProtoContract]
     public class RobotSlotBinding : System.ComponentModel.INotifyPropertyChanged
@@ -149,6 +158,15 @@ namespace NavigatorHMI.Common
         {
             get => _boundDevice;
             set { if (_boundDevice != value) { _boundDevice = value; OnPropertyChanged(); } }
+        }
+
+        private AlarmDisplayMode _displayMode = AlarmDisplayMode.Current;
+        /// <summary>AlarmView 显示模式（P-5，2026-09-02：当前报警=0 默认 / 报警缓冲区=1；设计态固定——要两模式放两个 AlarmView）。</summary>
+        [ProtoMember(18)]
+        public AlarmDisplayMode DisplayMode
+        {
+            get => _displayMode;
+            set { if (_displayMode != value) { _displayMode = value; OnPropertyChanged(); } }
         }
     }
 }

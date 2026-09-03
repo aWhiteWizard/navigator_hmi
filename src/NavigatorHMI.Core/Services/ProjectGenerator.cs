@@ -357,6 +357,11 @@ namespace NavigatorHMI.Common
                 dto.ShowUserName = ww.ShowUserName; dto.ShowRole = ww.ShowRole; dto.ShowMode = ww.ShowMode;
                 dto.CardShowNumber = ww.CardShowNumber; dto.CardShowStatus = ww.CardShowStatus; dto.CardShowLocation = ww.CardShowLocation;
                 dto.BoundDevice = ww.BoundDevice; dto.RobotSlots = ww.RobotSlots;
+                dto.DisplayMode = (int)ww.DisplayMode;   // P-5：AlarmView 显示模式（54）
+            });
+            Register<HistoryViewWidget>((hv, dto) =>
+            {
+                dto.Type = NavihmiWidgetType.HistoryView; dto.HistoryTags = hv.Tags; dto.HistoryDbPath = hv.DbPath;
             });
             return map;
         }

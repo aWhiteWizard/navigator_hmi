@@ -11,7 +11,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
             Parameters = new()
             {
                 ["screen_name"] = new() { Type = "string", Required = true },
-                ["widget_type"] = new() { Type = "enum", Required = true, EnumValues = new[] { "button", "text", "rectangle", "label", "image", "numeric", "switch", "line", "circle", "ellipse", "iofield", "checkbox", "textlist", "textbox", "frame", "progressbar", "datetime", "window", "userview", "alarmview", "robotlist", "polygon", "trend_chart" }, Description = "控件类型（textbox 为 textlist 兼容别名；datetime 为日期时间控件；window 为窗口控件——用 --window-type 指定；userview/alarmview/robotlist 为三独立窗口控件；polygon 为世界地图图形控件；trend_chart 为趋势图控件）" },
+                ["widget_type"] = new() { Type = "enum", Required = true, EnumValues = new[] { "button", "text", "rectangle", "label", "image", "numeric", "switch", "line", "circle", "ellipse", "iofield", "checkbox", "textlist", "textbox", "frame", "progressbar", "datetime", "window", "userview", "alarmview", "robotlist", "polygon", "trend_chart", "history_view" }, Description = "控件类型（textbox 为 textlist 兼容别名；datetime 为日期时间控件；window 为窗口控件——用 --window-type 指定；userview/alarmview/robotlist 为三独立窗口控件；polygon 为世界地图图形控件；trend_chart 为趋势图控件；history_view 为历史记录控件）" },
                 ["x"] = new() { Type = "int", DefaultValue = 100, KeepInCompact = true },   // #3：AI 创建控件可指定位置
                 ["y"] = new() { Type = "int", DefaultValue = 100, KeepInCompact = true },   // #3：AI 创建控件可指定位置
                 ["width"] = new() { Type = "int", DefaultValue = 100, KeepInCompact = true },   // 🟡：AI 创建控件可指定尺寸
@@ -28,7 +28,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
             // 控件类型枚举校验（防未知类型静默走 default 创建 Button——静默失败比报错更危险）
             var wt = parameters["widget_type"]!.ToString()!;
             if (wt is not ("button" or "text" or "rectangle" or "label" or "image" or "numeric" or "switch" or "line"
-                or "circle" or "ellipse" or "iofield" or "checkbox" or "textlist" or "textbox" or "frame" or "progressbar" or "datetime" or "window" or "userview" or "alarmview" or "robotlist" or "polygon" or "trend_chart"))
+                or "circle" or "ellipse" or "iofield" or "checkbox" or "textlist" or "textbox" or "frame" or "progressbar" or "datetime" or "window" or "userview" or "alarmview" or "robotlist" or "polygon" or "trend_chart" or "history_view"))
                 return ValidationResult.Fail($"未知控件类型: {wt}");
             // W1：window 类型校验 window_type 白名单（防未知类型静默创建 UserView）
             if (wt == "window")
@@ -72,6 +72,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 "datetime" => new DateTimeWidget { Text = "2026-01-01 00:00:00" },
                 "polygon" => new PolygonWidget(),
                 "trend_chart" => new TrendChartWidget(),   // P-4：趋势图（时间-数据/变量A-B + 采样间隔）
+                "history_view" => new HistoryViewWidget(),   // P-5：历史记录（变量列表 + 数据库路径）
                 "userview" => CreateWindow(parameters, "userview"),
                 "alarmview" => CreateWindow(parameters, "alarmview"),
                 "robotlist" => CreateWindow(parameters, "robotlist"),
