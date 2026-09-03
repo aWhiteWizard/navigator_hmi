@@ -151,6 +151,20 @@ namespace NavigatorHMI.Common
             set { if (_deviceModel != value) { _deviceModel = value; OnPropertyChanged(); MarkDirty(); } }
         }
 
+        private bool _includeWorldMapOnDevice = true;
+
+        /// <summary>
+        /// P-3（2026-09-02）：设备端是否显示世界地图画面（世界地图画面属性面板 checkbox，默认勾选）。
+        /// **只影响设备端**（编译产物过滤 WorldMap Screen），组态软件编辑态始终显示/可编辑（用户 2026-09-02 语义定稿）。
+        /// IsRequired=true 强制落盘——protobuf-net 省略 false 丢值（ShowNavigationBar 先例 L199）。
+        /// </summary>
+        [ProtoMember(23, IsRequired = true)]
+        public bool IncludeWorldMapOnDevice
+        {
+            get => _includeWorldMapOnDevice;
+            set { if (_includeWorldMapOnDevice != value) { _includeWorldMapOnDevice = value; OnPropertyChanged(); MarkDirty(); } }
+        }
+
         // ═══════════════════════════════════════════
         // v2.0 新增字段 (ProtoMember 9+)
         // ═══════════════════════════════════════════

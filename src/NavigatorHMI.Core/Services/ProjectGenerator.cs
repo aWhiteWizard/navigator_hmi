@@ -106,6 +106,33 @@ namespace NavigatorHMI.Common
             if (!string.IsNullOrEmpty(project.StartScreen) && !project.Screens.Any(s => s.Name == project.StartScreen))
                 result.Errors.Add($"启动画面 \"{project.StartScreen}\" 不存在");
 
+            // 3e. 校验（P-3 B1 严格，2026-09-02 用户裁决）：设备端不含世界地图时的非法引用
+            if (!project.IncludeWorldMapOnDevice)
+            {
+                var worldMapScreenName = project.Screens.FirstOrDefault(s => s.Type == ScreenType.WorldMap)?.Name;
+                var hasCustom = project.Screens.Any(s => s.Type == ScreenType.Custom);
+                if (!hasCustom)
+                    result.Errors.Add("设备端不含世界地图且无自定义画面——工程无可显示画面（请在「设备端显示世界地图画面」勾选或添加自定义画面）");
+                if (!string.IsNullOrEmpty(worldMapScreenName))
+                {
+                    // 启动画面指向世界地图（设备端不含 → FW 启动兜底失效场景）
+                    if (project.StartScreen == worldMapScreenName)
+                        result.Errors.Add($"启动画面 \"{worldMapScreenName}\" 指向世界地图画面，但设备端不含世界地图（请在「设备端显示世界地图画面」勾选）");
+                    // 画面内事件/动作 target_screen 引用世界地图（防 FW switchToName 静默失败）
+                    foreach (var screen in project.Screens)
+                        foreach (var w in screen.Widgets)
+                            foreach (var ev in w.Events)
+                                foreach (var act in ev.Actions)
+                                    if (act.Parameters.TryGetValue("target_screen", out var target) && target == worldMapScreenName)
+                                        result.Errors.Add($"画面 \"{screen.Name}\" 控件 \"{w.ObjectName}\" 事件 {ev.Type} 的跳转目标 \"{worldMapScreenName}\" 是设备端不含的世界地图");
+                    if (project.WorldMap != null)
+                        foreach (var ev in project.WorldMap.Events)
+                            foreach (var act in ev.Actions)
+                                if (act.Parameters.TryGetValue("target_screen", out var target) && target == worldMapScreenName)
+                                    result.Errors.Add($"世界地图事件 {ev.Type} 的跳转目标 \"{worldMapScreenName}\" 指向设备端不含的世界地图");
+                }
+            }
+
             if (result.HasErrors)
                 return result;
 
@@ -162,8 +189,8 @@ namespace NavigatorHMI.Common
                 ShowNavigationBar = p.ShowNavigationBar,
                 NavigationPosition = p.NavigationPosition,
                 StartScreen = p.StartScreen,
-                WorldMap = p.WorldMap,
-                Screens = p.Screens.Select(ToScreen).ToList(),
+                WorldMap = p.IncludeWorldMapOnDevice ? p.WorldMap : null,   // P-3 B1：开关关 → 地图配置死数据不下发（设备端无地图画面，减包体；审查 🟡 死数据已处理）
+                Screens = p.Screens.Where(s => p.IncludeWorldMapOnDevice || s.Type != ScreenType.WorldMap).Select(ToScreen).ToList(),   // P-3 B1：开关关 → 编译产物过滤 WorldMap Screen（设备端无地图；PC 编辑态不受影响）
                 Tags = new List<Tag>(p.Tags),
                 Alarms = p.Alarms,
                 Devices = p.Devices,
@@ -172,6 +199,7 @@ namespace NavigatorHMI.Common
                 Groups = p.Groups,
                 Security = p.Security,
                 DeviceModel = p.DeviceModel,   // 工程目标设备型号写入契约（设备身份由设备自身配置决定，与工程无关——2026-08-30 用户 Check 指正）
+                IncludeWorldMapOnDevice = p.IncludeWorldMapOnDevice,   // P-3：透传（FW 读取可感知工程意图；FW 启动兜底靠 screens 列表本身）
             };
         }
 

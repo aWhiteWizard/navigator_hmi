@@ -245,6 +245,7 @@ namespace NavigatorHMI.ViewModels
                         ScreenWidth = value.Width;
                         ScreenHeight = value.Height;
                         WorldMapShowGlobalOverlay = value.Type == ScreenType.WorldMap && Project?.WorldMap?.ShowGlobalOverlay == true;
+                        IncludeWorldMapOnDevice = Project?.IncludeWorldMapOnDevice != false;   // P-3：设备端地图开关同步（缺省 true 兼容旧工程）
                         WorldMapViewLocked = Project?.WorldMap?.ViewLocked == true;   // P5：锁定预览勾选同步
                         RefreshWorldMapWorkPoints();   // P4：作业点/作业范围点表格同步
                         }
@@ -849,6 +850,31 @@ namespace NavigatorHMI.ViewModels
 
         /// <summary>当前选中是否为世界地图画面（属性面板据此显示「全局叠加」勾选入口）。</summary>
         public bool IsWorldMapScreen => _selectedScreen?.Type == ScreenType.WorldMap;
+
+        private bool _includeWorldMapOnDevice = true;
+
+        /// <summary>
+        /// P-3（2026-09-02）：设备端是否显示世界地图画面（世界地图画面属性面板 checkbox，默认勾选）。
+        /// **只影响设备端**（编译产物过滤 WorldMap Screen），组态软件编辑态始终显示/可编辑（用户语义定稿）。
+        /// 工程级配置（非画面 Widgets），不推撤销快照；写模型 + 标脏（WorldMapShowGlobalOverlay 同模式）。
+        /// </summary>
+        public bool IncludeWorldMapOnDevice
+        {
+            get => _includeWorldMapOnDevice;
+            set
+            {
+                if (_includeWorldMapOnDevice != value)
+                {
+                    _includeWorldMapOnDevice = value;
+                    OnPropertyChanged();
+                    if (!_syncingFromModel && Project != null)
+                    {
+                        Project.IncludeWorldMapOnDevice = value;   // 模型 setter 自带 MarkDirty
+                        DirtyRequested?.Invoke();
+                    }
+                }
+            }
+        }
 
         // ── 世界地图作业点/作业范围点（P4：DataGrid 表格 + 行内编辑；两列互斥；末行输入自动补行）──
 

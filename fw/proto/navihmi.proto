@@ -175,6 +175,8 @@ message HMIProject {
   SecuritySettings security = 20;
   bool enable_vnc = 21;       // 启用 VNC 镜像（eglfs 物理屏照常，额外开 5900 远程显示通道；默认关=零开销）
   string device_model = 22;   // 工程目标设备型号（PC 端 device-profile 写入；设备身份由设备自身配置决定，与工程无关——2026-08-30 用户 Check 指正）
+  bool include_world_map_on_device = 23;   // P-3：设备端是否显示世界地图画面（PC 编译产物按此过滤 WorldMap Screen + world_map 配置；默认 true 兼容旧工程）。
+                                          // ⚠️ proto3 bool 无 presence——旧产物缺省为 false；PC 端 IsRequired 恒写 true/false，FW 若消费此 flag 勿以「false=旧产物」判断，须配合 screens 列表是否含 SCREEN_WORLD_MAP 为准（FW 现靠 screens 列表本身，本 flag 仅透传）
 }
 
 message Screen {

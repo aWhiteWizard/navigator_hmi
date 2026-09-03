@@ -200,6 +200,13 @@
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="4,2" Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}">
                 <Button Content="⛶ 视口自适应" Click="WorldMapZoomToBox_Click" Padding="8,2" FontSize="11" ToolTip="按作业点/作业范围点包围盒缩放地图视口（ZoomToBox）"/>
             </StackPanel>
+            <!-- P-3（2026-09-02）：设备端地图开关——只影响设备端显示（编译产物过滤 WorldMap Screen），组态软件编辑态始终显示可编辑 -->
+            <TextBlock Text="设备端" Style="{StaticResource PropGroupHeader}" Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}"/>
+            <Grid Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}"><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="显示地图:" Style="{StaticResource PropLabel}"/>
+                <CheckBox Grid.Column="1" IsChecked="{Binding IncludeWorldMapOnDevice}" VerticalAlignment="Center"
+                          ToolTip="勾选（默认）后设备端显示世界地图并作为启动画面；取消勾选后设备端不含世界地图、启动进第一个自定义画面（组态软件中本画面始终可编辑，不受影响）"/>
+            </Grid>
             <!-- P4：世界地图作业点/作业范围点（表格行内编辑；两列互斥；末行输入自动补行） -->
             <TextBlock Text="作业点" Style="{StaticResource PropGroupHeader}" Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}"/>
             <StackPanel Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}">

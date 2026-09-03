@@ -44,6 +44,7 @@ namespace NavigatorHMI.Common
         [ProtoMember(20)] public SecuritySettings Security { get; set; } = new();
         [ProtoMember(21)] public bool EnableVnc { get; set; }
         [ProtoMember(22)] public string DeviceModel { get; set; } = "";   // 工程目标设备型号（device-profile 写入；设备身份由设备自身配置决定，与工程无关——2026-08-30 用户 Check 指正）
+        [ProtoMember(23, IsRequired = true)] public bool IncludeWorldMapOnDevice { get; set; } = true;   // P-3：设备端是否显示世界地图画面（编译产物过滤 WorldMap Screen；默认 true 兼容旧工程）
     }
 
     /// <summary>编译产物画面（navihmi.proto Screen）。</summary>
