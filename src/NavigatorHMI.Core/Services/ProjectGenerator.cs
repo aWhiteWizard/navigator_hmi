@@ -183,7 +183,127 @@ namespace NavigatorHMI.Common
                 Widgets = s.Widgets.Select(ToWidget).ToList(),
             };
 
-        /// <summary>控件 → 扁平 DTO：基类字段 + 类型判别 + 按类型填子类字段。</summary>
+        /// <summary>
+        /// 控件 → 扁平 DTO 映射注册表（P-2a 注册表化，2026-09-02）。
+        /// 键 = 源模型控件类型；值 = 填充委托（写 dto.Type 判别 + 按类型填子类字段）。
+        /// 新增控件类型必须在此注册（登记完整性测试断言全部 Widget 子类已注册，未注册即测试失败）。
+        /// </summary>
+        private static readonly Dictionary<Type, Action<Widget, NavihmiWidget>> _toWidgetMappers = CreateToWidgetMappers();
+
+        /// <summary>构建 ToWidget 注册表（静态初始化；各控件填充逻辑与原 switch case 一一对应，零行为变化）。</summary>
+        private static Dictionary<Type, Action<Widget, NavihmiWidget>> CreateToWidgetMappers()
+        {
+            var map = new Dictionary<Type, Action<Widget, NavihmiWidget>>();
+            void Register<T>(Action<T, NavihmiWidget> fill) where T : Widget
+                => map[typeof(T)] = (w, dto) => fill((T)w, dto);
+
+            Register<ButtonWidget>((b, dto) =>
+            {
+                dto.Type = NavihmiWidgetType.Button; dto.Text = b.Text;
+                CopyFont(dto, b); dto.TextColor = b.TextColor; dto.FillColor = b.FillColor;
+            });
+            Register<TextWidget>((t, dto) =>
+            {
+                dto.Type = NavihmiWidgetType.Text; dto.Content = t.Content;
+                dto.FillColor = t.FillColor; dto.HAlign = t.HAlign;
+                CopyFont(dto, t); dto.TextColor = t.TextColor;
+            });
+            Register<LabelWidget>((l, dto) =>
+            {
+                dto.Type = NavihmiWidgetType.Label; dto.Text = l.Text;
+                dto.HAlign = l.HAlign; dto.FillColor = l.FillColor;
+                CopyFont(dto, l); dto.TextColor = l.TextColor;
+            });
+            Register<RectangleWidget>((r, dto) =>
+            {
+                dto.Type = NavihmiWidgetType.Rectangle; dto.FillColor = r.FillColor;
+            });
+            Register<ImageWidget>((img, dto) =>
+            {
+                dto.Type = NavihmiWidgetType.Image; dto.ImagePath = img.ImagePath;
+                dto.StretchMode = img.StretchMode; dto.FillColor = img.FillColor;
+                dto.ListRef = img.ListRef; dto.DefaultIndex = img.DefaultIndex;
+            });
+            Register<NumericDisplayWidget>((nd, dto) =>
+            {
+                dto.Type = NavihmiWidgetType.NumericDisplay; dto.Value = nd.Value;
+                CopyFont(dto, nd); dto.TextColor = nd.TextColor; dto.FillColor = nd.FillColor;
+            });
+            Register<SwitchWidget>((sw, dto) =>
+            {
+                dto.Type = NavihmiWidgetType.Switch; dto.IsOn = sw.IsOn;
+                dto.OnText = sw.OnText; dto.OffText = sw.OffText;
+                CopyFont(dto, sw); dto.TextColor = sw.TextColor; dto.FillColor = sw.FillColor;
+            });
+            Register<LineWidget>((ln, dto) =>
+            {
+                dto.Type = NavihmiWidgetType.Line; dto.X2 = ln.X2; dto.Y2 = ln.Y2;
+                dto.StrokeColor = ln.StrokeColor; dto.StrokeThickness = ln.StrokeThickness;
+            });
+            Register<CircleWidget>((ci, dto) =>
+            {
+                dto.Type = NavihmiWidgetType.Circle;
+                dto.FillColor = ci.FillColor; dto.StrokeColor = ci.StrokeColor; dto.StrokeThickness = ci.StrokeThickness;
+            });
+            Register<EllipseWidget>((el, dto) =>
+            {
+                dto.Type = NavihmiWidgetType.Ellipse;
+                dto.FillColor = el.FillColor; dto.StrokeColor = el.StrokeColor; dto.StrokeThickness = el.StrokeThickness;
+            });
+            Register<IOFieldWidget>((io, dto) =>
+            {
+                dto.Type = NavihmiWidgetType.IOField; dto.Content = io.Content;
+                dto.IsReadOnly = io.IsReadOnly; dto.FillColor = io.FillColor;
+                CopyFont(dto, io); dto.TextColor = io.TextColor;
+            });
+            Register<CheckBoxWidget>((cb, dto) =>
+            {
+                dto.Type = NavihmiWidgetType.CheckBox; dto.IsChecked = cb.IsChecked; dto.Text = cb.Text;
+                CopyFont(dto, cb); dto.TextColor = cb.TextColor; dto.FillColor = cb.FillColor;
+            });
+            Register<TextListWidget>((tl, dto) =>
+            {
+                dto.Type = NavihmiWidgetType.TextList;
+                dto.ListRef = tl.ListRef; dto.DefaultIndex = tl.DefaultIndex;
+                CopyFont(dto, tl); dto.TextColor = tl.TextColor; dto.FillColor = tl.FillColor;
+            });
+            Register<FrameWidget>((fr, dto) =>
+            {
+                dto.Type = NavihmiWidgetType.Frame; dto.Title = fr.Title;
+                dto.FillColor = fr.FillColor; dto.ImagePath = fr.ImagePath;
+                dto.ListRef = fr.ListRef; dto.DefaultIndex = fr.DefaultIndex;
+                CopyFont(dto, fr);
+            });
+            Register<ProgressBarWidget>((pb, dto) =>
+            {
+                dto.Type = NavihmiWidgetType.ProgressBar; dto.Value = pb.Value;
+                dto.Min = pb.Min; dto.Max = pb.Max; dto.FillStyle = pb.FillStyle; dto.FillColor = pb.FillColor;
+            });
+            Register<DateTimeWidget>((dt, dto) =>
+            {
+                dto.Type = NavihmiWidgetType.DateTime; dto.DtText = dt.Text; dto.DtFormat = dt.Format;
+            });
+            Register<PolygonWidget>((pg, dto) =>
+            {
+                dto.Type = NavihmiWidgetType.Polygon;
+                dto.FillColor = pg.FillColor; dto.StrokeColor = pg.StrokeColor; dto.StrokeThickness = pg.StrokeThickness;
+                dto.Points = pg.Points;
+            });
+            Register<WindowWidget>((ww, dto) =>
+            {
+                dto.Type = NavihmiWidgetType.Window; dto.WindowType = (int)ww.Type;
+                dto.WinTitle = ww.Title; dto.ShowTitleBar = ww.ShowTitleBar;
+                dto.FillColor = ww.FillColor; dto.Title = ww.BorderColor;   // Title 槽位复用承载边框色（proto W_WINDOW 用 border 字段）
+                dto.ShowHistory = ww.ShowHistory; dto.SelectedTag = ww.SelectedTag;
+                dto.CardWidth = ww.CardWidth; dto.CardHeight = ww.CardHeight;
+                dto.ShowUserName = ww.ShowUserName; dto.ShowRole = ww.ShowRole; dto.ShowMode = ww.ShowMode;
+                dto.CardShowNumber = ww.CardShowNumber; dto.CardShowStatus = ww.CardShowStatus; dto.CardShowLocation = ww.CardShowLocation;
+                dto.BoundDevice = ww.BoundDevice; dto.RobotSlots = ww.RobotSlots;
+            });
+            return map;
+        }
+
+        /// <summary>控件 → 扁平 DTO：基类字段 + 类型判别 + 按类型填子类字段（P-2a 注册表查表分发；未注册类型 throw 防静默）。</summary>
         private static NavihmiWidget ToWidget(Widget w)
         {
             var dto = new NavihmiWidget
@@ -191,98 +311,16 @@ namespace NavigatorHMI.Common
                 X = w.X, Y = w.Y, Width = w.Width, Height = w.Height,
                 ObjectName = w.ObjectName, BoundTag = w.BoundTag, Events = w.Events,
             };
-            switch (w)
+            if (_toWidgetMappers.TryGetValue(w.GetType(), out var fill))
             {
-                case ButtonWidget b:
-                    dto.Type = NavihmiWidgetType.Button; dto.Text = b.Text;
-                    CopyFont(dto, b); dto.TextColor = b.TextColor; dto.FillColor = b.FillColor;
-                    break;
-                case TextWidget t:
-                    dto.Type = NavihmiWidgetType.Text; dto.Content = t.Content;
-                    dto.FillColor = t.FillColor; dto.HAlign = t.HAlign;
-                    CopyFont(dto, t); dto.TextColor = t.TextColor;
-                    break;
-                case LabelWidget l:
-                    dto.Type = NavihmiWidgetType.Label; dto.Text = l.Text;
-                    dto.HAlign = l.HAlign; dto.FillColor = l.FillColor;
-                    CopyFont(dto, l); dto.TextColor = l.TextColor;
-                    break;
-                case RectangleWidget r:
-                    dto.Type = NavihmiWidgetType.Rectangle; dto.FillColor = r.FillColor;
-                    break;
-                case ImageWidget img:
-                    dto.Type = NavihmiWidgetType.Image; dto.ImagePath = img.ImagePath;
-                    dto.StretchMode = img.StretchMode; dto.FillColor = img.FillColor;
-                    dto.ListRef = img.ListRef; dto.DefaultIndex = img.DefaultIndex;
-                    break;
-                case NumericDisplayWidget nd:
-                    dto.Type = NavihmiWidgetType.NumericDisplay; dto.Value = nd.Value;
-                    CopyFont(dto, nd); dto.TextColor = nd.TextColor; dto.FillColor = nd.FillColor;
-                    break;
-                case SwitchWidget sw:
-                    dto.Type = NavihmiWidgetType.Switch; dto.IsOn = sw.IsOn;
-                    dto.OnText = sw.OnText; dto.OffText = sw.OffText;
-                    CopyFont(dto, sw); dto.TextColor = sw.TextColor; dto.FillColor = sw.FillColor;
-                    break;
-                case LineWidget ln:
-                    dto.Type = NavihmiWidgetType.Line; dto.X2 = ln.X2; dto.Y2 = ln.Y2;
-                    dto.StrokeColor = ln.StrokeColor; dto.StrokeThickness = ln.StrokeThickness;
-                    break;
-                case CircleWidget ci:
-                    dto.Type = NavihmiWidgetType.Circle;
-                    dto.FillColor = ci.FillColor; dto.StrokeColor = ci.StrokeColor; dto.StrokeThickness = ci.StrokeThickness;
-                    break;
-                case EllipseWidget el:
-                    dto.Type = NavihmiWidgetType.Ellipse;
-                    dto.FillColor = el.FillColor; dto.StrokeColor = el.StrokeColor; dto.StrokeThickness = el.StrokeThickness;
-                    break;
-                case IOFieldWidget io:
-                    dto.Type = NavihmiWidgetType.IOField; dto.Content = io.Content;
-                    dto.IsReadOnly = io.IsReadOnly; dto.FillColor = io.FillColor;
-                    CopyFont(dto, io); dto.TextColor = io.TextColor;
-                    break;
-                case CheckBoxWidget cb:
-                    dto.Type = NavihmiWidgetType.CheckBox; dto.IsChecked = cb.IsChecked; dto.Text = cb.Text;
-                    CopyFont(dto, cb); dto.TextColor = cb.TextColor; dto.FillColor = cb.FillColor;
-                    break;
-                case TextListWidget tl:
-                    dto.Type = NavihmiWidgetType.TextList;
-                    dto.ListRef = tl.ListRef; dto.DefaultIndex = tl.DefaultIndex;
-                    CopyFont(dto, tl); dto.TextColor = tl.TextColor; dto.FillColor = tl.FillColor;
-                    break;
-                case FrameWidget fr:
-                    dto.Type = NavihmiWidgetType.Frame; dto.Title = fr.Title;
-                    dto.FillColor = fr.FillColor; dto.ImagePath = fr.ImagePath;
-                    dto.ListRef = fr.ListRef; dto.DefaultIndex = fr.DefaultIndex;
-                    CopyFont(dto, fr);
-                    break;
-                case ProgressBarWidget pb:
-                    dto.Type = NavihmiWidgetType.ProgressBar; dto.Value = pb.Value;
-                    dto.Min = pb.Min; dto.Max = pb.Max; dto.FillStyle = pb.FillStyle; dto.FillColor = pb.FillColor;
-                    break;
-                case DateTimeWidget dt:
-                    dto.Type = NavihmiWidgetType.DateTime; dto.DtText = dt.Text; dto.DtFormat = dt.Format;
-                    break;
-                case PolygonWidget pg:
-                    dto.Type = NavihmiWidgetType.Polygon;
-                    dto.FillColor = pg.FillColor; dto.StrokeColor = pg.StrokeColor; dto.StrokeThickness = pg.StrokeThickness;
-                    dto.Points = pg.Points;
-                    break;
-                case WindowWidget ww:
-                    dto.Type = NavihmiWidgetType.Window; dto.WindowType = (int)ww.Type;
-                    dto.WinTitle = ww.Title; dto.ShowTitleBar = ww.ShowTitleBar;
-                    dto.FillColor = ww.FillColor; dto.Title = ww.BorderColor;   // Title 槽位复用承载边框色（proto W_WINDOW 用 border 字段）
-                    dto.ShowHistory = ww.ShowHistory; dto.SelectedTag = ww.SelectedTag;
-                    dto.CardWidth = ww.CardWidth; dto.CardHeight = ww.CardHeight;
-                    dto.ShowUserName = ww.ShowUserName; dto.ShowRole = ww.ShowRole; dto.ShowMode = ww.ShowMode;
-                    dto.CardShowNumber = ww.CardShowNumber; dto.CardShowStatus = ww.CardShowStatus; dto.CardShowLocation = ww.CardShowLocation;
-                    dto.BoundDevice = ww.BoundDevice; dto.RobotSlots = ww.RobotSlots;
-                    break;
-                default:
-                    throw new InvalidOperationException($"未映射的控件类型: {w.GetType().Name}（新增控件需同步 navihmi.proto 与 NavihmiDto）");
+                fill(w, dto);
+                return dto;
             }
-            return dto;
+            throw new InvalidOperationException($"未映射的控件类型: {w.GetType().Name}（新增控件需同步 navihmi.proto、NavihmiDto 并注册 ProjectGenerator ToWidget 映射表）");
         }
+
+        /// <summary>ToWidget 注册表覆盖性断言（登记完整性测试用）：全部 Widget 子类已注册映射。</summary>
+        public static IReadOnlyCollection<Type> RegisteredWidgetTypes => _toWidgetMappers.Keys;
 
         /// <summary>拷贝字体五件套（各控件子类均有同名属性，dynamic 统一处理；编译期一次性调用，性能无碍）。</summary>
         private static void CopyFont(NavihmiWidget dto, dynamic w)
