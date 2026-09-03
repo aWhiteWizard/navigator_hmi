@@ -323,6 +323,7 @@ namespace NavigatorHMI.Common
                 dto.Type = NavihmiWidgetType.Frame; dto.Title = fr.Title;
                 dto.FillColor = fr.FillColor; dto.ImagePath = fr.ImagePath;
                 dto.ListRef = fr.ListRef; dto.DefaultIndex = fr.DefaultIndex;
+                dto.ShowVideo = fr.ShowVideo; dto.VideoSource = fr.VideoSource;   // P-6：视频模式
                 CopyFont(dto, fr);
             });
             Register<ProgressBarWidget>((pb, dto) =>

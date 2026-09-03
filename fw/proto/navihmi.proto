@@ -276,6 +276,9 @@ message Widget {
   // P-5 历史记录（W_HISTORY_VIEW=19，73-74；2026-09-02）
   repeated string history_tags = 73;    // HistoryView 变量列表（多变量，运行时切换）
   string history_db_path = 74;          // HistoryView 数据库路径（空=设备端默认 navihmi_history.db）
+  // P-6 Frame 视频（75-76；2026-09-02）
+  bool show_video = 75;                 // Frame 视频模式（checkbox；false=普通 Frame）
+  string video_source = 76;             // Frame 视频源（本地路径打包入包 / RTSP URL 不入包）
 }
 
 message RobotSlotBinding {

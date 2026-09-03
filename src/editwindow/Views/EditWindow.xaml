@@ -917,6 +917,18 @@
                 <Label Grid.Column="0" Content="缺省值:" Style="{StaticResource PropLabel}"/>
                 <TextBox Grid.Column="1" Text="{Binding FrameDefaultIndex, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}" ToolTip="未绑定变量/变量值无效时显示的列表项索引（0=第1项）" KeyDown="PropField_KeyDown" />
             </Grid>
+            <!-- P-6（2026-09-02）：Frame 视频模式——checkbox 区分视频/普通 Frame（勾选且有源=视频；未勾选/无源=普通） -->
+            <TextBlock Text="视频" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="显示视频:" Style="{StaticResource PropLabel}"/>
+                <CheckBox Grid.Column="1" IsChecked="{Binding FrameShowVideo}" VerticalAlignment="Center"
+                          ToolTip="勾选并填视频源后设备端播放视频（本地文件随工程打包 / RTSP 流不入包）；未勾选或无源为普通 Frame"/>
+            </Grid>
+            <Grid Visibility="{Binding IsVideoMode, Converter={StaticResource BoolToVisibilityConverter}}"><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="视频源:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding FrameVideoSource, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" KeyDown="PropField_KeyDown"
+                         ToolTip="本地视频文件路径（随工程打包）或 RTSP 流 URL（rtsp://，不入包）"/>
+            </Grid>
             <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="50"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Title:" Style="{StaticResource PropLabel}"/>

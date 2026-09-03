@@ -1098,6 +1098,16 @@ public class FrameWidget : Widget
     [ProtoMember(10)]
     public int DefaultIndex { get => _defaultIndex; set { var v = Math.Max(0, value); if (_defaultIndex != v) { _defaultIndex = v; OnPropertyChanged(); OnPropertyChanged(nameof(DisplayPath)); } } }
 
+    private bool _showVideo = false;
+    /// <summary>P-6（2026-09-02）：是否视频模式（勾选且有视频源=视频；未勾选或无源=普通 Frame——checkbox 决定模式语义）。</summary>
+    [ProtoMember(11, IsRequired = true)]
+    public bool ShowVideo { get => _showVideo; set { if (_showVideo != value) { _showVideo = value; OnPropertyChanged(); } } }
+
+    private string _videoSource = "";
+    /// <summary>P-6（2026-09-02）：视频源——本地视频文件路径（打包入包）/ RTSP 流 URL（不入包，按 rtsp:// 前缀判定）。</summary>
+    [ProtoMember(12)]
+    public string VideoSource { get => _videoSource; set { if (_videoSource != value) { _videoSource = value; OnPropertyChanged(); } } }
+
     /// <summary>设计态显示背景路径：绑列表 → 列表第 N 项图片完整路径；否则 ImagePath（相对工程目录解析）。</summary>
     [ProtoIgnore]
     public override string DisplayPath

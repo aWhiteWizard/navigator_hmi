@@ -144,5 +144,8 @@ namespace NavigatorHMI.Common
         // ── P-5 历史记录（73-74；2026-09-02）──
         [ProtoMember(73)] public List<string> HistoryTags { get; set; } = new();  // HistoryView 变量列表（多变量）
         [ProtoMember(74)] public string HistoryDbPath { get; set; } = "";         // HistoryView 数据库路径（空=设备端默认 navihmi_history.db）
+        // ── P-6 Frame 视频（75-76；2026-09-02）──
+        [ProtoMember(75, IsRequired = true)] public bool ShowVideo { get; set; }  // Frame 视频模式（checkbox；false=普通 Frame）
+        [ProtoMember(76)] public string VideoSource { get; set; } = "";           // Frame 视频源（本地路径打包/RTSP URL 不入包）
     }
 }
