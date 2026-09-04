@@ -154,8 +154,10 @@ namespace NavigatorHMI.Common
         }
 
         /// <summary>设备信息查询（GET /api/device/info——型号/尺寸/ID/固件版本；A1 连接测试三分数据源）。
-        /// D1：固件版本前置检查用（/api/device/info version = 固件版本，术语口径 FW httreceiver L150）。</summary>
-        public static async Task<(bool Ok, string? Version, string? Error)> GetDeviceInfoAsync(string ip, CancellationToken ct = default)
+        /// D1：固件版本前置检查用（/api/device/info version = 固件版本，术语口径 FW httreceiver L150）。
+        /// 2026-09-04 调试 OTA：FirmwareTs = 设备当前固件 OTA 打包时刻（旧固件无 firmware_ts 字段 → "0"）——
+        /// PC 端对调试包（版本恒 v1.1.0）按打包时刻先后判断覆盖。</summary>
+        public static async Task<(bool Ok, string? Version, string? FirmwareTs, string? Error)> GetDeviceInfoAsync(string ip, CancellationToken ct = default)
         {
             try
             {
@@ -164,11 +166,12 @@ namespace NavigatorHMI.Common
                 using var doc = JsonDocument.Parse(body);
                 var root = doc.RootElement;
                 var ver = root.TryGetProperty("version", out var v) ? v.GetString() : null;
-                return (true, ver, null);
+                var ts = root.TryGetProperty("firmware_ts", out var t) ? t.GetString() : null;
+                return (true, ver, string.IsNullOrEmpty(ts) ? "0" : ts, null);
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or UriFormatException or ArgumentException or InvalidOperationException)
             {
-                return (false, null, $"设备信息查询失败: {ex.Message}");
+                return (false, null, "0", $"设备信息查询失败: {ex.Message}");
             }
         }
 

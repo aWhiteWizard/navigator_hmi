@@ -38,8 +38,8 @@ namespace NavigatorHMI.Tests
                 new FwPackageBuilder.Component { Name = "app", Type = "app", Target = "/usr/bin/navigatorhmi-fw", FilePath = app }).Path;
         }
 
-        /// <summary>假设备：/api/transfer → deployResponse；/api/device/info → {version: devVersion}。返回 ip:port。</summary>
-        private string StartFakeDevice(string devVersion, string deployResponse)
+        /// <summary>假设备：/api/transfer → deployResponse；/api/device/info → {version: devVersion[, firmware_ts: devTs]}。返回 ip:port。</summary>
+        private string StartFakeDevice(string devVersion, string deployResponse, string? devTs = null)
         {
             for (int attempt = 0; attempt < 5; attempt++)
             {
@@ -59,7 +59,10 @@ namespace NavigatorHMI.Tests
                                 var path = ctx.Request.Url?.AbsolutePath ?? "";
                                 var body = path switch
                                 {
-                                    "/api/device/info" => $"{{\"version\":\"{devVersion}\"}}",
+                                    // 2026-09-04：firmware_ts 字段（旧设备无 → 缺省 "0"——GetDeviceInfoAsync 兜底）
+                                    "/api/device/info" => devTs == null
+                                        ? $"{{\"version\":\"{devVersion}\"}}"
+                                        : $"{{\"version\":\"{devVersion}\",\"firmware_ts\":\"{devTs}\"}}",
                                     "/api/transfer" => deployResponse,
                                     _ => "{\"code\":\"OK\"}",
                                 };
@@ -187,7 +190,8 @@ namespace NavigatorHMI.Tests
         public void 魔数非法_拒绝()
         {
             var bad = Path.Combine(_dir, "bad.fw");
-            File.WriteAllBytes(bad, Encoding.ASCII.GetBytes("NOTFW" + new string(' ', 30)));
+            // ≥完整 header 128B（校验收紧后 <128B 先报过短——魔数校验需先过长度关）
+            File.WriteAllBytes(bad, Encoding.ASCII.GetBytes("NOTFW").Concat(Enumerable.Repeat((byte)0x20, 128)).ToArray());
             var ip = StartFakeDevice("1.0.0", "{}");
             var result = Exec(bad, ip);
             Assert.False(result.Success);
@@ -202,6 +206,85 @@ namespace NavigatorHMI.Tests
             var result = Exec(Path.Combine(_dir, "不存在.fw"), ip);
             Assert.False(result.Success);
             Assert.Equal("FILE_NOT_FOUND", result.ErrorCode);
+        }
+
+        // ── 2026-09-04 调试 OTA：调试包（NavigatorHMI_v1.1.0_<inch>_<14位时刻>.fw，版本恒 v1.1.0）──
+        // 版本前置检查改按打包时刻先后（用户裁决「按打包时间」）：包 header ts > 设备 firmware_ts → 放行；否则拒。
+        // 旧设备无 firmware_ts（响应缺字段 → PC 兜底 "0"）→ 任意非 0 时刻包放行（首次装载 1.1.0 场景——语义 1.1.0 < 1.1.4 也不拦）。
+
+        /// <summary>生成调试命名固件（header version 1.1.0 + Build 时刻 ts；文件名带 14 位时刻尾）。</summary>
+        private string MakeDebugFw(string nameTs = "20260904210242")
+        {
+            var std = MakeFw("1.1.0");
+            var dbg = Path.Combine(_dir, $"NavigatorHMI_v1.1.0_7inch_{nameTs}.fw");
+            File.Move(std, dbg);
+            return dbg;
+        }
+
+        [Fact]
+        public void 调试包_设备旧固件无ts_放行_语义更旧不拦()
+        {
+            // 设备 v1.1.4（旧固件无 firmware_ts）装 v1.1.0 调试包——调试分支只看打包时刻：包 ts > 0 → 放行
+            var fw = MakeDebugFw();
+            var ip = StartFakeDevice("v1.1.4", "{\"code\":\"SUCCESSFUL_REBOOT\"}");
+            var r = Exec(fw, ip);
+            Assert.True(r.Success, r.ErrorMessage);
+        }
+
+        [Fact]
+        public void 调试包_设备ts更新_拒绝VERSION_SAME()
+        {
+            // 设备已装更晚时刻的调试固件（firmware_ts 未来大值）→ 包 ts 更旧 → 拒（时刻倒退防呆）
+            var fw = MakeDebugFw();
+            var ip = StartFakeDevice("v1.1.0", "{}", devTs: "9999999999");
+            var r = Exec(fw, ip);
+            Assert.False(r.Success);
+            Assert.Equal("VERSION_SAME", r.ErrorCode);
+        }
+
+        [Fact]
+        public void 调试包_设备ts旧_同版放行覆盖()
+        {
+            // 设备 firmware_ts=1（早期调试包）→ 新包 ts 更新 → 同版本 v1.1.0 放行覆盖（每次编完都能 OTA 的核心场景）
+            var fw = MakeDebugFw();
+            var ip = StartFakeDevice("v1.1.0", "{\"code\":\"SUCCESSFUL_REBOOT\"}", devTs: "1");
+            var r = Exec(fw, ip);
+            Assert.True(r.Success, r.ErrorMessage);
+        }
+
+        [Fact]
+        public void 非调试命名_同语义版本_仍按VERSION_SAME拒()
+        {
+            // 回归：标准命名（NavigatorHMI_v1.1.0.fw）不走调试分支——同版仍拒（防呆保留）
+            var fw = MakeFw("1.1.0");
+            var ip = StartFakeDevice("v1.1.0", "{}");
+            var r = Exec(fw, ip);
+            Assert.False(r.Success);
+            Assert.Equal("VERSION_SAME", r.ErrorCode);
+        }
+
+        [Fact]
+        public void 新标准命名_同语义版本_仍按VERSION_SAME拒()
+        {
+            // 🔵-3 回归：NavigatorHMI_7inch_v1.1.0.fw（新标准正式命名——尺寸在版本前）尾段 "v1.1.0" 非 14 位数字 → 非调试 → 同版拒
+            var app = Path.Combine(_dir, "app2.bin");
+            File.WriteAllBytes(app, new byte[] { 1, 2, 3 });
+            var fw = FwPackageBuilder.Build("1.1.0", "7寸", _dir,
+                new FwPackageBuilder.Component { Name = "app", Type = "app", Target = "/usr/bin/navigatorhmi-fw", FilePath = app }).Path;
+            var ip = StartFakeDevice("v1.1.0", "{}");
+            var r = Exec(fw, ip);
+            Assert.False(r.Success);
+            Assert.Equal("VERSION_SAME", r.ErrorCode);
+        }
+
+        [Fact]
+        public void 调试包_设备ts非数字_归0放行()
+        {
+            // 防御：设备 firmware_ts 非数字（异常值）→ long.TryParse 归 0 → 任意非 0 时刻包放行
+            var fw = MakeDebugFw();
+            var ip = StartFakeDevice("v1.1.0", "{\"code\":\"SUCCESSFUL_REBOOT\"}", devTs: "abc");
+            var r = Exec(fw, ip);
+            Assert.True(r.Success, r.ErrorMessage);
         }
     }
 }

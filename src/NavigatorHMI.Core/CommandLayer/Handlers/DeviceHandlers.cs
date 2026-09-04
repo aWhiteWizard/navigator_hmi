@@ -321,13 +321,16 @@ namespace NavigatorHMI.CommandLayer.Handlers
             if (!fwPath.EndsWith(".fw", StringComparison.OrdinalIgnoreCase))
                 return CommandResult.Fail("INVALID_PARAM", $"固件文件必须是 .fw 格式: {fwPath}");
 
-            // 2. 读 .fw header version（magic 4B + version 16B；<20B 报损坏——审查 🟡 防短文件误报魔数非法）
+            // 2. 读 .fw header（magic 4B + version 16B @4 + timestamp 8B LE @20——FwPackageBuilder 单一事实源；
+            //    <28B 损坏——审查 🟡 防短文件误报魔数非法）
+            //    2026-09-04 调试 OTA：timestamp = 打包时刻（Unix 秒），调试包同版 v1.1.0 覆盖判断依据
             string fwVersion;
+            long fwTs = 0;
             try
             {
                 var fileLen = new FileInfo(fwPath).Length;
-                if (fileLen < 20)
-                    return CommandResult.Fail("INVALID_PARAM", $".fw 文件损坏（过短 {fileLen}B，至少需 header magic+version 20B）: {fwPath}");
+                if (fileLen < FwPackageBuilder.HeaderSize)
+                    return CommandResult.Fail("INVALID_PARAM", $".fw 文件损坏（过短 {fileLen}B，至少需完整 header {FwPackageBuilder.HeaderSize}B——与 FW 端 fail-fast 对齐）: {fwPath}");
                 using var fs = File.OpenRead(fwPath);
                 var magic = new byte[4];
                 if (fs.Read(magic, 0, 4) != 4)
@@ -338,6 +341,10 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 if (fs.Read(vbuf, 0, 16) != 16)
                     return CommandResult.Fail("INVALID_PARAM", $".fw 文件损坏（version 段读不完整）: {fwPath}");
                 fwVersion = System.Text.Encoding.ASCII.GetString(vbuf).Trim();
+                var tsBuf = new byte[8];
+                if (fs.Read(tsBuf, 0, 8) != 8)
+                    return CommandResult.Fail("INVALID_PARAM", $".fw 文件损坏（timestamp 段读不完整）: {fwPath}");
+                fwTs = System.Buffers.Binary.BinaryPrimitives.ReadInt64LittleEndian(tsBuf);   // LE（与 FwPackageBuilder WriteInt64LittleEndian 一致，消除平台字节序假设）
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -347,18 +354,39 @@ namespace NavigatorHMI.CommandLayer.Handlers
             // 3. 版本检查前置（GET /api/device/info version = 固件版本，术语口径 FW httreceiver）
             // B-4 修复（2026-08-30）：同/旧判定统一走语义比较——设备端 version 返回 "vX.Y.Z"（带 v 前缀），
             // 若用字符串精确相等判同版本，"v1.1.1" vs "1.1.1" 永不相等 → VERSION_SAME 永不触发 → 同版本重复升级。
+            // 2026-09-04 调试 OTA：调试包（文件名 NavigatorHMI_v1.1.0_<inch>_<14位打包时刻>.fw——pack_fw --name-ts）
+            // 版本恒 v1.1.0，语义比较无意义——改按**打包时刻先后**判断（用户 2026-09-04 裁决「按打包时间」）：
+            // 包 header timestamp > 设备当前 firmware_ts → 放行覆盖（后打的包覆盖前一个）；否则拒。
+            // 旧固件无 firmware_ts（设备侧报 "0"）→ 任意非 0 时刻调试包放行（首次装载场景）。
+            // 非调试包（标准/旧命名）保持语义比较不变（正式升级防呆）。
+            // 判定边界（IsDebugPackName，文件名启发式）：官方工具链 pack_fw.py --name-ts 输出恒定 14 位数字尾段；
+            // ⚠️ 假阳性路径：正式包被人为追加 14 位数字尾会误入调试分支（语义闸门被旁路）——工具链不产此名，风险接受；
+            // ⚠️ 假阴性路径：非 14 位数字尾的调试中间命名走语义分支（同版会被 VERSION_SAME 拒并提示——见消息）
+            bool debugPack = IsDebugPackName(fwPath);
             try
             {
-                var (ok, devVer, err) = HttpDownloadClient.GetDeviceInfoAsync(ip).GetAwaiter().GetResult();
+                var (ok, devVer, devTs, err) = HttpDownloadClient.GetDeviceInfoAsync(ip).GetAwaiter().GetResult();
                 if (!ok)
                     return CommandResult.Fail("VERSION_CHECK_FAILED", $"固件版本查询失败: {err}");
                 if (!string.IsNullOrEmpty(devVer))
                 {
-                    var cmp = CompareVersions(fwVersion, devVer);
-                    if (cmp == 0)
-                        return CommandResult.Fail("VERSION_SAME", $"设备已是固件 {fwVersion}，无需升级");
-                    if (cmp < 0)
-                        return CommandResult.Fail("VERSION_OLDER", $"固件 {fwVersion} 旧于设备当前 {devVer}，已拒绝（如需降级请人工确认）");
+                    if (debugPack)
+                    {
+                        var devTsNum = long.TryParse(devTs, out var dts) ? dts : 0L;
+                        if (fwTs <= devTsNum)
+                            return CommandResult.Fail("VERSION_SAME",
+                                $"调试固件 {fwVersion}（打包时刻 {FormatPackTs(fwTs)}）不新于设备当前固件打包时刻 {FormatPackTs(devTsNum)}——已是最新或时刻倒挂，已拒绝");
+                        // fwTs > devTsNum → 放行（调试包按打包时刻先后覆盖）
+                    }
+                    else
+                    {
+                        var cmp = CompareVersions(fwVersion, devVer);
+                        if (cmp == 0)
+                            return CommandResult.Fail("VERSION_SAME",
+                                $"设备已是固件 {fwVersion}，无需升级（若为调试固件请确认文件名带 14 位打包时刻尾——pack_fw.py --name-ts，否则同版按语义防呆拒绝）");
+                        if (cmp < 0)
+                            return CommandResult.Fail("VERSION_OLDER", $"固件 {fwVersion} 旧于设备当前 {devVer}，已拒绝（如需降级请人工确认）");
+                    }
                 }
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
@@ -384,7 +412,9 @@ namespace NavigatorHMI.CommandLayer.Handlers
         }
 
         /// <summary>默认目录查找最新 .fw（新标准 NavigatorHMI_&lt;尺寸&gt;inch_v&lt;版本&gt;.fw；兼容旧 NavigatorHMI_v&lt;版本&gt;.fw——
-        /// 按**语义版本**降序取最新，审查 🔴 修复：原字典序使 v1.10.0 &lt; v1.9.0 误取旧版；同版本冲突回退文件名序保证确定性）。</summary>
+        /// 按**语义版本**降序取最新，审查 🔴 修复：原字典序使 v1.10.0 &lt; v1.9.0 误取旧版；同版本冲突回退文件名序保证确定性）。
+        /// 2026-09-04 调试 OTA：同语义版本且含 14 位打包时刻尾段（多个 v1.1.0 调试包并存）→ 按时刻**降序**取最新打的包
+        /// （否则文件名序取最早包，前置检查时刻倒挂误拒——「每次编完都 OTA」默认扫描路径需选最新）。</summary>
         internal static string? FindLatestFw(string dir)
         {
             if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return null;
@@ -392,8 +422,39 @@ namespace NavigatorHMI.CommandLayer.Handlers
             return Directory.EnumerateFiles(dir, "NavigatorHMI_*.fw")
                 .Where(f => Path.GetFileName(f).Contains("_v", StringComparison.Ordinal))
                 .OrderByDescending(f => ParseFwVersion(f))
-                .ThenBy(f => f, StringComparer.OrdinalIgnoreCase)   // 同版本确定性
+                .ThenByDescending(f => DebugPackTimestamp(f))   // 2026-09-04：同版本调试包按打包时刻降序（非调试包尾段 0）
+                .ThenBy(f => f, StringComparer.OrdinalIgnoreCase)   // 全同确定性
                 .FirstOrDefault();
+        }
+
+        /// <summary>2026-09-04 调试包判定：文件名尾段为 14 位纯数字打包时刻（pack_fw.py --name-ts 输出
+        /// NavigatorHMI_v1.1.0_&lt;inch&gt;_&lt;YYYYMMDDHHMMSS&gt;.fw 特征；标准/旧命名尾段非 14 位数字）。
+        /// 启发式边界：假阳性=正式包被追加 14 位数字尾（工具链不产）；假阴性=非 14 位调试中间命名（走语义分支）。</summary>
+        internal static bool IsDebugPackName(string fwPath)
+        {
+            var fn = Path.GetFileNameWithoutExtension(fwPath);
+            var lastSeg = fn.LastIndexOf('_');
+            return lastSeg > 0 && fn.Length - lastSeg - 1 == 14
+                && fn[(lastSeg + 1)..].All(char.IsAsciiDigit);
+        }
+
+        /// <summary>调试包文件名尾段打包时刻（14 位 YYYYMMDDHHMMSS → Unix 秒）；非调试命名/解析失败 → 0（tie-break 沉底）。</summary>
+        private static long DebugPackTimestamp(string fwPath)
+        {
+            if (!IsDebugPackName(fwPath)) return 0;
+            var fn = Path.GetFileNameWithoutExtension(fwPath);
+            var tsSeg = fn[(fn.LastIndexOf('_') + 1)..];   // YYYYMMDDHHMMSS（本地时刻）
+            if (!DateTime.TryParseExact(tsSeg, "yyyyMMddHHmmss", System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None, out var dt))
+                return 0;
+            return new DateTimeOffset(dt).ToUnixTimeSeconds();
+        }
+
+        /// <summary>Unix 秒 → 本地时刻文本（YYYY-MM-dd HH:mm:ss；消息可读——与调试包文件名 14 位时刻同为本地基准）。</summary>
+        private static string FormatPackTs(long unixSec)
+        {
+            if (unixSec <= 0) return "0（旧固件无记录）";
+            return DateTimeOffset.FromUnixTimeSeconds(unixSec).ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
         }
 
         /// <summary>从 .fw 文件名提取语义版本元组（NavigatorHMI_v1.2.3.fw 或 NavigatorHMI_7inch_v1.2.3.fw → [1,2,3]；
