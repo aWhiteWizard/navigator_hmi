@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Windows;
@@ -519,29 +519,83 @@ namespace NavigatorHMI.Views.Helpers
         private static DataTemplate CreateTrendViewTemplate(RoutedEventHandler click, MouseButtonEventHandler pmLBD, MouseButtonEventHandler mLBD,
             MouseEventHandler mMove, MouseButtonEventHandler mLBU, MouseButtonEventHandler pmRBD, MouseButtonEventHandler mRBU)
         {
+            // Q-5②（2026-09-04 用户 Check：设计态要能预览趋势显示情况）——静态占位升级为「坐标轴框 + 示意曲线」预览：
+            //   标题显绑定的 tag（TrendTagA，XY 模式加 ↔TagB）；示意波浪曲线（Polyline Stretch=Fill 随控件尺寸缩放，
+            //   Stroke 绑 LineColor、StrokeThickness 绑 LineWidth——所见即设计属性）；白底绘图区 + 底部时间轴暗示。
             var dt = new DataTemplate();
             var border = new FrameworkElementFactory(typeof(Border));
             border.SetValue(Border.BackgroundProperty, new SolidColorBrush(Color.FromRgb(0xF5, 0xF7, 0xFA)));
             border.SetValue(Border.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(0xB0, 0xB8, 0xC4)));
             border.SetValue(Border.BorderThicknessProperty, new Thickness(1));
 
-            var grid = new FrameworkElementFactory(typeof(Grid));
+            // DockPanel 布局（FEF 无法构造 RowDefinitionCollection——用 Dock 附加属性）：
+            //   Top 标题（绑 tagA）/ Bottom 时间轴暗示 / Left Y 刻度（0 底 100 顶）/ Fill 白底绘图区 + 示意波浪曲线
+            var dock = new FrameworkElementFactory(typeof(DockPanel));
+
+            // 标题：绑 TrendTagA（XY 模式标题后缀在 PC 预览省略——FW 运行时完整）
+            var titlePanel = new FrameworkElementFactory(typeof(StackPanel));
+            titlePanel.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
+            titlePanel.SetValue(DockPanel.DockProperty, Dock.Top);
+            titlePanel.SetValue(StackPanel.MarginProperty, new Thickness(4, 3, 4, 0));
             var title = new FrameworkElementFactory(typeof(TextBlock));
-            title.SetValue(TextBlock.TextProperty, "📈 趋势图");   // 设计态占位标题（运行时控件名称在 FW 渲染）
-            title.SetValue(TextBlock.HorizontalAlignmentProperty, System.Windows.HorizontalAlignment.Center);
-            title.SetValue(TextBlock.VerticalAlignmentProperty, System.Windows.VerticalAlignment.Top);
-            title.SetValue(TextBlock.MarginProperty, new Thickness(4));
+            title.SetValue(TextBlock.TextProperty, "📈 ");
             title.SetValue(TextBlock.FontSizeProperty, 11d);
             title.SetValue(TextBlock.ForegroundProperty, Brushes.DimGray);
-            var hint = new FrameworkElementFactory(typeof(TextBlock));
-            hint.SetValue(TextBlock.TextProperty, "绑变量: 设计态静态预览（运行时 FW 渲染）");
-            hint.SetValue(TextBlock.HorizontalAlignmentProperty, System.Windows.HorizontalAlignment.Center);
-            hint.SetValue(TextBlock.VerticalAlignmentProperty, System.Windows.VerticalAlignment.Center);
-            hint.SetValue(TextBlock.FontSizeProperty, 10d);
-            hint.SetValue(TextBlock.ForegroundProperty, Brushes.Gray);
-            grid.AppendChild(title);
-            grid.AppendChild(hint);
-            border.AppendChild(grid);
+            var titleTag = new FrameworkElementFactory(typeof(TextBlock));
+            titleTag.SetBinding(TextBlock.TextProperty, new Binding("TrendTagA"));
+            titleTag.SetValue(TextBlock.FontSizeProperty, 11d);
+            titleTag.SetValue(TextBlock.ForegroundProperty, Brushes.DimGray);
+            titlePanel.AppendChild(title);
+            titlePanel.AppendChild(titleTag);
+
+            // Bottom X 轴时间暗示
+            var xLabel = new FrameworkElementFactory(typeof(TextBlock));
+            xLabel.SetValue(TextBlock.TextProperty, "时间窗口 →");
+            xLabel.SetValue(TextBlock.FontSizeProperty, 8d);
+            xLabel.SetValue(TextBlock.ForegroundProperty, Brushes.Gray);
+            xLabel.SetValue(DockPanel.DockProperty, Dock.Bottom);
+            xLabel.SetValue(TextBlock.MarginProperty, new Thickness(4, 0, 4, 1));
+
+            // Left Y 刻度暗示（100 顶 / 0 底）
+            var yCol = new FrameworkElementFactory(typeof(DockPanel));
+            yCol.SetValue(DockPanel.DockProperty, Dock.Left);
+            yCol.SetValue(StackPanel.MarginProperty, new Thickness(4, 4, 0, 4));
+            var yTop = new FrameworkElementFactory(typeof(TextBlock));
+            yTop.SetValue(TextBlock.TextProperty, "100");
+            yTop.SetValue(TextBlock.FontSizeProperty, 8d);
+            yTop.SetValue(TextBlock.ForegroundProperty, Brushes.Gray);
+            yTop.SetValue(DockPanel.DockProperty, Dock.Top);
+            var yBottom = new FrameworkElementFactory(typeof(TextBlock));
+            yBottom.SetValue(TextBlock.TextProperty, "0");
+            yBottom.SetValue(TextBlock.FontSizeProperty, 8d);
+            yBottom.SetValue(TextBlock.ForegroundProperty, Brushes.Gray);
+            yBottom.SetValue(DockPanel.DockProperty, Dock.Bottom);
+            yCol.AppendChild(yBottom);
+            yCol.AppendChild(yTop);
+
+            // Fill 绘图区：白底细框 + 示意波浪曲线（Stretch=Fill 随控件缩放；Stroke 绑 LineColor / 宽度绑 LineWidth）
+            var plot = new FrameworkElementFactory(typeof(Border));
+            plot.SetValue(Border.BackgroundProperty, Brushes.White);
+            plot.SetValue(Border.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(0xE0, 0xE4, 0xEA)));
+            plot.SetValue(Border.BorderThicknessProperty, new Thickness(1));
+            plot.SetValue(Border.MarginProperty, new Thickness(0, 2, 4, 4));
+            var wave = new FrameworkElementFactory(typeof(Polyline));
+            wave.SetValue(Polyline.PointsProperty, new PointCollection
+            {
+                new Point(0, 78), new Point(10, 62), new Point(20, 68), new Point(30, 45), new Point(40, 50),
+                new Point(50, 30), new Point(60, 38), new Point(70, 18), new Point(80, 25), new Point(90, 8), new Point(100, 12)
+            });
+            wave.SetValue(Polyline.StretchProperty, Stretch.Fill);
+            wave.SetValue(Polyline.MarginProperty, new Thickness(4));
+            wave.SetBinding(Polyline.StrokeProperty, new Binding("LineColor"));
+            wave.SetBinding(Polyline.StrokeThicknessProperty, new Binding("LineWidth"));
+            plot.AppendChild(wave);
+
+            dock.AppendChild(xLabel);      // Dock 顺序：先 add 的贴边（bottom/left），title 最后 top + 剩余
+            dock.AppendChild(yCol);
+            dock.AppendChild(titlePanel);
+            dock.AppendChild(plot);        // LastChildFill
+            border.AppendChild(dock);
             dt.VisualTree = WrapWithBorder(border, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU);
             return dt;
         }
