@@ -207,12 +207,14 @@ namespace NavigatorHMI.CommandLayer.Handlers
             }
 
             // 打包部署容器（manifest + app + res，zip）；失败转明确错误码（对齐 compile-download §2.3 IO 异常明确报错）
+            // P-6（2026-09-04 审查修正）：InvalidOperationException = 64MB 视频护栏受控业务异常（DeploymentPackageBuilder
+            // 抛）——必须落 PACKAGE_FAILED 而非 COMMAND_CRASH（错误码字典：受控业务失败归明确错误码）
             string deployZip;
             try
             {
                 deployZip = DeploymentPackageBuilder.Build(project, compileResult.OutputPath!, Path.Combine(projectDir, "output"));
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or InvalidOperationException)
             {
                 return CommandResult.Fail("PACKAGE_FAILED", $"部署包构建失败: {ex.Message}");
             }

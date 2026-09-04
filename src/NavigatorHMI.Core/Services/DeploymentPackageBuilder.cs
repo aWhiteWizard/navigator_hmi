@@ -16,7 +16,10 @@ namespace NavigatorHMI.Common
     /// 任意路径图片都收集文件本身入包 res/；目录内保留相对子目录，目录外 basename 唯一化）；
     /// 打包时改写 .navihmi 图片引用为包内相对 res 路径（FW resolveResPath 拼 <root>/res/ 加载，设备不关心 PC 路径）；
     /// RTSP 流 URL 不入包；瓦片收集保持工程目录内白名单。
-    /// 注：执行书目标含字体/本地视频收集，模型当前无对应字段（字体=字体族名非文件；Frame 视频源属 D 批）——三类可落地资源先行。
+    /// P-6（2026-09-04）：Frame 视频模式本地视频收集——入包 media/ 前缀（FW resolveVideoPath 拼 <工程目录>/media/ 加载，
+    /// .navihmi videoSource 改写为包内 rel）；单文件 >64MB 抛异常报错（用户裁决）；RTSP/http(s) 网络流不入包不改写（设备端直连）；
+    /// 目录外护栏同图片（视频扩展名白名单）。
+    /// 注：执行书目标含字体收集，模型当前无对应字段（字体=字体族名非文件）——可落地资源已全部实现。
     /// </summary>
     public static class DeploymentPackageBuilder
     {
@@ -25,6 +28,10 @@ namespace NavigatorHMI.Common
 
         /// <summary>manifest 条目类型：res（资源文件）。与 .fw 组件表（app/rootfs/kernel，2026-08-30 用户分组定稿）为两套独立枚举（compile-download §2.1 审查澄清）。</summary>
         public const string TypeRes = "res";
+
+        /// <summary>部署包上传上限（字节）——与 FW 端 httreceiver kMaxUploadBytes（64MB 单次 POST）对齐；
+        /// 视频单文件超限抛异常报错（用户裁决）、视频/瓦片总和超限 Trace 预警（整包仍会被 FW 拒收，V1.1 大包流式扩展项）。</summary>
+        private const long MaxUploadBytes = 64L * 1024 * 1024;
 
         /// <summary>manifest 条目（序列化 JSON；type 枚举 app/res 独立定义——本类内 manifest 专属）。</summary>
         public class ManifestEntry
@@ -81,6 +88,9 @@ namespace NavigatorHMI.Common
         /// <param name="navihmiPath">编译产物 .navihmi 绝对路径（已生成）</param>
         /// <param name="outputDir">输出目录（不存在自动创建）</param>
         /// <returns>部署包绝对路径（&lt;工程名&gt;.deploy.zip）</returns>
+        /// <exception cref="ArgumentNullException">project/navihmiPath/outputDir 为空</exception>
+        /// <exception cref="FileNotFoundException">编译产物不存在</exception>
+        /// <exception cref="InvalidOperationException">Frame 视频源单文件超过 64MB 上传上限（用户裁决报错）</exception>
         public static string Build(HMIProject project, string navihmiPath, string outputDir)
         {
             if (project == null) throw new ArgumentNullException(nameof(project));
@@ -104,17 +114,31 @@ namespace NavigatorHMI.Common
             // 用户语义授权「任意路径收集文件本身」；为防「打包任意系统文件」外传原语，目录外仅接受常见图片扩展名；
             // 工程目录内引用不受限（工程内资源用户自行管理）；AI 通道（update_widget imagePath 无净化）属既有
             // 缺口——见 4_bugs cli-param-sanitize 豁免场景限定，随护栏记录信任边界）
+            // P-6：Frame 视频源收集沿用同一信任边界（用户显式内容 + 视频扩展名白名单 videoExts），
+            // 目录外同样仅白名单扩展名可入包；AI 通道若后续开放 videoSource 需同步净化
             var imageExts = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
                 ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp", ".svg", ".ico"
             };
+            // P-6（2026-09-04）：Frame 视频源收集扩展名白名单（目录外护栏同图片——防「打包任意系统文件」外传原语；
+            // FW ffmpeg 后端解码能力 = buildroot ffmpeg all decoders，主流容器均支持）
+            // ⚠️ 依赖前提：videoExts 与 imageExts 必须互斥（共用 absPackMap/usedPackNames 的跨型同名安全依赖此前提——
+            // 若未来扩展名重叠，同 abs 文件会跨型复用包名/占用名导致静默错包；新增扩展名时须检查两侧）
+            var videoExts = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ".mp4", ".avi", ".mkv", ".mov", ".wmv", ".flv", ".ts", ".m4v", ".webm", ".mpg", ".mpeg", ".3gp"
+            };
 
-            // 解析单条图片引用 → (源绝对路径, 是否工程目录内)；不可收集（空/RTSP/../逃逸/目录外非图片扩展名/文件不存在）返回 null：
+            // 解析单条文件引用（图片/视频通用）→ (源绝对路径, 是否工程目录内)；不可收集（空/网络流 URL/../逃逸/目录外非白名单扩展名/文件不存在）返回 null：
             //   绝对路径（无 ..，用户文件对话框正常场景，O-A1）→ 目录外也收集；相对路径 ../ 逃逸 → 拦截（防目录穿越打包任意文件）
-            (string Abs, bool Inside)? ResolveFile(string path)
+            //   rtsp/http/https 网络流 URL → 显式拦截（不入包；视频场景设备端直连原值，图片场景本就无此语义）
+            (string Abs, bool Inside)? ResolveFile(string path, HashSet<string> exts)
             {
                 if (string.IsNullOrWhiteSpace(path)) return null;
-                if (path.StartsWith("rtsp://", StringComparison.OrdinalIgnoreCase)) return null;   // RTSP 流 URL 不入包
+                if (path.StartsWith("rtsp://", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+                    || path.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                    return null;   // 网络流 URL 不入包（与 skippedVideos 统计排除对称）
                 string abs;
                 try
                 {
@@ -129,7 +153,7 @@ namespace NavigatorHMI.Common
                 if (!inside)
                 {
                     if (!Path.IsPathRooted(path)) return null;                      // 相对路径解析越界（../ 逃逸）→ 拦截
-                    if (!imageExts.Contains(Path.GetExtension(abs))) return null;   // 目录外护栏：仅图片扩展名
+                    if (!exts.Contains(Path.GetExtension(abs))) return null;   // 目录外护栏：仅白名单扩展名
                 }
                 return (abs, inside);
             }
@@ -159,20 +183,32 @@ namespace NavigatorHMI.Common
             foreach (var list in project.Lists.Where(l => l.Type == ListType.Image))
                 imageRefs.AddRange(list.Items);
 
+            // P-6：Frame 视频源汇总（仅视频模式 Frame——ShowVideo 且 VideoSource 非空才收集；
+            // 非视频模式 Frame 即使残留 VideoSource（GUI 勾选关闭后旧源可仍在模型里）也不入列；
+            // RTSP/网络流引用会入列但 ResolveFile 显式拦截不入包不改写——设备端直连原值）
+            var videoRefs = new List<string>();
+            foreach (var screen in project.Screens)
+                foreach (var w in screen.Widgets)
+                    if (w is FrameWidget frv && frv.ShowVideo && !string.IsNullOrWhiteSpace(frv.VideoSource))
+                        videoRefs.Add(frv.VideoSource);
+
             // 两遍制收集（审查 🟡 修复：目录内引用优先——相对/规范名优先级高，防「目录内 a.png 与目录外 a.png 共存
             // 时由遍历序决定谁活」的收集次序依赖错图）：
             //   第一遍目录内（pack=工程内相对路径，规范名直接占用）；第二遍目录外绝对引用（basename，对已占名唯一化）。
-            // imagePathMap **无条件登记**（审查 🟡 修复：同一文件被相对/绝对两种拼写各引用一次时，pack 相同、
+            // pathMap **无条件登记**（审查 🟡 修复：同一文件被相对/绝对两种拼写各引用一次时，pack 相同、
             // resources 按 pack 去重第二次 TryAdd 失败——但两条引用都必须改写为包内路径，否则 .navihmi 残留
             // 盘符路径 → FW 拼错缺图（N+20 根因②模式））。
             // 目录外文件按 abs 缓存包名（复审 🟡：同一目录外文件被多条引用时复用同一包名——不按出现次数重复
             // 唯一化产生 name_2 孤儿条目，设备端不受影响但浪费体积/上传）
             var absPackMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            void CollectPass(bool wantInside)
+            void CollectPass(List<string> refs, HashSet<string> exts,
+                             Dictionary<string, string> pathMap,
+                             Dictionary<string, (string Abs, string Rel)> res,
+                             bool wantInside)
             {
-                foreach (var modelPath in imageRefs)
+                foreach (var modelPath in refs)
                 {
-                    var f = ResolveFile(modelPath);
+                    var f = ResolveFile(modelPath, exts);
                     if (f == null) continue;
                     if (f.Value.Inside != wantInside) continue;
                     string pack;
@@ -192,17 +228,42 @@ namespace NavigatorHMI.Common
                         }
                         // 复用已有包名（同文件多引用不重复入包）
                     }
-                    imagePathMap[modelPath] = pack;                 // map 无条件登记（多拼写各自登记）
-                    resources.TryAdd(pack, (f.Value.Abs, pack));    // 资源按 pack 去重（同 pack 同文件共用一份）
+                    pathMap[modelPath] = pack;                 // map 无条件登记（多拼写各自登记）
+                    res.TryAdd(pack, (f.Value.Abs, pack));    // 资源按 pack 去重（同 pack 同文件共用一份）
                 }
             }
-            CollectPass(wantInside: true);
-            CollectPass(wantInside: false);
+            CollectPass(imageRefs, imageExts, imagePathMap, resources, wantInside: true);
+            CollectPass(imageRefs, imageExts, imagePathMap, resources, wantInside: false);
+
+            // P-6：视频两遍收集（入包 media/ 前缀——FW resolveVideoPath 拼 <工程目录>/media/<rel> 加载）
+            var videos = new Dictionary<string, (string Abs, string Rel)>();
+            var videoPathMap = new Dictionary<string, string>();
+            CollectPass(videoRefs, videoExts, videoPathMap, videos, wantInside: true);
+            CollectPass(videoRefs, videoExts, videoPathMap, videos, wantInside: false);
+
+            // P-6 大小护栏（用户裁决 2026-09-02：本地视频 ≤64MB，超限**报错**——抛异常阻断打包，
+            // 与瓦片/图片的 Trace 警告不同：视频文件大、超限静默入包会让 FW 拒收整包且难排查）
+            foreach (var kv in videos)
+            {
+                var len = new FileInfo(kv.Value.Abs).Length;
+                if (len > MaxUploadBytes)
+                    throw new InvalidOperationException(
+                        $"视频文件超过 64MB 上传上限（{kv.Value.Abs}，{(len + 1024 * 1024 - 1) / (1024 * 1024)}MB）——请压缩视频或改用 RTSP 流地址");
+            }
 
             // 审查 🟡：跳过引用汇总 Trace（文件缺失/RTSP/目录外非图片扩展名/.. 逃逸——避免静默缺图无反馈，对齐瓦片 >64MB Trace 先例）
             int skippedRefs = imageRefs.Count(r => !string.IsNullOrEmpty(r) && !imagePathMap.ContainsKey(r));
             if (skippedRefs > 0)
                 System.Diagnostics.Trace.WriteLine($"[DeploymentPackageBuilder] 警告: {skippedRefs} 条图片引用未收集入包（文件缺失/RTSP 流/目录外非图片/.. 逃逸）——设备端将缺图，请检查引用路径");
+
+            // P-6：视频跳过引用 Trace——排除网络流（rtsp/http/https 是**正常不入包**模式，设备端直连，不算缺失）
+            int skippedVideos = videoRefs.Count(r => !string.IsNullOrEmpty(r)
+                && !r.StartsWith("rtsp://", StringComparison.OrdinalIgnoreCase)
+                && !r.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+                && !r.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+                && !videoPathMap.ContainsKey(r));
+            if (skippedVideos > 0)
+                System.Diagnostics.Trace.WriteLine($"[DeploymentPackageBuilder] 警告: {skippedVideos} 条视频引用未收集入包（文件缺失/目录外非视频扩展名/.. 逃逸）——设备端视频将无法播放，请检查视频源路径");
 
             // N-1：锁定视角底图（PC 编译时拼好的单张 PNG，worldmap_bg.png 在工程目录）——作为 res 随包下发，
             // FW 落盘工程目录后 HmiWorldMap 探测加载（有底图时瓦片层/模拟底图隐藏）
@@ -244,8 +305,14 @@ namespace NavigatorHMI.Common
                                 { lst.Items[i] = packName; changed = true; }
                         foreach (var sc in dto.Screens)
                             foreach (var w in sc.Widgets)
+                            {
                                 if (!string.IsNullOrEmpty(w.ImagePath) && imagePathMap.TryGetValue(w.ImagePath, out var packName))
                                 { w.ImagePath = packName; changed = true; }
+                                // P-6：Frame 视频源改写为包内相对路径（media 前缀由 FW resolveVideoPath 拼装；
+                                // RTSP/网络流不在 videoPathMap（ResolveFile 拦截）→ 原样保留，设备端直连）
+                                if (!string.IsNullOrEmpty(w.VideoSource) && videoPathMap.TryGetValue(w.VideoSource, out var vpack))
+                                { w.VideoSource = vpack; changed = true; }
+                            }
                         if (changed)
                         {
                             using var outMs = new MemoryStream();
@@ -292,6 +359,30 @@ namespace NavigatorHMI.Common
                         });
                     }
 
+                    // P-6：视频资源（target 保留 "media/..." 前缀——FW 落盘 <工程目录>/media/<rel>，
+                    // qmlgenerator resolveVideoPath 拼 media/ 加载；与 res/ 分开防图片同名资源冲突）
+                    long videoBytes = 0;
+                    foreach (var kv in videos)
+                    {
+                        var target = "media/" + kv.Value.Rel.Replace('\\', '/');
+                        var entry = zip.CreateEntry(target);
+                        using (var es = entry.Open())
+                        using (var fs = File.OpenRead(kv.Value.Abs))
+                            fs.CopyTo(es);
+                        videoBytes += new FileInfo(kv.Value.Abs).Length;
+                        manifest.Add(new ManifestEntry
+                        {
+                            Name = Path.GetFileName(kv.Value.Abs),
+                            Type = TypeRes,
+                            Target = target,
+                            Size = new FileInfo(kv.Value.Abs).Length,
+                            Sha256 = Sha256OfFile(kv.Value.Abs)
+                        });
+                    }
+                    // 视频总和护栏 Trace（单文件 >64MB 已在上游抛异常阻断；总和超限 FW 整包拒收——尽早提示）
+                    if (videoBytes > MaxUploadBytes)
+                        System.Diagnostics.Trace.WriteLine($"[DeploymentPackageBuilder] 警告: 视频共 {videoBytes / (1024 * 1024)}MB 超 64MB 上传上限，FW 将拒收——请压缩视频");
+
                     // M-3 ①：瓦片（target 保留根级 "tiles/..." 前缀——与 FW ZIP 直启格式一致；
                     // FW httreceiver 落盘按 target 到工程目录，单文件加载按同目录 tiles/ 探测）
                     long tilesBytes = 0;
@@ -314,7 +405,7 @@ namespace NavigatorHMI.Common
                     }
                     // 大小防护（M-3 ① 审查 🟡）：瓦片总和超 64MB 上传上限（FW kMaxUploadBytes）→ Trace 警告
                     //（zip 整体内存构建 + 单次 POST——超大瓦片集会在 FW 端被拒收，此处尽早提示）
-                    if (tilesBytes > 64L * 1024 * 1024)
+                    if (tilesBytes > MaxUploadBytes)
                         System.Diagnostics.Trace.WriteLine($"[DeploymentPackageBuilder] 警告: 瓦片共 {tilesBytes / (1024 * 1024)}MB 超 64MB 上传上限，FW 将拒收——请缩小离线瓦片范围");
 
                     // manifest.json（UTF-8 无 BOM；CamelCase 策略——与 FW 端 httreceiver 读取的 type/target/sha256 小写契约对齐，

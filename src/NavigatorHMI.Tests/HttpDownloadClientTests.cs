@@ -153,6 +153,29 @@ namespace NavigatorHMI.Tests
         }
 
         [Fact]
+        public void deploy_project_视频超64MB_返回PACKAGE_FAILED错误码()
+        {
+            // P-6 审查修正（2026-09-04）：>64MB 视频抛 InvalidOperationException（DeploymentPackageBuilder 护栏）须落
+            // PACKAGE_FAILED 而非 COMMAND_CRASH——DeployProjectHandler catch 白名单含 InvalidOperationException；
+            // 错误码字典：受控业务失败归明确错误码（reviewer 🟡 回归）
+            var project = new HMIProject { Name = "超限视频", ProjectFilePath = Path.Combine(_dir, "big.hmiproj") };
+            project.Screens.Add(new Screen { Name = "画面A", Type = ScreenType.Custom });
+            project.Tags.Add(new Tag { Name = "温度", DataType = TagDataType.FLOAT });
+            using (var fs = new FileStream(Path.Combine(_dir, "big.mp4"), FileMode.Create, FileAccess.Write))
+                fs.SetLength(64L * 1024 * 1024 + 1);   // 稀疏扩展（不实际写 64MB）
+            project.Screens[0].Widgets.Add(new FrameWidget { ObjectName = "fr1", ShowVideo = true, VideoSource = "big.mp4" });
+
+            var svc = new CommandService(project);
+            DeviceConnectionService.UseStub = true;
+            DeviceConnectionService.Disconnect();
+            svc.Execute("connect", new Dictionary<string, object?> { ["ip"] = "192.168.1.146", ["model"] = "NavigatorHMI-7" });
+
+            var result = svc.Execute("deploy_project", new Dictionary<string, object?> { ["device_ip"] = "192.168.1.146" });
+            Assert.False(result.Success);
+            Assert.Equal("PACKAGE_FAILED", result.ErrorCode);
+        }
+
+        [Fact]
         public async Task Deploy_进度回调_收到设备进度序列()
         {
             // D-B4：假设备按序返回进度 5→45→100（设备端接收→解压→完成），PC 轮询回调应依次收到

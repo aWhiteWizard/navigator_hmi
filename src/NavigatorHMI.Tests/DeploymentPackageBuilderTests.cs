@@ -7,6 +7,8 @@ namespace NavigatorHMI.Tests
 {
     /// <summary>
     /// K 循环 K-3b：部署包 zip 容器测试（manifest + 资源收集去重 + RTSP 不入包 + 路径穿越白名单）（2026-08-30）。
+    /// 后续扩充：M-3 ① 瓦片打包（2026-08-30）、O-A1 任意路径图片收集+引用改写（2026-08-30）、
+    /// P-6 Frame 视频收集（media/ 前缀 + 64MB 护栏 + RTSP 不入包，2026-09-04）。
     /// </summary>
     public class DeploymentPackageBuilderTests : IDisposable
     {
@@ -458,6 +460,130 @@ namespace NavigatorHMI.Tests
             var dir = Path.Combine(Path.GetTempPath(), "navihmi_" + tag + "_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(dir);
             return dir;
+        }
+
+        // ── P-6（2026-09-04）：Frame 视频模式本地视频收集（media/ 前缀 + 单文件 64MB 护栏 + RTSP 不入包）──
+
+        /// <summary>写一个含 Frame 视频控件（ShowVideo/VideoSource）的合法 .navihmi，供视频引用改写验证。</summary>
+        private void WriteValidNavihmiWithVideo(string videoSource, bool showVideo = true)
+        {
+            var dto = new NavihmiProject { Name = "部署测试", Version = "1.0" };
+            dto.Screens.Add(new NavihmiScreen
+            {
+                Name = "画面A",
+                Type = ScreenType.Custom,
+                Widgets = { new NavihmiWidget { ObjectName = "fr1", Type = NavihmiWidgetType.Frame, ShowVideo = showVideo, VideoSource = videoSource } }
+            });
+            using var ms = new MemoryStream();
+            Serializer.Serialize(ms, dto);
+            File.WriteAllBytes(_navihmiPath, ms.ToArray());
+        }
+
+        [Fact]
+        public void Frame视频模式本地视频_入包media前缀并改写navihmi引用()
+        {
+            WriteImage("demo.mp4", new byte[] { 0x10, 0x20, 0x30 });
+            _project.Screens[0].Widgets.Add(new FrameWidget { ObjectName = "fr1", ShowVideo = true, VideoSource = "demo.mp4" });
+            WriteValidNavihmiWithVideo("demo.mp4");
+
+            var zipPath = Build();
+            var files = ReadZip(zipPath);
+            Assert.Contains("media/demo.mp4", files.Select(f => f.Path));   // media/ 前缀（FW resolveVideoPath 拼 <工程目录>/media/ 加载）
+
+            // manifest 条目 target 保留 media/ 前缀
+            var manifestBytes = files.First(f => f.Path == "manifest.json").Bytes;
+            var manifest = JsonSerializer.Deserialize<List<DeploymentPackageBuilder.ManifestEntry>>(
+                System.Text.Encoding.UTF8.GetString(manifestBytes),
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+            Assert.Contains(manifest, m => m.Target == "media/demo.mp4" && m.Type == "res");
+
+            // .navihmi 内 videoSource 改写为包内 rel（无 media 前缀——FW 端拼装）
+            var dto = ReadNavihmiFromZip(files);
+            Assert.Equal("demo.mp4", dto.Screens[0].Widgets[0].VideoSource);
+        }
+
+        [Fact]
+        public void Frame视频RTSP流_不入包不改写_设备端直连()
+        {
+            const string rtsp = "rtsp://192.168.1.10:554/stream1";
+            _project.Screens[0].Widgets.Add(new FrameWidget { ObjectName = "fr1", ShowVideo = true, VideoSource = rtsp });
+            WriteValidNavihmiWithVideo(rtsp);
+
+            var zipPath = Build();
+            var files = ReadZip(zipPath);
+            Assert.DoesNotContain(files, f => f.Path.StartsWith("media/"));   // RTSP 不入包
+            var dto = ReadNavihmiFromZip(files);
+            Assert.Equal(rtsp, dto.Screens[0].Widgets[0].VideoSource);        // 原样保留（设备端直连）
+        }
+
+        [Fact]
+        public void 非视频模式Frame_不收集视频()
+        {
+            WriteImage("bg.png", new byte[] { 0x55 });
+            _project.Screens[0].Widgets.Add(new FrameWidget { ObjectName = "fr1", ShowVideo = false, ImagePath = "bg.png" });
+            WriteValidNavihmiWithVideo("", showVideo: false);
+
+            var zipPath = Build();
+            var files = ReadZip(zipPath);
+            Assert.DoesNotContain(files, f => f.Path.StartsWith("media/"));   // 无视频收集
+            Assert.Contains("res/bg.png", files.Select(f => f.Path));         // 普通 Frame 背景图仍按图收集
+        }
+
+        [Fact]
+        public void 目录外视频文件_入包media_basename唯一化()
+        {
+            var outsideDir = Path.Combine(Path.GetTempPath(), "navihmi_out_video_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(outsideDir);
+            var vid = Path.Combine(outsideDir, "clip.mp4");
+            File.WriteAllBytes(vid, new byte[] { 0x11, 0x22 });
+            try
+            {
+                _project.Screens[0].Widgets.Add(new FrameWidget { ObjectName = "fr1", ShowVideo = true, VideoSource = vid });
+                WriteValidNavihmiWithVideo(vid);
+
+                var zipPath = Build();
+                var files = ReadZip(zipPath);
+                Assert.Contains("media/clip.mp4", files.Select(f => f.Path));
+                var dto = ReadNavihmiFromZip(files);
+                Assert.Equal("clip.mp4", dto.Screens[0].Widgets[0].VideoSource);   // 目录外改写为 basename
+            }
+            finally { try { Directory.Delete(outsideDir, true); } catch { } }
+        }
+
+        [Fact]
+        public void 目录外非视频扩展名引用_拦截不入包()
+        {
+            // 目录外护栏同图片：仅视频扩展名白名单（防打包任意系统文件外传原语）
+            var outsideDir = Path.Combine(Path.GetTempPath(), "navihmi_out_exe_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(outsideDir);
+            var evil = Path.Combine(outsideDir, "payload.exe");
+            File.WriteAllBytes(evil, new byte[] { 0x44 });
+            try
+            {
+                _project.Screens[0].Widgets.Add(new FrameWidget { ObjectName = "fr1", ShowVideo = true, VideoSource = evil });
+                WriteValidNavihmiWithVideo(evil);
+
+                var zipPath = Build();
+                var files = ReadZip(zipPath);
+                Assert.DoesNotContain(files, f => f.Path.StartsWith("media/"));
+                var dto = ReadNavihmiFromZip(files);
+                Assert.Equal(evil, dto.Screens[0].Widgets[0].VideoSource);   // 未入映射 → 不改写（保持原值）
+            }
+            finally { try { Directory.Delete(outsideDir, true); } catch { } }
+        }
+
+        [Fact]
+        public void 视频超64MB_打包抛异常报错()
+        {
+            // 用户裁决（2026-09-02）：本地视频 ≤64MB，超限**报错**（抛异常阻断打包，与瓦片 Trace 警告不同）
+            WriteImage("big.mp4", new byte[] { 0x00 });
+            using (var fs = new FileStream(Path.Combine(_dir, "big.mp4"), FileMode.Create, FileAccess.Write))
+                fs.SetLength(64L * 1024 * 1024 + 1);   // 稀疏扩展，不实际写 64MB
+            _project.Screens[0].Widgets.Add(new FrameWidget { ObjectName = "fr1", ShowVideo = true, VideoSource = "big.mp4" });
+            WriteValidNavihmiWithVideo("big.mp4");
+
+            var ex = Assert.Throws<InvalidOperationException>(() => Build());
+            Assert.Contains("64MB", ex.Message);
         }
     }
 }
