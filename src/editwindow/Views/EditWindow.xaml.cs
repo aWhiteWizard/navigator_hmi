@@ -2415,6 +2415,17 @@ namespace NavigatorHMI.Views
             }
         }
 
+        // Q-6（2026-09-04 用户 Check）：HistoryView 变量表格——添加/删除行
+        private void AddHistoryTagRow_Click(object sender, RoutedEventArgs e) => _propertyViewModel.AddHistoryTagRow();
+        private void RemoveHistoryTagRow_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is FrameworkElement fe && fe.DataContext is PropertyViewModel.HistoryTagRowVM row)
+            {
+                _propertyViewModel.RemoveHistoryTagRow(row);
+                e.Handled = true;
+            }
+        }
+
         #endregion
 
         /// <summary>任务11：工具栏悬浮窗开关（退回内嵌）——开 → 显示内嵌球；关 → 隐藏。</summary>

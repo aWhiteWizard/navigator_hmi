@@ -391,6 +391,7 @@ namespace NavigatorHMI.Common
             Register<HistoryViewWidget>((hv, dto) =>
             {
                 dto.Type = NavihmiWidgetType.HistoryView; dto.HistoryTags = hv.Tags; dto.HistoryDbPath = hv.DbPath;
+                dto.HistoryTagTitles = hv.Titles;   // Q-6：列显示名平行 Tags（空=显示变量名）
             });
             return map;
         }

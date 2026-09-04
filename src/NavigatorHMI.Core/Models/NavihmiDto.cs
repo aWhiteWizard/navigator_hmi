@@ -147,5 +147,7 @@ namespace NavigatorHMI.Common
         // ── P-6 Frame 视频（75-76；2026-09-02）──
         [ProtoMember(75, IsRequired = true)] public bool ShowVideo { get; set; }  // Frame 视频模式（checkbox；false=普通 Frame）
         [ProtoMember(76)] public string VideoSource { get; set; } = "";           // Frame 视频源（本地路径打包/RTSP URL 不入包）
+        // ── Q-6 HistoryView 列显示名（77；2026-09-04 用户 Check：变量配置表格化 tag+title）──
+        [ProtoMember(77)] public List<string> HistoryTagTitles { get; set; } = new();   // 平行 HistoryTags[i] 的列显示名（空/缺省=显示变量名——老工程兼容）
     }
 }

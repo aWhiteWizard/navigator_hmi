@@ -1089,12 +1089,24 @@
             <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
             <Separator Margin="4,2"/>
             <TextBlock Text="历史" Style="{StaticResource PropGroupHeader}"/>
-            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <Label Grid.Column="0" Content="变量:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding HistoryTagsText, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"
-                         TextWrapping="Wrap" AcceptsReturn="False" ToolTip="历史变量（多变量逗号分隔；运行时在控件内下拉切换选变量看历史）" KeyDown="PropField_KeyDown"/>
-            </Grid>
-            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+            <!-- Q-6（2026-09-04 用户 Check）：变量配置表格化——每行：变量下拉 + Title 列显示名 + 删行；下加「添加变量」 -->
+            <ItemsControl ItemsSource="{Binding HistoryTagRows}" Margin="4,2">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Margin="0,1">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="22"/></Grid.ColumnDefinitions>
+                            <ComboBox Grid.Column="0" ItemsSource="{Binding DataContext.HistoryTagOptions, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                      DisplayMemberPath="Name" SelectedValue="{Binding Tag, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Name"
+                                      FontSize="10" Height="20" ToolTip="选择变量（历史记录变量列表）"/>
+                            <TextBox Grid.Column="1" Text="{Binding Title, UpdateSourceTrigger=LostFocus}" Margin="2,0" FontSize="10" Height="20"
+                                     ToolTip="列显示名（空 = 显示变量名本身）"/>
+                            <Button Grid.Column="2" Content="✕" FontSize="9" Width="20" Height="18" Click="RemoveHistoryTagRow_Click" ToolTip="删除此行"/>
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <Button Content="＋ 添加变量" Click="AddHistoryTagRow_Click" Margin="4,2" HorizontalAlignment="Left" Padding="8,2" FontSize="10"/>
+            <Grid Margin="4,2"><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="数据库:" Style="{StaticResource PropLabel}"/>
                 <TextBox Grid.Column="1" Text="{Binding HistoryDbPath, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" ToolTip="历史数据库路径（空=设备端默认 navihmi_history.db）" KeyDown="PropField_KeyDown"/>
             </Grid>
@@ -1121,6 +1133,8 @@
                 <Label Grid.Column="0" Content="边框色:" Style="{StaticResource PropLabel}"/>
                 <TextBox Grid.Column="1" Text="{Binding WindowBorderColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" KeyDown="PropField_KeyDown"/>
             </Grid>
+            <!-- Q-7（2026-09-04 用户 Check）：属性组按 windowType 显隐——UserView 专属组（StackPanel 纵排多子元素——裸 Grid 无 RowDefinitions 会全部叠放 Row0，审查 🔴 P1） -->
+            <StackPanel Visibility="{Binding IsUserView, Converter={StaticResource BoolToVisibilityConverter}}">
             <!-- UserView 显示开关 -->
             <TextBlock Text="UserView 显示" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -1135,6 +1149,9 @@
                 <Label Grid.Column="0" Content="运行模式:" Style="{StaticResource PropLabel}"/>
                 <CheckBox Grid.Column="1" IsChecked="{Binding WindowShowMode}" VerticalAlignment="Center"/>
             </Grid>
+            </StackPanel>
+            <!-- Q-7：AlarmView 专属组 -->
+            <StackPanel Visibility="{Binding IsAlarmView, Converter={StaticResource BoolToVisibilityConverter}}">
             <!-- AlarmView -->
             <TextBlock Text="AlarmView" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -1153,6 +1170,9 @@
                 <Label Grid.Column="0" Content="含历史:" Style="{StaticResource PropLabel}"/>
                 <CheckBox Grid.Column="1" IsChecked="{Binding WindowShowHistory}" VerticalAlignment="Center" ToolTip="false=仅活动报警（旧字段兼容；新工程用上方显示模式）"/>
             </Grid>
+            </StackPanel>
+            <!-- Q-7：RobotList 专属组 -->
+            <StackPanel Visibility="{Binding IsRobotList, Converter={StaticResource BoolToVisibilityConverter}}">
             <!-- RobotList：卡片尺寸 + 信息开关 + 绑定设备 + 选中变量 -->
             <TextBlock Text="RobotList 卡片" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -1196,6 +1216,7 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
+            </StackPanel>
         </StackPanel></DataTemplate>
     </Window.Resources>
 

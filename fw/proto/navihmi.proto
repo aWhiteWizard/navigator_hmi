@@ -279,6 +279,7 @@ message Widget {
   // P-6 Frame 视频（75-76；2026-09-02）
   bool show_video = 75;                 // Frame 视频模式（checkbox；false=普通 Frame）
   string video_source = 76;             // Frame 视频源（本地路径打包入包 / RTSP URL 不入包）
+  repeated string history_tag_titles = 77;   // Q-6: HistoryView 各变量列显示名（平行 history_tags[i]; 空=显示变量名）
 }
 
 message RobotSlotBinding {

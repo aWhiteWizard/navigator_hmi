@@ -23,5 +23,11 @@ namespace NavigatorHMI.Common
         /// <summary>数据库路径（可配置；默认设备端 navihmi_history.db）。</summary>
         [ProtoMember(2)]
         public string DbPath { get => _dbPath; set { _dbPath = value; OnPropertyChanged(); } }
+
+        private List<string> _titles = new();
+        /// <summary>Q-6（2026-09-04 用户 Check）：各变量的列显示名（平行于 <see cref="Tags"/>——Titles[i] 对应 Tags[i]；
+        /// 空/缺省 = 显示变量名本身（老工程无 titles 兼容）。PC 属性表格 tag+title 两列编辑。</summary>
+        [ProtoMember(3)]
+        public List<string> Titles { get => _titles; set { _titles = value; OnPropertyChanged(); } }
     }
 }

@@ -206,6 +206,7 @@ namespace NavigatorHMI.ViewModels
             OnPropertyChanged(nameof(IsMultiSelect));
             OnPropertyChanged(nameof(IsPropertyVisible));
             OnPropertyChanged(nameof(WidgetTypeName));
+            NotifyWindowTypeFlags();   // Q-7：切走/清空/多选路径统一复位（防残留旧值；选中 window 时 case 分支已刷过）
         }
 
         /// <summary>反射读取控件属性（无该属性/类型不符返回 null）。</summary>
@@ -265,6 +266,7 @@ namespace NavigatorHMI.ViewModels
                     OnPropertyChanged(nameof(IsTextWidget));
                     OnPropertyChanged(nameof(IsRectangleWidget));
                     OnPropertyChanged(nameof(IsWorldMapScreen));
+                    NotifyWindowTypeFlags();   // Q-7 审查 🟡 S1：选画面时 _selectedWidget 置空 → 分组 flag 复位（闭合「任何选中变化都复位」）
                      SelectedObjectType = value != null ? PropertyTargetType.Screen : PropertyTargetType.None;
                      OnPropertyChanged(nameof(SelectedObjectType));
                 }
@@ -299,6 +301,7 @@ namespace NavigatorHMI.ViewModels
                     OnPropertyChanged(nameof(IsWidgetSelected));
                     OnPropertyChanged(nameof(IsScreenSelected));
                     OnPropertyChanged(nameof(WidgetTypeName));
+                    NotifyWindowTypeFlags();   // Q-7：任何控件切换都刷分组 flag（选中 window 时按类型显隐，切走复位 false）
                     RefreshEventBar(value);
 
                      SelectedObjectType = value switch
@@ -533,6 +536,10 @@ namespace NavigatorHMI.ViewModels
                     break;
                 case nameof(WindowWidget.SelectedTag):
                     if (_selectedWidget is WindowWidget ws) WindowSelectedTag = ws.SelectedTag;
+                    break;
+                case nameof(WindowWidget.Type):
+                    // Q-7 审查 🔴 P2：set_property windowType（CLI/AI 运行期改窗口类型）→ 分组 flag 实时刷新
+                    NotifyWindowTypeFlags();
                     break;
             }
             }
@@ -1990,6 +1997,17 @@ namespace NavigatorHMI.ViewModels
 
         /// <summary>W4 设备列表（RobotList BoundDevice 两态过滤用）。</summary>
         public System.Collections.ObjectModel.ObservableCollection<string> WindowDevices { get; } = new();
+        // ── Q-7（2026-09-04 用户 Check）：Window 属性组按 windowType 显隐（PropWindow 分组 Visibility 绑）──
+        public bool IsAlarmView => _selectedWidget is WindowWidget w && w.Type == WindowType.AlarmView;
+        public bool IsUserView => _selectedWidget is WindowWidget w && w.Type == WindowType.UserView;
+        public bool IsRobotList => _selectedWidget is WindowWidget w && w.Type == WindowType.RobotList;
+        private void NotifyWindowTypeFlags()
+        {
+            OnPropertyChanged(nameof(IsAlarmView));
+            OnPropertyChanged(nameof(IsUserView));
+            OnPropertyChanged(nameof(IsRobotList));
+        }
+
         public void RefreshWindowDevices()
         {
             WindowDevices.Clear();
