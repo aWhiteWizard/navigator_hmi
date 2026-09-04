@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
@@ -36,14 +36,14 @@ namespace NavigatorHMI.ViewModels
         DateTimeWidget,
         WindowWidget,
         PolygonWidget,   // 世界地图批 3：多边形
-        TrendChartWidget,   // P-4：趋势图控件（2026-09-02）
+        TrendViewWidget,   // P-4：趋势图控件（2026-09-02）
         HistoryViewWidget   // P-5：历史记录控件（2026-09-02）
     }
 
     /// <summary>
     /// 属性窗口的 ViewModel，持有当前选中的 Widget 或 Screen 并暴露其属性供绑定。
     /// P-2d（2026-09-02）：改 partial——本批仅开放 partial 能力（存量区段拆分随各批落地），
-    /// 新控件属性（TrendChart 等）落独立 partial 文件（PropertyViewModel.TrendChart.cs），
+    /// 新控件属性（TrendView 等）落独立 partial 文件（PropertyViewModel.TrendView.cs），
     /// 不再堆入主文件（v1.1-design §5.3「改什么拆什么」；partial 各部分同 namespace/同访问级别，
     /// INotifyPropertyChanged 在主文件一处声明即对整个类生效）。
     /// </summary>
@@ -321,7 +321,7 @@ namespace NavigatorHMI.ViewModels
                          DateTimeWidget => PropertyTargetType.DateTimeWidget,
                          WindowWidget => PropertyTargetType.WindowWidget,
                          PolygonWidget => PropertyTargetType.PolygonWidget,   // 世界地图批 3
-                         TrendChartWidget => PropertyTargetType.TrendChartWidget,   // P-4
+                         TrendViewWidget => PropertyTargetType.TrendViewWidget,   // P-4
                          HistoryViewWidget => PropertyTargetType.HistoryViewWidget,   // P-5
                          _ => PropertyTargetType.None
                      };
@@ -375,7 +375,7 @@ namespace NavigatorHMI.ViewModels
                     RefreshRobotSlots();   // WindowBoundDevice setter 内已刷新变量列表（去重）
                     break;
                 case PolygonWidget pg: PolygonFillColor = pg.FillColor; PolygonStrokeColor = pg.StrokeColor; PolygonStrokeThickness = pg.StrokeThickness; break;
-                case TrendChartWidget tc: LoadTrendChartProperties(tc); break;   // P-4：属性在 partial 文件（PropertyViewModel.TrendChart.cs）
+                case TrendViewWidget tc: LoadTrendViewProperties(tc); break;   // P-4：属性在 partial 文件（PropertyViewModel.TrendView.cs）
                 case HistoryViewWidget hv: LoadHistoryViewProperties(hv); break;   // P-5：属性在 partial 文件（PropertyViewModel.HistoryView.cs）
                         }
 
@@ -2026,7 +2026,9 @@ namespace NavigatorHMI.ViewModels
             }
         }
 
-        /// <summary>RobotSlotRowVM 写回：槽位 i 的绑定变量 → ww.RobotSlots[i] 对应字段。</summary>
+        /// <summary>RobotSlotRowVM 写回：槽位 i 的绑定变量 → ww.RobotSlots[i] 对应字段。
+        /// Q-2（2026-09-04 Check 审查修复）：RobotSlotBinding 为独立 INPC 对象（Widget 订阅链不覆盖）+ List<> 增补无通知
+        /// → 必须显式 DirtyRequested（此前仅 BeforeModify 快照，IsDirty 不置 → 关闭无提示改动静默丢失）。</summary>
         public void SetRobotSlotTag(int index, string tag)
         {
             if (_selectedWidget is not WindowWidget ww || index < 0) return;
@@ -2041,6 +2043,7 @@ namespace NavigatorHMI.ViewModels
                 case 3: b.DetailTag = tag; break;
                 default: b.OperTag = tag; break;
             }
+            DirtyRequested?.Invoke();   // Q-2：显式标脏（POCO/嵌套对象组纪律——对齐作业点行 OnWorkPointRowChanged）
         }
         public string DateTimeFormat { get => _dateTimeFormat; set { if (_dateTimeFormat != value) { _dateTimeFormat = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is DateTimeWidget dt) { dt.Format = value; } } } }   // 任务 7：改格式不写 Text——DisplayText 绑定分支按 Format 格式化基准值、未绑定分支 FormatNow 实时（两分支自动联动）
 

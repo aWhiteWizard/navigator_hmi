@@ -1,4 +1,4 @@
-using ProtoBuf;
+﻿using ProtoBuf;
 
 namespace NavigatorHMI.Common
 {
@@ -72,7 +72,7 @@ namespace NavigatorHMI.Common
             // 3a-P4. 校验（P-4，2026-09-02）：趋势图 TrendTagA/B 变量存在性 + 数值类型（TagCompatibility.Numeric 口径）
             foreach (var screen in project.Screens)
                 foreach (var w in screen.Widgets)
-                    if (w is TrendChartWidget tc)
+                    if (w is TrendViewWidget tc)
                     {
                         var tags = project.Tags;
                         if (!string.IsNullOrEmpty(tc.TrendTagA) && !tagNames.Contains(tc.TrendTagA))
@@ -155,6 +155,34 @@ namespace NavigatorHMI.Common
                                     result.Errors.Add($"世界地图事件 {ev.Type} 的跳转目标 \"{worldMapScreenName}\" 指向设备端不含的世界地图");
                 }
             }
+
+            // 3f. 校验（Q-4，2026-09-04 用户裁决：>64MB 本地视频「打包应该编译的时候做」——编译即报错，
+            //     部署打包侧护栏保留双保险）：Frame 视频模式本地源单文件 >64MB（上限 = DeploymentPackageBuilder.MaxUploadBytes，
+            //     对齐 FW kMaxUploadBytes 拒收）→ 编译错误；网络流（rtsp/http/https）不入包不校验；
+            //     文件缺失不报（部署链路缺失 Trace 语义不变——此处只管已存在文件的超限）
+            string? projDirForVideo = Path.GetDirectoryName(project.ProjectFilePath);
+            if (string.IsNullOrEmpty(projDirForVideo)) projDirForVideo = ".";
+            foreach (var screen in project.Screens)
+                foreach (var w in screen.Widgets)
+                    if (w is FrameWidget fv && fv.ShowVideo && !string.IsNullOrWhiteSpace(fv.VideoSource)
+                        && !fv.VideoSource.StartsWith("rtsp://", StringComparison.OrdinalIgnoreCase)
+                        && !fv.VideoSource.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+                        && !fv.VideoSource.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string abs;
+                        try
+                        {
+                            abs = Path.IsPathRooted(fv.VideoSource)
+                                ? Path.GetFullPath(fv.VideoSource)
+                                : Path.GetFullPath(Path.Combine(projDirForVideo, fv.VideoSource));
+                        }
+                        catch { continue; }
+                        if (!File.Exists(abs)) continue;
+                        var vlen = new FileInfo(abs).Length;
+                        if (vlen > DeploymentPackageBuilder.MaxUploadBytes)
+                            result.Errors.Add($"画面 \"{screen.Name}\" 控件 \"{w.ObjectName}\" 视频源 \"{fv.VideoSource}\" "
+                                + $"超过 64MB 上传上限（{(vlen + 1024 * 1024 - 1) / (1024 * 1024)}MB）——请压缩视频或改用 RTSP 流");
+                    }
 
             if (result.HasErrors)
                 return result;
@@ -341,9 +369,9 @@ namespace NavigatorHMI.Common
                 dto.FillColor = pg.FillColor; dto.StrokeColor = pg.StrokeColor; dto.StrokeThickness = pg.StrokeThickness;
                 dto.Points = pg.Points;
             });
-            Register<TrendChartWidget>((tc, dto) =>
+            Register<TrendViewWidget>((tc, dto) =>
             {
-                dto.Type = NavihmiWidgetType.TrendChart; dto.TrendMode = (int)tc.TrendMode;
+                dto.Type = NavihmiWidgetType.TrendView; dto.TrendMode = (int)tc.TrendMode;
                 dto.TrendTagA = tc.TrendTagA; dto.TrendTagB = tc.TrendTagB;
                 dto.SampleIntervalMs = tc.SampleIntervalMs; dto.TimeWindowSeconds = tc.TimeWindowSeconds;
                 dto.LineColor = tc.LineColor; dto.LineWidth = tc.LineWidth; dto.RefreshRateMs = tc.RefreshRateMs;

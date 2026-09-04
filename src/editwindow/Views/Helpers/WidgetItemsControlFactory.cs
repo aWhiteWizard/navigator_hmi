@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Windows;
@@ -38,7 +38,7 @@ namespace NavigatorHMI.Views.Helpers
         public DataTemplate DefaultTemplate { get; set; } = null!;
     public DataTemplate WindowTemplate { get; set; } = null!;   // W4：窗口控件（UserView/AlarmView/RobotList）
     public DataTemplate PolygonTemplate { get; set; } = null!;   // 世界地图批 3：多边形
-    public DataTemplate TrendChartTemplate { get; set; } = null!;   // P-4：趋势图（PC 静态占位预览）
+    public DataTemplate TrendViewTemplate { get; set; } = null!;   // P-4：趋势图（PC 静态占位预览）
     public DataTemplate HistoryViewTemplate { get; set; } = null!;   // P-5：历史记录（PC 静态占位预览）
 
         /// <summary>
@@ -67,7 +67,7 @@ namespace NavigatorHMI.Views.Helpers
                 DateTimeWidget => DateTimeTemplate,
                 WindowWidget => WindowTemplate,
                 PolygonWidget => PolygonTemplate,
-                TrendChartWidget => TrendChartTemplate,   // P-4
+                TrendViewWidget => TrendViewTemplate,   // P-4
                 HistoryViewWidget => HistoryViewTemplate,   // P-5
                 RectangleWidget => DefaultTemplate,
                 _ => DefaultTemplate
@@ -138,7 +138,7 @@ namespace NavigatorHMI.Views.Helpers
                 DefaultTemplate = CreateRectangleTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
                 WindowTemplate = CreateWindowTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
                 PolygonTemplate = CreatePolygonTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),
-                TrendChartTemplate = CreateTrendChartTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),   // P-4
+                TrendViewTemplate = CreateTrendViewTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler),   // P-4
                 HistoryViewTemplate = CreateHistoryViewTemplate(clickHandler, previewMouseLeftButtonDownHandler, mouseLeftButtonDownHandler, mouseMoveHandler, mouseLeftButtonUpHandler, previewMouseRightButtonDownHandler, mouseRightButtonUpHandler)   // P-5
             };
 
@@ -516,7 +516,7 @@ namespace NavigatorHMI.Views.Helpers
 
         /// <summary>P-4：趋势图模板——PC 静态占位预览（设计态无实时数据）：浅底 + 标题（ObjectName/模式/绑变量）
         /// + 模拟折线（示意曲线形态，不绑定数据——运行时由 FW 渲染真实曲线）。</summary>
-        private static DataTemplate CreateTrendChartTemplate(RoutedEventHandler click, MouseButtonEventHandler pmLBD, MouseButtonEventHandler mLBD,
+        private static DataTemplate CreateTrendViewTemplate(RoutedEventHandler click, MouseButtonEventHandler pmLBD, MouseButtonEventHandler mLBD,
             MouseEventHandler mMove, MouseButtonEventHandler mLBU, MouseButtonEventHandler pmRBD, MouseButtonEventHandler mRBU)
         {
             var dt = new DataTemplate();

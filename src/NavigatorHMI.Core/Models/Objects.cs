@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using ProtoBuf;
@@ -132,7 +132,7 @@ namespace NavigatorHMI.Common
 [ProtoInclude(115, typeof(DateTimeWidget))]
 [ProtoInclude(116, typeof(WindowWidget))]
 [ProtoInclude(117, typeof(PolygonWidget))]
-[ProtoInclude(118, typeof(TrendChartWidget))]   // P-4：趋势图控件（2026-09-02）
+[ProtoInclude(118, typeof(TrendViewWidget))]   // P-4：趋势图控件（2026-09-02）
 [ProtoInclude(119, typeof(HistoryViewWidget))]   // P-5：历史记录控件（2026-09-02）
 public abstract class Widget : INotifyPropertyChanged
 {
@@ -758,7 +758,7 @@ public enum TrendMode
 /// LineColor/LineWidth（曲线样式）、RefreshRate（刷新率 ms）。
 /// </summary>
 [ProtoContract]
-public class TrendChartWidget : Widget
+public class TrendViewWidget : Widget
 {
     private TrendMode _trendMode = TrendMode.TimeSeries;
     /// <summary>趋势模式（时间-数据=0 默认 / 变量A-B=1）</summary>

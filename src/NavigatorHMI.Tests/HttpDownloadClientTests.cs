@@ -153,11 +153,11 @@ namespace NavigatorHMI.Tests
         }
 
         [Fact]
-        public void deploy_project_视频超64MB_返回PACKAGE_FAILED错误码()
+        public void deploy_project_视频超64MB_编译失败拒绝传输()
         {
-            // P-6 审查修正（2026-09-04）：>64MB 视频抛 InvalidOperationException（DeploymentPackageBuilder 护栏）须落
-            // PACKAGE_FAILED 而非 COMMAND_CRASH——DeployProjectHandler catch 白名单含 InvalidOperationException；
-            // 错误码字典：受控业务失败归明确错误码（reviewer 🟡 回归）
+            // Q-4（2026-09-04 用户裁决「打包应该编译的时候做」）：>64MB 视频在**编译阶段**拦截——
+            // deploy_project 前置编译门禁报 COMPILE_FAILED（不再走到部署打包 PACKAGE_FAILED；
+            // 打包器 64MB 护栏保留双保险，由 DeploymentPackageBuilderTests 单测覆盖）
             var project = new HMIProject { Name = "超限视频", ProjectFilePath = Path.Combine(_dir, "big.hmiproj") };
             project.Screens.Add(new Screen { Name = "画面A", Type = ScreenType.Custom });
             project.Tags.Add(new Tag { Name = "温度", DataType = TagDataType.FLOAT });
@@ -172,7 +172,7 @@ namespace NavigatorHMI.Tests
 
             var result = svc.Execute("deploy_project", new Dictionary<string, object?> { ["device_ip"] = "192.168.1.146" });
             Assert.False(result.Success);
-            Assert.Equal("PACKAGE_FAILED", result.ErrorCode);
+            Assert.Equal("COMPILE_FAILED", result.ErrorCode);
         }
 
         [Fact]

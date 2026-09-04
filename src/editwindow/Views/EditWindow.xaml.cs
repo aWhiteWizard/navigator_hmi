@@ -2575,12 +2575,13 @@ namespace NavigatorHMI.Views
         /// </summary>
         private void MarkProjectDirty()
         {
-            // K 循环 K-1d：窗口级脏标记迁移模型级（IsDirty 唯一真源）；标题星号仅在 clean→dirty 跳变时更新（与旧窗口级逻辑等价）
-            if (_currentProject?.IsDirty != true)
-            {
-                _currentProject?.MarkDirty();
-                this.Title = _currentProject.ProjectFilePath + "*";
-            }
+            // Q-2（2026-09-04 Check 审查修复）：**无条件刷标题**（MarkDirty 幂等）——原 `if (IsDirty != true)` 分支
+            // 使「模型先置脏、UI 脏回调后到」的路径标题星号不更新：B1 属性 setter 先写模型（HMIProject setter 自 MarkDirty）
+            // 再 DirtyRequested → 跳变分支短路（B1 不标脏实测根因）；命令层根集合/根标量命令首脏同源。无条件执行消除顺序耦合
+            //（Save 路径由 SaveProject 清标题；标题 DP 同值重复赋值等值短路无副作用——可接受每属性改都触发）
+            if (_currentProject == null) return;
+            _currentProject.MarkDirty();
+            this.Title = _currentProject.ProjectFilePath + "*";
         }
 
 
@@ -3441,7 +3442,7 @@ namespace NavigatorHMI.Views
                 "AlarmView" => new WindowWidgetCreator(WindowType.AlarmView),
                 "RobotList" => new WindowWidgetCreator(WindowType.RobotList),
                 "Polygon" => new PolygonWidgetCreator(),
-                "TrendChart" => new TrendChartWidgetCreator(),   // P-4：趋势图（单点式）
+                "TrendView" => new TrendViewWidgetCreator(),   // P-4：趋势图（单点式）
                 "HistoryView" => new HistoryViewWidgetCreator(),   // P-5：历史记录（单点式）
                 _ => null
             };

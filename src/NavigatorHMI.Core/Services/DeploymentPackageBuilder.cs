@@ -30,8 +30,9 @@ namespace NavigatorHMI.Common
         public const string TypeRes = "res";
 
         /// <summary>部署包上传上限（字节）——与 FW 端 httreceiver kMaxUploadBytes（64MB 单次 POST）对齐；
-        /// 视频单文件超限抛异常报错（用户裁决）、视频/瓦片总和超限 Trace 预警（整包仍会被 FW 拒收，V1.1 大包流式扩展项）。</summary>
-        private const long MaxUploadBytes = 64L * 1024 * 1024;
+        /// 视频单文件超限抛异常报错（用户裁决）、视频/瓦片总和超限 Trace 预警（整包仍会被 FW 拒收，V1.1 大包流式扩展项）。
+        /// internal（Q-4 2026-09-04）：ProjectGenerator 编译校验复用——64MB 上限单一来源。</summary>
+        internal const long MaxUploadBytes = 64L * 1024 * 1024;
 
         /// <summary>manifest 条目（序列化 JSON；type 枚举 app/res 独立定义——本类内 manifest 专属）。</summary>
         public class ManifestEntry

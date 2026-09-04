@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using NavigatorHMI.Common;
 using ProtoBuf;
 
@@ -66,7 +66,7 @@ namespace NavigatorHMI.Tests
             yield return new object[] { new DateTimeWidget(), NavihmiWidgetType.DateTime };
             yield return new object[] { new WindowWidget { Type = WindowType.UserView }, NavihmiWidgetType.Window };
             yield return new object[] { new PolygonWidget(), NavihmiWidgetType.Polygon };
-            yield return new object[] { new TrendChartWidget(), NavihmiWidgetType.TrendChart };
+            yield return new object[] { new TrendViewWidget(), NavihmiWidgetType.TrendView };
             yield return new object[] { new HistoryViewWidget(), NavihmiWidgetType.HistoryView };
         }
 

@@ -1,12 +1,12 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Linq;
 using NavigatorHMI.Common;
 
 namespace NavigatorHMI.ViewModels
 {
     // ═══════════════════════════════════════════
-    // P-4 趋势图控件属性（TrendChartWidget，2026-09-02）
-    // partial 拆分（P-2d 铺垫）：TrendChart 专属属性/装载/回写独立文件，不再堆入主文件
+    // P-4 趋势图控件属性（TrendViewWidget，2026-09-02）
+    // partial 拆分（P-2d 铺垫）：TrendView 专属属性/装载/回写独立文件，不再堆入主文件
     // ═══════════════════════════════════════════
     public partial class PropertyViewModel
     {
@@ -31,7 +31,7 @@ namespace NavigatorHMI.ViewModels
                 {
                     _trendMode = value;
                     OnPropertyChanged();
-                    if (!_syncingFromModel) { BeforeModify?.Invoke(); if (_selectedWidget is TrendChartWidget tc) tc.TrendMode = value; }
+                    if (!_syncingFromModel) { BeforeModify?.Invoke(); if (_selectedWidget is TrendViewWidget tc) tc.TrendMode = value; }
                     OnPropertyChanged(nameof(IsXyMode));
                     OnPropertyChanged(nameof(IsTimeSeriesMode));
                 }
@@ -58,7 +58,7 @@ namespace NavigatorHMI.ViewModels
                 {
                     _trendTagA = mapped;
                     OnPropertyChanged();
-                    if (!_syncingFromModel) { BeforeModify?.Invoke(); if (_selectedWidget is TrendChartWidget tc) tc.TrendTagA = mapped; }
+                    if (!_syncingFromModel) { BeforeModify?.Invoke(); if (_selectedWidget is TrendViewWidget tc) tc.TrendTagA = mapped; }
                 }
             }
         }
@@ -77,7 +77,7 @@ namespace NavigatorHMI.ViewModels
                 {
                     _trendTagB = mapped;
                     OnPropertyChanged();
-                    if (!_syncingFromModel) { BeforeModify?.Invoke(); if (_selectedWidget is TrendChartWidget tc) tc.TrendTagB = mapped; }
+                    if (!_syncingFromModel) { BeforeModify?.Invoke(); if (_selectedWidget is TrendViewWidget tc) tc.TrendTagB = mapped; }
                 }
             }
         }
@@ -95,7 +95,7 @@ namespace NavigatorHMI.ViewModels
                 {
                     _sampleIntervalMs = v;
                     OnPropertyChanged();
-                    if (!_syncingFromModel) { BeforeModify?.Invoke(); if (_selectedWidget is TrendChartWidget tc) tc.SampleIntervalMs = v; }
+                    if (!_syncingFromModel) { BeforeModify?.Invoke(); if (_selectedWidget is TrendViewWidget tc) tc.SampleIntervalMs = v; }
                 }
             }
         }
@@ -113,7 +113,7 @@ namespace NavigatorHMI.ViewModels
                 {
                     _timeWindowSeconds = v;
                     OnPropertyChanged();
-                    if (!_syncingFromModel) { BeforeModify?.Invoke(); if (_selectedWidget is TrendChartWidget tc) tc.TimeWindowSeconds = v; }
+                    if (!_syncingFromModel) { BeforeModify?.Invoke(); if (_selectedWidget is TrendViewWidget tc) tc.TimeWindowSeconds = v; }
                 }
             }
         }
@@ -130,7 +130,7 @@ namespace NavigatorHMI.ViewModels
                 {
                     _lineColor = value;
                     OnPropertyChanged();
-                    if (!_syncingFromModel) { BeforeModify?.Invoke(); if (_selectedWidget is TrendChartWidget tc) tc.LineColor = value; }
+                    if (!_syncingFromModel) { BeforeModify?.Invoke(); if (_selectedWidget is TrendViewWidget tc) tc.LineColor = value; }
                 }
             }
         }
@@ -147,7 +147,7 @@ namespace NavigatorHMI.ViewModels
                 {
                     _lineWidth = value;
                     OnPropertyChanged();
-                    if (!_syncingFromModel) { BeforeModify?.Invoke(); if (_selectedWidget is TrendChartWidget tc) tc.LineWidth = value; }
+                    if (!_syncingFromModel) { BeforeModify?.Invoke(); if (_selectedWidget is TrendViewWidget tc) tc.LineWidth = value; }
                 }
             }
         }
@@ -165,13 +165,13 @@ namespace NavigatorHMI.ViewModels
                 {
                     _refreshRateMs = v;
                     OnPropertyChanged();
-                    if (!_syncingFromModel) { BeforeModify?.Invoke(); if (_selectedWidget is TrendChartWidget tc) tc.RefreshRateMs = v; }
+                    if (!_syncingFromModel) { BeforeModify?.Invoke(); if (_selectedWidget is TrendViewWidget tc) tc.RefreshRateMs = v; }
                 }
             }
         }
 
-        /// <summary>P-4：TrendChartWidget 装载（SelectedWidget setter 内调用；_syncingFromModel 保护防回写）。</summary>
-        private void LoadTrendChartProperties(TrendChartWidget tc)
+        /// <summary>P-4：TrendViewWidget 装载（SelectedWidget setter 内调用；_syncingFromModel 保护防回写）。</summary>
+        private void LoadTrendViewProperties(TrendViewWidget tc)
         {
             TrendMode = tc.TrendMode;
             TrendTagA = tc.TrendTagA;

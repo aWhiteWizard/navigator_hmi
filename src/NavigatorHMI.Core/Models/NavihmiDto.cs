@@ -1,4 +1,4 @@
-using ProtoBuf;
+﻿using ProtoBuf;
 
 namespace NavigatorHMI.Common
 {
@@ -10,7 +10,7 @@ namespace NavigatorHMI.Common
         CheckBox = 11, TextList = 12, Frame = 13, ProgressBar = 14, DateTime = 15,
         Window = 16,   // W1：窗口控件（UserView/AlarmView/RobotList）
         Polygon = 17,   // 多边形
-        TrendChart = 18,   // P-4：趋势图控件（2026-09-02）
+        TrendView = 18,   // P-4：趋势图控件（2026-09-02）
         HistoryView = 19   // P-5：历史记录控件（2026-09-02，枚举一次到位）
     }
 
@@ -133,7 +133,7 @@ namespace NavigatorHMI.Common
         // ── 多边形（64）──
         [ProtoMember(64)] public List<PointD> Points { get; set; } = new();       // Polygon 顶点画面坐标
         // ── P-4 趋势图（65-72，与 proto 对齐；2026-09-02）──
-        [ProtoMember(65)] public int TrendMode { get; set; }                     // TrendChart：0=时间-数据 1=变量A-B（零值=0）
+        [ProtoMember(65)] public int TrendMode { get; set; }                     // TrendView：0=时间-数据 1=变量A-B（零值=0）
         [ProtoMember(66)] public string TrendTagA { get; set; } = "";            // 趋势变量 A
         [ProtoMember(67)] public string TrendTagB { get; set; } = "";            // 趋势变量 B（变量A-B模式）
         [ProtoMember(68)] public int SampleIntervalMs { get; set; }              // 采样间隔 ms（默认 1000——零值由 FW 兜底默认）

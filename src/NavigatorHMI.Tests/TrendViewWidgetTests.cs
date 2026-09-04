@@ -1,14 +1,14 @@
-using NavigatorHMI.CommandLayer;
+﻿using NavigatorHMI.CommandLayer;
 using NavigatorHMI.Common;
 using ProtoBuf;
 
 namespace NavigatorHMI.Tests
 {
     /// <summary>
-    /// P 循环 P-4（2026-09-02）：趋势图控件 TrendChart PC 侧测试。
-    /// 覆盖：契约映射（ToWidget→DTO 字段 65-72）、命令层 add-widget trend_chart、编译校验（变量存在/类型/XY 需 B）。
+    /// P 循环 P-4（2026-09-02）：趋势图控件 TrendView PC 侧测试。
+    /// 覆盖：契约映射（ToWidget→DTO 字段 65-72）、命令层 add-widget trend_view、编译校验（变量存在/类型/XY 需 B）。
     /// </summary>
-    public class TrendChartWidgetTests
+    public class TrendViewWidgetTests
     {
         private static HMIProject ProjectWithTags(params Tag[] tags)
         {
@@ -31,14 +31,14 @@ namespace NavigatorHMI.Tests
         }
 
         [Fact]
-        public void add_widget_trend_chart_放置成功_ObjectName自动()
+        public void add_widget_trend_view_放置成功_ObjectName自动()
         {
             var p = ProjectWithTags();
             var svc = new CommandService(p);
-            var r = svc.Execute("add_widget", new Dictionary<string, object?> { ["screen_name"] = "画面A", ["widget_type"] = "trend_chart" });
+            var r = svc.Execute("add_widget", new Dictionary<string, object?> { ["screen_name"] = "画面A", ["widget_type"] = "trend_view" });
             Assert.True(r.Success);
-            var w = p.Screens[0].Widgets.Single(x => x is TrendChartWidget);
-            Assert.StartsWith("trend_chart_", w.ObjectName);
+            var w = p.Screens[0].Widgets.Single(x => x is TrendViewWidget);
+            Assert.StartsWith("trend_view_", w.ObjectName);
         }
 
         [Fact]
@@ -51,10 +51,10 @@ namespace NavigatorHMI.Tests
         }
 
         [Fact]
-        public void 编译产物_TrendChartDTO字段映射正确()
+        public void 编译产物_TrendViewDTO字段映射正确()
         {
             var p = ProjectWithTags(new Tag { Name = "t1", DataType = TagDataType.INT32 });
-            var tc = new TrendChartWidget
+            var tc = new TrendViewWidget
             {
                 ObjectName = "tc1", TrendMode = TrendMode.XY,
                 TrendTagA = "t1", TrendTagB = "t1",
@@ -68,7 +68,7 @@ namespace NavigatorHMI.Tests
                 using var fs = File.OpenRead(result.OutputPath);
                 var nav = Serializer.Deserialize<NavihmiProject>(fs);
                 var dto = nav.Screens.Single().Widgets.Single(w => w.ObjectName == "tc1");
-                Assert.Equal(NavihmiWidgetType.TrendChart, dto.Type);
+                Assert.Equal(NavihmiWidgetType.TrendView, dto.Type);
                 Assert.Equal((int)TrendMode.XY, dto.TrendMode);
                 Assert.Equal("t1", dto.TrendTagA);
                 Assert.Equal("t1", dto.TrendTagB);
@@ -86,7 +86,7 @@ namespace NavigatorHMI.Tests
         {
             // 时间-数据模式变量 A 可空（控件未绑定时显示占位/无数据——不阻断编译，与其它控件 BoundTag 空一致）
             var p = ProjectWithTags();
-            p.Screens[0].Widgets.Add(new TrendChartWidget { ObjectName = "tc1" });
+            p.Screens[0].Widgets.Add(new TrendViewWidget { ObjectName = "tc1" });
             try
             {
                 var result = ProjectGenerator.Compile(p);
@@ -99,7 +99,7 @@ namespace NavigatorHMI.Tests
         public void 编译_变量A不存在_报错()
         {
             var p = ProjectWithTags();
-            p.Screens[0].Widgets.Add(new TrendChartWidget { ObjectName = "tc1", TrendTagA = "不存在变量" });
+            p.Screens[0].Widgets.Add(new TrendViewWidget { ObjectName = "tc1", TrendTagA = "不存在变量" });
             try
             {
                 var result = ProjectGenerator.Compile(p);
@@ -113,7 +113,7 @@ namespace NavigatorHMI.Tests
         public void 编译_变量A非数值类型_报错()
         {
             var p = ProjectWithTags(new Tag { Name = "s1", DataType = TagDataType.STRING });
-            p.Screens[0].Widgets.Add(new TrendChartWidget { ObjectName = "tc1", TrendTagA = "s1" });
+            p.Screens[0].Widgets.Add(new TrendViewWidget { ObjectName = "tc1", TrendTagA = "s1" });
             try
             {
                 var result = ProjectGenerator.Compile(p);
@@ -127,7 +127,7 @@ namespace NavigatorHMI.Tests
         public void 编译_XY模式缺变量B_报错()
         {
             var p = ProjectWithTags(new Tag { Name = "t1", DataType = TagDataType.INT32 });
-            p.Screens[0].Widgets.Add(new TrendChartWidget { ObjectName = "tc1", TrendMode = TrendMode.XY, TrendTagA = "t1" });
+            p.Screens[0].Widgets.Add(new TrendViewWidget { ObjectName = "tc1", TrendMode = TrendMode.XY, TrendTagA = "t1" });
             try
             {
                 var result = ProjectGenerator.Compile(p);
@@ -141,7 +141,7 @@ namespace NavigatorHMI.Tests
         public void 编译_XY模式双数值变量_正常()
         {
             var p = ProjectWithTags(new Tag { Name = "t1", DataType = TagDataType.INT32 }, new Tag { Name = "t2", DataType = TagDataType.FLOAT });
-            p.Screens[0].Widgets.Add(new TrendChartWidget { ObjectName = "tc1", TrendMode = TrendMode.XY, TrendTagA = "t1", TrendTagB = "t2" });
+            p.Screens[0].Widgets.Add(new TrendViewWidget { ObjectName = "tc1", TrendMode = TrendMode.XY, TrendTagA = "t1", TrendTagB = "t2" });
             try
             {
                 var result = ProjectGenerator.Compile(p);
@@ -161,7 +161,7 @@ namespace NavigatorHMI.Tests
             {
                 var p = new HMIProject { Name = "RT", ProjectFilePath = path };
                 p.Screens.Add(new Screen { Name = "画面A", Type = ScreenType.Custom });
-                p.Screens[0].Widgets.Add(new TrendChartWidget
+                p.Screens[0].Widgets.Add(new TrendViewWidget
                 {
                     ObjectName = "tc1", TrendMode = TrendMode.XY, TrendTagA = "tA", TrendTagB = "tB",
                     SampleIntervalMs = 2222, TimeWindowSeconds = 333, LineColor = "#00FF00", LineWidth = 3.5, RefreshRateMs = 999
@@ -169,7 +169,7 @@ namespace NavigatorHMI.Tests
                 using (var fs = File.Create(path)) Serializer.Serialize(fs, p);
                 using var rfs = File.OpenRead(path);
                 var back = Serializer.Deserialize<HMIProject>(rfs);
-                var tc = Assert.IsType<TrendChartWidget>(back.Screens[0].Widgets.Single(w => w.ObjectName == "tc1"));
+                var tc = Assert.IsType<TrendViewWidget>(back.Screens[0].Widgets.Single(w => w.ObjectName == "tc1"));
                 Assert.Equal(TrendMode.XY, tc.TrendMode);
                 Assert.Equal("tA", tc.TrendTagA);
                 Assert.Equal("tB", tc.TrendTagB);
@@ -186,7 +186,7 @@ namespace NavigatorHMI.Tests
         public void 编译_变量B不存在_报错()
         {
             var p = ProjectWithTags(new Tag { Name = "t1", DataType = TagDataType.INT32 });
-            p.Screens[0].Widgets.Add(new TrendChartWidget { ObjectName = "tc1", TrendMode = TrendMode.XY, TrendTagA = "t1", TrendTagB = "不存在B" });
+            p.Screens[0].Widgets.Add(new TrendViewWidget { ObjectName = "tc1", TrendMode = TrendMode.XY, TrendTagA = "t1", TrendTagB = "不存在B" });
             try
             {
                 var result = ProjectGenerator.Compile(p);
@@ -200,7 +200,7 @@ namespace NavigatorHMI.Tests
         public void 编译_变量B非数值类型_报错()
         {
             var p = ProjectWithTags(new Tag { Name = "t1", DataType = TagDataType.INT32 }, new Tag { Name = "s1", DataType = TagDataType.STRING });
-            p.Screens[0].Widgets.Add(new TrendChartWidget { ObjectName = "tc1", TrendMode = TrendMode.XY, TrendTagA = "t1", TrendTagB = "s1" });
+            p.Screens[0].Widgets.Add(new TrendViewWidget { ObjectName = "tc1", TrendMode = TrendMode.XY, TrendTagA = "t1", TrendTagB = "s1" });
             try
             {
                 var result = ProjectGenerator.Compile(p);
@@ -214,7 +214,7 @@ namespace NavigatorHMI.Tests
         public void 编译_BOOL变量_数值兼容通过()
         {
             var p = ProjectWithTags(new Tag { Name = "b1", DataType = TagDataType.BOOL });
-            p.Screens[0].Widgets.Add(new TrendChartWidget { ObjectName = "tc1", TrendTagA = "b1" });
+            p.Screens[0].Widgets.Add(new TrendViewWidget { ObjectName = "tc1", TrendTagA = "b1" });
             try
             {
                 var result = ProjectGenerator.Compile(p);

@@ -1,4 +1,4 @@
-<Window x:Class="NavigatorHMI.Views.EditWindow"
+﻿<Window x:Class="NavigatorHMI.Views.EditWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -879,6 +879,19 @@
             <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropBinding}" Content="{Binding}"/>
             <Separator Margin="4,2"/>
+            <!-- Q-3（2026-09-04 Check）：视频模式与图像配置互斥——勾选「显示视频」后图片列表组禁配（灰显；
+                 模型值保留防丢数据；设备端视频模式忽略 imagePath/listRef——HmiFrameVideo 全控件视频） -->
+            <Grid>
+                <Grid.Style>
+                    <Style TargetType="Grid">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding FrameShowVideo}" Value="True">
+                                <Setter Property="IsEnabled" Value="False"/>
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Grid.Style>
             <TextBlock Text="图片列表" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="列表:" Style="{StaticResource PropLabel}"/>
@@ -916,6 +929,7 @@
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="缺省值:" Style="{StaticResource PropLabel}"/>
                 <TextBox Grid.Column="1" Text="{Binding FrameDefaultIndex, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}" ToolTip="未绑定变量/变量值无效时显示的列表项索引（0=第1项）" KeyDown="PropField_KeyDown" />
+            </Grid>
             </Grid>
             <!-- P-6（2026-09-02）：Frame 视频模式——checkbox 区分视频/普通 Frame（勾选且有源=视频；未勾选/无源=普通） -->
             <TextBlock Text="视频" Style="{StaticResource PropGroupHeader}"/>
@@ -998,7 +1012,7 @@
             </Grid>
         </StackPanel></DataTemplate>
         <!-- P-4 趋势图控件属性（2026-09-02；TrendTagA/B 下拉复用变量选项；B 行仅变量A-B 模式可见） -->
-        <DataTemplate x:Key="PropTrendChart"><StackPanel>
+        <DataTemplate x:Key="PropTrendView"><StackPanel>
             <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
@@ -1496,7 +1510,7 @@
                                         <Button Content="User View" Tag="UserView" Click="ToggleAddWidgetMode" ToolTip="用户视图控件（头像/用户名/角色/模式/登录）"/>
                                         <Button Content="Alarm View" Tag="AlarmView" Click="ToggleAddWidgetMode" ToolTip="报警视图控件（活动报警列表/级别色标/确认）"/>
                                         <Button Content="Robot List" Tag="RobotList" Click="ToggleAddWidgetMode" ToolTip="机器人列表控件（卡片网格/绑定变量驱动）"/>
-                                        <Button Content="Trend Chart" Tag="TrendChart" Click="ToggleAddWidgetMode" ToolTip="趋势图控件（P-4：时间-数据实时曲线 / 变量A-B 散点 + 采样间隔）"/>
+                                        <Button Content="Trend Chart" Tag="TrendView" Click="ToggleAddWidgetMode" ToolTip="趋势图控件（P-4：时间-数据实时曲线 / 变量A-B 散点 + 采样间隔）"/>
                                         <Button Content="History View" Tag="HistoryView" Click="ToggleAddWidgetMode" ToolTip="历史记录控件（P-5：选定变量历史列表 + 数据库路径，多变量运行时切换）"/>
                                     </StackPanel></TabItem>
                                 </TabControl>
@@ -2257,7 +2271,7 @@
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="DateTimeWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropDateTime}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="WindowWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropWindow}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="PolygonWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropPolygon}"/></DataTrigger>
-                                                    <DataTrigger Binding="{Binding SelectedObjectType}" Value="TrendChartWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropTrendChart}"/></DataTrigger>
+                                                    <DataTrigger Binding="{Binding SelectedObjectType}" Value="TrendViewWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropTrendView}"/></DataTrigger>
                                                     <DataTrigger Binding="{Binding SelectedObjectType}" Value="HistoryViewWidget"><Setter Property="ContentTemplate" Value="{StaticResource PropHistoryView}"/></DataTrigger>
                                                 </Style.Triggers>
                                             </Style></ContentControl.Style></ContentControl>
