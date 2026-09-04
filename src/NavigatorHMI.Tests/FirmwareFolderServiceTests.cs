@@ -119,6 +119,21 @@ namespace NavigatorHMI.Tests
         }
 
         [Fact]
+        public void 调试命名_尺寸在版本后_归入尺寸列表()
+        {
+            // 2026-09-04 用户定：固件库检测 = NavigatorHMI 前缀 + 尺寸段（7inch）+ .fw 后缀，不限定尺寸在版本前。
+            // 调试命名 NavigatorHMI_v1.1.0_7inch_20260904213035.fw（pack_fw --name-ts，尺寸段在版本后）应出现在 7寸 自动列表
+            Directory.CreateDirectory(_dir);
+            var dbg = Path.Combine(_dir, "NavigatorHMI_v1.1.0_7inch_20260904213035.fw");
+            File.WriteAllBytes(dbg, new byte[] { 1, 2, 3 });
+            MakeFw("4寸", "2.0.0");   // 异尺寸不混入
+
+            var list = FirmwareFolderService.ListForSize("7寸");
+            Assert.Contains(dbg, list);   // 调试命名自动显示（GUI OS Update 7寸 列表不再「无固件」）
+            Assert.Single(list);          // 4inch 隔离
+        }
+
+        [Fact]
         public void 目录不存在_返回空列表()
         {
             FirmwareFolderService.Initialize(Path.Combine(Path.GetTempPath(), "navihmi_no_such_" + Guid.NewGuid().ToString("N")[..6]));

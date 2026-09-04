@@ -11,6 +11,7 @@ namespace NavigatorHMI.Core.Services
     /// **固件库根目录平铺存放**，文件名带尺寸标识——`NavigatorHMI_&lt;尺寸&gt;inch_v&lt;版本&gt;.fw`
     /// （7寸→7inch、4寸→4inch，ASCII 防编码问题；版本 x.y.z 纯数字语义）。无子目录。
     /// 例：NavigatorHMI_7inch_v1.1.3.fw / NavigatorHMI_4inch_v1.1.0.fw
+    /// 2026-09-04 调试 OTA 命名（尺寸在版本后 + 时刻尾）：NavigatorHMI_v1.1.0_7inch_20260904213035.fw——同样归尺寸列表。
     /// 连接设备尺寸（profile.SizeInch，如 "7寸"）→ inch 段映射 → 扫根目录该尺寸固件 → 语义版本取最新。
     /// 审查 🟡：版本解析**单一实现**——复用 <see cref="DeployFirmwareHandler.ParseFwVersion"/>。
     /// </summary>
@@ -44,14 +45,17 @@ namespace NavigatorHMI.Core.Services
             return s + "inch";
         }
 
-        /// <summary>固件库根目录下全部 .fw（文件名含 NavigatorHMI_ + 尺寸 inch 段 + _v：新标准
-        /// NavigatorHMI_7inch_v1.1.3.fw；按**语义版本降序**——v1.10.0 &gt; v1.9.0；目录不存在/空 → 空列表）。</summary>
+        /// <summary>固件库根目录下全部 .fw（glob `NavigatorHMI_*.fw`；提供 inchTag 时另含 `_&lt;inch&gt;_` 尺寸段），
+        /// 按**语义版本降序**——v1.10.0 &gt; v1.9.0；目录不存在/空 → 空列表。
+        /// 尺寸过滤（2026-09-04 用户定：检测 NavigatorHMI 前缀 + 尺寸段 + .fw 后缀即可，不限定尺寸在版本前）：
+        /// 匹配 `_&lt;inch&gt;_` 段任意位置——新标准正式命名 NavigatorHMI_7inch_v1.1.3.fw 与调试命名
+        /// NavigatorHMI_v1.1.0_7inch_20260904213035.fw（尺寸在版本后 + 时刻尾，pack_fw --name-ts）均归入 7寸 列表。</summary>
         public static List<string> ListAll(string? inchTag = null)
         {
             if (!Directory.Exists(DefaultRoot)) return new List<string>();
             var files = Directory.EnumerateFiles(DefaultRoot, "NavigatorHMI_*.fw");
             if (!string.IsNullOrEmpty(inchTag))
-                files = files.Where(f => Path.GetFileName(f).Contains("_" + inchTag + "_v", StringComparison.OrdinalIgnoreCase));
+                files = files.Where(f => Path.GetFileName(f).Contains("_" + inchTag + "_", StringComparison.OrdinalIgnoreCase));
             return files
                 .OrderByDescending(f => DeployFirmwareHandler.ParseFwVersion(f))
                 .ThenBy(f => f, StringComparer.OrdinalIgnoreCase)
