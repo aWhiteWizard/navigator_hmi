@@ -193,7 +193,17 @@ namespace NavigatorHMI.Common
                     if (w is FrameWidget frv && frv.ShowVideo && !string.IsNullOrWhiteSpace(frv.VideoSource))
                         videoRefs.Add(frv.VideoSource);
             // S-4/S-5：Video 型列表项（源地址）入视频收集——本地源打包 media（ASCII 化同单源），RTSP 项 ResolveFile 拦截不入包原样
-            foreach (var lst in project.Lists.Where(l => l.Type == ListType.Video))
+            // T-3（2026-09-05 T 循环）：**Text 型仅被 Frame.VideoListRef 引用的列表**也入收集——S 循环黑屏根因修复：
+            // S-5 Check ②放开 Text 型可被 Frame 引用后，原「仅 Video 型收集」漏 Text 列表本地项 → 不入包不改写 →
+            // FW 拼 media/ 不存在 → 「该路径不可播放」黑屏（4_bugs video-source-list-media-packaging.md 坑 1；
+            // 收集按**引用**而非类型——Text 列表兼 TextList 控件文本语义，未引用不误收普通文本项）
+            var videoListRefs = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var screen in project.Screens)
+                foreach (var w in screen.Widgets)
+                    if (w is FrameWidget fvl && fvl.ShowVideo && !string.IsNullOrWhiteSpace(fvl.VideoListRef))
+                        videoListRefs.Add(fvl.VideoListRef);
+            foreach (var lst in project.Lists.Where(l => l.Type == ListType.Video
+                                                        || (l.Type == ListType.Text && videoListRefs.Contains(l.Name))))
                 videoRefs.AddRange(lst.Items);
 
             // 两遍制收集（审查 🟡 修复：目录内引用优先——相对/规范名优先级高，防「目录内 a.png 与目录外 a.png 共存
@@ -368,6 +378,17 @@ namespace NavigatorHMI.Common
                             for (int i = 0; i < lst.Items.Count; i++)
                                 if (videoPathMap.TryGetValue(lst.Items[i], out var vPack))
                                 { lst.Items[i] = vPack; changed = true; }
+                        // T-3（2026-09-05）：Text 型被 Frame 引用（VideoListRef）的列表项同步改写——与收集侧同条件
+                        // （DTO 反序列化后 Lists/Screens 结构同模型；未引用 Text 列表不改——TextList 控件文本语义保留）
+                        var dtoVideoListRefs = new HashSet<string>(StringComparer.Ordinal);
+                        foreach (var dsc in dto.Screens)
+                            foreach (var dw in dsc.Widgets)
+                                if (dw.ShowVideo && !string.IsNullOrWhiteSpace(dw.VideoListRef))
+                                    dtoVideoListRefs.Add(dw.VideoListRef);
+                        foreach (var lst in dto.Lists.Where(l => l.Type == ListType.Text && dtoVideoListRefs.Contains(l.Name)))
+                            for (int i = 0; i < lst.Items.Count; i++)
+                                if (videoPathMap.TryGetValue(lst.Items[i], out var tPack))
+                                { lst.Items[i] = tPack; changed = true; }
                         foreach (var sc in dto.Screens)
                             foreach (var w in sc.Widgets)
                             {

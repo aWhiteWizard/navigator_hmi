@@ -689,5 +689,45 @@ namespace NavigatorHMI.Tests
             var ex = Assert.Throws<InvalidOperationException>(() => Build());
             Assert.Contains("64MB", ex.Message);
         }
+
+        [Fact]
+        public void Text列表被Frame引用_本地项入包改写_未引用Text不收集()
+        {
+            // T-3（2026-09-05 T 循环；S 循环黑屏根因回归——4_bugs video-source-list-media-packaging.md 坑 1）：
+            // Text 型列表被 Frame.VideoListRef 引用 → 本地项入包 + DTO 改写（按**引用**收集而非仅 Video 型）；
+            // 未引用 Text 列表项不收集（TextList 控件文本语义不受扰）；RTSP 项原样不改写。
+            // 审查 🟡（2026-09-05 PC 复审）：中文目录内名 → ASCII 化 video_N（**非恒等改写**——正向改写可观测；
+            // 恒等改写（ASCII 原名 pack==原路径）删掉改写循环断言也过、不可观测）
+            WriteImage("素材/演示源A.mp4", new byte[] { 0xAA });   // 目录内中文 → ASCII 化 video_N.mp4
+            WriteImage("clipB.mp4", new byte[] { 0xBB });
+            // 模型（收集侧——videoRefs 从 project.Lists/Screens 收集）
+            _project.Lists.Add(new ListDef { Name = "源表A", Type = ListType.Text, Items = { "素材/演示源A.mp4", "rtsp://192.168.1.10/desktop" } });
+            _project.Lists.Add(new ListDef { Name = "文本表B", Type = ListType.Text, Items = { "clipB.mp4", "普通文本项" } });
+            _project.Screens[0].Widgets.Add(new FrameWidget { ObjectName = "frV", ShowVideo = true, VideoListRef = "源表A" });
+            // DTO（改写侧——navihmiPath 反序列化对象）同构覆盖
+            var dv = new NavihmiProject { Name = "Text引用", Version = "1.0" };
+            dv.Lists.Add(new ListDef { Name = "源表A", Type = ListType.Text, Items = { "素材/演示源A.mp4", "rtsp://192.168.1.10/desktop" } });
+            dv.Lists.Add(new ListDef { Name = "文本表B", Type = ListType.Text, Items = { "clipB.mp4", "普通文本项" } });
+            dv.Screens.Add(new NavihmiScreen
+            {
+                Name = "画面A",
+                Type = ScreenType.Custom,
+                Widgets = { new NavihmiWidget { ObjectName = "frV", Type = NavihmiWidgetType.Frame, ShowVideo = true, VideoListRef = "源表A" } }
+            });
+            using (var ms = new MemoryStream()) { Serializer.Serialize(ms, dv); File.WriteAllBytes(_navihmiPath, ms.ToArray()); }
+
+            var zipPath = Build();
+            var files = ReadZip(zipPath);
+            var mediaEntries = files.Where(f => f.Path.StartsWith("media/")).ToList();
+            Assert.Single(mediaEntries);   // 仅被引用 Text 列表的源A 入包——clipB（未引用）不入
+            Assert.Matches(@"^media/video_\d+\.mp4$", mediaEntries[0].Path);   // 中文目录内源 → ASCII 化（非恒等）
+            var dto = ReadNavihmiFromZip(files);
+            var lstA = dto.Lists.Single(l => l.Name == "源表A");
+            Assert.Equal(Path.GetFileName(mediaEntries[0].Path), lstA.Items[0]);   // 正向改写为 ASCII 包名（可观测）
+            Assert.Equal("rtsp://192.168.1.10/desktop", lstA.Items[1]);            // RTSP 原样（不入包不改写）
+            var lstB = dto.Lists.Single(l => l.Name == "文本表B");
+            Assert.Equal("clipB.mp4", lstB.Items[0]);   // 未引用 Text 未收集未改写（负向——clipB 文件真实存在仍不入包）
+            Assert.Equal("普通文本项", lstB.Items[1]);
+        }
     }
 }

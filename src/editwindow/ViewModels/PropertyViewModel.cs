@@ -1989,7 +1989,8 @@ namespace NavigatorHMI.ViewModels
         public bool FrameShowVideo { get => _frameShowVideo; set { if (_frameShowVideo != value) { _frameShowVideo = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsVideoMode)); if (!_syncingFromModel) { BeforeModify?.Invoke(); if (_selectedWidget is FrameWidget f) f.ShowVideo = value; } } } }
 
         private string _frameVideoSource = "";
-        /// <summary>P-6（2026-09-02）：Frame 视频源（本地视频文件路径打包 / RTSP 流 URL 不入包）。</summary>
+        /// <summary>P-6（2026-09-02）：Frame 视频源（模型字段）。Check ①（2026-09-05）删「视频源」单源输入框 UI——
+        /// 新配置源只走 VideoListRef 列表；本字段保留：遗留 P-6 工程加载/老包兼容 + set_property 契约 + 361 同步链需要。</summary>
         public string FrameVideoSource { get => _frameVideoSource; set { if (_frameVideoSource != value) { _frameVideoSource = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is FrameWidget f) f.VideoSource = value; } } }
 
         private string _framePlayTag = "";
@@ -2006,7 +2007,8 @@ namespace NavigatorHMI.ViewModels
 
         // ── S-4/S-5（2026-09-05 用户拍板）：视频源列表 + 视频源选择索引变量 ──
         private string _frameVideoListRef = "";
-        /// <summary>S-5：Frame 视频源列表名（Video 型列表；空=未选走单源 videoSource——返回 "" 匹配哨兵「（无绑定）」项）。
+        /// <summary>S-5：Frame 视频源列表名（Video/Text 型列表——Check ②放开文本页源表；空=未选列表。
+        /// 注：Check ①删单源 UI——遗留工程 VideoSource 模型保留（老 P-6 工程 FW 兜底播放），面板不再引导单源。
         /// 防御同 FrameListRef 先例（审查 🟡-3：null 拦截 + suppress 失配窗口 + 同值跳过——防哨兵回写清空 f.VideoListRef）。</summary>
         public string FrameVideoListRef
         {
@@ -2030,7 +2032,7 @@ namespace NavigatorHMI.ViewModels
         }
 
         private string _frameVideoIndexTag = "";
-        /// <summary>S-5：视频源选择变量（整型非负索引——变量值取视频源列表对应项；空=未绑定播首项/单源）。</summary>
+        /// <summary>S-5：视频源选择变量（索引非负——UINT16/INT32，Check ③收紧去 INT16；变量值取视频源列表对应项；空=未绑定播列表首项）。</summary>
         public string FrameVideoIndexTag
         {
             get => _frameVideoIndexTag;
@@ -2041,10 +2043,10 @@ namespace NavigatorHMI.ViewModels
             }
         }
 
-        /// <summary>S-5：视频源列表名选项（工程 Video 型列表；选中 Frame 时刷新——首项空串=不绑列表）。</summary>
+        /// <summary>S-5：视频源列表名选项（工程 Video+Text 型列表——Check ②放开文本页源表；选中 Frame 时刷新——首项空串=不绑列表）。</summary>
         public System.Collections.ObjectModel.ObservableCollection<string> VideoListOptions { get; } = new();
 
-        /// <summary>P-6：是否视频模式（勾选且有视频源——属性面板据此显示视频源行）。</summary>
+        /// <summary>P-6：是否视频模式（勾选显示视频——源来自下方「视频源列表」，Check ①删单源框后不再有独立视频源行）。</summary>
         public bool IsVideoMode => _frameShowVideo;
 
         private double _progressValue = 0;
