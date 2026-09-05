@@ -1406,7 +1406,7 @@ namespace NavigatorHMI.ViewModels
             }
         }
 
-        // S-5：视频源选择索引变量专用选项——**仅整型**（INT16/UINT16/INT32；排除 BOOL/FLOAT/STRING——索引语义）
+        // S-5：视频源选择索引变量专用选项——**UINT16/INT32**（2026-09-05 Check 修正：原 INT16/UINT16/INT32——去 INT16 防负值；索引非负语义；排除 BOOL/FLOAT/STRING）
         public System.Collections.ObjectModel.ObservableCollection<Tag> FrameVideoIndexTagOptions { get; } = new();
 
         private void RefreshFrameVideoIndexTagOptions()
@@ -1415,7 +1415,7 @@ namespace NavigatorHMI.ViewModels
             FrameVideoIndexTagOptions.Add(NoBindingSentinel);
             if (Project == null) return;
             foreach (var t in Project.Tags)
-                if (t.DataType is TagDataType.INT16 or TagDataType.UINT16 or TagDataType.INT32)
+                if (t.DataType is TagDataType.UINT16 or TagDataType.INT32)   // Check ③（2026-09-05）：UINT16/INT32（INT16 可负已排除）
                     FrameVideoIndexTagOptions.Add(t);
             var cur = _frameVideoIndexTag;
             if (cur.Length > 0 && !FrameVideoIndexTagOptions.Any(x => x.Name == cur))
@@ -1731,7 +1731,7 @@ namespace NavigatorHMI.ViewModels
             BeginSuppressListRefWrites();   // 增量同步移除占位项时 ComboBox 失配回写 """ 会真解绑——窗口期拦截
             var imgNames = Project?.Lists.Where(l => l.Type == ListType.Image).Select(l => l.Name) ?? Enumerable.Empty<string>();
             var textNames = Project?.Lists.Where(l => l.Type == ListType.Text).Select(l => l.Name) ?? Enumerable.Empty<string>();   // S-4：仅文本型（原 != Image 会混入 Video 型）
-            var videoNames = Project?.Lists.Where(l => l.Type == ListType.Video).Select(l => l.Name) ?? Enumerable.Empty<string>();   // S-5：视频源列表
+            var videoNames = Project?.Lists.Where(l => l.Type is ListType.Video or ListType.Text).Select(l => l.Name) ?? Enumerable.Empty<string>();   // S-5：视频源列表（Check ② 2026-09-05：放开含文本型——源地址列表可建在「文本列表」页；图片型排除）
             SyncOptions(ImageListOptions, imgNames);
             SyncOptions(TextListOptions, textNames);
             SyncOptions(VideoListOptions, videoNames);

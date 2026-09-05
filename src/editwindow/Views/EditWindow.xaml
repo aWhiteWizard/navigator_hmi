@@ -948,12 +948,7 @@
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="显示视频:" Style="{StaticResource PropLabel}"/>
                 <CheckBox Grid.Column="1" IsChecked="{Binding FrameShowVideo}" VerticalAlignment="Center"
-                          ToolTip="勾选并填视频源后设备端播放视频（本地文件随工程打包 / RTSP 流不入包）；未勾选或无源为普通 Frame"/>
-            </Grid>
-            <Grid Visibility="{Binding IsVideoMode, Converter={StaticResource BoolToVisibilityConverter}}"><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <Label Grid.Column="0" Content="视频源:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding FrameVideoSource, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" KeyDown="PropField_KeyDown"
-                         ToolTip="本地视频文件路径（随工程打包）或 RTSP 流 URL（rtsp://，不入包）"/>
+                          ToolTip="勾选后设备端播放视频——视频源取自下方「视频源列表」（列表项=源地址）；未勾选或未选列表为普通 Frame（单源「视频源」输入框已移除，Check ①）"/>
             </Grid>
             <!-- R-4（2026-09-05 用户 Check）：播放控制变量——绑定布尔变量驱动播放/暂停（true=播放 false=暂停）；
                  点击控件翻转播放态并同步写回该变量；「（无绑定）」=未绑定仅点击直接控制 -->
@@ -981,7 +976,7 @@
             <Grid Visibility="{Binding IsVideoMode, Converter={StaticResource BoolToVisibilityConverter}}"><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="视频源列表:" Style="{StaticResource PropLabel}"/>
                 <ComboBox Grid.Column="1" SelectedItem="{Binding FrameVideoListRef}" ItemsSource="{Binding VideoListOptions}" Style="{StaticResource PropComboBox}"
-                          ToolTip="选择视频源列表（列表管理「视频源列表」页创建；项=源地址）；「（无绑定）」=未选列表走上方单视频源">
+                          ToolTip="选择视频源列表（列表管理「文本列表/视频源列表」页创建；项=源地址——本地文件随工程打包 / RTSP 直连）；「（无绑定）」=无源不播放">
                     <ComboBox.ItemTemplate>
                         <DataTemplate>
                             <TextBlock>
@@ -1000,7 +995,7 @@
             <Grid Visibility="{Binding IsVideoMode, Converter={StaticResource BoolToVisibilityConverter}}"><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="视频源选择:" Style="{StaticResource PropLabel}"/>
                 <ComboBox Grid.Column="1" SelectedValue="{Binding FrameVideoIndexTag, UpdateSourceTrigger=PropertyChanged}" ItemsSource="{Binding FrameVideoIndexTagOptions}" SelectedValuePath="Name" Style="{StaticResource PropComboBox}"
-                          ToolTip="绑定整型变量（非负索引 0/1/2…）——设备端按变量值从视频源列表取对应项播放；「（无绑定）」=播放列表首项">
+                          ToolTip="绑定 UINT16/INT32 变量（非负索引 0/1/2…）——设备端按变量值从视频源列表取对应项播放；「（无绑定）」=播放列表首项">
                     <ComboBox.ItemTemplate>
                         <DataTemplate>
                             <TextBlock>

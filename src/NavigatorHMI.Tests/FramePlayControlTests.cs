@@ -21,6 +21,11 @@ namespace NavigatorHMI.Tests
             project.Tags.Add(new Tag { Name = "温度", DataType = TagDataType.INT16 });
             project.Tags.Add(new Tag { Name = "压力", DataType = TagDataType.FLOAT });
             project.Tags.Add(new Tag { Name = "标签", DataType = TagDataType.STRING });
+            project.Tags.Add(new Tag { Name = "计数", DataType = TagDataType.UINT16 });   // Check ③（2026-09-05）
+            project.Tags.Add(new Tag { Name = "序号", DataType = TagDataType.INT32 });    // Check ③
+            project.Lists.Add(new ListDef { Name = "视频源列表A", Type = ListType.Video });   // Check ②（2026-09-05）
+            project.Lists.Add(new ListDef { Name = "文本表1", Type = ListType.Text });
+            project.Lists.Add(new ListDef { Name = "图片表1", Type = ListType.Image });
 
             var vm = new PropertyViewModel { Project = project };
             if (selectFrame) vm.SelectWidgets(new[] { f });
@@ -66,6 +71,47 @@ namespace NavigatorHMI.Tests
             var creator = new FrameWidgetCreator();
             var w = creator.Create(new System.Windows.Point(10, 10), screen);
             Assert.Equal("视频4", w.ObjectName);   // 扫描两前缀取最大 3 → +1
+        }
+
+        [Fact]
+        public void 视频源选择下拉_仅UINT16与INT32_哨兵首项()
+        {
+            // Check ③（2026-09-05）：去 INT16——UINT16/INT32 可见；INT16/BOOL/FLOAT/STRING 不可选（索引非负语义）
+            var vm = MakeVm();
+            var names = vm.FrameVideoIndexTagOptions.Select(t => t.Name).ToList();
+            Assert.Equal("", names[0]);                       // 哨兵（（无绑定）显示）
+            Assert.Contains("计数", names);                   // UINT16
+            Assert.Contains("序号", names);                   // INT32
+            Assert.DoesNotContain("温度", names);             // INT16 已排除（Check ③）
+            Assert.DoesNotContain("开关1", names);            // BOOL
+            Assert.DoesNotContain("压力", names);             // FLOAT
+            Assert.DoesNotContain("标签", names);             // STRING
+        }
+
+        [Fact]
+        public void 视频源列表下拉_含Video与Text列表_不含Image()
+        {
+            // Check ②（2026-09-05）：放开文本型——用户建在「文本列表」页的源地址列表可选；图片型排除（项=图片路径无视频语义）
+            var vm = MakeVm();
+            Assert.Equal("", vm.VideoListOptions[0]);         // 哨兵首项
+            Assert.Contains("视频源列表A", vm.VideoListOptions);   // Video 型（视频源列表页建）
+            Assert.Contains("文本表1", vm.VideoListOptions);       // Text 型（文本列表页建——Check ② 放开）
+            Assert.DoesNotContain("图片表1", vm.VideoListOptions); // Image 型仍排除
+        }
+
+        [Fact]
+        public void 视频源选择当前绑定INT16_保留占位不静默清()
+        {
+            // 审查 🟡（2026-09-05 PC 复审）：③ 收紧 INT16 后——遗留工程已绑 INT16 变量 → 下拉保留该项
+            // （防 SelectedItem 失配回写清空——wpf-combobox-style 场景 B 防护；与播放控制同款）
+            var project = new HMIProject { Name = "视频源选择", ProjectFilePath = @"C:\vidx-test.hmiproj" };
+            project.Screens.Add(new Screen { Name = "画面A", Type = ScreenType.Custom });
+            var f = new FrameWidget { ObjectName = "视频1", ShowVideo = true, VideoListRef = "L", VideoIndexTag = "温度" };
+            project.Screens[0].Widgets.Add(f);
+            project.Tags.Add(new Tag { Name = "温度", DataType = TagDataType.INT16 });
+            var vm = new PropertyViewModel { Project = project };
+            vm.SelectWidgets(new[] { f });
+            Assert.Contains("温度", vm.FrameVideoIndexTagOptions.Select(t => t.Name));   // INT16 已绑但被新过滤排除——占位保留
         }
     }
 }
