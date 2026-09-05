@@ -2829,6 +2829,23 @@ namespace NavigatorHMI.Views
                 if (_viewModel?.IsWorldMapActive == true)
                     TryFitWorldMapViewport();
             }
+            else if (e.PropertyName is nameof(EditWindowViewModel.VariableManagerActive)
+                     or nameof(EditWindowViewModel.CommunicationActive)
+                     or nameof(EditWindowViewModel.ListManagerActive)
+                     or nameof(EditWindowViewModel.AlarmActive)
+                     or nameof(EditWindowViewModel.UserActive)
+                     or nameof(EditWindowViewModel.DeviceActive))
+            {
+                // Q 循环 Check（2026-09-05 用户反馈）：切到非画布视图（变量管理器/通讯/列表/报警/用户/设备管理）
+                // 画布隐藏但控件选中残留（属性面板仍显示画面控件、回画面仍选中）——任一非画布视图激活即清选中
+                var vm = _viewModel;
+                if (vm != null && (vm.VariableManagerActive || vm.CommunicationActive || vm.ListManagerActive
+                                   || vm.AlarmActive || vm.UserActive || vm.DeviceActive))
+                {
+                    _selectionManager.ClearAllSelection();
+                    System.Diagnostics.Debug.WriteLine("✅ 切到非画布视图，已清除控件选中");
+                }
+            }
         }
 
         /// <summary>
