@@ -998,6 +998,73 @@ namespace NavigatorHMI.Views
             var selected = VideoListBox.SelectedItems.Cast<ListDef>().ToList();
             if (selected.Count > 0) _listManagerVM.DeleteLists(selected);
         }
+
+        // ── T-2（2026-09-05 用户 Check）：视频源列表本地项预览——选中本地文件显首帧（默认暂停），点击播放/再点停止；RTSP/网络源除外 ──
+        private bool _videoPreviewPlaying = false;
+
+        private void VideoItemsGrid_SelectionChanged(object sender, SelectionChangedEventArgs e) => RefreshVideoPreview();
+
+        /// <summary>按选中项刷新预览：本地文件 → 设 Source（Manual 模式停首帧）；RTSP/网络源/文件缺失 → 提示不加载。</summary>
+        private void RefreshVideoPreview()
+        {
+            _videoPreviewPlaying = false;
+            VideoPreviewMedia.Stop();
+            VideoPreviewMedia.Source = null;
+            var val = (VideoItemsGrid.SelectedItem as ListItemVM)?.Value?.Trim() ?? "";
+            if (val.Length == 0) { VideoPreviewHint.Text = "选择视频源项预览（本地文件；点击播放/停止）"; return; }
+            if (val.StartsWith("rtsp://", StringComparison.OrdinalIgnoreCase)
+                || val.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+                || val.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            { VideoPreviewHint.Text = "RTSP/网络源不可预览（设备端直连播放）"; return; }
+            if (!System.IO.File.Exists(val))
+            {
+                VideoPreviewHint.Text = $"本地文件不存在或为工程内相对路径（预览需完整本地路径；设备端打包不受影响）:\n{val}";
+                return;
+            }
+            try
+            {
+                VideoPreviewMedia.Source = new Uri(val);   // 审查 🟡（2026-09-05 PC 复审）：Uri 构造守卫——File.Exists 通过但非法 URI 字符（如裸 %）会抛 UriFormatException → 全局 handler 崩溃
+            }
+            catch (UriFormatException)
+            {
+                VideoPreviewHint.Text = $"路径含非法字符无法预览（设备端打包不受影响）:\n{val}";
+                return;
+            }
+            VideoPreviewHint.Text = "本地视频（默认暂停显首帧）——点击播放预览 / 再点停止";
+        }
+
+        /// <summary>点击预览窗：播放 ↔ 停止（toggle；本地源才响应）。</summary>
+        private void VideoPreview_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (VideoPreviewMedia.Source == null) return;
+            if (_videoPreviewPlaying)
+            {
+                VideoPreviewMedia.Stop();   // 停止回首帧（与默认首帧态一致）
+                _videoPreviewPlaying = false;
+                VideoPreviewHint.Text = "已停止——点击重新播放预览";
+            }
+            else
+            {
+                VideoPreviewMedia.Play();
+                _videoPreviewPlaying = true;
+                VideoPreviewHint.Text = "播放预览中——点击停止";
+            }
+        }
+
+        /// <summary>播放自然结束 → 复位为停止态（首帧停留）。</summary>
+        private void VideoPreview_MediaEnded(object sender, RoutedEventArgs e)
+        {
+            _videoPreviewPlaying = false;
+            VideoPreviewHint.Text = "播放结束——点击重新播放预览";
+        }
+
+        /// <summary>解码失败（格式不支持/损坏）→ 复位状态 + 提示（审查 🟡 2026-09-05：防黑屏 + _playing/提示失真）。</summary>
+        private void VideoPreview_MediaFailed(object sender, ExceptionRoutedEventArgs e)
+        {
+            _videoPreviewPlaying = false;
+            VideoPreviewHint.Text = $"该视频无法解码预览（格式不支持或文件损坏；设备端打包播放不受影响）——{e.ErrorException?.Message}";
+        }
+
         private void OnAlarmDeleteRequested(AlarmRule alarm)
         {
             var confirm = MessageBox.Show($"确定删除报警 \"{alarm.Name}\" 吗？", "删除报警",

@@ -2322,6 +2322,7 @@
                                                 <Grid.RowDefinitions>
                                                     <RowDefinition Height="Auto"/>
                                                     <RowDefinition Height="*"/>
+                                                    <RowDefinition Height="Auto"/>   <!-- T-2：本地项预览区 -->
                                                 </Grid.RowDefinitions>
                                                 <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
                                                     <TextBox Text="{Binding NewVideoListName, UpdateSourceTrigger=PropertyChanged}" Width="120" Height="26" VerticalContentAlignment="Center" FontSize="12" ToolTip="新列表名称"/>
@@ -2344,7 +2345,7 @@
                                                             <TextBlock DockPanel.Dock="Left" Text="列表名:" VerticalAlignment="Center" FontSize="12" Margin="0,0,4,0"/>
                                                             <TextBox Text="{Binding VideoListName, UpdateSourceTrigger=LostFocus}" FontSize="12" VerticalContentAlignment="Center" KeyDown="PropField_KeyDown" ToolTip="重命名列表（失焦或回车提交，级联同步控件引用）"/>
                                                         </DockPanel>
-                                                        <DataGrid x:Name="VideoItemsGrid" Grid.Row="1" ItemsSource="{Binding VideoItems}" SelectedItem="{Binding SelectedVideoItem}" PreviewKeyDown="VideoItemsGrid_KeyDown"
+                                                        <DataGrid x:Name="VideoItemsGrid" Grid.Row="1" ItemsSource="{Binding VideoItems}" SelectedItem="{Binding SelectedVideoItem}" PreviewKeyDown="VideoItemsGrid_KeyDown" SelectionChanged="VideoItemsGrid_SelectionChanged"
                                                                   AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="False"
                                                                   HeadersVisibility="Column" SelectionMode="Extended" GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12"
                                                                   RowHeight="26">
@@ -2359,6 +2360,19 @@
                                                         </StackPanel>
                                                     </Grid>
                                                 </Grid>
+                                                <!-- T-2（2026-09-05 用户 Check）：视频源列表本地项预览——选中本地文件显示首帧（默认暂停）；
+                                                     点击预览窗播放 / 再点停止；RTSP/网络源除外（提示不可预览——MediaElement 后端不支持 rtsp 直连）。
+                                                     类比图片列表预览先例（图片页为行内缩略图，视频需独立窗点击控制） -->
+                                                <Border Grid.Row="2" Margin="0,6,0,0" Height="112" BorderBrush="#888" BorderThickness="1" Background="Black"
+                                                        MouseLeftButtonDown="VideoPreview_MouseDown" Cursor="Hand" ToolTip="点击播放预览（本地文件）；再点停止">
+                                                    <Grid>
+                                                        <MediaElement x:Name="VideoPreviewMedia" Stretch="Uniform" LoadedBehavior="Manual" UnloadedBehavior="Stop"
+                                                                      MediaEnded="VideoPreview_MediaEnded" MediaFailed="VideoPreview_MediaFailed"/>
+                                                        <TextBlock x:Name="VideoPreviewHint" Text="选择视频源项预览（本地文件；点击播放/停止）" Foreground="#CCCCCC"
+                                                                   FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap"
+                                                                   Margin="8" TextAlignment="Center" IsHitTestVisible="False"/>
+                                                    </Grid>
+                                                </Border>
                                             </Grid>
                                         </TabItem>
                                     </TabControl>
