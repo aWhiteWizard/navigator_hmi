@@ -155,16 +155,15 @@ namespace NavigatorHMI.Tests
         }
 
         [Fact]
-        public void deploy_project_视频超64MB_编译失败拒绝传输()
+        public void deploy_project_视频超防呆上限_编译失败拒绝传输()
         {
-            // Q-4（2026-09-04 用户裁决「打包应该编译的时候做」）：>64MB 视频在**编译阶段**拦截——
-            // deploy_project 前置编译门禁报 COMPILE_FAILED（不再走到部署打包 PACKAGE_FAILED；
-            // 打包器 64MB 护栏保留双保险，由 DeploymentPackageBuilderTests 单测覆盖）
+            // Q-4/T-1a（2026-09-04 用户裁决 + 2026-09-05 单文件护栏放宽为防呆上限 1GB）：超防呆上限视频在
+            // **编译阶段**拦截——deploy_project 前置编译门禁报 COMPILE_FAILED（>64MB 不再报——部署动态 cap 把关）
             var project = new HMIProject { Name = "超限视频", ProjectFilePath = Path.Combine(_dir, "big.hmiproj") };
             project.Screens.Add(new Screen { Name = "画面A", Type = ScreenType.Custom });
             project.Tags.Add(new Tag { Name = "温度", DataType = TagDataType.FLOAT });
             using (var fs = new FileStream(Path.Combine(_dir, "big.mp4"), FileMode.Create, FileAccess.Write))
-                fs.SetLength(64L * 1024 * 1024 + 1);   // 稀疏扩展（不实际写 64MB）
+                fs.SetLength(1024L * 1024 * 1024 + 1);   // 稀疏扩展（不实际写 1GB）
             project.Screens[0].Widgets.Add(new FrameWidget { ObjectName = "fr1", ShowVideo = true, VideoSource = "big.mp4" });
 
             var svc = new CommandService(project);

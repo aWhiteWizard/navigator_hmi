@@ -29,10 +29,11 @@ namespace NavigatorHMI.Common
         /// <summary>manifest 条目类型：res（资源文件）。与 .fw 组件表（app/rootfs/kernel，2026-08-30 用户分组定稿）为两套独立枚举（compile-download §2.1 审查澄清）。</summary>
         public const string TypeRes = "res";
 
-        /// <summary>部署包上传上限（字节）——与 FW 端 httreceiver kMaxUploadBytes（64MB 单次 POST）对齐；
-        /// 视频单文件超限抛异常报错（用户裁决）、视频/瓦片总和超限 Trace 预警（整包仍会被 FW 拒收，V1.1 大包流式扩展项）。
-        /// internal（Q-4 2026-09-04）：ProjectGenerator 编译校验复用——64MB 上限单一来源。</summary>
-        internal const long MaxUploadBytes = 64L * 1024 * 1024;
+        /// <summary>编译期单文件防呆上限（字节）——T-1a（2026-09-05）语义调整：原 64MB 静态上传上限已由
+        /// FW 分块 + 磁盘动态 cap（disk_free×2/3，用户拍板 2026-09-05）取代；本值保留为**编译期单文件防呆**
+        /// （>1GB 单视频编译即报错——防超大文件打包耗时/设备端解码/存储异常；1GB 内由部署期动态 cap 把关）。
+        /// internal（Q-4 2026-09-04 起）：ProjectGenerator 编译校验复用——上限单一来源。</summary>
+        internal const long MaxUploadBytes = 1024L * 1024 * 1024;
 
         /// <summary>manifest 条目（序列化 JSON；type 枚举 app/res 独立定义——本类内 manifest 专属）。</summary>
         public class ManifestEntry
@@ -312,14 +313,14 @@ namespace NavigatorHMI.Common
             CollectVideos(videoRefs, wantInside: true);
             CollectVideos(videoRefs, wantInside: false);
 
-            // P-6 大小护栏（用户裁决 2026-09-02：本地视频 ≤64MB，超限**报错**——抛异常阻断打包，
-            // 与瓦片/图片的 Trace 警告不同：视频文件大、超限静默入包会让 FW 拒收整包且难排查）
+            // P-6 大小护栏（T-1a 2026-09-05 语义调整：原 ≤64MB 单文件报错上限放宽为编译期防呆值 MaxUploadBytes
+            // （1GB）——部署动态 cap（disk_free×2/3）由传输层把关；>1GB 单视频仍报错阻断打包）
             foreach (var kv in videos)
             {
                 var len = new FileInfo(kv.Value.Abs).Length;
                 if (len > MaxUploadBytes)
                     throw new InvalidOperationException(
-                        $"视频文件超过 64MB 上传上限（{kv.Value.Abs}，{(len + 1024 * 1024 - 1) / (1024 * 1024)}MB）——请压缩视频或改用 RTSP 流地址");
+                        $"视频文件超过单文件防呆上限（{kv.Value.Abs}，{(len + 1024 * 1024 - 1) / (1024 * 1024)}MB > {MaxUploadBytes / (1024 * 1024)}MB）——请压缩视频或改用 RTSP 流地址");
             }
 
             // 审查 🟡：跳过引用汇总 Trace（文件缺失/RTSP/目录外非图片扩展名/.. 逃逸——避免静默缺图无反馈，对齐瓦片 >64MB Trace 先例）
@@ -465,9 +466,9 @@ namespace NavigatorHMI.Common
                             Sha256 = Sha256OfFile(kv.Value.Abs)
                         });
                     }
-                    // 视频总和护栏 Trace（单文件 >64MB 已在上游抛异常阻断；总和超限 FW 整包拒收——尽早提示）
+                    // 视频总和护栏 Trace（T-1a：总和超 MaxUploadBytes 防呆值才提示——1GB 内由部署端动态 cap 把关）
                     if (videoBytes > MaxUploadBytes)
-                        System.Diagnostics.Trace.WriteLine($"[DeploymentPackageBuilder] 警告: 视频共 {videoBytes / (1024 * 1024)}MB 超 64MB 上传上限，FW 将拒收——请压缩视频");
+                        System.Diagnostics.Trace.WriteLine($"[DeploymentPackageBuilder] 警告: 视频共 {videoBytes / (1024 * 1024)}MB 超单文件防呆上限，请确认设备剩余空间充足");
 
                     // M-3 ①：瓦片（target 保留根级 "tiles/..." 前缀——与 FW ZIP 直启格式一致；
                     // FW httreceiver 落盘按 target 到工程目录，单文件加载按同目录 tiles/ 探测）
@@ -492,7 +493,7 @@ namespace NavigatorHMI.Common
                     // 大小防护（M-3 ① 审查 🟡）：瓦片总和超 64MB 上传上限（FW kMaxUploadBytes）→ Trace 警告
                     //（zip 整体内存构建 + 单次 POST——超大瓦片集会在 FW 端被拒收，此处尽早提示）
                     if (tilesBytes > MaxUploadBytes)
-                        System.Diagnostics.Trace.WriteLine($"[DeploymentPackageBuilder] 警告: 瓦片共 {tilesBytes / (1024 * 1024)}MB 超 64MB 上传上限，FW 将拒收——请缩小离线瓦片范围");
+                        System.Diagnostics.Trace.WriteLine($"[DeploymentPackageBuilder] 警告: 瓦片共 {tilesBytes / (1024 * 1024)}MB 超单文件防呆上限，请确认设备剩余空间充足");
 
                     // manifest.json（UTF-8 无 BOM；CamelCase 策略——与 FW 端 httreceiver 读取的 type/target/sha256 小写契约对齐，
                     // L-A1 联调发现大小写不匹配：原 PascalCase "Type" 致 FW 找不到 app 条目）

@@ -677,17 +677,17 @@ namespace NavigatorHMI.Tests
         }
 
         [Fact]
-        public void 视频超64MB_打包抛异常报错()
+        public void 视频超防呆上限_打包抛异常报错()
         {
-            // 用户裁决（2026-09-02）：本地视频 ≤64MB，超限**报错**（抛异常阻断打包，与瓦片 Trace 警告不同）
+            // T-1a（2026-09-05）：单文件护栏放宽为防呆上限 MaxUploadBytes（1GB）——原 64MB 静态上限由部署端动态 cap 取代
             WriteImage("big.mp4", new byte[] { 0x00 });
             using (var fs = new FileStream(Path.Combine(_dir, "big.mp4"), FileMode.Create, FileAccess.Write))
-                fs.SetLength(64L * 1024 * 1024 + 1);   // 稀疏扩展，不实际写 64MB
+                fs.SetLength(1024L * 1024 * 1024 + 1);   // 稀疏扩展，不实际写 1GB
             _project.Screens[0].Widgets.Add(new FrameWidget { ObjectName = "fr1", ShowVideo = true, VideoSource = "big.mp4" });
             WriteValidNavihmiWithVideo("big.mp4");
 
             var ex = Assert.Throws<InvalidOperationException>(() => Build());
-            Assert.Contains("64MB", ex.Message);
+            Assert.Contains("防呆上限", ex.Message);
         }
 
         [Fact]

@@ -4,8 +4,9 @@ using ProtoBuf;
 namespace NavigatorHMI.Tests
 {
     /// <summary>
-    /// Q-4（2026-09-04 用户裁决「打包应该编译的时候做」）：Frame 视频源 >64MB 编译期校验——
-    /// 编译即报错（部署打包侧护栏保留双保险）；网络流不入包不校验；小视频/无视频不误报。
+    /// Q-4（2026-09-04 用户裁决「打包应该编译的时候做」）+ T-1a（2026-09-05 单文件护栏放宽为防呆上限 MaxUploadBytes 1GB）：
+    /// Frame 视频源超防呆上限编译期报错（部署打包侧护栏保留双保险；>64MB 不再报——由部署端动态 cap 把关）；
+    /// 网络流不入包不校验；小视频/无视频不误报。
     /// </summary>
     public class VideoSizeCompileTests : IDisposable
     {
@@ -29,17 +30,17 @@ namespace NavigatorHMI.Tests
         {
             var v = Path.Combine(dir, "big.mp4");
             using (var fs = new FileStream(v, FileMode.Create, FileAccess.Write))
-                fs.SetLength(64L * 1024 * 1024 + 1);   // 稀疏扩展（不实际写 64MB）
+                fs.SetLength(1024L * 1024 * 1024 + 1);   // 稀疏扩展（不实际写 1GB——超防呆上限）
             return v;
         }
 
         [Fact]
-        public void 视频超64MB_编译报错()
+        public void 视频超防呆上限_编译报错()
         {
             var v = MakeBigVideo(_dir);
             var r = ProjectGenerator.Compile(MakeProject(v));
             Assert.True(r.HasErrors);
-            Assert.Contains(r.Errors, e => e.Contains("64MB") && e.Contains("fr1"));
+            Assert.Contains(r.Errors, e => e.Contains("防呆上限") && e.Contains("fr1"));
         }
 
         [Fact]

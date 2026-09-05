@@ -181,7 +181,7 @@ namespace NavigatorHMI.Common
                         var vlen = new FileInfo(abs).Length;
                         if (vlen > DeploymentPackageBuilder.MaxUploadBytes)
                             result.Errors.Add($"画面 \"{screen.Name}\" 控件 \"{w.ObjectName}\" 视频源 \"{fv.VideoSource}\" "
-                                + $"超过 64MB 上传上限（{(vlen + 1024 * 1024 - 1) / (1024 * 1024)}MB）——请压缩视频或改用 RTSP 流");
+                                + $"超过单文件防呆上限（{DeploymentPackageBuilder.MaxUploadBytes / (1024 * 1024)}MB，实际 {(vlen + 1024 * 1024 - 1) / (1024 * 1024)}MB）——请压缩视频或改用 RTSP 流");
                     }
 
             if (result.HasErrors)
