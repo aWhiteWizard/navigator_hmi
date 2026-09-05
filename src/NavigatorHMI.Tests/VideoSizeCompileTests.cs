@@ -1,4 +1,5 @@
-using NavigatorHMI.Common;
+﻿using NavigatorHMI.Common;
+using ProtoBuf;
 
 namespace NavigatorHMI.Tests
 {
@@ -64,6 +65,28 @@ namespace NavigatorHMI.Tests
             // ShowVideo=false（普通 Frame）即使残留大视频源路径也不校验（无文件不报）
             var r = ProjectGenerator.Compile(MakeProject("C:\\不存在\\huge.mp4", showVideo: false));
             Assert.False(r.HasErrors, string.Join("; ", r.Errors));
+        }
+
+        [Fact]
+        public void 编译产物_FramePlayTag映射到DTO78()
+        {
+            // R-4（2026-09-05 用户 Check）：播放控制布尔变量 → DTO 78（proto play_tag）——三方契约审计
+            var p = MakeProject("rtsp://192.168.1.10:554/stream1");
+            ((FrameWidget)p.Screens[0].Widgets[0]).PlayTag = "视频播放开关";
+            try
+            {
+                var result = ProjectGenerator.Compile(p);
+                Assert.False(result.HasErrors, string.Join("; ", result.Errors));
+                using var fs = File.OpenRead(result.OutputPath);
+                var nav = Serializer.Deserialize<NavihmiProject>(fs);
+                var dto = nav.Screens.Single().Widgets.Single(w => w.ObjectName == "fr1");
+                Assert.Equal("视频播放开关", dto.PlayTag);
+            }
+            finally
+            {
+                var outDir = Path.Combine(Path.GetDirectoryName(p.ProjectFilePath)!, "output");
+                if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+            }
         }
     }
 }

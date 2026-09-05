@@ -1048,7 +1048,8 @@ public class TextListWidget : Widget
 [ProtoContract]
 public class FrameWidget : Widget
 {
-    private string _title = "Group";
+    // Q 循环 Check（2026-09-05 用户反馈）：默认标题 "Group" → "Frame"（控件名对齐；老工程已存 "Group" 值保留不受影响）
+    private string _title = "Frame";
     /// <summary>框架标题文本</summary>
     [ProtoMember(1)]
     public string Title { get => _title; set { _title = value; OnPropertyChanged(); } }
@@ -1107,6 +1108,12 @@ public class FrameWidget : Widget
     /// <summary>P-6（2026-09-02）：视频源——本地视频文件路径（打包入包）/ RTSP 流 URL（不入包，按 rtsp:// 前缀判定）。</summary>
     [ProtoMember(12)]
     public string VideoSource { get => _videoSource; set { if (_videoSource != value) { _videoSource = value; OnPropertyChanged(); } } }
+
+    private string _playTag = "";
+    /// <summary>R-4（2026-09-05 用户 Check）：播放控制变量——绑定布尔变量驱动视频播放/暂停（true=播放 false=暂停；
+    /// 点击控件翻转播放态并同步写回该变量；空=未绑定，仅点击直接控制）。</summary>
+    [ProtoMember(13)]
+    public string PlayTag { get => _playTag; set { if (_playTag != value) { _playTag = value; OnPropertyChanged(); } } }
 
     /// <summary>设计态显示背景路径：绑列表 → 列表第 N 项图片完整路径；否则 ImagePath（相对工程目录解析）。</summary>
     [ProtoIgnore]

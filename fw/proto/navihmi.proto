@@ -280,6 +280,8 @@ message Widget {
   bool show_video = 75;                 // Frame 视频模式（checkbox；false=普通 Frame）
   string video_source = 76;             // Frame 视频源（本地路径打包入包 / RTSP URL 不入包）
   repeated string history_tag_titles = 77;   // Q-6: HistoryView 各变量列显示名（平行 history_tags[i]; 空=显示变量名）
+  // R-4 Frame 视频播放控制（2026-09-05）：绑定布尔变量驱动播放/暂停（空=未绑定，点击直接控制）
+  string play_tag = 78;                 // Frame 视频播放控制变量（true=播放 false=暂停；点击翻转同步写回）
 }
 
 message RobotSlotBinding {

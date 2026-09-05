@@ -358,7 +358,7 @@ namespace NavigatorHMI.ViewModels
                             case IOFieldWidget io: IOFieldContent = io.Content; IOFieldIsReadOnly = io.IsReadOnly; IOFieldFillColor = io.FillColor; IOFieldTextColor = io.TextColor; IOFieldFontFamily = io.FontFamily; IOFieldFontSize = io.FontSize; IOFieldFontWeight = io.FontWeight; IOFieldFontStyle = io.FontStyle; IOFieldTextDecoration = io.TextDecoration; break;
                             case CheckBoxWidget cb: CheckBoxText = cb.Text; CheckBoxIsChecked = cb.IsChecked; CheckBoxFontFamily = cb.FontFamily; CheckBoxFontSize = cb.FontSize; CheckBoxFontWeight = cb.FontWeight; CheckBoxFontStyle = cb.FontStyle; CheckBoxTextDecoration = cb.TextDecoration; CheckBoxTextColor = cb.TextColor; CheckBoxFillColor = cb.FillColor; break;
                             case TextListWidget tl: TextListFontFamily = tl.FontFamily; TextListFontSize = tl.FontSize; TextListFontWeight = tl.FontWeight; TextListFontStyle = tl.FontStyle; TextListTextDecoration = tl.TextDecoration; TextListTextColor = tl.TextColor; TextListFillColor = tl.FillColor; TextListListRef = tl.ListRef; TextListDefaultIndex = tl.DefaultIndex; break;
-                            case FrameWidget f: FrameTitle = f.Title; FrameFillColor = f.FillColor; FrameImagePath = f.ImagePath; FrameFontFamily = f.FontFamily; FrameFontSize = f.FontSize; FrameFontWeight = f.FontWeight; FrameFontStyle = f.FontStyle; FrameTextDecoration = f.TextDecoration; FrameListRef = f.ListRef; FrameDefaultIndex = f.DefaultIndex; FrameShowVideo = f.ShowVideo; FrameVideoSource = f.VideoSource; break;   // P-6 视频
+                            case FrameWidget f: FrameTitle = f.Title; FrameFillColor = f.FillColor; FrameImagePath = f.ImagePath; FrameFontFamily = f.FontFamily; FrameFontSize = f.FontSize; FrameFontWeight = f.FontWeight; FrameFontStyle = f.FontStyle; FrameTextDecoration = f.TextDecoration; FrameListRef = f.ListRef; FrameDefaultIndex = f.DefaultIndex; FrameShowVideo = f.ShowVideo; FrameVideoSource = f.VideoSource; FramePlayTag = f.PlayTag; break;   // P-6 视频 / R-4 播放控制
                             case ProgressBarWidget pb: ProgressValue = pb.Value; ProgressMin = pb.Min; ProgressMax = pb.Max; ProgressFillColor = pb.FillColor; ProgressFillStyle = pb.FillStyle; break;
                 case DateTimeWidget dt: DateTimeFormat = dt.Format; break;
                 case WindowWidget ww:
@@ -1926,7 +1926,7 @@ namespace NavigatorHMI.ViewModels
         private bool _checkBoxIsChecked = false;
         public bool CheckBoxIsChecked { get => _checkBoxIsChecked; set { if (_checkBoxIsChecked != value) { _checkBoxIsChecked = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is CheckBoxWidget cb) cb.IsChecked = value; } } }
 
-        private string _frameTitle = "Group";
+        private string _frameTitle = "Frame";   // R-6：同步 FrameWidget 新默认（老工程值由装载覆盖）
         public string FrameTitle { get => _frameTitle; set { if (_frameTitle != value) { _frameTitle = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is FrameWidget f) f.Title = value; } } }
         private string _frameFillColor = "#EEEEEE";
         public string FrameFillColor { get => _frameFillColor; set { if (_frameFillColor != value) { _frameFillColor = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is FrameWidget f) f.FillColor = value; } } }
@@ -1940,6 +1940,18 @@ namespace NavigatorHMI.ViewModels
         private string _frameVideoSource = "";
         /// <summary>P-6（2026-09-02）：Frame 视频源（本地视频文件路径打包 / RTSP 流 URL 不入包）。</summary>
         public string FrameVideoSource { get => _frameVideoSource; set { if (_frameVideoSource != value) { _frameVideoSource = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is FrameWidget f) f.VideoSource = value; } } }
+
+        private string _framePlayTag = "";
+        /// <summary>R-4（2026-09-05 用户 Check）：播放控制变量（布尔变量驱动播放/暂停；空=未绑定点击直接控制）。</summary>
+        public string FramePlayTag
+        {
+            get => _framePlayTag;
+            set
+            {
+                if (value == null) return;   // 审查 🟡：ComboBox SelectedValue 失配回写 null 拦截（先例 HistoryTagRowVM.Tag/RobotSlotRowVM.SelectedTag——否则模型 PlayTag 被静默清空）
+                if (_framePlayTag != value) { _framePlayTag = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is FrameWidget f) f.PlayTag = value; }
+            }
+        }
 
         /// <summary>P-6：是否视频模式（勾选且有视频源——属性面板据此显示视频源行）。</summary>
         public bool IsVideoMode => _frameShowVideo;
