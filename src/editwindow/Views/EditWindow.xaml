@@ -1,4 +1,4 @@
-﻿<Window x:Class="NavigatorHMI.Views.EditWindow"
+<Window x:Class="NavigatorHMI.Views.EditWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -877,7 +877,19 @@
             <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
-            <ContentControl ContentTemplate="{StaticResource PropBinding}" Content="{Binding}"/>
+            <!-- R 批（2026-09-05 用户 Check）：视频模式下数据绑定与播放控制只能留一个——保留播放控制（播放
+                 控制已能驱动播放态；数据绑定的 BoundTag 普通 Frame 也不被 FW 消费）；勾选「显示视频」隐藏数据绑定块 -->
+            <ContentControl ContentTemplate="{StaticResource PropBinding}" Content="{Binding}">
+                <ContentControl.Style>
+                    <Style TargetType="ContentControl">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding FrameShowVideo}" Value="True">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </ContentControl.Style>
+            </ContentControl>
             <Separator Margin="4,2"/>
             <!-- Q-3/R-5（2026-09-04 Check + 2026-09-05 用户反馈）：视频模式与图像配置互斥——勾选「显示视频」后
                  图片列表组**隐藏**（Q-3 灰显用户嫌无用要求删——视频模式整组不显示；模型值保留防丢数据；
