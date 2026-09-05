@@ -30,8 +30,9 @@ namespace NavigatorHMI.Tests
             try { Directory.Delete(_dir, true); } catch { }
         }
 
-        /// <summary>假设备：按路径返回预置响应（transfer→deployResponse / progress→progressSequence 依次 / 其余 OK）。</summary>
-        private string StartFakeDevice(string deployResponse, out string ipWithPort, string[]? progressSequence = null)
+        /// <summary>假设备：按路径返回预置响应（transfer→deployResponse / progress→progressSequence 依次 / 其余 OK）。
+        /// T-1a：deviceInfoResponse 非空时 /api/device/info 返回该 JSON（磁盘预检测试用——null 走默认 OK 无 disk_free）。</summary>
+        private string StartFakeDevice(string deployResponse, out string ipWithPort, string[]? progressSequence = null, string? deviceInfoResponse = null)
         {
             for (int attempt = 0; attempt < 5; attempt++)
             {
@@ -59,6 +60,7 @@ namespace NavigatorHMI.Tests
                                     body = progressSequence[idx];
                                     progressIdx++;
                                 }
+                                else if (path == "/api/device/info" && deviceInfoResponse != null) body = deviceInfoResponse;
                                 else if (path == "/api/version") body = "{\"version\":\"1.0\"}";
                                 else body = "{\"code\":\"OK\"}";
                                 var buf = Encoding.UTF8.GetBytes(body);
@@ -260,6 +262,25 @@ namespace NavigatorHMI.Tests
             Assert.Contains(5, received);    // 陈旧 100 未阻断后续新进度
             Assert.Contains(45, received);
             Assert.Contains(100, received);
+        }
+
+        [Fact]
+        public async Task DeployProject_磁盘预检超限_拒绝传输不发transfer()
+        {
+            // T-1a（2026-09-05）：上传前磁盘预检（cap = 设备空闲 ×2/3）——mock disk_free=1MB → 任何 zip 超 cap
+            // → TRANSFER_TOO_LARGE 且**不发 /api/transfer**（预检把关，不浪费传输）
+            var zip = await MakeProject();
+            var transferHit = 0;
+            StartFakeDevice("{\"code\":\"SUCCESSFUL_REBOOT\",\"message\":\"不应到达\"}", out var ip,
+                deviceInfoResponse: "{\"version\":\"1.1.0\",\"firmware_ts\":\"0\",\"disk_total\":13421772800,\"disk_free\":1}");
+            // mock 内 transfer 命中计数（StartFakeDevice 无钩子——改监听端口响应路径为"不应到达"可间接验证：
+            // 若发了 transfer，ParseResponse 见 code 非 OK 失败码 → Success=false 且 Code 非 TRANSFER_TOO_LARGE）
+            _ = transferHit;
+
+            var result = await HttpDownloadClient.DeployProjectAsync(ip, zip);
+
+            Assert.False(result.Success);
+            Assert.Equal("TRANSFER_TOO_LARGE", result.Code);   // 预检拦截（若误发 transfer 会得 SHOCK 类错误码）
         }
 
         [Fact]

@@ -220,12 +220,17 @@ namespace NavigatorHMI.CommandLayer.Handlers
             }
 
             // K-5：真实 HTTP 传输（POST /api/transfer——FW 接收端校验+原子替换+工程重载；失败一次直接报错不重试）
-            // D-B4：可选 progress 参数（Func<int,string,bool>）——GUI 传轮询回调（设备端真实进度），CLI 不传
+            // D-B4/T-1a：可选进度参数——progressEx（Func<DeployProgressInfo,bool>，GUI 新回调——含当前文件/字节）
+            // 或 progress（Func<int,string,bool> 旧）——GUI 传轮询回调（设备端真实进度），CLI 不传。
+            // T-1a（2026-09-05）：DeployProjectAsync = 磁盘预检（cap=空闲×2/3）+ >64MB 分块（新 FW）+ ≤64MB 整包兼容
             var ip = p["device_ip"]!.ToString()!;
+            var progressEx = p.TryGetValue("progressEx", out var progEx) ? progEx as Func<HttpDownloadClient.DeployProgressInfo, bool> : null;
             var progressCb = p.TryGetValue("progress", out var prog) ? prog as Func<int, string, bool> : null;
-            var transfer = progressCb != null
-                ? HttpDownloadClient.DeployAsync(ip, deployZip, progressCb).GetAwaiter().GetResult()
-                : HttpDownloadClient.DeployAsync(ip, deployZip).GetAwaiter().GetResult();
+            var transfer = progressEx != null
+                ? HttpDownloadClient.DeployProjectAsync(ip, deployZip, progressEx).GetAwaiter().GetResult()
+                : progressCb != null
+                    ? HttpDownloadClient.DeployProjectAsync(ip, deployZip, info => progressCb(info.Percent, info.Stage)).GetAwaiter().GetResult()
+                    : HttpDownloadClient.DeployProjectAsync(ip, deployZip).GetAwaiter().GetResult();
             if (!transfer.Success)
                 return CommandResult.Fail(transfer.Code, $"部署传输失败: {transfer.Message}");
 

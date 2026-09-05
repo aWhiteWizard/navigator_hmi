@@ -694,23 +694,22 @@ namespace NavigatorHMI.ViewModels
             ProgressVisible = true;
             ProgressValue = 0;
             var dispatcher = System.Windows.Application.Current?.Dispatcher;
-            // 进度回调：0~100 + 阶段描述（后台线程调用——封送 UI 线程更新）
-            Func<int, string, bool> progress = (pct, stage) =>
+            // T-1a（2026-09-05）：进度回调 = 设备端统一进度（同源同值）+ 当前上传文件（zip 条目估算）+ 阶段描述
+            // （后台线程调用——封送 UI 线程更新）
+            Func<HttpDownloadClient.DeployProgressInfo, bool> progress = info =>
             {
+                var fileTxt = string.IsNullOrEmpty(info.CurrentFile) ? "" : $"　正在上传: {info.CurrentFile}";
+                var ui = (int pct, string stage, string file) => { ProgressValue = pct; ProgressText = $"下载中… {pct}%（{stage}）{file}"; };
                 if (dispatcher != null && !dispatcher.CheckAccess())
-                    dispatcher.BeginInvoke(new Action(() => { ProgressValue = pct; ProgressText = $"下载中… {pct}%（{stage}）"; }));
-                else
-                {
-                    ProgressValue = pct;
-                    ProgressText = $"下载中… {pct}%（{stage}）";
-                }
+                    dispatcher.BeginInvoke(new Action(() => ui(info.Percent, info.Stage, fileTxt)));
+                else ui(info.Percent, info.Stage, fileTxt);
                 return true;
             };
             var result = await Task.Run(() => _commandService.Execute("deploy_project",
                 new Dictionary<string, object?>
                 {
                     ["device_ip"] = DeviceConnectionService.Session.Ip,
-                    ["progress"] = progress,
+                    ["progressEx"] = progress,
                 }));
             ProgressVisible = false;
             ProgressValue = 100;

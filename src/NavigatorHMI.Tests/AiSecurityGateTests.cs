@@ -94,7 +94,8 @@ namespace NavigatorHMI.Tests
             finally { AIAgent.SetBlacklist(saved); }
         }
 
-        /// <summary>假设备：/api/transfer 返回 SUCCESSFUL_REBOOT（模拟 FW 接收端）。</summary>
+        /// <summary>假设备：/api/device/info（含 disk_free——T-1a 预检）→ /api/transfer 返回 SUCCESSFUL_REBOOT。
+        /// T-1a（2026-09-05）：DeployProjectAsync 先预检 GET device/info 再 POST transfer——mock 按路径路由多请求。</summary>
         private static string StartFakeDevice()
         {
             for (int attempt = 0; attempt < 5; attempt++)
@@ -109,13 +110,23 @@ namespace NavigatorHMI.Tests
                     {
                         try
                         {
-                            var ctx = await listener.GetContextAsync();
-                            var body = System.Text.Encoding.UTF8.GetBytes("{\"code\":\"SUCCESSFUL_REBOOT\",\"message\":\"部署成功\"}");
-                            ctx.Response.ContentType = "application/json";
-                            ctx.Response.ContentLength64 = body.Length;
-                            await ctx.Response.OutputStream.WriteAsync(body);
-                            ctx.Response.Close();
-                            listener.Stop();
+                            for (int i = 0; i < 8; i++)
+                            {
+                                var ctx = await listener.GetContextAsync();
+                                var path = ctx.Request.Url?.AbsolutePath ?? "";
+                                byte[] body;
+                                var isTransfer = path.Contains("/api/transfer");
+                                if (path.Contains("/api/device/info"))
+                                    body = System.Text.Encoding.UTF8.GetBytes(
+                                        "{\"version\":\"1.1.0\",\"firmware_ts\":\"0\",\"disk_total\":13421772800,\"disk_free\":13421772800}");
+                                else
+                                    body = System.Text.Encoding.UTF8.GetBytes("{\"code\":\"SUCCESSFUL_REBOOT\",\"message\":\"部署成功\"}");
+                                ctx.Response.ContentType = "application/json";
+                                ctx.Response.ContentLength64 = body.Length;
+                                await ctx.Response.OutputStream.WriteAsync(body);
+                                ctx.Response.Close();
+                                if (isTransfer) listener.Stop();   // 响应写完后再停（提前 Stop 会中断未完成响应）
+                            }
                         }
                         catch { }
                     });
