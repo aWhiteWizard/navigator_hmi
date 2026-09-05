@@ -573,6 +573,110 @@ namespace NavigatorHMI.Tests
         }
 
         [Fact]
+        public void 中文视频文件名_入包ASCII化video序号_防ffmpeg百分号编码打不开()
+        {
+            // Q 循环 Check（2026-09-05 黑屏第三层根因）：Qt6.4 ffmpeg 后端 avformat_open_input 拿
+            // QUrl.toEncoded(PreferLocalFile) 的百分号编码串（中文→%E5%A4%A7...），ffmpeg file 协议不解码 %XX
+            // → 字面 % 串打开失败「Could not open file」。media 包名强制 ASCII（video_N.ext），DTO 引用同步改写
+            var outsideDir = Path.Combine(Path.GetTempPath(), "navihmi_中文视频_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(outsideDir);
+            var vid = Path.Combine(outsideDir, "02_大佬演示视频.mp4");
+            File.WriteAllBytes(vid, new byte[] { 0x33, 0x44 });
+            try
+            {
+                _project.Screens[0].Widgets.Add(new FrameWidget { ObjectName = "fr1", ShowVideo = true, VideoSource = vid });
+                WriteValidNavihmiWithVideo(vid);
+
+                var zipPath = Build();
+                var files = ReadZip(zipPath);
+                var mediaEntry = Assert.Single(files, f => f.Path.StartsWith("media/"));   // 恰一份 media
+                Assert.Matches(@"^media/video_\d+\.mp4$", mediaEntry.Path);                // ASCII video_N 名
+                Assert.True(mediaEntry.Path.All(c => c < 128), $"media 包名含非 ASCII: {mediaEntry.Path}");
+                var dto = ReadNavihmiFromZip(files);
+                Assert.Equal(Path.GetFileName(mediaEntry.Path), dto.Screens[0].Widgets[0].VideoSource);  // DTO 同步改写
+                Assert.True(dto.Screens[0].Widgets[0].VideoSource.All(c => c < 128));
+            }
+            finally { try { Directory.Delete(outsideDir, true); } catch { } }
+        }
+
+        [Fact]
+        public void 同一中文视频多控件引用_单份入包不重复()
+        {
+            // 审查 🟡 回归网（2026-09-05）：absPackMap 缓存 ASCII 化后最终名——同文件多引用
+            // （GUI 多控件共用同视频常见）不得生成 video_1/video_2 双份（N×体积可撞 64MB 总和拒收）
+            var outsideDir = Path.Combine(Path.GetTempPath(), "navihmi_中文多引用_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(outsideDir);
+            var vid = Path.Combine(outsideDir, "共用_演示视频.mp4");
+            File.WriteAllBytes(vid, new byte[] { 0x77, 0x88 });
+            try
+            {
+                _project.Screens[0].Widgets.Add(new FrameWidget { ObjectName = "fr1", ShowVideo = true, VideoSource = vid });
+                _project.Screens[0].Widgets.Add(new FrameWidget { ObjectName = "fr2", ShowVideo = true, VideoSource = vid });
+                // 审查 🟡-2：DTO 序列化两控件（helper 单控件 → Assert.All 失真）——两控件改写一致断言真实
+                var dto2 = new NavihmiProject { Name = "多引用", Version = "1.0" };
+                dto2.Screens.Add(new NavihmiScreen
+                {
+                    Name = "画面A",
+                    Type = ScreenType.Custom,
+                    Widgets =
+                    {
+                        new NavihmiWidget { ObjectName = "fr1", Type = NavihmiWidgetType.Frame, ShowVideo = true, VideoSource = vid },
+                        new NavihmiWidget { ObjectName = "fr2", Type = NavihmiWidgetType.Frame, ShowVideo = true, VideoSource = vid }
+                    }
+                });
+                using (var ms2 = new MemoryStream()) { Serializer.Serialize(ms2, dto2); File.WriteAllBytes(_navihmiPath, ms2.ToArray()); }
+
+                var zipPath = Build();
+                var files = ReadZip(zipPath);
+                var mediaEntries = files.Where(f => f.Path.StartsWith("media/")).ToList();
+                Assert.Single(mediaEntries);   // 两控件同源 → 恰一份
+                Assert.True(mediaEntries[0].Path.All(c => c < 128));
+                var dto = ReadNavihmiFromZip(files);
+                Assert.Equal(2, dto.Screens[0].Widgets.Count(w => w.Type == NavihmiWidgetType.Frame));
+                Assert.All(dto.Screens[0].Widgets.Where(w => w.Type == NavihmiWidgetType.Frame),
+                    w => Assert.Equal(Path.GetFileName(mediaEntries[0].Path), w.VideoSource));   // 两控件改写一致
+            }
+            finally { try { Directory.Delete(outsideDir, true); } catch { } }
+        }
+
+        [Fact]
+        public void 中文改名videoN与真实videoN同名_唯一化不静默错媒体()
+        {
+            // 审查 🟡-1 回归网（2026-09-05）：目录内中文视频改名 video_1.mp4 先占名 + 工程根级真实
+            // video_1.mp4 后处理 → else-if 必须 UniquePack 唯一化（否则同 pack TryAdd 失败后者内容不入包 DTO 错指）
+            WriteImage("素材/演示中文.mp4", new byte[] { 0xAA });        // 目录内中文 → ASCII 化 video_1.mp4
+            WriteImage("video_1.mp4", new byte[] { 0xBB });             // 根级真实 ASCII video_1.mp4（撞改名名）
+            _project.Screens[0].Widgets.Add(new FrameWidget { ObjectName = "frA", ShowVideo = true, VideoSource = "素材/演示中文.mp4" });
+            _project.Screens[0].Widgets.Add(new FrameWidget { ObjectName = "frB", ShowVideo = true, VideoSource = "video_1.mp4" });
+            var dv = new NavihmiProject { Name = "撞名", Version = "1.0" };
+            dv.Screens.Add(new NavihmiScreen
+            {
+                Name = "画面A",
+                Type = ScreenType.Custom,
+                Widgets =
+                {
+                    new NavihmiWidget { ObjectName = "frA", Type = NavihmiWidgetType.Frame, ShowVideo = true, VideoSource = "素材/演示中文.mp4" },
+                    new NavihmiWidget { ObjectName = "frB", Type = NavihmiWidgetType.Frame, ShowVideo = true, VideoSource = "video_1.mp4" }
+                }
+            });
+            using (var ms = new MemoryStream()) { Serializer.Serialize(ms, dv); File.WriteAllBytes(_navihmiPath, ms.ToArray()); }
+
+            var zipPath = Build();
+            var files = ReadZip(zipPath);
+            var mediaEntries = files.Where(f => f.Path.StartsWith("media/")).ToList();
+            Assert.Equal(2, mediaEntries.Count);   // 两源各自入包（不静默丢）
+            // 内容区分防错指：video_1.mp4=中文源(0xAA)、video_1_2.mp4=真实 ascii 源(0xBB)
+            var byName = mediaEntries.ToDictionary(f => f.Path, f => f.Bytes);
+            Assert.Equal(new byte[] { 0xAA }, byName["media/video_1.mp4"]);
+            var second = mediaEntries.Single(f => f.Path != "media/video_1.mp4");
+            Assert.Matches(@"^media/video_1_\d+\.mp4$", second.Path);
+            Assert.Equal(new byte[] { 0xBB }, second.Bytes);
+            var dto = ReadNavihmiFromZip(files);
+            Assert.Equal("video_1.mp4", dto.Screens[0].Widgets.Single(w => w.ObjectName == "frA").VideoSource);
+            Assert.Equal(Path.GetFileName(second.Path), dto.Screens[0].Widgets.Single(w => w.ObjectName == "frB").VideoSource);
+        }
+
+        [Fact]
         public void 视频超64MB_打包抛异常报错()
         {
             // 用户裁决（2026-09-02）：本地视频 ≤64MB，超限**报错**（抛异常阻断打包，与瓦片 Trace 警告不同）

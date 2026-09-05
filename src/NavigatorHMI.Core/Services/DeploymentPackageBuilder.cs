@@ -237,10 +237,67 @@ namespace NavigatorHMI.Common
             CollectPass(imageRefs, imageExts, imagePathMap, resources, wantInside: false);
 
             // P-6：视频两遍收集（入包 media/ 前缀——FW resolveVideoPath 拼 <工程目录>/media/<rel> 加载）
+            // Q 循环 Check（2026-09-05 黑屏第三层根因）：media 包名**强制 ASCII**——Qt6.4 ffmpeg 后端
+            // (qffmpegdecoder.cpp:1041) 用 media.toEncoded(PreferLocalFile) 给 avformat_open_input——
+            // 中文名被 QUrl 百分号编码 %E5%A4%A7... 而 ffmpeg file 协议**不解码 %XX** → 字面 % 串打开失败
+            // 「Could not open file」。图片中文名无恙（Qt 自解码）；仅视频走 ffmpeg 受影响 → 打包期转 ASCII
+            // 名（video_N.ext），DTO 引用同步改写 → 设备端路径全 ASCII。
             var videos = new Dictionary<string, (string Abs, string Rel)>();
             var videoPathMap = new Dictionary<string, string>();
-            CollectPass(videoRefs, videoExts, videoPathMap, videos, wantInside: true);
-            CollectPass(videoRefs, videoExts, videoPathMap, videos, wantInside: false);
+            var videoAbsPack = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);   // 视频 abs → 最终包名（含 ASCII 化后；防同文件多引用重复入包）
+            int videoSeq = 0;
+            void CollectVideos(List<string> refs, bool wantInside)
+            {
+                foreach (var modelPath in refs)
+                {
+                    var f = ResolveFile(modelPath, videoExts);
+                    if (f == null) continue;
+                    if (f.Value.Inside != wantInside) continue;
+                    string pack;
+                    if (videoAbsPack.TryGetValue(f.Value.Abs, out var cachedPack)) { pack = cachedPack; }
+                    else
+                    {
+                        if (f.Value.Inside)
+                        {
+                            pack = Path.GetRelativePath(projectDir, f.Value.Abs).Replace('\\', '/');
+                        }
+                        else
+                        {
+                            var p = UniquePack(Path.GetFileName(f.Value.Abs));
+                            if (p == null) continue;
+                            pack = p;
+                        }
+                        // ASCII 化（中文/非 ASCII 名 → video_N.ext；ASCII 原名保留可读性）
+                        if (pack.Any(c => c > 127))
+                        {
+                            var ext = Path.GetExtension(pack);
+                            if (string.IsNullOrEmpty(ext)) ext = "";
+                            string asciiPack;
+                            do { asciiPack = $"video_{++videoSeq}{ext}"; }
+                            while (usedPackNames.Contains(asciiPack));
+                            usedPackNames.Add(asciiPack);
+                            pack = asciiPack;
+                        }
+                        else if (f.Value.Inside)
+                        {
+                            // 目录内规范名占用——ASCII 化改名可能已先占同名（真实名 video_1.mp4 与中文改名
+                            // video_1.mp4 撞——同 pass 内次序相关，reviewer 🟡-1）→ UniquePack 唯一化防静默错媒体
+                            if (usedPackNames.Contains(pack))
+                            {
+                                var u = UniquePack(pack);
+                                if (u == null) continue;
+                                pack = u;
+                            }
+                            usedPackNames.Add(pack);
+                        }
+                        videoAbsPack[f.Value.Abs] = pack;   // 缓存**最终包名**（审查 🟡：防同文件多引用/双拼写二次 ASCII 化出新名双份——GUI 多控件共用同视频常见，N×体积可撞 64MB 总和拒收）
+                    }
+                    videoPathMap[modelPath] = pack;   // map 无条件登记（多拼写各自登记）
+                    videos.TryAdd(pack, (f.Value.Abs, pack));  // 资源按 pack 去重（同 pack 同文件共用一份）
+                }
+            }
+            CollectVideos(videoRefs, wantInside: true);
+            CollectVideos(videoRefs, wantInside: false);
 
             // P-6 大小护栏（用户裁决 2026-09-02：本地视频 ≤64MB，超限**报错**——抛异常阻断打包，
             // 与瓦片/图片的 Trace 警告不同：视频文件大、超限静默入包会让 FW 拒收整包且难排查）
