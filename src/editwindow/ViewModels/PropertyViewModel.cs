@@ -1731,7 +1731,7 @@ namespace NavigatorHMI.ViewModels
             BeginSuppressListRefWrites();   // 增量同步移除占位项时 ComboBox 失配回写 """ 会真解绑——窗口期拦截
             var imgNames = Project?.Lists.Where(l => l.Type == ListType.Image).Select(l => l.Name) ?? Enumerable.Empty<string>();
             var textNames = Project?.Lists.Where(l => l.Type == ListType.Text).Select(l => l.Name) ?? Enumerable.Empty<string>();   // S-4：仅文本型（原 != Image 会混入 Video 型）
-            var videoNames = Project?.Lists.Where(l => l.Type is ListType.Video or ListType.Text).Select(l => l.Name) ?? Enumerable.Empty<string>();   // S-5：视频源列表（Check ② 2026-09-05：放开含文本型——源地址列表可建在「文本列表」页；图片型排除）
+            var videoNames = Project?.Lists.Where(l => l.Type == ListType.Video).Select(l => l.Name) ?? Enumerable.Empty<string>();   // S-5：视频列表下拉选项（Check 2026-09-05 收紧：仅 Video 型——Text 型列表给 TextList 控件，不混入 Frame 视频列表下拉；Check ② 曾放开 Text 已收回）
             SyncOptions(ImageListOptions, imgNames);
             SyncOptions(TextListOptions, textNames);
             SyncOptions(VideoListOptions, videoNames);
@@ -2007,7 +2007,7 @@ namespace NavigatorHMI.ViewModels
 
         // ── S-4/S-5（2026-09-05 用户拍板）：视频源列表 + 视频源选择索引变量 ──
         private string _frameVideoListRef = "";
-        /// <summary>S-5：Frame 视频源列表名（Video/Text 型列表——Check ②放开文本页源表；空=未选列表。
+        /// <summary>S-5：Frame 视频列表名（Video 型列表——Check 2026-09-05 收紧仅 Video，Text 型收回；空=未选列表。
         /// 注：Check ①删单源 UI——遗留工程 VideoSource 模型保留（老 P-6 工程 FW 兜底播放），面板不再引导单源。
         /// 防御同 FrameListRef 先例（审查 🟡-3：null 拦截 + suppress 失配窗口 + 同值跳过——防哨兵回写清空 f.VideoListRef）。</summary>
         public string FrameVideoListRef
@@ -2043,7 +2043,7 @@ namespace NavigatorHMI.ViewModels
             }
         }
 
-        /// <summary>S-5：视频源列表名选项（工程 Video+Text 型列表——Check ②放开文本页源表；选中 Frame 时刷新——首项空串=不绑列表）。</summary>
+        /// <summary>S-5：视频列表名选项（工程 Video 型列表——Check 2026-09-05 收紧仅 Video；选中 Frame 时刷新——首项空串=不绑列表）。</summary>
         public System.Collections.ObjectModel.ObservableCollection<string> VideoListOptions { get; } = new();
 
         /// <summary>P-6：是否视频模式（勾选显示视频——源来自下方「视频源列表」，Check ①删单源框后不再有独立视频源行）。</summary>

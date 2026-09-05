@@ -999,70 +999,138 @@ namespace NavigatorHMI.Views
             if (selected.Count > 0) _listManagerVM.DeleteLists(selected);
         }
 
-        // ── T-2（2026-09-05 用户 Check）：视频源列表本地项预览——选中本地文件显首帧（默认暂停），点击播放/再点停止；RTSP/网络源除外 ──
-        private bool _videoPreviewPlaying = false;
+        // ── 视频列表本地项预览（Check 方案 A 2026-09-05：DataGrid 预览列——仅选中行显示视频画面，首帧默认暂停，
+        //    点击播放/再点暂停，换行切换；RTSP/网络源提示不可预览——MediaElement 后端不支持 rtsp 直连）──
+        private System.Windows.Controls.Border? _videoRowBorder;      // 当前活动预览行 Border（Tag=播放状态）
+        private MediaElement? _videoRowMedia;                         // 活动行预览列 MediaElement
+        private TextBlock? _videoRowHint;                             // 活动行预览列提示覆盖层
+        private int _videoRowRetries;                                 // 容器未 realized 重试计数（审查 🟡-3 守卫——防饿死）
+        private ListItemVM? _videoRowRetryItem;                       // 重试预算绑定项（item 变化/置空清零——每选中独立 3 次预算）
 
-        private void VideoItemsGrid_SelectionChanged(object sender, SelectionChangedEventArgs e) => RefreshVideoPreview();
+        private void VideoItemsGrid_SelectionChanged(object sender, SelectionChangedEventArgs e) => VideoRowRefresh();
 
-        /// <summary>按选中项刷新预览：本地文件 → 设 Source（Manual 模式停首帧）；RTSP/网络源/文件缺失 → 提示不加载。</summary>
-        private void RefreshVideoPreview()
+        /// <summary>视觉子树查找（预览列模板内元素——DataTemplate 内 x:Name 不可直接寻址）。</summary>
+        private static T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
         {
-            _videoPreviewPlaying = false;
-            VideoPreviewMedia.Stop();
-            VideoPreviewMedia.Source = null;
-            var val = (VideoItemsGrid.SelectedItem as ListItemVM)?.Value?.Trim() ?? "";
-            if (val.Length == 0) { VideoPreviewHint.Text = "选择视频源项预览（本地文件；点击播放/停止）"; return; }
+            for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
+                if (child is T t) return t;
+                var hit = FindVisualChild<T>(child);
+                if (hit != null) return hit;
+            }
+            return null;
+        }
+
+        /// <summary>视觉祖先查找（MediaEnded/Failed 的 sender=MediaElement → 所属预览 Border）。</summary>
+        private static T? FindAncestor<T>(DependencyObject d) where T : DependencyObject
+        {
+            var p = System.Windows.Media.VisualTreeHelper.GetParent(d);
+            while (p != null)
+            {
+                if (p is T t) return t;
+                p = System.Windows.Media.VisualTreeHelper.GetParent(p);
+            }
+            return null;
+        }
+
+        /// <summary>选中变化/切列表/删除 → 清旧行预览 → 新选中行预览列设源/提示（仅选中行加载，未选中行黑底占位）。
+        /// 审查 🔴（2026-09-05 PC 复审驳回修复）：**不得** FindVisualChild&lt;Border&gt;(row)——DataGridRow 模板行根即
+        /// Border(DGR_Border)、单元格另含 Border(Bd)、文本列含 TextBlock，行级查找会命中行根/序号列——提示被写进序号列
+        /// 破坏显示；改为先 FindVisualChild&lt;MediaElement&gt;(row)（预览列模板内唯一）再 FindAncestor 反查预览 Border，
+        /// hint 限定在预览 Border 内查找（覆盖层 TextBlock 唯一）。</summary>
+        private void VideoRowRefresh()
+        {
+            if (_videoRowMedia != null) { _videoRowMedia.Stop(); _videoRowMedia.Source = null; }
+            if (_videoRowBorder != null) _videoRowBorder.Tag = null;
+            if (_videoRowHint != null) _videoRowHint.Text = "点击预览";
+            _videoRowBorder = null; _videoRowMedia = null; _videoRowHint = null;
+            var item = VideoItemsGrid.SelectedItem as ListItemVM;
+            if (item == null) { _videoRowRetryItem = null; return; }
+            // 审查 🟡（第 3 轮）：重试预算随选中项变化清零——每选中独立 3 次（防共享计数被前项耗尽致新项零重试）
+            if (!ReferenceEquals(item, _videoRowRetryItem)) { _videoRowRetryItem = item; _videoRowRetries = 0; }
+            var row = VideoItemsGrid.ItemContainerGenerator.ContainerFromItem(item) as System.Windows.Controls.DataGridRow;
+            if (row == null)
+            {
+                // 审查 🟡-3：行虚拟化——未 realized 行 ContainerFromItem 返回 null（键盘跳视口外/程序化选中）：
+                // 延后重试，但限次数（≤3）+ Background 优先级（低于 Render——先让布局/容器生成跑一轮，防饿死循环）
+                if (_videoRowRetries < 3)
+                {
+                    _videoRowRetries++;
+                    Dispatcher.BeginInvoke(new Action(VideoRowRefresh), System.Windows.Threading.DispatcherPriority.Background);
+                }
+                return;
+            }
+            _videoRowRetries = 0;   // 命中容器 → 计数清零（新选中从 0 起）
+            var media = FindVisualChild<MediaElement>(row);   // 预览列模板内 MediaElement（行内唯一）
+            if (media == null) return;
+            var border = FindAncestor<System.Windows.Controls.Border>(media);   // 反查预览列 Border（行根 Border 不干扰）
+            if (border == null) return;
+            _videoRowBorder = border;
+            _videoRowMedia = media;
+            _videoRowHint = FindVisualChild<TextBlock>(border);   // 预览 Border 内覆盖层 TextBlock（唯一）
+            var val = item.Value?.Trim() ?? "";
+            if (val.Length == 0) { if (_videoRowHint != null) _videoRowHint.Text = "（空项）"; return; }
             if (val.StartsWith("rtsp://", StringComparison.OrdinalIgnoreCase)
                 || val.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
                 || val.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-            { VideoPreviewHint.Text = "RTSP/网络源不可预览（设备端直连播放）"; return; }
+            { if (_videoRowHint != null) _videoRowHint.Text = "RTSP/网络源\n不可预览"; return; }
             if (!System.IO.File.Exists(val))
-            {
-                VideoPreviewHint.Text = $"本地文件不存在或为工程内相对路径（预览需完整本地路径；设备端打包不受影响）:\n{val}";
-                return;
-            }
+            { if (_videoRowHint != null) _videoRowHint.Text = "文件不存在\n或相对路径"; return; }
             try
             {
-                VideoPreviewMedia.Source = new Uri(val);   // 审查 🟡（2026-09-05 PC 复审）：Uri 构造守卫——File.Exists 通过但非法 URI 字符（如裸 %）会抛 UriFormatException → 全局 handler 崩溃
+                media.Source = new Uri(val);   // Manual 模式停首帧——画面出现（隐藏提示）
+                if (_videoRowHint != null) _videoRowHint.Text = "";
             }
             catch (UriFormatException)
             {
-                VideoPreviewHint.Text = $"路径含非法字符无法预览（设备端打包不受影响）:\n{val}";
-                return;
+                if (_videoRowHint != null) _videoRowHint.Text = "路径含非法字符\n无法预览";
             }
-            VideoPreviewHint.Text = "本地视频（默认暂停显首帧）——点击播放预览 / 再点停止";
         }
 
-        /// <summary>点击预览窗：播放 ↔ 停止（toggle；本地源才响应）。</summary>
-        private void VideoPreview_MouseDown(object sender, MouseButtonEventArgs e)
+        /// <summary>点击预览列：播放 ↔ 暂停（toggle；本地已加载源才响应——RTSP/空/缺失由提示说明）。</summary>
+        private void VideoRowPreview_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            if (VideoPreviewMedia.Source == null) return;
-            if (_videoPreviewPlaying)
+            if (sender is not System.Windows.Controls.Border border) return;
+            var media = FindVisualChild<MediaElement>(border);
+            var hint = FindVisualChild<TextBlock>(border);
+            if (media == null || media.Source == null) return;
+            if (border.Tag is true)
             {
-                VideoPreviewMedia.Stop();   // 停止回首帧（与默认首帧态一致）
-                _videoPreviewPlaying = false;
-                VideoPreviewHint.Text = "已停止——点击重新播放预览";
+                media.Pause();
+                border.Tag = false;
+                if (hint != null) hint.Text = "已暂停——点击继续";
             }
             else
             {
-                VideoPreviewMedia.Play();
-                _videoPreviewPlaying = true;
-                VideoPreviewHint.Text = "播放预览中——点击停止";
+                media.Play();
+                border.Tag = true;
+                if (hint != null) hint.Text = "播放中——点击暂停";
             }
         }
 
-        /// <summary>播放自然结束 → 复位为停止态（首帧停留）。</summary>
-        private void VideoPreview_MediaEnded(object sender, RoutedEventArgs e)
+        /// <summary>播放自然结束 → 复位该行并 Stop（Position 回 0——审查 🟡-4：Ended 后 Play 不自动重播，
+        /// Stop 后点击 Play 从头播；hint 提示可重播）。</summary>
+        private void VideoRowMedia_Ended(object sender, RoutedEventArgs e)
         {
-            _videoPreviewPlaying = false;
-            VideoPreviewHint.Text = "播放结束——点击重新播放预览";
+            if (sender is not MediaElement me) return;
+            me.Stop();   // Ended 自然结束后 Stop 归零——后续点击 Play 从头（暂停态不触发本 handler）
+            var border = FindAncestor<System.Windows.Controls.Border>(me);
+            if (border == null) return;
+            border.Tag = false;
+            var hint = FindVisualChild<TextBlock>(border);
+            if (hint != null) hint.Text = "播放结束\n点击重播";
         }
 
-        /// <summary>解码失败（格式不支持/损坏）→ 复位状态 + 提示（审查 🟡 2026-09-05：防黑屏 + _playing/提示失真）。</summary>
-        private void VideoPreview_MediaFailed(object sender, ExceptionRoutedEventArgs e)
+        /// <summary>解码失败（格式不支持/损坏）→ 复位该行 + 提示（设备端打包播放不受影响）。</summary>
+        private void VideoRowMedia_Failed(object sender, ExceptionRoutedEventArgs e)
         {
-            _videoPreviewPlaying = false;
-            VideoPreviewHint.Text = $"该视频无法解码预览（格式不支持或文件损坏；设备端打包播放不受影响）——{e.ErrorException?.Message}";
+            if (sender is not MediaElement me) return;
+            var border = FindAncestor<System.Windows.Controls.Border>(me);
+            if (border == null) return;
+            border.Tag = false;
+            var hint = FindVisualChild<TextBlock>(border);
+            if (hint != null) hint.Text = "无法解码预览\n（格式不支持/损坏）";
         }
 
         private void OnAlarmDeleteRequested(AlarmRule alarm)

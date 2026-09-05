@@ -492,7 +492,8 @@ namespace NavigatorHMI.ViewModels
             if (type == ListType.Text) RebuildTextItems(); else if (type == ListType.Image) RebuildImageItems(); else RebuildVideoItems();   // S-4
         }
 
-        /// <summary>粘贴列表项（P3-5 复制粘贴）：添加新项并复制值。</summary>
+        /// <summary>粘贴列表项（P3-5 复制粘贴；Check 2026-09-05 用户定「从上往下依次填写」）：**优先填入首个空行**
+        ///（Items 中第一个 Value 为空的项——如「＋添加项」占位行被后续粘贴消费，不再「空行残留 + 新值排末尾」）；无空行才追加新行。</summary>
         public void PasteItem(ListType type, string value)
         {
             var list = type == ListType.Text ? SelectedTextList : type == ListType.Image ? SelectedImageList : SelectedVideoList;   // S-4
@@ -502,7 +503,9 @@ namespace NavigatorHMI.ViewModels
                 return;
             }
             PushListSnapshot();   // P3-6 撤销快照（guard 后：仅真实操作入栈）
-            list.Items.Add(value);
+            var emptyIdx = list.Items.FindIndex(i => string.IsNullOrWhiteSpace(i));
+            if (emptyIdx >= 0) list.Items[emptyIdx] = value;   // 填空行（自上而下第一个空）
+            else list.Items.Add(value);                          // 无空行 → 追加
             CommitItems(list);
             if (type == ListType.Text) RebuildTextItems(); else if (type == ListType.Image) RebuildImageItems(); else RebuildVideoItems();   // S-4
         }

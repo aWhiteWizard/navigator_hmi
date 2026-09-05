@@ -304,7 +304,7 @@ namespace NavigatorHMI.ViewModels
         }
     }
 
-    /// <summary>「视频源列表」叶子节点（S-4）：双击打开列表管理面板（视频源列表页）。</summary>
+    /// <summary>「视频列表」叶子节点（S-4，Check 改名 2026-09-05）：双击打开列表管理面板（视频列表页）。</summary>
     public class VideoListRootNode : ProjectTreeViewModel
     {
         private readonly ListRootNode _parent;
@@ -312,7 +312,7 @@ namespace NavigatorHMI.ViewModels
         public VideoListRootNode(ListRootNode parent)
         {
             _parent = parent;
-            Name = "视频源列表";
+            Name = "视频列表";   // Check 改名（2026-09-05）：与「文本列表/图片列表」对齐
             DoubleClickCommand = new RelayCommand(() => _parent.NotifyVideoListSelected());
         }
     }

@@ -89,14 +89,15 @@ namespace NavigatorHMI.Tests
         }
 
         [Fact]
-        public void 视频源列表下拉_含Video与Text列表_不含Image()
+        public void 视频列表下拉_仅Video型_不含Text与Image()
         {
-            // Check ②（2026-09-05）：放开文本型——用户建在「文本列表」页的源地址列表可选；图片型排除（项=图片路径无视频语义）
+            // S-5 + Check 收紧（2026-09-05）：下拉仅列 Video 型（视频列表页建）——Text 型（文本列表页）与 Image 型排除
+            //（Check ② 曾放开 Text——用户实测后收回：文本列表给 TextList 控件，不混入 Frame 视频列表）
             var vm = MakeVm();
             Assert.Equal("", vm.VideoListOptions[0]);         // 哨兵首项
-            Assert.Contains("视频源列表A", vm.VideoListOptions);   // Video 型（视频源列表页建）
-            Assert.Contains("文本表1", vm.VideoListOptions);       // Text 型（文本列表页建——Check ② 放开）
-            Assert.DoesNotContain("图片表1", vm.VideoListOptions); // Image 型仍排除
+            Assert.Contains("视频源列表A", vm.VideoListOptions);   // Video 型（视频列表页建）
+            Assert.DoesNotContain("文本表1", vm.VideoListOptions);   // Text 型排除（Check 收紧）
+            Assert.DoesNotContain("图片表1", vm.VideoListOptions); // Image 型排除
         }
 
         [Fact]
