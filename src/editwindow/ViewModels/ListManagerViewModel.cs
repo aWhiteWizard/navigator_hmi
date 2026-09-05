@@ -131,6 +131,10 @@ namespace NavigatorHMI.ViewModels
             DeleteImageListCommand = new RelayCommand(() => DeleteList(ListType.Image));
             AddImageItemCommand = new RelayCommand(() => AddItem(ListType.Image));
             RemoveImageItemCommand = new RelayCommand(() => RemoveItem(ListType.Image));
+            NewVideoListCommand = new RelayCommand(() => CreateList(ListType.Video));   // S-4：视频源列表第三型
+            DeleteVideoListCommand = new RelayCommand(() => DeleteList(ListType.Video));
+            AddVideoItemCommand = new RelayCommand(() => AddItem(ListType.Video));
+            RemoveVideoItemCommand = new RelayCommand(() => RemoveItem(ListType.Video));
 
             CommandService.CommandExecuted += OnCommandExecuted;
             RefreshLists();
@@ -143,6 +147,7 @@ namespace NavigatorHMI.ViewModels
 
         public ObservableCollection<ListDef> TextLists { get; } = new();
         public ObservableCollection<ListDef> ImageLists { get; } = new();
+        public ObservableCollection<ListDef> VideoLists { get; } = new();   // S-4：视频源列表
 
         private void OnCommandExecuted(string cmdName, Dictionary<string, object?> parameters, CommandResult result)
         {
@@ -161,6 +166,7 @@ namespace NavigatorHMI.ViewModels
         {
             SyncCollection(TextLists, Project.Lists.Where(l => l.Type == ListType.Text));
             SyncCollection(ImageLists, Project.Lists.Where(l => l.Type == ListType.Image));
+            SyncCollection(VideoLists, Project.Lists.Where(l => l.Type == ListType.Video));   // S-4
 
             // 选中列表被删除时置空并清空项编辑区
             if (SelectedTextList != null && !Project.Lists.Contains(SelectedTextList))
@@ -172,6 +178,11 @@ namespace NavigatorHMI.ViewModels
             {
                 SelectedImageList = null;
                 RebuildImageItems();
+            }
+            if (SelectedVideoList != null && !Project.Lists.Contains(SelectedVideoList))   // S-4
+            {
+                SelectedVideoList = null;
+                RebuildVideoItems();
             }
         }
 
@@ -227,13 +238,34 @@ namespace NavigatorHMI.ViewModels
             }
         }
 
+        private ListDef? _selectedVideoList;   // S-4
+        public ListDef? SelectedVideoList
+        {
+            get => _selectedVideoList;
+            set
+            {
+                if (_selectedVideoList != value)
+                {
+                    _selectedVideoList = value;
+                    OnPropertyChanged();
+                    RebuildVideoItems();
+                    _syncingName = true;
+                    try { VideoListName = value?.Name ?? ""; }
+                    finally { _syncingName = false; }
+                }
+            }
+        }
+
         public ObservableCollection<ListItemVM> TextItems { get; } = new();
         public ObservableCollection<ListItemVM> ImageItems { get; } = new();
+        public ObservableCollection<ListItemVM> VideoItems { get; } = new();   // S-4
         public ListItemVM? SelectedTextItem { get; set; }
         public ListItemVM? SelectedImageItem { get; set; }
+        public ListItemVM? SelectedVideoItem { get; set; }   // S-4
 
         private void RebuildTextItems() => RebuildItems(TextItems, SelectedTextList, isImage: false);
         private void RebuildImageItems() => RebuildItems(ImageItems, SelectedImageList, isImage: true);
+        private void RebuildVideoItems() => RebuildItems(VideoItems, SelectedVideoList, isImage: false);   // S-4：视频源项纯文本编辑（本地路径/URL）
 
         private void RebuildItems(ObservableCollection<ListItemVM> target, ListDef? list, bool isImage)
         {
@@ -276,6 +308,13 @@ namespace NavigatorHMI.ViewModels
             set { if (_newImageListName != value) { _newImageListName = value; OnPropertyChanged(); } }
         }
 
+        private string _newVideoListName = "";   // S-4
+        public string NewVideoListName
+        {
+            get => _newVideoListName;
+            set { if (_newVideoListName != value) { _newVideoListName = value; OnPropertyChanged(); } }
+        }
+
         public ICommand NewTextListCommand { get; }
         public ICommand DeleteTextListCommand { get; }
         public ICommand AddTextItemCommand { get; }
@@ -284,10 +323,19 @@ namespace NavigatorHMI.ViewModels
         public ICommand DeleteImageListCommand { get; }
         public ICommand AddImageItemCommand { get; }
         public ICommand RemoveImageItemCommand { get; }
+        public ICommand NewVideoListCommand { get; }   // S-4
+        public ICommand DeleteVideoListCommand { get; }
+        public ICommand AddVideoItemCommand { get; }
+        public ICommand RemoveVideoItemCommand { get; }
 
         private void CreateList(ListType type)
         {
-            var name = (type == ListType.Text ? NewTextListName : NewImageListName).Trim();
+            var name = (type switch
+            {
+                ListType.Text => NewTextListName,
+                ListType.Image => NewImageListName,
+                _ => NewVideoListName   // S-4
+            }).Trim();
             if (name.Length == 0)
             {
                 System.Windows.MessageBox.Show("请输入列表名称", "新建列表", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
@@ -300,9 +348,13 @@ namespace NavigatorHMI.ViewModels
             });
             if (result.Success)
             {
-                if (type == ListType.Text) NewTextListName = ""; else NewImageListName = "";
+                if (type == ListType.Text) NewTextListName = "";
+                else if (type == ListType.Image) NewImageListName = "";
+                else NewVideoListName = "";
                 var created = Project.Lists.FirstOrDefault(l => l.Name == name);
-                if (type == ListType.Text) SelectedTextList = created; else SelectedImageList = created;
+                if (type == ListType.Text) SelectedTextList = created;
+                else if (type == ListType.Image) SelectedImageList = created;
+                else SelectedVideoList = created;   // S-4
             }
             else
             {
@@ -313,7 +365,7 @@ namespace NavigatorHMI.ViewModels
 
         private void DeleteList(ListType type)
         {
-            var list = type == ListType.Text ? SelectedTextList : SelectedImageList;
+            var list = type == ListType.Text ? SelectedTextList : type == ListType.Image ? SelectedImageList : SelectedVideoList;   // S-4
             if (list == null) return;
             // 删除确认（与变量/设备删除一致；被控件引用的列表由 delete_list 命令拒绝）
             var confirm = System.Windows.MessageBox.Show(
@@ -357,6 +409,7 @@ namespace NavigatorHMI.ViewModels
             RefreshLists();
             RebuildTextItems();
             RebuildImageItems();
+            RebuildVideoItems();   // S-4
         }
 
         /// <summary>撤销列表项操作（Ctrl+Z；返回是否执行）。</summary>
@@ -400,7 +453,7 @@ namespace NavigatorHMI.ViewModels
         }
         private void AddItem(ListType type)
         {
-            var list = type == ListType.Text ? SelectedTextList : SelectedImageList;
+            var list = type == ListType.Text ? SelectedTextList : type == ListType.Image ? SelectedImageList : SelectedVideoList;   // S-4
             if (list == null)
             {
                 System.Windows.MessageBox.Show("请先选择或新建一个列表", "添加列表项", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
@@ -409,25 +462,25 @@ namespace NavigatorHMI.ViewModels
             PushListSnapshot();   // P3-6 撤销快照（guard 后：仅真实操作入栈）
             list.Items.Add("");
             CommitItems(list);
-            if (type == ListType.Text) RebuildTextItems(); else RebuildImageItems();
+            if (type == ListType.Text) RebuildTextItems(); else if (type == ListType.Image) RebuildImageItems(); else RebuildVideoItems();   // S-4
         }
 
         private void RemoveItem(ListType type)
         {
-            var list = type == ListType.Text ? SelectedTextList : SelectedImageList;
-            var item = type == ListType.Text ? SelectedTextItem : SelectedImageItem;
+            var list = type == ListType.Text ? SelectedTextList : type == ListType.Image ? SelectedImageList : SelectedVideoList;   // S-4
+            var item = type == ListType.Text ? SelectedTextItem : type == ListType.Image ? SelectedImageItem : SelectedVideoItem;
             if (list == null || item == null) return;
             PushListSnapshot();   // P3-6 撤销快照（guard 后：仅真实操作入栈）
             list.Items.RemoveAt(item.Number - 1);
             CommitItems(list);
-            if (type == ListType.Text) RebuildTextItems(); else RebuildImageItems();
+            if (type == ListType.Text) RebuildTextItems(); else if (type == ListType.Image) RebuildImageItems(); else RebuildVideoItems();   // S-4
         }
 
 
         /// <summary>批量删除选中列表项（多选删除按钮/Delete 键；按 Number 降序删防序号错位）。</summary>
         public void RemoveItems(ListType type, IReadOnlyList<ListItemVM> items)
         {
-            var list = type == ListType.Text ? SelectedTextList : SelectedImageList;
+            var list = type == ListType.Text ? SelectedTextList : type == ListType.Image ? SelectedImageList : SelectedVideoList;   // S-4
             if (list == null || items.Count == 0) return;
             PushListSnapshot();   // P3-6 撤销快照（guard 后：仅真实操作入栈）
             foreach (var item in items.OrderByDescending(i => i.Number))
@@ -436,13 +489,13 @@ namespace NavigatorHMI.ViewModels
                     list.Items.RemoveAt(item.Number - 1);
             }
             CommitItems(list);
-            if (type == ListType.Text) RebuildTextItems(); else RebuildImageItems();
+            if (type == ListType.Text) RebuildTextItems(); else if (type == ListType.Image) RebuildImageItems(); else RebuildVideoItems();   // S-4
         }
 
         /// <summary>粘贴列表项（P3-5 复制粘贴）：添加新项并复制值。</summary>
         public void PasteItem(ListType type, string value)
         {
-            var list = type == ListType.Text ? SelectedTextList : SelectedImageList;
+            var list = type == ListType.Text ? SelectedTextList : type == ListType.Image ? SelectedImageList : SelectedVideoList;   // S-4
             if (list == null)
             {
                 System.Windows.MessageBox.Show("请先选择或新建一个列表", "粘贴列表项", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
@@ -451,7 +504,7 @@ namespace NavigatorHMI.ViewModels
             PushListSnapshot();   // P3-6 撤销快照（guard 后：仅真实操作入栈）
             list.Items.Add(value);
             CommitItems(list);
-            if (type == ListType.Text) RebuildTextItems(); else RebuildImageItems();
+            if (type == ListType.Text) RebuildTextItems(); else if (type == ListType.Image) RebuildImageItems(); else RebuildVideoItems();   // S-4
         }
         // ═══ 列表名重命名（级联同步控件 ListRef） ═══
 
@@ -486,6 +539,21 @@ namespace NavigatorHMI.ViewModels
             }
         }
 
+        private string _videoListName = "";   // S-4
+        public string VideoListName
+        {
+            get => _videoListName;
+            set
+            {
+                if (_videoListName != value)
+                {
+                    _videoListName = value;
+                    OnPropertyChanged();
+                    if (!_syncingName) RenameList(SelectedVideoList, value);
+                }
+            }
+        }
+
         private void RenameList(ListDef? list, string newName)
         {
             if (list == null) return;
@@ -506,6 +574,7 @@ namespace NavigatorHMI.ViewModels
                 {
                     if (list == SelectedTextList) TextListName = list.Name;
                     if (list == SelectedImageList) ImageListName = list.Name;
+                    if (list == SelectedVideoList) VideoListName = list.Name;   // S-4
                 }
                 finally { _syncingName = false; }
             }

@@ -78,18 +78,18 @@ namespace NavigatorHMI.CommandLayer.Handlers
         }
     }
 
-    /// <summary>创建列表（文本/图片）。列表项为有序预设值，控件绑定数值变量按索引显示。</summary>
+    /// <summary>创建列表（文本/图片/视频源）。列表项为有序预设值，控件绑定数值变量按索引显示。</summary>
     public class CreateListHandler : ICommandHandler
     {
         public CommandDefinition Definition => new()
         {
-            Name = "create_list", Description = "创建列表（文本/图片预设值，控件绑定数值变量按索引显示）",
+            Name = "create_list", Description = "创建列表（文本/图片/视频源预设值，控件绑定数值变量按索引显示）",
             Parameters = new()
             {
                 ["name"] = new() { Type = "string", Required = true, Description = "列表名（工程内唯一）" },
-                ["type"] = new() { Type = "enum", Required = true, EnumValues = new[] { "Text", "Image" }, Description = "列表类型" },
-                // Required：AI compact schema 才保留 items（建列表必须指定项；图片列表为 | 分隔的图片路径）
-                ["items"] = new() { Type = "string", Required = true, Description = "列表项，用 | 分隔（图片列表为图片路径）" },
+                ["type"] = new() { Type = "enum", Required = true, EnumValues = new[] { "Text", "Image", "Video" }, Description = "列表类型（Video=视频源列表，S-4：项=视频源地址——本地路径/RTSP URL）" },
+                // Required：AI compact schema 才保留 items（建列表必须指定项；图片列表为 | 分隔的图片路径，视频列表为 | 分隔的源地址）
+                ["items"] = new() { Type = "string", Required = true, Description = "列表项，用 | 分隔（图片=图片路径；视频=源地址本地路径/RTSP URL）" },
             }
         };
         public ValidationResult Validate(Dictionary<string, object?> p)
@@ -106,7 +106,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
             if (project.Lists.Any(l => l.Name == name))
                 return CommandResult.Fail("DUPLICATE", $"列表 \"{name}\" 已存在（可直接使用，或 update-list 修改其内容）");
             if (!Enum.TryParse<ListType>(p["type"]!.ToString(), ignoreCase: true, out var type))
-                return CommandResult.Fail("INVALID_PARAM", $"未知列表类型: {p["type"]}（Text/Image）");
+                return CommandResult.Fail("INVALID_PARAM", $"未知列表类型: {p["type"]}（Text/Image/Video）");
             var items = ListItemsParser.Parse(p.GetValueOrDefault("items")) ?? new List<string>();
 
             // D-B2：图片列表项路径校验（绝对路径在工程目录内 → 相对化；目录外 → 拒绝早失败）
@@ -122,6 +122,12 @@ namespace NavigatorHMI.CommandLayer.Handlers
                     normalized.Add(ok);
                 }
                 items = normalized;
+            }
+            // S-4：视频源列表项清洗（去引号/trim——本地路径相对工程目录打包时解析；RTSP/网络 URL 原样；不做图片式存在校验——打包编译护栏统一）
+            // 注：create 去空（CLI/AI 建表 items 为 | 串，Parser 已去空段，此处兜底）；update **保留空行**（GUI「＋添加项」占位/单元格清空——丢空则添加无效，见 update 分支注释）
+            else if (type == ListType.Video)
+            {
+                items = items.Select(i => i.Trim().Trim('"', '\'')).Where(i => i.Length > 0).ToList();
             }
 
             project.Lists.Add(new ListDef { Name = name, Type = type, Items = items });
@@ -179,6 +185,12 @@ namespace NavigatorHMI.CommandLayer.Handlers
                         }
                         normalizedItems = normalized;
                     }
+                    else if (list.Type == ListType.Video)   // S-4：视频源项去引号（同 create_list）——**保留空占位行**
+                    {
+                        // 审查 🔴（2026-09-05）：不得丢空行——GUI「＋添加项」先插 "" 占位再提交，丢空则添加无效
+                        // + 单元格清空提交致静默删行网格错位；对齐 Image 分支保留 "" 语义
+                        normalizedItems = parsed.Select(i => i.Trim().Trim('"', '\'')).ToList();
+                    }
                 }
             }
 
@@ -198,6 +210,9 @@ namespace NavigatorHMI.CommandLayer.Handlers
                             var prop = w.GetType().GetProperty(ListRefPropertyName);
                             if (prop != null && prop.CanRead && prop.CanWrite && prop.GetValue(w) is string refName && refName == name)
                                 prop.SetValue(w, newName);
+                            // S-5（审查 🟡-2）：FrameWidget.VideoListRef（视频源列表引用）级联改名——反射只覆盖 ListRef
+                            if (w is FrameWidget fv && fv.VideoListRef == name)
+                                fv.VideoListRef = newName;
                         }
                     list.Name = newName;
                 }
@@ -239,11 +254,12 @@ namespace NavigatorHMI.CommandLayer.Handlers
             var list = project.Lists.FirstOrDefault(l => l.Name == name);
             if (list == null) return CommandResult.Fail("NOT_FOUND", $"列表 \"{name}\" 不存在");
 
-            // 引用检查：控件 ListRef（反射遍历，兼容 ImageWidget/FrameWidget/TextListWidget）
+            // 引用检查：控件 ListRef（反射遍历，兼容 ImageWidget/FrameWidget/TextListWidget）+ FrameWidget.VideoListRef（S-5 视频源列表——审查 🟡-2）
             var widgetRefs = project.Screens
                 .SelectMany(s => s.Widgets.Where(w =>
-                        w.GetType().GetProperty(ListRefPropertyName) is { } prop
-                        && prop.CanRead && prop.GetValue(w) is string refName && refName == name)
+                        (w.GetType().GetProperty(ListRefPropertyName) is { } prop
+                         && prop.CanRead && prop.GetValue(w) is string refName && refName == name)
+                        || (w is FrameWidget fv && fv.VideoListRef == name))
                     .Select(w => $"{s.Name}/{w.ObjectName}"))
                 .ToList();
             if (widgetRefs.Count > 0)

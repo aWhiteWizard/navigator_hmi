@@ -208,7 +208,7 @@ namespace NavigatorHMI.ViewModels
 
         private ListType _listManagerListType = ListType.Text;
 
-        /// <summary>列表管理当前激活子页（Text=文本列表页，Image=图片列表页）。</summary>
+        /// <summary>列表管理当前激活子页（Text=文本列表页，Image=图片列表页，Video=视频源列表页——S-4 三页）。</summary>
         public ListType ListManagerListType
         {
             get => _listManagerListType;
@@ -217,7 +217,7 @@ namespace NavigatorHMI.ViewModels
 
         private int _listManagerSelectedIndex = 0;
 
-        /// <summary>列表管理 TabControl 页索引（0=文本列表，1=图片列表）。与 ListManagerListType 单向同步：
+        /// <summary>列表管理 TabControl 页索引（0=文本列表，1=图片列表，2=视频源列表）。与 ListManagerListType 单向同步：
         /// 树双击/激活设置索引 → TabControl 跟随；用户手动切页回写 → 树高亮同步。</summary>
         public int ListManagerSelectedIndex
         {
@@ -227,7 +227,7 @@ namespace NavigatorHMI.ViewModels
                 if (_listManagerSelectedIndex == value) return;
                 _listManagerSelectedIndex = value;
                 OnPropertyChanged();
-                var type = value == 1 ? ListType.Image : ListType.Text;
+                var type = value == 1 ? ListType.Image : value == 2 ? ListType.Video : ListType.Text;   // S-4：三页
                 if (_listManagerListType != type)
                 {
                     _listManagerListType = type;
@@ -237,13 +237,16 @@ namespace NavigatorHMI.ViewModels
             }
         }
 
-        /// <summary>打开列表管理：显示 Tab 并切到对应子页（树高亮同步到「文本/图片列表」节点，与变量/通讯互斥）。</summary>
+        /// <summary>列表类型 → TabControl 页索引（0/1/2）。</summary>
+        private static int ListTypeIndex(ListType t) => t == ListType.Image ? 1 : t == ListType.Video ? 2 : 0;
+
+        /// <summary>打开列表管理：显示 Tab 并切到对应子页（树高亮同步到「文本/图片/视频源列表」节点，与变量/通讯互斥）。</summary>
         public void OpenListManager(ListType listType)
         {
             ListManagerTabOpen = true;
             ListManagerActive = true;
             ListManagerListType = listType;
-            ListManagerSelectedIndex = listType == ListType.Image ? 1 : 0;
+            ListManagerSelectedIndex = ListTypeIndex(listType);
             VariableManagerActive = false;
             CommunicationActive = false;
             AlarmActive = false;
@@ -258,7 +261,7 @@ namespace NavigatorHMI.ViewModels
             if (!ListManagerTabOpen) ListManagerTabOpen = true;
             ListManagerActive = true;
             ListManagerListType = listType;
-            ListManagerSelectedIndex = listType == ListType.Image ? 1 : 0;
+            ListManagerSelectedIndex = ListTypeIndex(listType);
             VariableManagerActive = false;
             CommunicationActive = false;
             AlarmActive = false;
@@ -915,6 +918,10 @@ namespace NavigatorHMI.ViewModels
             {
                 ilNode.IsCurrent = listManagerActive && listManagerListType == ListType.Image;
             }
+            else if (node is VideoListRootNode vlNode)   // S-4
+            {
+                vlNode.IsCurrent = listManagerActive && listManagerListType == ListType.Video;
+            }
             else if (node is UserNameNode unNode)
             {
                 unNode.IsCurrent = userActive && userPanelPage == 0;
@@ -1078,12 +1085,13 @@ namespace NavigatorHMI.ViewModels
             return node;
         }
 
-        /// <summary>构建「列表」根节点（与「通信变量」平级，含「文本列表」/「图片列表」子节点，双击打开列表管理对应页）。</summary>
+        /// <summary>构建「列表」根节点（与「通信变量」平级，含「文本列表」/「图片列表」/「视频源列表」子节点，双击打开列表管理对应页）。</summary>
         private ListRootNode BuildListRootNode()
         {
             var node = new ListRootNode();
             node.OnTextListSelected += () => OpenListManager(ListType.Text);
             node.OnImageListSelected += () => OpenListManager(ListType.Image);
+            node.OnVideoListSelected += () => OpenListManager(ListType.Video);   // S-4
             return node;
         }
 

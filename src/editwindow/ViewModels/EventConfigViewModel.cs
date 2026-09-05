@@ -26,7 +26,7 @@ namespace NavigatorHMI.ViewModels
 
     private static readonly Dictionary<string, ActionType[]> FunctionGroupActionMap = new()
     {
-        ["变量操作"] = new[] { ActionType.tag_write, ActionType.tag_add, ActionType.tag_subtract, ActionType.tag_toggle, ActionType.set_bit, ActionType.reset_bit },
+        ["变量操作"] = new[] { ActionType.tag_write, ActionType.tag_add, ActionType.tag_subtract, ActionType.tag_step, ActionType.tag_toggle, ActionType.set_bit, ActionType.reset_bit },   // S-7：循环步进（审查 🔴-1 补注册——否则 GUI 动作下拉不可达）
         ["画面导航"] = new[] { ActionType.screen_switch, ActionType.screen_prev, ActionType.screen_next, ActionType.stop_runtime },
         ["控件与界面"] = new[] { ActionType.set_property, ActionType.show_popup },
         ["通知与报警"] = new[] { ActionType.send_notification, ActionType.acknowledge_alarm },
@@ -471,6 +471,8 @@ namespace NavigatorHMI.ViewModels
             ActionType.tag_write => new() { ("tag_name", "变量", "tag", null), ("value", "值", "string", null) },
             ActionType.tag_add => new() { ("tag_name", "变量(数值)", "tag-numeric", null), ("delta", "增量", "string", null) },
             ActionType.tag_subtract => new() { ("tag_name", "变量(数值)", "tag-numeric", null), ("delta", "减量", "string", null) },
+            // S-7（2026-09-05 用户拍板格子回绕）：result = min + ((cur-min+step) mod (max-min+1))——6+1→0、5+3→1；step 可负
+            ActionType.tag_step => new() { ("tag_name", "变量(数值)", "tag-numeric", null), ("step", "步长(可负)", "string", null), ("min", "最小值", "string", null), ("max", "最大值", "string", null) },
             ActionType.tag_toggle => new() { ("tag_name", "变量(BOOL)", "tag-bool", null) },
             ActionType.set_bit => new() { ("tag_name", "变量(BOOL)", "tag-bool", null) },
             ActionType.reset_bit => new() { ("tag_name", "变量(BOOL)", "tag-bool", null) },

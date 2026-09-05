@@ -38,6 +38,7 @@ namespace NavigatorHMI.ViewModels
             [ActionType.tag_write] = "设置变量值",
             [ActionType.tag_add] = "变量值增加",
             [ActionType.tag_subtract] = "变量值减少",
+            [ActionType.tag_step] = "变量循环步进",   // S-7：min/max 区间按 step 回绕（6+1→0、5+3→1）
             [ActionType.tag_toggle] = "变量翻转",
             [ActionType.set_bit] = "变量置位",
             [ActionType.reset_bit] = "变量复位",

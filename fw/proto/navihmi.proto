@@ -52,6 +52,7 @@ enum Severity {
 enum ListType {
   LIST_TEXT = 0;
   LIST_IMAGE = 1;
+  LIST_VIDEO = 2;   // S-4 视频源列表（项=源地址：本地路径打包 / RTSP URL 原样）
 }
 
 enum ProtocolType {
@@ -124,6 +125,7 @@ enum ActionType {
   ACT_ACKNOWLEDGE_ALARM = 15; // 确认报警
   ACT_SET_SYSTEM_TIME = 16;   // 修改系统时间
   ACT_STOP_RUNTIME = 17;      // 运行时停止（退出当前工程回导航首页；FW onStopRuntime→QML stopRuntime；M-3）
+  ACT_TAG_STEP = 18;          // S-7 变量循环步进（格子回绕：min/max 区间走 step 格，越界回对侧端点续走——6+1→0、5+3→1）
 }
 
 enum AlarmTriggerMode {
@@ -282,6 +284,10 @@ message Widget {
   repeated string history_tag_titles = 77;   // Q-6: HistoryView 各变量列显示名（平行 history_tags[i]; 空=显示变量名）
   // R-4 Frame 视频播放控制（2026-09-05）：绑定布尔变量驱动播放/暂停（空=未绑定，点击直接控制）
   string play_tag = 78;                 // Frame 视频播放控制变量（true=播放 false=暂停；点击翻转同步写回）
+  // S-4/S-5 Frame 视频源列表（2026-09-05 用户拍板）：视频源改可选「视频源列表」（Video 型列表，项=源地址）
+  // + 视频源选择整型变量（非负索引）→ 运行时按变量值取列表对应项切源播放；空=未用列表（走单源 video_source）
+  string video_list_ref = 79;           // Frame 视频源列表名（Video 型列表引用；空=未选）
+  string video_index_tag = 80;          // Frame 视频源选择变量（整型非负；变量值=列表项索引 0/1/2…）
 }
 
 message RobotSlotBinding {

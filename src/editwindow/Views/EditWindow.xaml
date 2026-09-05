@@ -959,8 +959,48 @@
                  点击控件翻转播放态并同步写回该变量；「（无绑定）」=未绑定仅点击直接控制 -->
             <Grid Visibility="{Binding IsVideoMode, Converter={StaticResource BoolToVisibilityConverter}}"><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="播放控制:" Style="{StaticResource PropLabel}"/>
-                <ComboBox Grid.Column="1" SelectedValue="{Binding FramePlayTag, UpdateSourceTrigger=PropertyChanged}" ItemsSource="{Binding BindableTags}" SelectedValuePath="Name" Style="{StaticResource PropComboBox}"
+                <ComboBox Grid.Column="1" SelectedValue="{Binding FramePlayTag, UpdateSourceTrigger=PropertyChanged}" ItemsSource="{Binding FramePlayTagOptions}" SelectedValuePath="Name" Style="{StaticResource PropComboBox}"
                           ToolTip="绑定布尔变量控制视频播放/暂停（true=播放 false=暂停；点击控件翻转并写回）；「（无绑定）」=未绑定仅点击控制">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock>
+                                <TextBlock.Style><Style TargetType="TextBlock">
+                                    <Setter Property="Text" Value="{Binding Name}"/>
+                                    <Style.Triggers><DataTrigger Binding="{Binding Name}" Value="">
+                                        <Setter Property="Text" Value="（无绑定）"/>
+                                        <Setter Property="Foreground" Value="#777777"/>
+                                    </DataTrigger></Style.Triggers>
+                                </Style></TextBlock.Style>
+                            </TextBlock>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </Grid>
+            <!-- S-4/S-5（2026-09-05 用户拍板）：视频源列表 + 视频源选择索引变量——列表项=源地址，运行时按
+                 视频源选择变量（整型非负）取列表对应项切换播放 -->
+            <Grid Visibility="{Binding IsVideoMode, Converter={StaticResource BoolToVisibilityConverter}}"><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="视频源列表:" Style="{StaticResource PropLabel}"/>
+                <ComboBox Grid.Column="1" SelectedItem="{Binding FrameVideoListRef}" ItemsSource="{Binding VideoListOptions}" Style="{StaticResource PropComboBox}"
+                          ToolTip="选择视频源列表（列表管理「视频源列表」页创建；项=源地址）；「（无绑定）」=未选列表走上方单视频源">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock>
+                                <TextBlock.Style><Style TargetType="TextBlock">
+                                    <Setter Property="Text" Value="{Binding}"/>
+                                    <Style.Triggers><DataTrigger Binding="{Binding}" Value="">
+                                        <Setter Property="Text" Value="（无绑定）"/>
+                                        <Setter Property="Foreground" Value="#777777"/>
+                                    </DataTrigger></Style.Triggers>
+                                </Style></TextBlock.Style>
+                            </TextBlock>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </Grid>
+            <Grid Visibility="{Binding IsVideoMode, Converter={StaticResource BoolToVisibilityConverter}}"><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="视频源选择:" Style="{StaticResource PropLabel}"/>
+                <ComboBox Grid.Column="1" SelectedValue="{Binding FrameVideoIndexTag, UpdateSourceTrigger=PropertyChanged}" ItemsSource="{Binding FrameVideoIndexTagOptions}" SelectedValuePath="Name" Style="{StaticResource PropComboBox}"
+                          ToolTip="绑定整型变量（非负索引 0/1/2…）——设备端按变量值从视频源列表取对应项播放；「（无绑定）」=播放列表首项">
                     <ComboBox.ItemTemplate>
                         <DataTemplate>
                             <TextBlock>
@@ -2276,6 +2316,51 @@
                                                         <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,4,0,0">
                                                             <Button Content="＋ 添加项" Command="{Binding AddImageItemCommand}" Width="80" Height="26" Margin="0,0,4,0"/>
                                                             <Button Content="－ 删除项" Width="80" Height="26" Click="ImageItemsDelete_Click" ToolTip="删除选中项（多选可批量）"/>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Grid>
+                                            </Grid>
+                                        </TabItem>
+                                        <!-- S-4 视频源列表页（2026-09-05：视频源地址有序列表——本地路径/RTSP URL，Frame 视频源列表按索引切换用） -->
+                                        <TabItem Header="视频源列表">
+                                            <Grid Margin="2">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="*"/>
+                                                </Grid.RowDefinitions>
+                                                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
+                                                    <TextBox Text="{Binding NewVideoListName, UpdateSourceTrigger=PropertyChanged}" Width="120" Height="26" VerticalContentAlignment="Center" FontSize="12" ToolTip="新列表名称"/>
+                                                    <Button Content="＋ 新建列表" Command="{Binding NewVideoListCommand}" Width="90" Height="26" Margin="4,0,0,0" ToolTip="创建视频源列表（每项一个源地址：本地视频文件路径随工程打包 / RTSP URL 原样直连）"/>
+                                                    <Button Content="🗑 删除列表" Width="90" Height="26" Margin="4,0,0,0" Click="VideoListDelete_Click" ToolTip="删除选中列表（被 Frame 视频源列表引用时拒绝；多选可批量）"/>
+                                                </StackPanel>
+                                                <Grid Grid.Row="1">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="160"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <ListBox x:Name="VideoListBox" Grid.Column="0" Margin="0,0,4,0" ItemsSource="{Binding VideoLists}" SelectedItem="{Binding SelectedVideoList}" DisplayMemberPath="Name" FontSize="12" SelectionMode="Extended" PreviewKeyDown="VideoListBox_KeyDown"/>
+                                                    <Grid Grid.Column="1">
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="Auto"/>
+                                                            <RowDefinition Height="*"/>
+                                                            <RowDefinition Height="Auto"/>
+                                                        </Grid.RowDefinitions>
+                                                        <DockPanel Grid.Row="0" Margin="0,0,0,4">
+                                                            <TextBlock DockPanel.Dock="Left" Text="列表名:" VerticalAlignment="Center" FontSize="12" Margin="0,0,4,0"/>
+                                                            <TextBox Text="{Binding VideoListName, UpdateSourceTrigger=LostFocus}" FontSize="12" VerticalContentAlignment="Center" KeyDown="PropField_KeyDown" ToolTip="重命名列表（失焦或回车提交，级联同步控件引用）"/>
+                                                        </DockPanel>
+                                                        <DataGrid x:Name="VideoItemsGrid" Grid.Row="1" ItemsSource="{Binding VideoItems}" SelectedItem="{Binding SelectedVideoItem}" PreviewKeyDown="VideoItemsGrid_KeyDown"
+                                                                  AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="False"
+                                                                  HeadersVisibility="Column" SelectionMode="Extended" GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12"
+                                                                  RowHeight="26">
+                                                            <DataGrid.Columns>
+                                                                <DataGridTextColumn Header="序号" Binding="{Binding Number}" Width="50" IsReadOnly="True"/>
+                                                                <DataGridTextColumn Header="视频源地址" Binding="{Binding Value, UpdateSourceTrigger=LostFocus}" Width="*"/>
+                                                            </DataGrid.Columns>
+                                                        </DataGrid>
+                                                        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,4,0,0">
+                                                            <Button Content="＋ 添加项" Command="{Binding AddVideoItemCommand}" Width="80" Height="26" Margin="0,0,4,0"/>
+                                                            <Button Content="－ 删除项" Width="80" Height="26" Click="VideoItemsDelete_Click" ToolTip="删除选中项（多选可批量）"/>
                                                         </StackPanel>
                                                     </Grid>
                                                 </Grid>

@@ -358,7 +358,7 @@ namespace NavigatorHMI.ViewModels
                             case IOFieldWidget io: IOFieldContent = io.Content; IOFieldIsReadOnly = io.IsReadOnly; IOFieldFillColor = io.FillColor; IOFieldTextColor = io.TextColor; IOFieldFontFamily = io.FontFamily; IOFieldFontSize = io.FontSize; IOFieldFontWeight = io.FontWeight; IOFieldFontStyle = io.FontStyle; IOFieldTextDecoration = io.TextDecoration; break;
                             case CheckBoxWidget cb: CheckBoxText = cb.Text; CheckBoxIsChecked = cb.IsChecked; CheckBoxFontFamily = cb.FontFamily; CheckBoxFontSize = cb.FontSize; CheckBoxFontWeight = cb.FontWeight; CheckBoxFontStyle = cb.FontStyle; CheckBoxTextDecoration = cb.TextDecoration; CheckBoxTextColor = cb.TextColor; CheckBoxFillColor = cb.FillColor; break;
                             case TextListWidget tl: TextListFontFamily = tl.FontFamily; TextListFontSize = tl.FontSize; TextListFontWeight = tl.FontWeight; TextListFontStyle = tl.FontStyle; TextListTextDecoration = tl.TextDecoration; TextListTextColor = tl.TextColor; TextListFillColor = tl.FillColor; TextListListRef = tl.ListRef; TextListDefaultIndex = tl.DefaultIndex; break;
-                            case FrameWidget f: FrameTitle = f.Title; FrameFillColor = f.FillColor; FrameImagePath = f.ImagePath; FrameFontFamily = f.FontFamily; FrameFontSize = f.FontSize; FrameFontWeight = f.FontWeight; FrameFontStyle = f.FontStyle; FrameTextDecoration = f.TextDecoration; FrameListRef = f.ListRef; FrameDefaultIndex = f.DefaultIndex; FrameShowVideo = f.ShowVideo; FrameVideoSource = f.VideoSource; FramePlayTag = f.PlayTag; break;   // P-6 视频 / R-4 播放控制
+                            case FrameWidget f: FrameTitle = f.Title; FrameFillColor = f.FillColor; FrameImagePath = f.ImagePath; FrameFontFamily = f.FontFamily; FrameFontSize = f.FontSize; FrameFontWeight = f.FontWeight; FrameFontStyle = f.FontStyle; FrameTextDecoration = f.TextDecoration; FrameListRef = f.ListRef; FrameDefaultIndex = f.DefaultIndex; FrameShowVideo = f.ShowVideo; FrameVideoSource = f.VideoSource; FramePlayTag = f.PlayTag; FrameVideoListRef = f.VideoListRef; FrameVideoIndexTag = f.VideoIndexTag; break;   // P-6 视频 / R-4 播放控制 / S-5 视频源列表
                             case ProgressBarWidget pb: ProgressValue = pb.Value; ProgressMin = pb.Min; ProgressMax = pb.Max; ProgressFillColor = pb.FillColor; ProgressFillStyle = pb.FillStyle; break;
                 case DateTimeWidget dt: DateTimeFormat = dt.Format; break;
                 case WindowWidget ww:
@@ -1384,6 +1384,48 @@ namespace NavigatorHMI.ViewModels
         /// <summary>绑定下拉数据源：第一项哨兵 = 无绑定，其后为按控件类型过滤的工程变量。</summary>
         public System.Collections.ObjectModel.ObservableCollection<Tag> BindableTags { get; } = new();
 
+        // S-1（2026-09-05 用户 Check）：Frame 播放控制专用下拉——**仅布尔变量**（播放/暂停语义只对布尔成立；
+        // BindableTags 按 Frame Numeric 兼容含 INT/FLOAT，非布尔不可选）——哨兵 + 工程 BOOL 变量子集
+        public System.Collections.ObjectModel.ObservableCollection<Tag> FramePlayTagOptions { get; } = new();
+
+        /// <summary>刷新 FramePlayTagOptions（哨兵 + BOOL 兼容变量子集；选中 Frame 时随 RefreshBindableTags 联动）。</summary>
+        private void RefreshFramePlayTagOptions()
+        {
+            FramePlayTagOptions.Clear();
+            FramePlayTagOptions.Add(NoBindingSentinel);
+            if (Project == null) return;
+            foreach (var t in Project.Tags)
+                if (TagCompatibility.IsBoolCompatible(t.DataType))
+                    FramePlayTagOptions.Add(t);
+            var cur = _framePlayTag;
+            if (cur.Length > 0 && !FramePlayTagOptions.Any(x => x.Name == cur))
+            {
+                var t = Project.Tags.FirstOrDefault(x => x.Name == cur);
+                if (t != null) FramePlayTagOptions.Add(t);
+                else FramePlayTagOptions.Add(new Tag { Name = $"(缺失变量: {cur})" });
+            }
+        }
+
+        // S-5：视频源选择索引变量专用选项——**仅整型**（INT16/UINT16/INT32；排除 BOOL/FLOAT/STRING——索引语义）
+        public System.Collections.ObjectModel.ObservableCollection<Tag> FrameVideoIndexTagOptions { get; } = new();
+
+        private void RefreshFrameVideoIndexTagOptions()
+        {
+            FrameVideoIndexTagOptions.Clear();
+            FrameVideoIndexTagOptions.Add(NoBindingSentinel);
+            if (Project == null) return;
+            foreach (var t in Project.Tags)
+                if (t.DataType is TagDataType.INT16 or TagDataType.UINT16 or TagDataType.INT32)
+                    FrameVideoIndexTagOptions.Add(t);
+            var cur = _frameVideoIndexTag;
+            if (cur.Length > 0 && !FrameVideoIndexTagOptions.Any(x => x.Name == cur))
+            {
+                var t = Project.Tags.FirstOrDefault(x => x.Name == cur);
+                if (t != null) FrameVideoIndexTagOptions.Add(t);
+                else FrameVideoIndexTagOptions.Add(new Tag { Name = $"(缺失变量: {cur})" });
+            }
+        }
+
         /// <summary>重建绑定下拉（哨兵 + 按控件类型过滤的工程变量），选中控件时调用。</summary>
         public void RefreshBindableTags()
         {
@@ -1423,6 +1465,8 @@ namespace NavigatorHMI.ViewModels
                 else
                     BindableTags.Add(new Tag { Name = $"(缺失变量: {current})" });   // 变量不存在（历史/外部工程）：占位可见，防下拉空白静默
             }
+            RefreshFramePlayTagOptions();   // S-1：播放控制布尔子集联动刷新
+            RefreshFrameVideoIndexTagOptions();   // S-5：视频源选择整型子集联动刷新
         }
 
         /// <summary>W-2b：作业点/范围点绑定变量下拉选项 = 「无」+ 工程全部 GPS 变量（ObservableCollection 共享引用，行 VM 直接绑定；变量增删经 RefreshBindableTags 联动）。</summary>
@@ -1686,17 +1730,24 @@ namespace NavigatorHMI.ViewModels
         {
             BeginSuppressListRefWrites();   // 增量同步移除占位项时 ComboBox 失配回写 """ 会真解绑——窗口期拦截
             var imgNames = Project?.Lists.Where(l => l.Type == ListType.Image).Select(l => l.Name) ?? Enumerable.Empty<string>();
-            var textNames = Project?.Lists.Where(l => l.Type != ListType.Image).Select(l => l.Name) ?? Enumerable.Empty<string>();
+            var textNames = Project?.Lists.Where(l => l.Type == ListType.Text).Select(l => l.Name) ?? Enumerable.Empty<string>();   // S-4：仅文本型（原 != Image 会混入 Video 型）
+            var videoNames = Project?.Lists.Where(l => l.Type == ListType.Video).Select(l => l.Name) ?? Enumerable.Empty<string>();   // S-5：视频源列表
             SyncOptions(ImageListOptions, imgNames);
             SyncOptions(TextListOptions, textNames);
+            SyncOptions(VideoListOptions, videoNames);
             // 占位：选中控件已绑定的列表名（即使类型不符/列表已删）加入对应 Options，
             // 防 ComboBox SelectedItem 失配导致属性面板显示空（AI/CLI 建的列表 type 可能与控件期望不符，但功能正常）
             switch (w)
             {
                 case ImageWidget img when !string.IsNullOrEmpty(img.ListRef) && !ImageListOptions.Contains(img.ListRef):
                     ImageListOptions.Add(img.ListRef); break;
-                case FrameWidget f when !string.IsNullOrEmpty(f.ListRef) && !ImageListOptions.Contains(f.ListRef):
-                    ImageListOptions.Add(f.ListRef); break;
+                case FrameWidget f:
+                    // 审查 🟡-2：Frame 可能同时持 ListRef（图模式残留）与 VideoListRef——占位须两集合都补（互斥 case 会漏后者）
+                    if (!string.IsNullOrEmpty(f.ListRef) && !ImageListOptions.Contains(f.ListRef))
+                        ImageListOptions.Add(f.ListRef);
+                    if (!string.IsNullOrEmpty(f.VideoListRef) && !VideoListOptions.Contains(f.VideoListRef))
+                        VideoListOptions.Add(f.VideoListRef);
+                    break;
                 case TextListWidget tl when !string.IsNullOrEmpty(tl.ListRef) && !TextListOptions.Contains(tl.ListRef):
                     TextListOptions.Add(tl.ListRef); break;
             }
@@ -1952,6 +2003,46 @@ namespace NavigatorHMI.ViewModels
                 if (_framePlayTag != value) { _framePlayTag = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is FrameWidget f) f.PlayTag = value; }
             }
         }
+
+        // ── S-4/S-5（2026-09-05 用户拍板）：视频源列表 + 视频源选择索引变量 ──
+        private string _frameVideoListRef = "";
+        /// <summary>S-5：Frame 视频源列表名（Video 型列表；空=未选走单源 videoSource——返回 "" 匹配哨兵「（无绑定）」项）。
+        /// 防御同 FrameListRef 先例（审查 🟡-3：null 拦截 + suppress 失配窗口 + 同值跳过——防哨兵回写清空 f.VideoListRef）。</summary>
+        public string FrameVideoListRef
+        {
+            get => _frameVideoListRef;
+            set
+            {
+                if (value == null) return;
+                if (_frameVideoListRef != value)
+                {
+                    _frameVideoListRef = value;
+                    OnPropertyChanged();
+                    if (_selectedWidget is FrameWidget f)
+                    {
+                        if (_suppressListRefWrites) return;   // 失配回写窗口拦截（RefreshListOptions 重建瞬态——防哨兵 "" 真解绑）
+                        if (value == f.VideoListRef) return;   // 模型同值跳过
+                        if (!_syncingFromModel) BeforeModify?.Invoke();
+                        f.VideoListRef = value;
+                    }
+                }
+            }
+        }
+
+        private string _frameVideoIndexTag = "";
+        /// <summary>S-5：视频源选择变量（整型非负索引——变量值取视频源列表对应项；空=未绑定播首项/单源）。</summary>
+        public string FrameVideoIndexTag
+        {
+            get => _frameVideoIndexTag;
+            set
+            {
+                if (value == null) return;
+                if (_frameVideoIndexTag != value) { _frameVideoIndexTag = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is FrameWidget f) f.VideoIndexTag = value; }
+            }
+        }
+
+        /// <summary>S-5：视频源列表名选项（工程 Video 型列表；选中 Frame 时刷新——首项空串=不绑列表）。</summary>
+        public System.Collections.ObjectModel.ObservableCollection<string> VideoListOptions { get; } = new();
 
         /// <summary>P-6：是否视频模式（勾选且有视频源——属性面板据此显示视频源行）。</summary>
         public bool IsVideoMode => _frameShowVideo;

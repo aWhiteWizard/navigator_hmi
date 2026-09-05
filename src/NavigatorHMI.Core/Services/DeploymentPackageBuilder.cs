@@ -192,6 +192,9 @@ namespace NavigatorHMI.Common
                 foreach (var w in screen.Widgets)
                     if (w is FrameWidget frv && frv.ShowVideo && !string.IsNullOrWhiteSpace(frv.VideoSource))
                         videoRefs.Add(frv.VideoSource);
+            // S-4/S-5：Video 型列表项（源地址）入视频收集——本地源打包 media（ASCII 化同单源），RTSP 项 ResolveFile 拦截不入包原样
+            foreach (var lst in project.Lists.Where(l => l.Type == ListType.Video))
+                videoRefs.AddRange(lst.Items);
 
             // 两遍制收集（审查 🟡 修复：目录内引用优先——相对/规范名优先级高，防「目录内 a.png 与目录外 a.png 共存
             // 时由遍历序决定谁活」的收集次序依赖错图）：
@@ -361,6 +364,10 @@ namespace NavigatorHMI.Common
                             for (int i = 0; i < lst.Items.Count; i++)
                                 if (imagePathMap.TryGetValue(lst.Items[i], out var packName))
                                 { lst.Items[i] = packName; changed = true; }
+                        foreach (var lst in dto.Lists.Where(l => l.Type == ListType.Video))   // S-4/S-5：Video 列表项（本地源）改写为 ASCII 包名——FW resolveVideoPath 拼 media/ 加载
+                            for (int i = 0; i < lst.Items.Count; i++)
+                                if (videoPathMap.TryGetValue(lst.Items[i], out var vPack))
+                                { lst.Items[i] = vPack; changed = true; }
                         foreach (var sc in dto.Screens)
                             foreach (var w in sc.Widgets)
                             {

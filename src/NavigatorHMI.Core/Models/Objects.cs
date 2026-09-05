@@ -1115,6 +1115,18 @@ public class FrameWidget : Widget
     [ProtoMember(13)]
     public string PlayTag { get => _playTag; set { if (_playTag != value) { _playTag = value; OnPropertyChanged(); } } }
 
+    private string _videoListRef = "";
+    /// <summary>S-4/S-5（2026-09-05 用户拍板）：视频源列表名（Video 型列表，项=源地址——本地路径打包/RTSP URL；
+    /// 空=未选列表走单源 video_source）。</summary>
+    [ProtoMember(14)]
+    public string VideoListRef { get => _videoListRef; set { if (_videoListRef != value) { _videoListRef = value; OnPropertyChanged(); } } }
+
+    private string _videoIndexTag = "";
+    /// <summary>S-5（2026-09-05 用户拍板）：视频源选择变量——绑定整型（非负）变量，运行时按变量值取视频源列表
+    /// 对应项切换播放（0/1/2…=列表项索引；空=未绑索引，播列表首项/单源）。</summary>
+    [ProtoMember(15)]
+    public string VideoIndexTag { get => _videoIndexTag; set { if (_videoIndexTag != value) { _videoIndexTag = value; OnPropertyChanged(); } } }
+
     /// <summary>设计态显示背景路径：绑列表 → 列表第 N 项图片完整路径；否则 ImagePath（相对工程目录解析）。</summary>
     [ProtoIgnore]
     public override string DisplayPath

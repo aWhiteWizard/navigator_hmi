@@ -87,7 +87,10 @@ namespace NavigatorHMI.Common
         /// <summary>修改系统时间（设备 RTC）</summary>
         set_system_time,
         /// <summary>运行时停止（退出当前工程回导航首页；FW onStopRuntime→QML stopRuntime；M-3 2026-08-30）</summary>
-        stop_runtime
+        stop_runtime,
+        /// <summary>变量循环步进（S-7 2026-09-05 用户拍板格子回绕）：按 step（可负）增减变量，min/max 含端点区间
+        /// 回绕——超上限余量从 min 续加、低于下限余量从 max 续减（6+1→0、5+3→1；参数 tag_name/step/min/max）</summary>
+        tag_step
     }
 
     /// <summary>

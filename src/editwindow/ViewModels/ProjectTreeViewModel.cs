@@ -248,7 +248,7 @@ namespace NavigatorHMI.ViewModels
 
     }
 
-    /// <summary>「列表」根节点（与「通信变量」平级）：展开显示「文本列表」「图片列表」，双击子节点打开列表管理面板对应页。</summary>
+    /// <summary>「列表」根节点（与「通信变量」平级）：展开显示「文本列表」「图片列表」「视频源列表」，双击子节点打开列表管理面板对应页。</summary>
     public class ListRootNode : ProjectTreeViewModel
     {
         public ListRootNode()
@@ -256,6 +256,7 @@ namespace NavigatorHMI.ViewModels
             Name = "列表";
             Children.Add(new TextListRootNode(this));
             Children.Add(new ImageListRootNode(this));
+            Children.Add(new VideoListRootNode(this));   // S-4
         }
 
         /// <summary>「文本列表」子节点被选中时触发（上层打开列表管理 Tab 文本页）。</summary>
@@ -264,11 +265,17 @@ namespace NavigatorHMI.ViewModels
         /// <summary>「图片列表」子节点被选中时触发（上层打开列表管理 Tab 图片页）。</summary>
         public event Action? OnImageListSelected;
 
+        /// <summary>「视频源列表」子节点被选中时触发（S-4：上层打开列表管理 Tab 视频源列表页）。</summary>
+        public event Action? OnVideoListSelected;
+
         /// <summary>供子节点调用的内部入口。</summary>
         internal void NotifyTextListSelected() => OnTextListSelected?.Invoke();
 
         /// <summary>供子节点调用的内部入口。</summary>
         internal void NotifyImageListSelected() => OnImageListSelected?.Invoke();
+
+        /// <summary>供子节点调用的内部入口。</summary>
+        internal void NotifyVideoListSelected() => OnVideoListSelected?.Invoke();
     }
 
     /// <summary>「文本列表」叶子节点：双击打开列表管理面板（文本页）。</summary>
@@ -294,6 +301,19 @@ namespace NavigatorHMI.ViewModels
             _parent = parent;
             Name = "图片列表";
             DoubleClickCommand = new RelayCommand(() => _parent.NotifyImageListSelected());
+        }
+    }
+
+    /// <summary>「视频源列表」叶子节点（S-4）：双击打开列表管理面板（视频源列表页）。</summary>
+    public class VideoListRootNode : ProjectTreeViewModel
+    {
+        private readonly ListRootNode _parent;
+
+        public VideoListRootNode(ListRootNode parent)
+        {
+            _parent = parent;
+            Name = "视频源列表";
+            DoubleClickCommand = new RelayCommand(() => _parent.NotifyVideoListSelected());
         }
     }
 

@@ -3,18 +3,21 @@ using ProtoBuf;
 
 namespace NavigatorHMI.Common
 {
-    /// <summary>列表类型：文本列表（运行时显示字符串项）/ 图片列表（运行时显示图片项）。</summary>
+    /// <summary>列表类型：文本列表（运行时显示字符串项）/ 图片列表（运行时显示图片项）/ 视频源列表（视频源地址项——S-4 2026-09-05）。</summary>
     public enum ListType
     {
         /// <summary>文本列表</summary>
         Text,
         /// <summary>图片列表</summary>
-        Image
+        Image,
+        /// <summary>视频源列表（S-4：项=视频源地址——本地文件路径随工程打包 / RTSP/网络 URL 原样直连；Frame 视频源列表按索引切换用）</summary>
+        Video
     }
 
     /// <summary>
     /// 列表定义。一组有序预设值（Items[0]=第1项），控件绑定数值变量按索引显示对应项。
-    /// 图片列表的项为图片路径（相对工程目录），编译时资源编入工程。
+    /// 图片列表的项为图片路径（相对工程目录），编译时资源编入工程；视频源列表的项为视频源地址
+    /// （本地路径打包入 media / RTSP 网络 URL 原样——S-4）。
     /// Name 变更带 INPC 通知——列表管理面板左侧 ListBox DisplayMemberPath 绑定 Name，改名后自动刷新。
     /// </summary>
     [ProtoContract]

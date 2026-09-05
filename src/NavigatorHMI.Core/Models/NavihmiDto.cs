@@ -151,5 +151,8 @@ namespace NavigatorHMI.Common
         [ProtoMember(77)] public List<string> HistoryTagTitles { get; set; } = new();   // 平行 HistoryTags[i] 的列显示名（空/缺省=显示变量名——老工程兼容）
         // ── R-4 Frame 视频播放控制（78；2026-09-05 用户 Check）──
         [ProtoMember(78)] public string PlayTag { get; set; } = "";   // Frame 播放控制布尔变量（true=播放 false=暂停；空=未绑定）
+        // ── S-4/S-5 Frame 视频源列表（79-80；2026-09-05 用户拍板）──
+        [ProtoMember(79)] public string VideoListRef { get; set; } = "";    // Frame 视频源列表名（Video 型列表引用；空=未选走单源）
+        [ProtoMember(80)] public string VideoIndexTag { get; set; } = "";   // Frame 视频源选择变量（整型非负索引——变量值取列表项切源）
     }
 }

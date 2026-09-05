@@ -353,6 +353,7 @@ namespace NavigatorHMI.Common
                 dto.ListRef = fr.ListRef; dto.DefaultIndex = fr.DefaultIndex;
                 dto.ShowVideo = fr.ShowVideo; dto.VideoSource = fr.VideoSource;   // P-6：视频模式
                 dto.PlayTag = fr.PlayTag;   // R-4：播放控制布尔变量
+                dto.VideoListRef = fr.VideoListRef; dto.VideoIndexTag = fr.VideoIndexTag;   // S-5：视频源列表 + 选择索引变量
                 CopyFont(dto, fr);
             });
             Register<ProgressBarWidget>((pb, dto) =>

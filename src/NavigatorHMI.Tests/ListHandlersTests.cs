@@ -160,5 +160,53 @@ namespace NavigatorHMI.Tests
             Assert.Equal("图片列表", list.Name);                    // rename 未应用
             Assert.Equal("images/ok.png", list.Items[0]);           // items 未替换
         }
+
+        // ── S-4（2026-09-05）：VideoList 视频源列表——create 清洗 / update 保留空占位行（审查 🔴 回归网）──
+
+        [Fact]
+        public void 视频列表_create_去引号保留本地与RTSP()
+        {
+            var p = new HMIProject { Name = "视频列表", ProjectFilePath = @"C:\vl.hmiproj" };
+            var result = new CreateListHandler().Execute(p, new Dictionary<string, object?>
+            {
+                ["name"] = "视频源1", ["type"] = "Video",
+                ["items"] = "\"D:\\视频\\a.mp4\"|rtsp://192.168.1.14:8554/desktop"
+            });
+            Assert.True(result.Success, result.ErrorMessage);
+            var list = p.Lists.Single();
+            Assert.Equal("D:\\视频\\a.mp4", list.Items[0]);          // 去引号保留（打包期本地收集/RTSP 不入包原样）
+            Assert.Equal("rtsp://192.168.1.14:8554/desktop", list.Items[1]);   // RTSP 原样
+        }
+
+        [Fact]
+        public void 视频列表_update_保留空占位行()
+        {
+            // 审查 🔴 回归网：GUI「＋添加项」插 "" 占位行（Items.Add("") → CommitItems 传 List<string>——
+            // GUI 真实路径 ListItemsParser List 分支保空；CLI string 分隔去空语义不冲突）→ update_list 丢空则添加无效
+            var p = new HMIProject { Name = "视频列表", ProjectFilePath = @"C:\vl2.hmiproj" };
+            Assert.True(new CreateListHandler().Execute(p, new Dictionary<string, object?>
+            {
+                ["name"] = "视频源2", ["type"] = "Video", ["items"] = "rtsp://x/1"
+            }).Success);
+            var result = new UpdateListHandler().Execute(p, new Dictionary<string, object?>
+            {
+                ["name"] = "视频源2",
+                ["items"] = new List<string> { "rtsp://x/1", "rtsp://x/2", "" }   // GUI 路径：尾部空 = 新加未填占位行
+            });
+            Assert.True(result.Success, result.ErrorMessage);
+            var list = p.Lists.Single();
+            Assert.Equal(3, list.Items.Count);                        // 空占位行保留（非 2——否则「＋添加项」no-op）
+            Assert.Equal("rtsp://x/1", list.Items[0]);
+            Assert.Equal("", list.Items[2]);                          // 空行存活——GUI 可继续编辑
+        }
+
+        // ── S-7（2026-09-05）：事件动作 tag_step 参数 schema 序数契约 ──
+
+        [Fact]
+        public void tag_step_动作枚举序数18()
+        {
+            // wire 契约：PC ActionType 序数须与 proto ACT_TAG_STEP=18 对齐（枚举序数改动会破坏既有事件 wire）
+            Assert.Equal(18, (int)ActionType.tag_step);
+        }
     }
 }

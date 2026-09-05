@@ -952,6 +952,52 @@ namespace NavigatorHMI.Views
             var selected = ImageListBox.SelectedItems.Cast<ListDef>().ToList();
             if (selected.Count > 0) _listManagerVM.DeleteLists(selected);
         }
+
+        // ── S-4 视频源列表页 handlers（2026-09-05：第三列表型，仿文本页纯文本项）──
+
+        /// <summary>视频源列表项复制粘贴：Ctrl+C 存值，Ctrl+V 添加新项（复制值）。</summary>
+        private void VideoItemsCopyPaste_Click(object sender, bool copy)
+        {
+            if (copy)
+            {
+                _copiedRows.Clear();
+                foreach (ListItemVM it in VideoItemsGrid.SelectedItems) _copiedRows.Add(it.Value);
+                return;
+            }
+            foreach (string v in _copiedRows.OfType<string>())
+                _listManagerVM.PasteItem(ListType.Video, v);
+        }
+
+        /// <summary>批量删除选中视频源列表项（删除按钮/Delete 键；多选时全部删除）。</summary>
+        private void VideoItemsDelete_Click(object sender, RoutedEventArgs e)
+        {
+            var selected = VideoItemsGrid.SelectedItems.Cast<ListItemVM>().ToList();
+            if (selected.Count > 0) _listManagerVM.RemoveItems(ListType.Video, selected);
+        }
+
+        /// <summary>视频源列表项快捷键：Delete 删除选中、Ctrl+A 全选、Ctrl+C/V 复制粘贴。</summary>
+        private void VideoItemsGrid_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.C && Keyboard.Modifiers == ModifierKeys.Control) { VideoItemsCopyPaste_Click(sender, true); e.Handled = true; return; }
+            if (e.Key == Key.V && Keyboard.Modifiers == ModifierKeys.Control) { VideoItemsCopyPaste_Click(sender, false); e.Handled = true; return; }
+            if (e.OriginalSource is System.Windows.Controls.TextBox) return;   // 单元格编辑态：Delete 交给文本编辑，防整行误删
+            if (e.Key == Key.Delete) { VideoItemsDelete_Click(sender, null); e.Handled = true; }
+            else if (e.Key == Key.A && Keyboard.Modifiers == ModifierKeys.Control) { VideoItemsGrid.SelectAll(); e.Handled = true; }
+        }
+
+        /// <summary>视频源列表框快捷键：Delete 删除选中、Ctrl+A 全选。</summary>
+        private void VideoListBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Delete) { VideoListDelete_Click(sender, null); e.Handled = true; }
+            else if (e.Key == Key.A && Keyboard.Modifiers == ModifierKeys.Control) { VideoListBox.SelectAll(); e.Handled = true; }
+        }
+
+        /// <summary>批量删除选中视频源列表（删除按钮；多选时全部删除）。</summary>
+        private void VideoListDelete_Click(object sender, RoutedEventArgs e)
+        {
+            var selected = VideoListBox.SelectedItems.Cast<ListDef>().ToList();
+            if (selected.Count > 0) _listManagerVM.DeleteLists(selected);
+        }
         private void OnAlarmDeleteRequested(AlarmRule alarm)
         {
             var confirm = MessageBox.Show($"确定删除报警 \"{alarm.Name}\" 吗？", "删除报警",
