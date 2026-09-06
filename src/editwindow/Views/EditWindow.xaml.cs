@@ -1109,6 +1109,21 @@ namespace NavigatorHMI.Views
             }
         }
 
+        /// <summary>媒体打开完成（U-3 2026-09-06 修复预览黑屏）：WPF Manual 未播不渲染首帧——默认 Play+Pause 锁首帧
+        /// 显画面不自动播；若已点播放（Border.Tag=true——Play 早调于打开前无效场景）→ 补播（此时 Play 有效）。</summary>
+        private void VideoRowMedia_Opened(object sender, RoutedEventArgs e)
+        {
+            if (sender is not MediaElement me) return;
+            var border = FindAncestor<System.Windows.Controls.Border>(me);
+            if (border?.Tag is true)
+            {
+                me.Play();   // 已点播放但 Play 早调无效 → MediaOpened 后补播
+                return;
+            }
+            me.Play();   // 锁首帧：立即播一下再停——画面渲染首帧后暂停（默认态显首帧不自动播）
+            me.Pause();
+        }
+
         /// <summary>播放自然结束 → 复位该行并 Stop（Position 回 0——审查 🟡-4：Ended 后 Play 不自动重播，
         /// Stop 后点击 Play 从头播；hint 提示可重播）。</summary>
         private void VideoRowMedia_Ended(object sender, RoutedEventArgs e)

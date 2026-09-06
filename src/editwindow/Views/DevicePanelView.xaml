@@ -200,7 +200,7 @@
                                  Minimum="0" Maximum="100" Value="{Binding ProgressValue, Mode=OneWay}"
                                  Visibility="{Binding ProgressVisible, Converter={StaticResource BoolToVisibilityConverter}}"/>
                     <TextBlock Text="{Binding ProgressText}" VerticalAlignment="Center" Margin="8,0,0,0" FontSize="11" Foreground="#555555"
-                               TextTrimming="CharacterEllipsis" MaxWidth="260"/>
+                               TextTrimming="CharacterEllipsis" MaxWidth="520"/>
                 </StackPanel>
                 <TextBlock Grid.Row="2" Text="下载 = 编译当前工程 → 打包 .navihmi 部署容器 → HTTP 传输到设备（进度条为设备端真实进度）。" FontSize="11"
                            Foreground="#888888" TextWrapping="Wrap"/>
