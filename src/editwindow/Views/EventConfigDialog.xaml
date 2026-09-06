@@ -49,13 +49,20 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
-            <!-- I-3：事件触发条件（可选；留空=无条件触发） -->
+            <!-- I-3：事件触发条件（可选；留空=无条件触发）+ V-3c 事件优先级 -->
             <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,2">
                 <TextBlock Text="触发条件:" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                <TextBox Width="300" Text="{Binding Condition, UpdateSourceTrigger=PropertyChanged}" FontSize="12"
+                <TextBox Width="280" Text="{Binding Condition, UpdateSourceTrigger=PropertyChanged}" FontSize="12"
                          VerticalContentAlignment="Center" Padding="2"
                          ToolTip="如 value &gt; 80 或 R01_status == 2；支持比较(&gt; &lt; &gt;= &lt;= == !=)、逻辑(&amp;&amp; || !)、括号、函数 abs/round/min/max/now；value=触发控件绑定变量当前值"/>
-                <TextBlock Text="如 value &gt; 80（留空=无条件）" FontSize="10" Foreground="Gray" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                <TextBlock Text="优先级:" VerticalAlignment="Center" Margin="10,0,4,0"/>
+                <ComboBox Width="76" Height="24" VerticalContentAlignment="Center" FontSize="12"
+                          SelectedIndex="{Binding PriorityIndex, UpdateSourceTrigger=PropertyChanged}"
+                          ToolTip="事件优先级（高/紧急优先——FW 队列排序语义 V+1，当前按事件顺序执行）">
+                    <ComboBoxItem Content="正常"/>
+                    <ComboBoxItem Content="高"/>
+                    <ComboBoxItem Content="紧急"/>
+                </ComboBox>
             </StackPanel>
             <TextBlock Grid.Row="1" FontWeight="Bold" Text="函数列表（触发后按顺序执行）" Margin="0,0,0,2"/>
             <ListBox Grid.Row="2" Height="120" ItemsSource="{Binding Functions}" SelectedItem="{Binding SelectedFunction}"

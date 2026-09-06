@@ -48,10 +48,27 @@ namespace NavigatorHMI.Common
     }
 
     /// <summary>
+    /// 事件优先级（V-3c 2026-09-06，与 FW proto WidgetEvent.priority 对齐）。
+    /// Normal=0 零值默认（proto 未设置即 Normal）；High/Emergency 高优；
+    /// Low 因 Normal 默认零值无法低于其表达，仅名义保留（FW/UI 实际三档——v1.1-design 四档
+    /// 与零值纪律内在矛盾，Act 记录）。
+    /// </summary>
+    public enum EventPriority
+    {
+        /// <summary>常规（默认）</summary>
+        Normal = 0,
+        /// <summary>高优先级</summary>
+        High = 1,
+        /// <summary>紧急</summary>
+        Emergency = 2,
+        /// <summary>低优先级（名义保留，不可低于 Normal 表达）</summary>
+        Low = 3
+    }
+
+    /// <summary>
     /// 动作类型。事件触发后执行的操作类型。
     /// </summary>
-    public enum ActionType
-    {
+    public enum ActionType    {
         /// <summary>写值到指定变量</summary>
         tag_write,
         /// <summary>切换到指定画面</summary>
@@ -111,6 +128,10 @@ namespace NavigatorHMI.Common
         /// <summary>触发后执行的动作列表（按顺序执行）</summary>
         [ProtoMember(3)]
         public List<EventAction> Actions { get; set; } = new();
+
+        /// <summary>事件优先级（V-3c：默认 Normal=0——proto 零值纪律；FW 队列排序语义 V+1）</summary>
+        [ProtoMember(4)]
+        public EventPriority Priority { get; set; } = EventPriority.Normal;
     }
 
     /// <summary>

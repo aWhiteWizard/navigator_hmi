@@ -129,6 +129,9 @@ namespace NavigatorHMI.ViewModels
             get => _condition;
             set { if (_condition != value) { _condition = value ?? ""; OnPropertyChanged(); } }
         }
+        /// <summary>事件优先级索引（V-3c：0=正常/1=高/2=紧急——对齐 EventPriority 枚举值；Low 不 UI 呈现）。
+        /// 载入事件 Priority；保存写回 WidgetEvent.Priority。</summary>
+        public int PriorityIndex { get; set; }
         public ActionEditVM? SelectedFunction
         {
             get => _selectedFunction;
@@ -193,6 +196,8 @@ namespace NavigatorHMI.ViewModels
             if (we != null)
             {
                 _condition = we.Condition;   // I-3 载入事件条件
+                PriorityIndex = (int)we.Priority;   // V-3c 载入事件优先级（钳 0..2 防旧/越界值）
+                if (PriorityIndex < 0 || PriorityIndex > 2) PriorityIndex = 0;
                 foreach (var a in we.Actions)
                     Functions.Add(new ActionEditVM(a, this));
             }
@@ -241,6 +246,7 @@ namespace NavigatorHMI.ViewModels
                 events.Add(we);
             }
             we.Condition = Condition;   // I-3 保存事件条件（留空=无条件）
+            we.Priority = (EventPriority)PriorityIndex;   // V-3c 保存事件优先级
             we.Actions.Clear();
             we.Actions.AddRange(Functions.Select(f => f.Build()));
         }

@@ -197,5 +197,28 @@ namespace NavigatorHMI.Tests
             var back = ProtoBuf.Serializer.Deserialize<WidgetEvent>(ms);
             Assert.Equal(ActionType.stop_runtime, back.Actions.Single().Type);
         }
+
+        [Fact]
+        public void WidgetEvent_事件优先级_roundTrip()
+        {
+            // V-3c（2026-09-06）：WidgetEvent.Priority（ProtoMember 4，与 FW proto WidgetEvent.priority 对齐）
+            // 默认 Normal=0（proto 零值纪律——未设置反序列化即 Normal）；High/Emergency 存读一致
+            var def = new WidgetEvent { Type = EventType.onClick };
+            using var ms0 = new System.IO.MemoryStream();
+            ProtoBuf.Serializer.Serialize(ms0, def);
+            ms0.Position = 0;
+            Assert.Equal(EventPriority.Normal,
+                         ProtoBuf.Serializer.Deserialize<WidgetEvent>(ms0).Priority);   // 零值默认
+
+            foreach (var pri in new[] { EventPriority.Normal, EventPriority.High, EventPriority.Emergency })
+            {
+                var we = new WidgetEvent { Type = EventType.onClick, Priority = pri };
+                using var ms = new System.IO.MemoryStream();
+                ProtoBuf.Serializer.Serialize(ms, we);
+                ms.Position = 0;
+                var back = ProtoBuf.Serializer.Deserialize<WidgetEvent>(ms);
+                Assert.Equal(pri, back.Priority);
+            }
+        }
     }
 }
