@@ -1247,15 +1247,33 @@ namespace NavigatorHMI.Views
             if (_videoRowPlayBtn != null) _videoRowPlayBtn.Content = "▶ 播放";
         }
 
-        /// <summary>预览播放/暂停按钮（交互 A 2026-09-06 用户裁决）。Tag 绑行 item：点非选中行按钮先选中
-        /// （触发加载）再播；仅本地已加载源响应（RTSP/空/缺失由提示说明）。</summary>
+        /// <summary>点视频区 = 仅阻断（U 四修 2026-09-06 用户复测：点画面停播变默认字样 + 按钮失联——视频 HWND
+        /// 区域点击被 WPF 命中为「行外空白」→ DataGrid 取消选中 → SelectionChanged → VideoRowRefresh 复位停播、
+        /// 字段清空后按钮无反应）。Preview 隧道阶段截断，不冒泡为 DataGrid 空白点击（选中保持、播放不被打断）；
+        /// 播放控制走下方 ▶/⏸ 按钮（交互 A 定案，视频区不做点击 toggle）。</summary>
+        private void VideoRowVideoArea_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            e.Handled = true;
+        }
+
+        /// <summary>预览播放/暂停按钮（交互 A 2026-09-06 用户裁决；U 四修 2026-09-06 起不再用 Tag——改**实时行查找**
+        /// 操作：点非选中行按钮先选中（触发加载）再播；仅本地已加载源响应（RTSP/空/缺失由提示说明）；
+        /// 不依赖 _videoRowMedia 字段（字段可能因行重建/复位悬空），点按钮即确保该行选中（选中被误清时恢复
+        /// 并重新加载）再播放。</summary>
         private void VideoRowPlayPause_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is not Button btn || btn.Tag is not ListItemVM it) return;
-            if (!ReferenceEquals(it, VideoItemsGrid.SelectedItem)) VideoItemsGrid.SelectedItem = it;   // 先选中（同步触发加载锁帧）
-            var media = _videoRowMedia;
-            var border = _videoRowBorder;
-            if (media == null || media.Source == null || border == null) return;
+            if (sender is not Button btn) return;
+            var row = FindAncestor<System.Windows.Controls.DataGridRow>(btn);
+            if (row?.DataContext is not ListItemVM it) return;
+            if (!ReferenceEquals(it, VideoItemsGrid.SelectedItem)) VideoItemsGrid.SelectedItem = it;   // 先选中（同步触发加载锁帧；选中已被误清时恢复）
+            var media = FindVisualChild<MediaElement>(row);        // 实时行内元素（不依赖字段）
+            var border = media != null ? FindAncestor<System.Windows.Controls.Border>(media) : null;
+            if (media == null || border == null || media.Source == null) return;   // 该行无源（空项/网络/缺失 → hint 已说明）
+            // 同步活动行字段（按钮行必为选中行——上面已确保）
+            _videoRowMedia = media;
+            _videoRowBorder = border;
+            _videoRowPlayBtn = btn;
+            _videoRowHint = FindVisualChild<TextBlock>(border);
             if (border.Tag is true) PauseVideoPreview();
             else PlayVideoPreview();
         }

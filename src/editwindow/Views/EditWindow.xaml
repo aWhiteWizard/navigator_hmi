@@ -2373,7 +2373,7 @@
                                                                      轮询锁首帧——不依赖 MediaOpened 时序，黑屏诊断文字「加载中/失败原因」可见到哪一步）；
                                                                      控制 = 预览格下方 ▶播放/⏸暂停 按钮——MediaElement 是 HWND 子窗口（airspace），视频区
                                                                      点击被原生窗口截获、WPF MouseDown 收不到，原「点预览格播/停」交互废弃改按钮；
-                                                                     按钮 Tag 绑行 item 供 code-behind 判行 -->
+                                                                     按钮 handler 实时行查找（反查所在行）不依赖 code-behind 字段；视频区 Preview 阻断防 DataGrid 误判空白点击取消选中 -->
                                                                 <DataGridTemplateColumn Header="预览" Width="185">
                                                                     <DataGridTemplateColumn.CellTemplate>
                                                                         <DataTemplate>
@@ -2382,7 +2382,7 @@
                                                                                     <RowDefinition Height="Auto"/>
                                                                                     <RowDefinition Height="Auto"/>
                                                                                 </Grid.RowDefinitions>
-                                                                                <Border Grid.Row="0" Background="Black" BorderBrush="#555" BorderThickness="1" Height="66"
+                                                                                <Border Grid.Row="0" Background="Black" BorderBrush="#555" BorderThickness="1" Height="66" PreviewMouseLeftButtonDown="VideoRowVideoArea_PreviewMouseDown"
                                                                                         VerticalAlignment="Center">
                                                                                     <Grid>
                                                                                         <MediaElement Stretch="Uniform" LoadedBehavior="Manual" UnloadedBehavior="Stop"
@@ -2392,7 +2392,7 @@
                                                                                                    TextWrapping="Wrap" TextAlignment="Center" Margin="4" IsHitTestVisible="False"/>
                                                                                     </Grid>
                                                                                 </Border>
-                                                                                <Button Grid.Row="1" Content="▶ 播放" Tag="{Binding}" Width="78" Height="20" FontSize="10"
+                                                                                <Button Grid.Row="1" Content="▶ 播放" Width="78" Height="20" FontSize="10"
                                                                                         Margin="0,2,0,0" HorizontalAlignment="Center" Padding="3,0" Click="VideoRowPlayPause_Click"
                                                                                         ToolTip="播放/暂停预览（先选中该行；视频画面为系统窗口层，须用此按钮控制）"/>
                                                                             </Grid>
