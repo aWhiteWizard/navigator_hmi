@@ -35,6 +35,17 @@
             <MenuItem Header="复制" Click="AiMsgCopy_Click"/>
         </ContextMenu>
 
+        <!-- 列表名行内编辑模板（2026-09-06 U 循环 Check 用户需求：列表管理左侧列表名双击进入编辑模式——
+             回车/点其它处确认（提交走 VM RenameList → update_list 同类型查重+级联）、Esc 取消不提交；
+             编辑态切换由 code-behind ListNameBox_MouseDoubleClick 视觉树查找控制（TextBlock↔TextBox Visibility）） -->
+        <DataTemplate x:Key="ListNameInlineEditTemplate">
+            <Grid Background="Transparent" ToolTip="{Binding Name}">
+                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" Margin="2,1" TextTrimming="CharacterEllipsis"/>
+                <TextBox Visibility="Collapsed" VerticalContentAlignment="Center" Margin="1" FontSize="12"
+                         PreviewKeyDown="ListNameEditor_PreviewKeyDown" LostFocus="ListNameEditor_LostFocus"/>
+            </Grid>
+        </DataTemplate>
+
         <!-- 属性面板样式 -->
         <Style x:Key="PropGroupHeader" TargetType="TextBlock">
             <Setter Property="FontWeight" Value="Bold"/><Setter Property="FontSize" Value="12"/>
@@ -2206,7 +2217,7 @@
                                                         <ColumnDefinition Width="160"/>
                                                         <ColumnDefinition Width="*"/>
                                                     </Grid.ColumnDefinitions>
-                                                    <ListBox x:Name="TextListBox" Grid.Column="0" Margin="0,0,4,0" ItemsSource="{Binding TextLists}" SelectedItem="{Binding SelectedTextList}" DisplayMemberPath="Name" FontSize="12" SelectionMode="Extended" PreviewKeyDown="TextListBox_KeyDown"/>
+                                                    <ListBox x:Name="TextListBox" Grid.Column="0" Margin="0,0,4,0" ItemsSource="{Binding TextLists}" SelectedItem="{Binding SelectedTextList}" ItemTemplate="{StaticResource ListNameInlineEditTemplate}" FontSize="12" SelectionMode="Extended" PreviewKeyDown="TextListBox_KeyDown" MouseDoubleClick="ListNameBox_MouseDoubleClick" ToolTip="双击列表名重命名（回车/点其它处确认，Esc 取消）"/>
                                                     <Grid Grid.Column="1">
                                                         <Grid.RowDefinitions>
                                                             <RowDefinition Height="Auto"/>
@@ -2251,7 +2262,7 @@
                                                         <ColumnDefinition Width="160"/>
                                                         <ColumnDefinition Width="*"/>
                                                     </Grid.ColumnDefinitions>
-                                                    <ListBox x:Name="ImageListBox" Grid.Column="0" Margin="0,0,4,0" ItemsSource="{Binding ImageLists}" SelectedItem="{Binding SelectedImageList}" DisplayMemberPath="Name" FontSize="12" SelectionMode="Extended" PreviewKeyDown="ImageListBox_KeyDown"/>
+                                                    <ListBox x:Name="ImageListBox" Grid.Column="0" Margin="0,0,4,0" ItemsSource="{Binding ImageLists}" SelectedItem="{Binding SelectedImageList}" ItemTemplate="{StaticResource ListNameInlineEditTemplate}" FontSize="12" SelectionMode="Extended" PreviewKeyDown="ImageListBox_KeyDown" MouseDoubleClick="ListNameBox_MouseDoubleClick" ToolTip="双击列表名重命名（回车/点其它处确认，Esc 取消）"/>
                                                     <Grid Grid.Column="1">
                                                         <Grid.RowDefinitions>
                                                             <RowDefinition Height="Auto"/>
@@ -2341,7 +2352,7 @@
                                                         <ColumnDefinition Width="160"/>
                                                         <ColumnDefinition Width="*"/>
                                                     </Grid.ColumnDefinitions>
-                                                    <ListBox x:Name="VideoListBox" Grid.Column="0" Margin="0,0,4,0" ItemsSource="{Binding VideoLists}" SelectedItem="{Binding SelectedVideoList}" DisplayMemberPath="Name" FontSize="12" SelectionMode="Extended" PreviewKeyDown="VideoListBox_KeyDown"/>
+                                                    <ListBox x:Name="VideoListBox" Grid.Column="0" Margin="0,0,4,0" ItemsSource="{Binding VideoLists}" SelectedItem="{Binding SelectedVideoList}" ItemTemplate="{StaticResource ListNameInlineEditTemplate}" FontSize="12" SelectionMode="Extended" PreviewKeyDown="VideoListBox_KeyDown" MouseDoubleClick="ListNameBox_MouseDoubleClick" ToolTip="双击列表名重命名（回车/点其它处确认，Esc 取消）"/>
                                                     <Grid Grid.Column="1">
                                                         <Grid.RowDefinitions>
                                                             <RowDefinition Height="Auto"/>

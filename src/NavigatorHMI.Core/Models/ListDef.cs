@@ -27,7 +27,7 @@ namespace NavigatorHMI.Common
 
         private string _name = "";
 
-        /// <summary>列表名（工程内唯一，控件 ListRef 引用）</summary>
+        /// <summary>列表名（**同类型内唯一**——U-1 2026-09-06 起三类型命名空间独立，跨类型同名允许；控件 ListRef 按消费类型引用）</summary>
         [ProtoMember(1)]
         public string Name
         {

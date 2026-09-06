@@ -566,7 +566,10 @@ namespace NavigatorHMI.ViewModels
             }
         }
 
-        private void RenameList(ListDef? list, string newName)
+        /// <summary>重命名列表（右侧「列表名」框 / 左侧列表名双击行内编辑共用提交入口——U 循环 Check 2026-09-06）。
+        /// Trim/空名/同名早退；update_list 带 type（U-1 同类型定位查重）；失败弹窗 + 模型回滚（Name 未变）。
+        /// 复审 🟡（2026-09-06 reviewer）：成功路径同步写回右侧「列表名」框（行内编辑入口下右框仍显旧名——防两入口不一致）。</summary>
+        public void RenameList(ListDef? list, string newName)
         {
             if (list == null) return;
             newName = newName.Trim();
@@ -581,16 +584,16 @@ namespace NavigatorHMI.ViewModels
             {
                 System.Windows.MessageBox.Show(result.ErrorMessage ?? "重命名失败", "重命名列表",
                     System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
-                // 失败回滚输入框
-                _syncingName = true;
-                try
-                {
-                    if (list == SelectedTextList) TextListName = list.Name;
-                    if (list == SelectedImageList) ImageListName = list.Name;
-                    if (list == SelectedVideoList) VideoListName = list.Name;   // S-4
-                }
-                finally { _syncingName = false; }
             }
+            // 失败回滚 / 成功同步：两路径统一按 list.Name 写回右框（成功=list.Name 已变新名；失败=命令层未落库仍旧名）
+            _syncingName = true;
+            try
+            {
+                if (list == SelectedTextList) TextListName = list.Name;
+                if (list == SelectedImageList) ImageListName = list.Name;
+                if (list == SelectedVideoList) VideoListName = list.Name;   // S-4
+            }
+            finally { _syncingName = false; }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

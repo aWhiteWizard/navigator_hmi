@@ -454,9 +454,81 @@ namespace NavigatorHMI.Views
             else if (e.Key == Key.A && Keyboard.Modifiers == ModifierKeys.Control) { AlarmGrid.SelectAll(); e.Handled = true; }
         }
 
+        // ── 列表名行内编辑（U 循环 Check 2026-09-06 用户需求：列表管理左侧列表名「双击进入编辑模式」——
+        //    回车/点其它处确认（提交 = VM RenameList → update_list 同类型查重+级联）、Esc 取消不提交；
+        //    三列表页（文本/图片/视频）ListBox 共用模板 ListNameInlineEditTemplate + 本组 handler）──
+        private TextBox? _listNameEditor;      // 当前行内编辑框（任一列表页共用）
+        private TextBlock? _listNameDisplay;   // 对应显示名 TextBlock（编辑态隐藏）
+        private ListDef? _listNameEditTarget;  // 正在编辑的列表
+        private bool _listNameSuppress;        // 提交/取消切换态防 LostFocus 递归（Exit 置 Collapsed 亦触发 LostFocus）
+
+        private void ListNameBox_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (e.OriginalSource is not DependencyObject src) return;
+            var item = FindAncestor<ListBoxItem>(src);
+            if (item?.DataContext is not ListDef list) return;                                        // 空白处双击忽略
+            if (ReferenceEquals(list, _listNameEditTarget) && _listNameEditor != null) return;        // 已在本项编辑（编辑框内双击=选词）忽略
+            if (_listNameEditor != null) CommitListNameEdit();                                        // 已在编辑其它项 → 点其它处即确认
+            var editor = FindVisualChild<TextBox>(item);        // 模板内编辑框（ListBoxItem 范围唯一）
+            var display = FindVisualChild<TextBlock>(item);     // 模板内显示名（ListBoxItem 范围唯一）
+            if (editor == null || display == null) return;
+            _listNameEditor = editor;
+            _listNameDisplay = display;
+            _listNameEditTarget = list;
+            display.Visibility = Visibility.Collapsed;
+            editor.Text = list.Name;
+            editor.Visibility = Visibility.Visible;
+            editor.Focus();
+            editor.SelectAll();
+            e.Handled = true;   // 防双击继续冒泡（向后触发拖选等）
+        }
+
+        /// <summary>行内编辑键：回车确认、Esc 取消。</summary>
+        private void ListNameEditor_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter) { CommitListNameEdit(); e.Handled = true; }
+            else if (e.Key == Key.Escape) { CancelListNameEdit(); e.Handled = true; }
+        }
+
+        /// <summary>点其它处/切 Tab 等失焦 → 确认提交（用户语义「点其他地方…即确认」）。</summary>
+        private void ListNameEditor_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (!_listNameSuppress) CommitListNameEdit();
+        }
+
+        private void CommitListNameEdit()
+        {
+            if (_listNameEditor == null || _listNameEditTarget == null) return;
+            var editor = _listNameEditor;
+            var list = _listNameEditTarget;
+            _listNameSuppress = true;   // 覆盖 RenameList 全程——失败弹 MessageBox 模态抢焦点防递归
+            try { _listManagerVM.RenameList(list, editor.Text); }   // Trim/空名/同名早退；update_list；失败弹窗+模型回滚
+            finally
+            {
+                ExitListNameEdit();
+                _listNameSuppress = false;
+            }
+        }
+
+        private void CancelListNameEdit()
+        {
+            if (_listNameEditor == null) return;
+            _listNameSuppress = true;
+            try { ExitListNameEdit(); }   // 不提交——Name 未动（TextBlock 绑定仍原值）
+            finally { _listNameSuppress = false; }
+        }
+
+        private void ExitListNameEdit()
+        {
+            if (_listNameEditor != null) { _listNameEditor.Visibility = Visibility.Collapsed; _listNameEditor = null; }
+            if (_listNameDisplay != null) { _listNameDisplay.Visibility = Visibility.Visible; _listNameDisplay = null; }
+            _listNameEditTarget = null;
+        }
+
         /// <summary>文本列表快捷键：Delete 删除选中、Ctrl+A 全选。</summary>
         private void TextListBox_KeyDown(object sender, KeyEventArgs e)
         {
+            if (_listNameEditor != null) return;   // 行内编辑中：Delete/Ctrl+A 交给编辑框（防误删列表/误全选）
             if (e.Key == Key.Delete) { TextListDelete_Click(sender, null); e.Handled = true; }
             else if (e.Key == Key.A && Keyboard.Modifiers == ModifierKeys.Control) { TextListBox.SelectAll(); e.Handled = true; }
         }
@@ -464,6 +536,7 @@ namespace NavigatorHMI.Views
         /// <summary>图片列表快捷键：Delete 删除选中、Ctrl+A 全选。</summary>
         private void ImageListBox_KeyDown(object sender, KeyEventArgs e)
         {
+            if (_listNameEditor != null) return;   // 行内编辑中：Delete/Ctrl+A 交给编辑框（防误删列表/误全选）
             if (e.Key == Key.Delete) { ImageListDelete_Click(sender, null); e.Handled = true; }
             else if (e.Key == Key.A && Keyboard.Modifiers == ModifierKeys.Control) { ImageListBox.SelectAll(); e.Handled = true; }
         }
@@ -988,6 +1061,7 @@ namespace NavigatorHMI.Views
         /// <summary>视频源列表框快捷键：Delete 删除选中、Ctrl+A 全选。</summary>
         private void VideoListBox_KeyDown(object sender, KeyEventArgs e)
         {
+            if (_listNameEditor != null) return;   // 行内编辑中：Delete/Ctrl+A 交给编辑框（防误删列表/误全选）
             if (e.Key == Key.Delete) { VideoListDelete_Click(sender, null); e.Handled = true; }
             else if (e.Key == Key.A && Keyboard.Modifiers == ModifierKeys.Control) { VideoListBox.SelectAll(); e.Handled = true; }
         }
@@ -1006,6 +1080,7 @@ namespace NavigatorHMI.Views
         private TextBlock? _videoRowHint;                             // 活动行预览列提示覆盖层
         private int _videoRowRetries;                                 // 容器未 realized 重试计数（审查 🟡-3 守卫——防饿死）
         private ListItemVM? _videoRowRetryItem;                       // 重试预算绑定项（item 变化/置空清零——每选中独立 3 次预算）
+        private DispatcherTimer? _videoRowFrameTimer;                 // 锁帧延迟暂停定时器（U 循环 Do 2026-09-06 再修：Play 后延迟 Pause）
 
         private void VideoItemsGrid_SelectionChanged(object sender, SelectionChangedEventArgs e) => VideoRowRefresh();
 
@@ -1041,6 +1116,7 @@ namespace NavigatorHMI.Views
         /// hint 限定在预览 Border 内查找（覆盖层 TextBlock 唯一）。</summary>
         private void VideoRowRefresh()
         {
+            _videoRowFrameTimer?.Stop();   // 行切换 → 取消挂起的锁帧暂停（旧行已 Stop 清源，tick 守卫也会放弃）
             if (_videoRowMedia != null) { _videoRowMedia.Stop(); _videoRowMedia.Source = null; }
             if (_videoRowBorder != null) _videoRowBorder.Tag = null;
             if (_videoRowHint != null) _videoRowHint.Text = "点击预览";
@@ -1109,19 +1185,42 @@ namespace NavigatorHMI.Views
             }
         }
 
-        /// <summary>媒体打开完成（U-3 2026-09-06 修复预览黑屏）：WPF Manual 未播不渲染首帧——默认 Play+Pause 锁首帧
-        /// 显画面不自动播；若已点播放（Border.Tag=true——Play 早调于打开前无效场景）→ 补播（此时 Play 有效）。</summary>
+        /// <summary>媒体打开完成（U-3 2026-09-06 + U 循环 Do 再修 2026-09-06）：WPF Manual 未播不渲染首帧——
+        /// 默认 Play 后**延迟 ~250ms 再 Pause** 锁首帧显画面不自动播（立即 Play+Pause 背靠背，Pause 可能早于
+        /// 首帧渲染提交 → 画面停留黑——用户实测 U-3 仍黑屏的根因候选①）；若已点播放（Border.Tag=true——
+        /// Play 早调于打开前无效场景）→ 补播（此时 Play 有效）。
+        /// 复审 🔴（2026-09-06 reviewer 驳回）：**每次 Opened 重建定时器**——单例复用 + Tick 闭包捕获首行 me，
+        /// 切行后旧 me 被清源 → 新行 tick 恒早退永不 Pause（自动播放）。每 Opened new 一个替换字段（旧实例先
+        /// Stop 后无引用可回收），闭包恒捕获当次 me。</summary>
         private void VideoRowMedia_Opened(object sender, RoutedEventArgs e)
         {
             if (sender is not MediaElement me) return;
+            if (me.Source == null) return;   // 复审 🟡（2026-09-06）：Opened 经 Dispatcher 排队期间可能已被切行清源 → 放弃（与 tick 守卫同款语义）
             var border = FindAncestor<System.Windows.Controls.Border>(me);
             if (border?.Tag is true)
             {
                 me.Play();   // 已点播放但 Play 早调无效 → MediaOpened 后补播
                 return;
             }
-            me.Play();   // 锁首帧：立即播一下再停——画面渲染首帧后暂停（默认态显首帧不自动播）
-            me.Pause();
+            me.Play();   // 先播起来推进渲染循环出首帧……
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+            timer.Tick += (_, _) =>
+            {
+                timer.Stop();
+                if (me.Source == null) return;                                            // 已切行 Stop 清源（旧行）→ 放弃
+                try
+                {
+                    if (ReferenceEquals(me, _videoRowMedia) && _videoRowBorder?.Tag is true) { me.Play(); return; }   // 250ms 内用户已点播放 → 保活不暂停
+                    if (me.CanPause) me.Pause();                                          // 锁帧（渲染已推进，画面保留）
+                }
+                catch (InvalidOperationException ex)   // 切行/窗口关闭等竞态（已卸载元素上操作）
+                {
+                    Log.Debug("VideoRowMedia 锁帧竞态忽略: {Msg}", ex.Message);
+                }
+            };
+            _videoRowFrameTimer?.Stop();
+            _videoRowFrameTimer = timer;
+            timer.Start();
         }
 
         /// <summary>播放自然结束 → 复位该行并 Stop（Position 回 0——审查 🟡-4：Ended 后 Play 不自动重播，
