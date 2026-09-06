@@ -4233,6 +4233,34 @@ namespace NavigatorHMI.Views
 
         #region 生成xml文件
         /// <summary>
+        /// 编译结果可读渲染（V-6 摘要消费端）：compile 的 Data 为匿名对象（output_path + changed_domains/changed_screens
+        /// 中文标签数组）——直接 ToString 会把 List 打印成类型名噪声。此处提取 output_path，变化为空则只显示路径；
+        /// 有变化则附「变化: 域[…] 画面[…]」（changed_domains 已是中文标签，直接透出）。
+        /// </summary>
+        private static string FormatCompileData(object? data)
+        {
+            if (data == null) return "";
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(System.Text.Json.JsonSerializer.Serialize(data));
+                var root = doc.RootElement;
+                var output = root.TryGetProperty("output_path", out var o) ? o.GetString() ?? "" : "";
+                var domains = root.TryGetProperty("changed_domains", out var d) && d.ValueKind == System.Text.Json.JsonValueKind.Array
+                    ? string.Join("、", d.EnumerateArray().Select(x => x.GetString())) : "";
+                var screens = root.TryGetProperty("changed_screens", out var s) && s.ValueKind == System.Text.Json.JsonValueKind.Array
+                    ? string.Join("、", s.EnumerateArray().Select(x => x.GetString())) : "";
+                var parts = new List<string>();
+                if (domains.Length > 0) parts.Add($"域: {domains}");
+                if (screens.Length > 0) parts.Add($"画面: {screens}");
+                return output + (parts.Count > 0 ? $"（变化 {string.Join(" | ", parts)}）" : "");
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                return data.ToString() ?? "";
+            }
+        }
+
+        /// <summary>
         /// 生成项目（F5 / 菜单点击）：先校验错误，无错误则输出 XML。
         /// </summary>
         private void BuildProject_Click(object sender, RoutedEventArgs e)
@@ -4246,8 +4274,9 @@ namespace NavigatorHMI.Views
                 MessageBox.Show($"[{result.ErrorCode}] {result.ErrorMessage}", "编译失败", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
-            AppendOutput($"[编译] ✓ 编译成功，输出: {result.Data}");
-            MessageBox.Show($"编译成功！\n输出: {result.Data}", "完成", MessageBoxButton.OK, MessageBoxImage.Information);
+            var summary = FormatCompileData(result.Data);
+            AppendOutput($"[编译] ✓ 编译成功，输出: {summary}");
+            MessageBox.Show($"编译成功！\n输出: {summary}", "完成", MessageBoxButton.OK, MessageBoxImage.Information);
         }
         #endregion
 
@@ -4995,6 +5024,8 @@ namespace NavigatorHMI.Views
                 {
                     if (result.Data is List<string> lines)
                         foreach (var l in lines) AppendCliOutput(l, "Gray");
+                    else if (command is "compile" or "b")   // GUI 别名 b = compile（ExecuteGuiCommand 同源）
+                        AppendCliOutput($"✓ {command} — {FormatCompileData(result.Data)}", "White");
                     else
                         AppendCliOutput($"✓ {command}" + (result.Data != null ? $" — {result.Data}" : ""), "White");
                 }
