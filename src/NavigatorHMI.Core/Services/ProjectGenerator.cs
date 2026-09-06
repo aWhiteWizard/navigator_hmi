@@ -1,4 +1,4 @@
-﻿using ProtoBuf;
+using ProtoBuf;
 
 namespace NavigatorHMI.Common
 {
@@ -365,7 +365,13 @@ namespace NavigatorHMI.Common
             });
             Register<DateTimeWidget>((dt, dto) =>
             {
-                dto.Type = NavihmiWidgetType.DateTime; dto.DtText = dt.Text; dto.DtFormat = dt.Format;
+                dto.Type = NavihmiWidgetType.DateTime;
+                // F-1（2026-09-06 用户报告 DateTime 时间不变）：D2 起 Text 不再参与未绑定显示（未绑定恒 FormatNow
+                // 实时、Text 仅旧工程序列化兼容）——不再下发占位/旧残留 Text（FW 端 dtText 非空会压死 1Hz 实时刷新，
+                // 显示死时间）。绑定变量同样不下发静态文本：FW 运行时按 boundTag 订阅 DataManager 实时值
+                // （FW HmiDateTime 同步补绑定订阅）；未绑定由 FW 按 dtFormat 1Hz 实时系统时间。
+                dto.DtText = "";
+                dto.DtFormat = dt.Format;
             });
             Register<PolygonWidget>((pg, dto) =>
             {
