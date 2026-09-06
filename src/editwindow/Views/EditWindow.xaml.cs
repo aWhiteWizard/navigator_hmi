@@ -1073,14 +1073,17 @@ namespace NavigatorHMI.Views
             if (selected.Count > 0) _listManagerVM.DeleteLists(selected);
         }
 
-        // ── 视频列表本地项预览（Check 方案 A 2026-09-05：DataGrid 预览列——仅选中行显示视频画面，首帧默认暂停，
-        //    点击播放/再点暂停，换行切换；RTSP/网络源提示不可预览——MediaElement 后端不支持 rtsp 直连）──
-        private System.Windows.Controls.Border? _videoRowBorder;      // 当前活动预览行 Border（Tag=播放状态）
+        // ── 视频列表本地项预览（U 循环问题2 三修 2026-09-06 用户裁决交互 A：仅选中行加载（设源即播 +
+        //    Position 轮询锁首帧——不依赖 MediaOpened 时序）；控制 = 预览格下方 ▶播放/⏸暂停 按钮（MediaElement
+        //    是 HWND 子窗口——视频区点击被原生窗口截获 WPF 收不到，原 Border 点击交互废弃）；RTSP/网络源提示
+        //    不可预览（MediaElement 后端不支持 rtsp 直连））──
+        private System.Windows.Controls.Border? _videoRowBorder;      // 活动行预览 Border（Tag=播放状态 true=播放中）
         private MediaElement? _videoRowMedia;                         // 活动行预览列 MediaElement
         private TextBlock? _videoRowHint;                             // 活动行预览列提示覆盖层
-        private int _videoRowRetries;                                 // 容器未 realized 重试计数（审查 🟡-3 守卫——防饿死）
-        private ListItemVM? _videoRowRetryItem;                       // 重试预算绑定项（item 变化/置空清零——每选中独立 3 次预算）
-        private DispatcherTimer? _videoRowFrameTimer;                 // 锁帧延迟暂停定时器（U 循环 Do 2026-09-06 再修：Play 后延迟 Pause）
+        private Button? _videoRowPlayBtn;                             // 活动行预览列播放/暂停按钮
+        private int _videoRowRetries;                                 // 容器/模板未就绪重试计数（防饿死，每选中 ≤3）
+        private ListItemVM? _videoRowRetryItem;                       // 重试预算绑定项（item 变化/置空清零）
+        private DispatcherTimer? _videoRowFrameTimer;                 // Position 轮询锁帧定时器（每加载重建防闭包陈旧）
 
         private void VideoItemsGrid_SelectionChanged(object sender, SelectionChangedEventArgs e) => VideoRowRefresh();
 
@@ -1109,27 +1112,32 @@ namespace NavigatorHMI.Views
             return null;
         }
 
-        /// <summary>选中变化/切列表/删除 → 清旧行预览 → 新选中行预览列设源/提示（仅选中行加载，未选中行黑底占位）。
+        /// <summary>选中变化/切列表/删除 → 清旧行预览 → 新选中行预览列设源并加载（仅选中行加载，未选中行黑底占位）。
         /// 审查 🔴（2026-09-05 PC 复审驳回修复）：**不得** FindVisualChild&lt;Border&gt;(row)——DataGridRow 模板行根即
         /// Border(DGR_Border)、单元格另含 Border(Bd)、文本列含 TextBlock，行级查找会命中行根/序号列——提示被写进序号列
         /// 破坏显示；改为先 FindVisualChild&lt;MediaElement&gt;(row)（预览列模板内唯一）再 FindAncestor 反查预览 Border，
-        /// hint 限定在预览 Border 内查找（覆盖层 TextBlock 唯一）。</summary>
+        /// hint 限定在预览 Border 内查找（覆盖层 TextBlock 唯一）。
+        /// U 三修（2026-09-06）：media/border 未生成（模板内容异步）与 row 同款有限重试——杜绝「静默放弃永不设源」黑屏；
+        /// 加载 = 设源即 Play + Position 轮询锁首帧（不依赖 MediaOpened——探针实证本环境立即 Play 画面即出）。</summary>
         private void VideoRowRefresh()
         {
-            _videoRowFrameTimer?.Stop();   // 行切换 → 取消挂起的锁帧暂停（旧行已 Stop 清源，tick 守卫也会放弃）
+            _videoRowFrameTimer?.Stop();   // 行切换 → 取消挂起的自动锁帧
             if (_videoRowMedia != null) { _videoRowMedia.Stop(); _videoRowMedia.Source = null; }
             if (_videoRowBorder != null) _videoRowBorder.Tag = null;
-            if (_videoRowHint != null) _videoRowHint.Text = "点击预览";
-            _videoRowBorder = null; _videoRowMedia = null; _videoRowHint = null;
+            if (_videoRowHint != null) _videoRowHint.Text = "▶ 播放预览";
+            if (_videoRowPlayBtn != null) { _videoRowPlayBtn.Content = "▶ 播放"; _videoRowPlayBtn.ToolTip = null; }   // 🔵-1：清旧行错误 ToolTip 残留
+            _videoRowBorder = null; _videoRowMedia = null; _videoRowHint = null; _videoRowPlayBtn = null;
             var item = VideoItemsGrid.SelectedItem as ListItemVM;
             if (item == null) { _videoRowRetryItem = null; return; }
             // 审查 🟡（第 3 轮）：重试预算随选中项变化清零——每选中独立 3 次（防共享计数被前项耗尽致新项零重试）
             if (!ReferenceEquals(item, _videoRowRetryItem)) { _videoRowRetryItem = item; _videoRowRetries = 0; }
             var row = VideoItemsGrid.ItemContainerGenerator.ContainerFromItem(item) as System.Windows.Controls.DataGridRow;
-            if (row == null)
+            var media = row != null ? FindVisualChild<MediaElement>(row) : null;   // 预览列模板内 MediaElement（行内唯一）
+            var border = media != null ? FindAncestor<System.Windows.Controls.Border>(media) : null;   // 反查预览 Border
+            // 行虚拟化/模板内容异步：容器或模板元素未就绪 → 延后重试（≤3 次 + Background 优先级低于 Render，
+            // 先让布局/容器生成跑一轮防饿死）——U 三修：media/border 查找失败同样重试（原静默 return 会永不设源黑屏）
+            if (row == null || media == null || border == null)
             {
-                // 审查 🟡-3：行虚拟化——未 realized 行 ContainerFromItem 返回 null（键盘跳视口外/程序化选中）：
-                // 延后重试，但限次数（≤3）+ Background 优先级（低于 Render——先让布局/容器生成跑一轮，防饿死循环）
                 if (_videoRowRetries < 3)
                 {
                     _videoRowRetries++;
@@ -1137,14 +1145,12 @@ namespace NavigatorHMI.Views
                 }
                 return;
             }
-            _videoRowRetries = 0;   // 命中容器 → 计数清零（新选中从 0 起）
-            var media = FindVisualChild<MediaElement>(row);   // 预览列模板内 MediaElement（行内唯一）
-            if (media == null) return;
-            var border = FindAncestor<System.Windows.Controls.Border>(media);   // 反查预览列 Border（行根 Border 不干扰）
-            if (border == null) return;
+            _videoRowRetries = 0;   // 全部命中 → 计数清零（新选中从 0 起）
             _videoRowBorder = border;
             _videoRowMedia = media;
             _videoRowHint = FindVisualChild<TextBlock>(border);   // 预览 Border 内覆盖层 TextBlock（唯一）
+            _videoRowPlayBtn = FindVisualChild<Button>(row);      // 预览列模板内播放/暂停按钮（行内唯一）
+            if (_videoRowPlayBtn != null) _videoRowPlayBtn.Content = "▶ 播放";
             var val = item.Value?.Trim() ?? "";
             if (val.Length == 0) { if (_videoRowHint != null) _videoRowHint.Text = "（空项）"; return; }
             if (val.StartsWith("rtsp://", StringComparison.OrdinalIgnoreCase)
@@ -1155,8 +1161,15 @@ namespace NavigatorHMI.Views
             { if (_videoRowHint != null) _videoRowHint.Text = "文件不存在\n或相对路径"; return; }
             try
             {
-                media.Source = new Uri(val);   // Manual 模式停首帧——画面出现（隐藏提示）
-                if (_videoRowHint != null) _videoRowHint.Text = "";
+                media.Source = new Uri(val);
+                if (_videoRowHint != null) _videoRowHint.Text = "加载中…";   // 状态诊断：黑屏时可见到哪一步
+                try { media.Play(); }   // 设源即播放（Manual 模式 Play 触发打开+播放；不依赖 MediaOpened 事件时序）
+                catch (InvalidOperationException)
+                {
+                    if (_videoRowHint != null) _videoRowHint.Text = "无法启动播放";
+                    return;
+                }
+                StartVideoFrameLock(media);   // Position 轮询：首帧渲染完成（位置开始推进）即 Pause 锁帧
             }
             catch (UriFormatException)
             {
@@ -1164,63 +1177,87 @@ namespace NavigatorHMI.Views
             }
         }
 
-        /// <summary>点击预览列：播放 ↔ 暂停（toggle；本地已加载源才响应——RTSP/空/缺失由提示说明）。</summary>
-        private void VideoRowPreview_MouseDown(object sender, MouseButtonEventArgs e)
+        /// <summary>Position 轮询锁帧（U 三修 2026-09-06）：MediaElement 首帧渲染完成的可靠信号 = 播放位置开始推进。
+        /// 设源即 Play 后每 100ms 查 Position——&gt;0 即已渲染首帧 → Pause 停住显首帧（不自动继续播）；
+        /// 用户已点播放（Tag=true）/切行清源/20s 超时/竞态 → 停止轮询。每次调用重建 timer（闭包捕获当次 me，
+        /// 防单例闭包陈旧——上轮 reviewer 🔴 教训）。</summary>
+        private void StartVideoFrameLock(MediaElement me)
         {
-            if (sender is not System.Windows.Controls.Border border) return;
-            var media = FindVisualChild<MediaElement>(border);
-            var hint = FindVisualChild<TextBlock>(border);
-            if (media == null || media.Source == null) return;
-            if (border.Tag is true)
-            {
-                media.Pause();
-                border.Tag = false;
-                if (hint != null) hint.Text = "已暂停——点击继续";
-            }
-            else
-            {
-                media.Play();
-                border.Tag = true;
-                if (hint != null) hint.Text = "播放中——点击暂停";
-            }
-        }
-
-        /// <summary>媒体打开完成（U-3 2026-09-06 + U 循环 Do 再修 2026-09-06）：WPF Manual 未播不渲染首帧——
-        /// 默认 Play 后**延迟 ~250ms 再 Pause** 锁首帧显画面不自动播（立即 Play+Pause 背靠背，Pause 可能早于
-        /// 首帧渲染提交 → 画面停留黑——用户实测 U-3 仍黑屏的根因候选①）；若已点播放（Border.Tag=true——
-        /// Play 早调于打开前无效场景）→ 补播（此时 Play 有效）。
-        /// 复审 🔴（2026-09-06 reviewer 驳回）：**每次 Opened 重建定时器**——单例复用 + Tick 闭包捕获首行 me，
-        /// 切行后旧 me 被清源 → 新行 tick 恒早退永不 Pause（自动播放）。每 Opened new 一个替换字段（旧实例先
-        /// Stop 后无引用可回收），闭包恒捕获当次 me。</summary>
-        private void VideoRowMedia_Opened(object sender, RoutedEventArgs e)
-        {
-            if (sender is not MediaElement me) return;
-            if (me.Source == null) return;   // 复审 🟡（2026-09-06）：Opened 经 Dispatcher 排队期间可能已被切行清源 → 放弃（与 tick 守卫同款语义）
-            var border = FindAncestor<System.Windows.Controls.Border>(me);
-            if (border?.Tag is true)
-            {
-                me.Play();   // 已点播放但 Play 早调无效 → MediaOpened 后补播
-                return;
-            }
-            me.Play();   // 先播起来推进渲染循环出首帧……
-            var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+            _videoRowFrameTimer?.Stop();
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
+            int ticks = 0;
             timer.Tick += (_, _) =>
             {
-                timer.Stop();
-                if (me.Source == null) return;                                            // 已切行 Stop 清源（旧行）→ 放弃
+                ticks++;
+                if (me.Source == null || !ReferenceEquals(me, _videoRowMedia)) { timer.Stop(); return; }   // 切行清源/活动行已换
+                if (_videoRowBorder?.Tag is true) { timer.Stop(); return; }                                // 用户已点播放 → 不再自动锁帧
+                var locked = false;
                 try
                 {
-                    if (ReferenceEquals(me, _videoRowMedia) && _videoRowBorder?.Tag is true) { me.Play(); return; }   // 250ms 内用户已点播放 → 保活不暂停
-                    if (me.CanPause) me.Pause();                                          // 锁帧（渲染已推进，画面保留）
+                    if (me.Position.TotalSeconds > 0.001)   // 播放时钟已推进 = 媒体已打开且首帧已渲染
+                    {
+                        me.Pause();                        // 锁帧暂停（画面保留当前帧）
+                        timer.Stop();
+                        if (_videoRowHint != null) _videoRowHint.Text = "";
+                        if (_videoRowPlayBtn != null) _videoRowPlayBtn.Content = "▶ 播放";
+                        locked = true;
+                    }
                 }
-                catch (InvalidOperationException ex)   // 切行/窗口关闭等竞态（已卸载元素上操作）
+                catch (InvalidOperationException ex)
                 {
-                    Log.Debug("VideoRowMedia 锁帧竞态忽略: {Msg}", ex.Message);
+                    // 复审 🔴（2026-09-06 reviewer 驳回）：媒体**打开中**读 Position 抛 InvalidOperationException——
+                    // 打开流程必经的临时态（大文件 >100ms 常见），catch **不得 Stop**（否则首 tick 即终止轮询、
+                    // 媒体稍后打开自动播放无人锁帧 + 「加载中…」残留）——仅记日志继续轮询
+                    Log.Debug("VideoRowMedia 锁帧等待媒体打开: {Msg}", ex.Message);
+                }
+                if (!locked && ticks > 200)   // 20s 上限统一出口（成功已 Stop；异常路径同样受上限约束）
+                {
+                    timer.Stop();
+                    if (_videoRowHint != null) _videoRowHint.Text = "打开较慢\n（可点 ▶ 手动播放）";
                 }
             };
-            _videoRowFrameTimer?.Stop();
             _videoRowFrameTimer = timer;
             timer.Start();
+        }
+
+        /// <summary>播放预览（按钮驱动——视频区为 HWND 层点击收不到，控制走预览格下方按钮）。</summary>
+        private void PlayVideoPreview()
+        {
+            var media = _videoRowMedia;
+            var border = _videoRowBorder;
+            if (media == null || media.Source == null || border == null) return;
+            _videoRowFrameTimer?.Stop();   // 取消挂起的自动锁帧（用户要持续播放）
+            try { media.Play(); }
+            catch (InvalidOperationException) { if (_videoRowHint != null) _videoRowHint.Text = "无法启动播放"; return; }
+            border.Tag = true;
+            if (_videoRowHint != null) _videoRowHint.Text = "";
+            if (_videoRowPlayBtn != null) _videoRowPlayBtn.Content = "⏸ 暂停";
+        }
+
+        /// <summary>暂停预览（按钮驱动）。</summary>
+        private void PauseVideoPreview()
+        {
+            var media = _videoRowMedia;
+            var border = _videoRowBorder;
+            if (media == null || border == null) return;
+            try { media.Pause(); }
+            catch (InvalidOperationException) { return; }
+            border.Tag = false;
+            if (_videoRowHint != null) _videoRowHint.Text = "";
+            if (_videoRowPlayBtn != null) _videoRowPlayBtn.Content = "▶ 播放";
+        }
+
+        /// <summary>预览播放/暂停按钮（交互 A 2026-09-06 用户裁决）。Tag 绑行 item：点非选中行按钮先选中
+        /// （触发加载）再播；仅本地已加载源响应（RTSP/空/缺失由提示说明）。</summary>
+        private void VideoRowPlayPause_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button btn || btn.Tag is not ListItemVM it) return;
+            if (!ReferenceEquals(it, VideoItemsGrid.SelectedItem)) VideoItemsGrid.SelectedItem = it;   // 先选中（同步触发加载锁帧）
+            var media = _videoRowMedia;
+            var border = _videoRowBorder;
+            if (media == null || media.Source == null || border == null) return;
+            if (border.Tag is true) PauseVideoPreview();
+            else PlayVideoPreview();
         }
 
         /// <summary>播放自然结束 → 复位该行并 Stop（Position 回 0——审查 🟡-4：Ended 后 Play 不自动重播，
@@ -1229,22 +1266,38 @@ namespace NavigatorHMI.Views
         {
             if (sender is not MediaElement me) return;
             me.Stop();   // Ended 自然结束后 Stop 归零——后续点击 Play 从头（暂停态不触发本 handler）
+            if (ReferenceEquals(me, _videoRowMedia)) _videoRowFrameTimer?.Stop();   // 复审 🟡-1：终态停锁帧轮询（防超时出口覆盖「播放结束」文案）
             var border = FindAncestor<System.Windows.Controls.Border>(me);
             if (border == null) return;
             border.Tag = false;
             var hint = FindVisualChild<TextBlock>(border);
-            if (hint != null) hint.Text = "播放结束\n点击重播";
+            if (hint != null) hint.Text = "播放结束\n▶ 重播";
+            var row = FindAncestor<System.Windows.Controls.DataGridRow>(me);
+            if (row != null && FindVisualChild<Button>(row) is { } btn) btn.Content = "▶ 播放";
         }
 
-        /// <summary>解码失败（格式不支持/损坏）→ 复位该行 + 提示（设备端打包播放不受影响）。</summary>
+        /// <summary>打开/解码失败 → 复位该行 + 提示（含错误摘要诊断——设备端打包播放不受影响）。</summary>
         private void VideoRowMedia_Failed(object sender, ExceptionRoutedEventArgs e)
         {
             if (sender is not MediaElement me) return;
+            if (ReferenceEquals(me, _videoRowMedia)) _videoRowFrameTimer?.Stop();   // 复审 🟡-1：终态停锁帧轮询（防 20s 超时出口用「打开较慢」覆盖「无法播放」错误摘要）
             var border = FindAncestor<System.Windows.Controls.Border>(me);
             if (border == null) return;
             border.Tag = false;
             var hint = FindVisualChild<TextBlock>(border);
-            if (hint != null) hint.Text = "无法解码预览\n（格式不支持/损坏）";
+            var full = "";
+            if (hint != null)
+            {
+                var msg = e.ErrorException?.Message ?? "";
+                full = msg.Length == 0 ? "未知错误" : msg;
+                hint.Text = "无法播放\n" + (full.Length > 40 ? full[..40] + "…" : full);   // 格子内摘要
+            }
+            var row = FindAncestor<System.Windows.Controls.DataGridRow>(me);
+            if (row != null && FindVisualChild<Button>(row) is { } btn)
+            {
+                btn.Content = "▶ 播放";
+                if (full.Length > 0) btn.ToolTip = "完整错误: " + full;   // 复审 🟡Y3：覆盖层 TextBlock IsHitTestVisible=false 悬停不触发——完整错误挂按钮（WPF 层可悬停）
+            }
         }
 
         private void OnAlarmDeleteRequested(AlarmRule alarm)
@@ -2869,6 +2922,8 @@ namespace NavigatorHMI.Views
             // W-3a：错误气泡清理（停定时器防闭包持有窗口、关闭残留 Popup）
             _errorBubbleTimer?.Stop();
             if (_errorBubble != null) _errorBubble.IsOpen = false;
+            _videoRowFrameTimer?.Stop();   // U 三修（2026-09-06 reviewer 🟡Y1）：视频预览锁帧定时器关闭必停（仓内 timer 清理纪律）
+            _videoRowMedia?.Close();       // 释放预览 MediaElement 播放资源
         }
 
         #endregion
