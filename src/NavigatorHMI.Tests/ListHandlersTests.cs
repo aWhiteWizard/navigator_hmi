@@ -208,5 +208,75 @@ namespace NavigatorHMI.Tests
             // wire 契约：PC ActionType 序数须与 proto ACT_TAG_STEP=18 对齐（枚举序数改动会破坏既有事件 wire）
             Assert.Equal(18, (int)ActionType.tag_step);
         }
+
+        // ── U-1（2026-09-06）：三类型列表命名空间独立——同名跨类型共存/级联按消费类型/删除保护分类 ──
+
+        private static CommandResult ExecList(HMIProject p, string cmd, string name, string type, string? newName = null, string? items = null)
+        {
+            var pars = new Dictionary<string, object?> { ["name"] = name, ["type"] = type };
+            if (newName != null) pars["new_name"] = newName;
+            if (items != null) pars["items"] = items;
+            return cmd switch
+            {
+                "create" => new CreateListHandler().Execute(p, pars),
+                "update" => new UpdateListHandler().Execute(p, pars),
+                "delete" => new DeleteListHandler().Execute(p, pars),
+                _ => throw new ArgumentException(cmd),
+            };
+        }
+
+        [Fact]
+        public void 同名Text与Video列表_可共存创建()
+        {
+            var p = new HMIProject { Name = "同名列表", ProjectFilePath = @"C:\dup-test.hmiproj" };
+            Assert.True(ExecList(p, "create", "源表", "Text", items: "甲|乙").Success);
+            var r2 = ExecList(p, "create", "源表", "Video", items: "rtsp://a|rtsp://b");
+            Assert.True(r2.Success, r2.ErrorMessage);   // 跨类型同名允许（U-1）
+            Assert.Equal(2, p.Lists.Count);
+            Assert.Equal(ListType.Text, p.Lists[0].Type);
+            Assert.Equal(ListType.Video, p.Lists[1].Type);
+        }
+
+        [Fact]
+        public void 同类型重名_仍拒绝()
+        {
+            var p = new HMIProject { Name = "重名", ProjectFilePath = @"C:\dup2.hmiproj" };
+            Assert.True(ExecList(p, "create", "源表", "Video", items: "x").Success);
+            var dup = ExecList(p, "create", "源表", "Video", items: "y");
+            Assert.False(dup.Success);
+            Assert.Equal("DUPLICATE", dup.ErrorCode);
+        }
+
+        [Fact]
+        public void 视频列表改名_仅级联Frame视频引用_不误改同名文本消费()
+        {
+            var p = new HMIProject { Name = "级联", ProjectFilePath = @"C:\cascade.hmiproj" };
+            p.Screens.Add(new Screen { Name = "画面A", Type = ScreenType.Custom });
+            ExecList(p, "create", "源表", "Text", items: "t1");
+            ExecList(p, "create", "源表", "Video", items: "v1");
+            p.Screens[0].Widgets.Add(new TextListWidget { ObjectName = "tl1", ListRef = "源表" });            // 消费 Text「源表」
+            p.Screens[0].Widgets.Add(new FrameWidget { ObjectName = "fr1", ShowVideo = true, VideoListRef = "源表" });   // 消费 Video「源表」
+            var r = ExecList(p, "update", "源表", "Video", newName: "源表V");
+            Assert.True(r.Success, r.ErrorMessage);
+            Assert.Equal("源表V", p.Lists.Single(l => l.Type == ListType.Video).Name);
+            Assert.Equal("源表V", p.Screens[0].Widgets.OfType<FrameWidget>().Single().VideoListRef);   // Frame 视频引用级联 ✓
+            Assert.Equal("源表", p.Screens[0].Widgets.OfType<TextListWidget>().Single().ListRef);       // 同名 Text 消费未误改 ✓
+        }
+
+        [Fact]
+        public void 删除同名列表_按类型保护不互拦()
+        {
+            var p = new HMIProject { Name = "删除保护", ProjectFilePath = @"C:\del.hmiproj" };
+            p.Screens.Add(new Screen { Name = "画面A", Type = ScreenType.Custom });
+            ExecList(p, "create", "源表", "Text", items: "t1");
+            ExecList(p, "create", "源表", "Video", items: "v1");
+            p.Screens[0].Widgets.Add(new TextListWidget { ObjectName = "tl1", ListRef = "源表" });   // 引用 Text「源表」
+            var delVideo = ExecList(p, "delete", "源表", "Video");
+            Assert.True(delVideo.Success, delVideo.ErrorMessage);   // Video 同名未被 Text 引用互拦（U-1）
+            Assert.Single(p.Lists);
+            var delText = ExecList(p, "delete", "源表", "Text");    // Text 被 TextList 引用 → 拒绝
+            Assert.False(delText.Success);
+            Assert.Equal("IN_USE", delText.ErrorCode);
+        }
     }
 }

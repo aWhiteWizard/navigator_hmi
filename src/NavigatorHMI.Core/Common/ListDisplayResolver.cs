@@ -53,19 +53,25 @@ namespace NavigatorHMI.Common
             return (idx >= 0 && idx < count) ? idx : -1;
         }
 
-        /// <summary>解析列表项文本（列表不存在/未绑列表/索引无效 → null）。</summary>
-        public static string? ResolveListText(string listRef, string? boundTag, int defaultIndex)
+        /// <summary>按「类型 + 名」找列表（U-1 2026-09-06 三类型命名空间独立——文本/图片/视频列表可跨类型同名，
+        /// 消费查找必须带类型，否则同名错指）。</summary>
+        private static ListDef? FindList(string listRef, ListType type)
+            => TagResolver.CurrentProject?.Lists.FirstOrDefault(l => l.Type == type && l.Name == listRef);
+
+        /// <summary>解析列表项文本（列表不存在/未绑列表/索引无效 → null）。type=消费方期望列表类型（TextList 控件→Text）。</summary>
+        public static string? ResolveListText(string listRef, ListType type, string? boundTag, int defaultIndex)
         {
-            var list = TagResolver.CurrentProject?.Lists.FirstOrDefault(l => l.Name == listRef);
+            var list = FindList(listRef, type);
             if (list == null) return null;
             var idx = ResolveIndex(boundTag, defaultIndex, list.Items.Count);
             return idx >= 0 ? list.Items[idx] : null;
         }
 
-        /// <summary>解析列表项图片完整路径（列表不存在/未绑列表/索引无效 → null；文件不存在仍返回解析路径由渲染侧兜底）。</summary>
-        public static string? ResolveListImagePath(string listRef, string? boundTag, int defaultIndex)
+        /// <summary>解析列表项图片完整路径（列表不存在/未绑列表/索引无效 → null；文件不存在仍返回解析路径由渲染侧兜底）。
+        /// type=消费方期望列表类型（Image/Frame 图模式→Image）。</summary>
+        public static string? ResolveListImagePath(string listRef, ListType type, string? boundTag, int defaultIndex)
         {
-            var text = ResolveListText(listRef, boundTag, defaultIndex);
+            var text = ResolveListText(listRef, type, boundTag, defaultIndex);
             if (text == null) return null;
             return ResolveFullPath(text, ProjectDir) ?? text;
         }

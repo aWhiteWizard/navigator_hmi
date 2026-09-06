@@ -101,24 +101,26 @@ namespace NavigatorHMI.Common
                         result.Errors.Add($"范围点绑定的变量 \"{rp.BoundTag}\" 不存在");
             }
 
-            // 3b. 校验（K-3 P0 补强）：ListRef 存在性 + 列表类型匹配——图片/文本列表/框架引用列表不存在或类型不符
-            var listDefs = project.Lists.ToDictionary(l => l.Name, l => l.Type);
+            // 3b. 校验（K-3 P0 补强；U-1 2026-09-06 按 (type,name) 定位——同名跨类型可共存）：
+            // ListRef/VideoListRef 存在性 + 列表类型匹配——控件引用对应类型列表不存在或类型不符报错
+            void CheckListRef(Screen screen, Widget w, string listRef, ListType expect)
+            {
+                if (string.IsNullOrEmpty(listRef)) return;
+                var exists = project.Lists.Any(l => l.Type == expect && l.Name == listRef);
+                if (exists) return;
+                var anyName = project.Lists.Any(l => l.Name == listRef);
+                var typeName = expect == ListType.Image ? "图片" : expect == ListType.Text ? "文本" : "视频";
+                result.Errors.Add(anyName
+                    ? $"画面 \"{screen.Name}\" 控件 \"{w.ObjectName}\" 引用 \"{listRef}\" 不是{typeName}列表（应为{typeName}列表——同名其它类型列表存在）"
+                    : $"画面 \"{screen.Name}\" 控件 \"{w.ObjectName}\" 引用的{typeName}列表 \"{listRef}\" 不存在");
+            }
             foreach (var screen in project.Screens)
                 foreach (var w in screen.Widgets)
                 {
-                    if (w is not (ImageWidget or TextListWidget or FrameWidget)) continue;
-                    var listRef = (w as ImageWidget)?.ListRef ?? (w as TextListWidget)?.ListRef ?? (w as FrameWidget)?.ListRef;
-                    if (string.IsNullOrEmpty(listRef)) continue;
-                    if (!listDefs.TryGetValue(listRef, out var listType))
-                    {
-                        result.Errors.Add($"画面 \"{screen.Name}\" 控件 \"{w.ObjectName}\" 引用的列表 \"{listRef}\" 不存在");
-                        continue;
-                    }
-                    var needImage = w is ImageWidget or FrameWidget;
-                    if (needImage && listType != ListType.Image)
-                        result.Errors.Add($"画面 \"{screen.Name}\" 控件 \"{w.ObjectName}\" 引用 \"{listRef}\" 为文本列表（应为图片列表）");
-                    if (!needImage && listType != ListType.Text)
-                        result.Errors.Add($"画面 \"{screen.Name}\" 控件 \"{w.ObjectName}\" 引用 \"{listRef}\" 为图片列表（应为文本列表）");
+                    if (w is ImageWidget im) CheckListRef(screen, w, im.ListRef, ListType.Image);
+                    else if (w is TextListWidget tl) CheckListRef(screen, w, tl.ListRef, ListType.Text);
+                    else if (w is FrameWidget fr) CheckListRef(screen, w, fr.ListRef, ListType.Image);   // Frame 图模式
+                    if (w is FrameWidget fv) CheckListRef(screen, w, fv.VideoListRef, ListType.Video);   // S-5 视频列表
                 }
 
             // 3c. 校验（K-3 P0 补强）：画面名全局重复

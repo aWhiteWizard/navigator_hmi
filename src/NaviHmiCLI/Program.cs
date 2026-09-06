@@ -134,8 +134,8 @@ public static class Program
 
             // 列表
             "create-list"    => Cmd("create_list", Require("name"), Require("type"), Opt("items", "")),
-            "update-list"    => Cmd("update_list", Require("name"), OptIfProvided("new-name", "new_name"), OptIfProvided("items")),
-            "delete-list"    => Cmd("delete_list", Require("name")),
+            "update-list"    => Cmd("update_list", Require("name"), OptIfProvided("type"), OptIfProvided("new-name", "new_name"), OptIfProvided("items")),
+            "delete-list"    => Cmd("delete_list", Require("name"), OptIfProvided("type")),
 
             // 剪贴板
             "copy-widget"    => Cmd("copy_widget", Require("screen", "screen_name"), Require("widget", "widget_name")),
@@ -695,8 +695,8 @@ set-property 属性键 (--screen <画面> --widget <控件> --key <键> --value 
 
 列表命令:
   create-list            --name <name> --type <type> [--items <a,b,c>]
-  update-list            --name <name> [--new-name <name>] [--items <a,b,c>]
-  delete-list            --name <name>
+  update-list            --name <name> [--type <type>] [--new-name <name>] [--items <a,b,c>]   # --type：跨类型同名时定位（U-1）
+  delete-list            --name <name> [--type <type>]
 
 用户/组命令:
   create-user            --user-name <name> --password <pwd> [--group-name 管理员|操作员|访客]

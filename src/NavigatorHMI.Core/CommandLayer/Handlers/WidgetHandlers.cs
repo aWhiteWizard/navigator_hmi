@@ -206,10 +206,18 @@ namespace NavigatorHMI.CommandLayer.Handlers
             if (err != null) return err;
             var key = p["key"]!.ToString()!; var value = p["value"]!.ToString()!;
 
-            // listRef 绑定前校验列表存在（防绑定幽灵列表：create_list 未建成/列表名错 → 渲染端列表不生效）
-            if (key == "listRef" && !string.IsNullOrWhiteSpace(value)
-                && !project.Lists.Any(l => l.Name == value))
-                return CommandResult.Fail("NOT_FOUND", $"列表 \"{value}\" 不存在，请先 create-list 创建（或检查列表名是否与已有列表一致）");
+            // listRef/videoListRef 绑定前校验列表存在（防绑定幽灵列表；U-1 2026-09-06 按**消费类型**匹配——
+            // 跨类型同名时 TextList 绑 Text 型、Image/Frame 图模式绑 Image 型、Frame 视频绑 Video 型，不误配）
+            if ((key == "listRef" || key == "videoListRef") && !string.IsNullOrWhiteSpace(value))
+            {
+                var expect = key == "videoListRef" ? ListType.Video
+                    : widget is TextListWidget ? ListType.Text
+                    : widget is ImageWidget or FrameWidget ? ListType.Image
+                    : (ListType?)null;
+                if (expect is { } et && !project.Lists.Any(l => l.Type == et && l.Name == value))
+                    return CommandResult.Fail("NOT_FOUND",
+                        $"{(et == ListType.Video ? "视频列表" : et == ListType.Text ? "文本列表" : "图片列表")} \"{value}\" 不存在，请先 create-list 创建（或检查列表名是否与同类型已有列表一致）");
+            }
 
             // 数值型 key 统一预校验（防 double.Parse 裸转抛 FormatException 崩溃）
             if (key is "fontSize" or "strokeThickness" or "value" or "min" or "max" or "x2" or "y2")

@@ -288,6 +288,7 @@ namespace NavigatorHMI.ViewModels
             CommandService.Execute("update_list", new Dictionary<string, object?>
             {
                 ["name"] = list.Name,
+                ["type"] = list.Type.ToString(),   // U-1：同名跨类型定位
                 ["items"] = list.Items,
             });
         }
@@ -351,7 +352,7 @@ namespace NavigatorHMI.ViewModels
                 if (type == ListType.Text) NewTextListName = "";
                 else if (type == ListType.Image) NewImageListName = "";
                 else NewVideoListName = "";
-                var created = Project.Lists.FirstOrDefault(l => l.Name == name);
+                var created = Project.Lists.FirstOrDefault(l => l.Type == type && l.Name == name);   // U-1：同类型回查（同名跨类型不选错）
                 if (type == ListType.Text) SelectedTextList = created;
                 else if (type == ListType.Image) SelectedImageList = created;
                 else SelectedVideoList = created;   // S-4
@@ -372,7 +373,11 @@ namespace NavigatorHMI.ViewModels
                 $"确定删除列表 \"{list.Name}\" 吗？\n删除后不可恢复（被控件引用的列表会被拒绝删除）。", "删除列表",
                 System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Question);
             if (confirm != System.Windows.MessageBoxResult.Yes) return;
-            var result = CommandService.Execute("delete_list", new Dictionary<string, object?> { ["name"] = list.Name });
+            var result = CommandService.Execute("delete_list", new Dictionary<string, object?>
+            {
+                ["name"] = list.Name,
+                ["type"] = list.Type.ToString(),   // U-1：同名跨类型定位（单删）
+            });
             if (!result.Success)
             {
                 System.Windows.MessageBox.Show(result.ErrorMessage ?? "删除列表失败", "删除列表",
@@ -444,7 +449,11 @@ namespace NavigatorHMI.ViewModels
             var failed = new List<string>();
             foreach (var list in lists)
             {
-                var result = CommandService.Execute("delete_list", new Dictionary<string, object?> { ["name"] = list.Name });
+                var result = CommandService.Execute("delete_list", new Dictionary<string, object?>
+                {
+                    ["name"] = list.Name,
+                    ["type"] = list.Type.ToString(),   // U-1：同名跨类型定位
+                });
                 if (!result.Success) failed.Add($"{list.Name}: {result.ErrorMessage}");
             }
             if (failed.Count > 0)
@@ -565,6 +574,7 @@ namespace NavigatorHMI.ViewModels
             var result = CommandService.Execute("update_list", new Dictionary<string, object?>
             {
                 ["name"] = list.Name,
+                ["type"] = list.Type.ToString(),   // U-1：同名跨类型定位
                 ["new_name"] = newName,
             });
             if (!result.Success)

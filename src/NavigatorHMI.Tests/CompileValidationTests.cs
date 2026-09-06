@@ -47,7 +47,7 @@ namespace NavigatorHMI.Tests
 
             var result = ProjectGenerator.Compile(p);
             Assert.True(result.HasErrors);
-            Assert.Contains(result.Errors, e => e.Contains("引用的列表") && e.Contains("不存在的列表"));
+            Assert.Contains(result.Errors, e => e.Contains("不存在的列表") && e.Contains("不存在"));   // U-1 文案类型化：「引用的图片列表 …不存在」
         }
 
         [Fact]

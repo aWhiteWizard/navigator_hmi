@@ -507,7 +507,7 @@ public class ImageWidget : Widget
         get
         {
             if (!string.IsNullOrEmpty(ListRef))
-                return ListDisplayResolver.ResolveListImagePath(ListRef, BoundTag, DefaultIndex) ?? "";
+                return ListDisplayResolver.ResolveListImagePath(ListRef, ListType.Image, BoundTag, DefaultIndex) ?? "";   // U-1：Image/Frame 图模式消费 Image 型列表
             return ListDisplayResolver.ResolveFullPath(ImagePath, ListDisplayResolver.ProjectDir) ?? ImagePath;
         }
     }
@@ -1037,7 +1037,7 @@ public class TextListWidget : Widget
         get
         {
             if (string.IsNullOrEmpty(ListRef)) return "";
-            return ListDisplayResolver.ResolveListText(ListRef, BoundTag, DefaultIndex) ?? "";
+            return ListDisplayResolver.ResolveListText(ListRef, ListType.Text, BoundTag, DefaultIndex) ?? "";   // U-1：TextList 消费 Text 型列表
         }
     }
 }
@@ -1134,7 +1134,7 @@ public class FrameWidget : Widget
         get
         {
             if (!string.IsNullOrEmpty(ListRef))
-                return ListDisplayResolver.ResolveListImagePath(ListRef, BoundTag, DefaultIndex) ?? "";
+                return ListDisplayResolver.ResolveListImagePath(ListRef, ListType.Image, BoundTag, DefaultIndex) ?? "";   // U-1：Image/Frame 图模式消费 Image 型列表
             return ListDisplayResolver.ResolveFullPath(ImagePath, ListDisplayResolver.ProjectDir) ?? ImagePath;
         }
     }

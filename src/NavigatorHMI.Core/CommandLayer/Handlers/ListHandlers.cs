@@ -78,6 +78,32 @@ namespace NavigatorHMI.CommandLayer.Handlers
         }
     }
 
+    /// <summary>U-1（2026-09-06 三类型命名空间独立）：控件列表引用按**消费类型**匹配/改写——
+    /// Text 型 ← TextListWidget.ListRef；Image 型 ← ImageWidget/FrameWidget（ListRef 图模式）；Video 型 ← FrameWidget.VideoListRef。
+    /// 跨类型同名列表各自只被对应消费方引用——rename/delete 级联保护不得全名匹配（防误级联/互拦）。</summary>
+    internal static class ListTypeRefs
+    {
+        public static bool WidgetRefs(Widget w, string name, ListType type) => type switch
+        {
+            ListType.Text => w is TextListWidget tl && tl.ListRef == name,
+            ListType.Image => w is ImageWidget im ? im.ListRef == name : w is FrameWidget fr && fr.ListRef == name,
+            ListType.Video => w is FrameWidget fv && fv.VideoListRef == name,
+            _ => false,
+        };
+
+        /// <summary>改写控件引用名（与 WidgetRefs 同匹配规则；不匹配不改）。</summary>
+        public static void RenameRef(Widget w, string oldName, string newName, ListType type)
+        {
+            switch (type)
+            {
+                case ListType.Text when w is TextListWidget tl && tl.ListRef == oldName: tl.ListRef = newName; break;
+                case ListType.Image when w is ImageWidget im && im.ListRef == oldName: im.ListRef = newName; break;
+                case ListType.Image when w is FrameWidget fr && fr.ListRef == oldName: fr.ListRef = newName; break;
+                case ListType.Video when w is FrameWidget fv && fv.VideoListRef == oldName: fv.VideoListRef = newName; break;
+            }
+        }
+    }
+
     /// <summary>创建列表（文本/图片/视频源）。列表项为有序预设值，控件绑定数值变量按索引显示。</summary>
     public class CreateListHandler : ICommandHandler
     {
@@ -103,10 +129,11 @@ namespace NavigatorHMI.CommandLayer.Handlers
         public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
         {
             var name = p["name"]!.ToString()!.Trim();
-            if (project.Lists.Any(l => l.Name == name))
-                return CommandResult.Fail("DUPLICATE", $"列表 \"{name}\" 已存在（可直接使用，或 update-list 修改其内容）");
             if (!Enum.TryParse<ListType>(p["type"]!.ToString(), ignoreCase: true, out var type))
                 return CommandResult.Fail("INVALID_PARAM", $"未知列表类型: {p["type"]}（Text/Image/Video）");
+            // U-1（2026-09-06 三类型命名空间独立）：查重限**同类型内**——文本/图片/视频列表可跨类型同名
+            if (project.Lists.Any(l => l.Type == type && l.Name == name))
+                return CommandResult.Fail("DUPLICATE", $"同类型列表 \"{name}\" 已存在（{type} 型；跨类型同名允许）");
             var items = ListItemsParser.Parse(p.GetValueOrDefault("items")) ?? new List<string>();
 
             // D-B2：图片列表项路径校验（绝对路径在工程目录内 → 相对化；目录外 → 拒绝早失败）
@@ -147,6 +174,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
             Parameters = new()
             {
                 ["name"] = new() { Type = "string", Required = true, Description = "原列表名" },
+                ["type"] = new() { Type = "enum", EnumValues = new[] { "Text", "Image", "Video" }, Description = "列表类型（U-1 跨类型同名时必传定位；缺省按唯一名匹配，同名多时要求指定）", KeepInCompact = true },
                 ["new_name"] = new() { Type = "string", Description = "新列表名（重命名）", KeepInCompact = true },
                 ["items"] = new() { Type = "string", Description = "预设值列表，用 | 分隔（提供则整体替换）", KeepInCompact = true },
             }
@@ -160,8 +188,28 @@ namespace NavigatorHMI.CommandLayer.Handlers
         public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
         {
             var name = p["name"]!.ToString()!.Trim();   // 与 create_list 对齐：查找前 Trim，防 CLI --name "l1 " NOT_FOUND
-            var list = project.Lists.FirstOrDefault(l => l.Name == name);
-            if (list == null) return CommandResult.Fail("NOT_FOUND", $"列表 \"{name}\" 不存在");
+            // U-1：type 可选——提供则同类型定位（未命中=该类型列表不存在 → NOT_FOUND）；缺省按名唯一匹配（同名多报 AMBIGUOUS）
+            ListType? typeFilter = null;
+            if (p.TryGetValue("type", out var tp) && tp != null && tp.ToString()!.Length > 0)
+            {
+                if (!Enum.TryParse<ListType>(tp.ToString(), ignoreCase: true, out var t2))
+                    return CommandResult.Fail("INVALID_PARAM", $"未知列表类型: {tp}（Text/Image/Video）");
+                typeFilter = t2;
+            }
+            ListDef? list;
+            if (typeFilter is { } tf)
+            {
+                list = project.Lists.FirstOrDefault(l => l.Type == tf && l.Name == name);
+                if (list == null) return CommandResult.Fail("NOT_FOUND", $"列表 \"{name}\"（{tf} 型）不存在");
+            }
+            else
+            {
+                var matches = project.Lists.Where(l => l.Name == name).ToList();
+                if (matches.Count == 0) return CommandResult.Fail("NOT_FOUND", $"列表 \"{name}\" 不存在");
+                if (matches.Count > 1)
+                    return CommandResult.Fail("AMBIGUOUS", $"列表 \"{name}\" 跨类型同名（Text/Image/Video），请用 type 参数指定");
+                list = matches[0];
+            }
 
             // 两段式（D-B2 审查修复）：先全量解析/校验 items（含图片路径规范化），全过再应用 rename+替换——
             // 否则 rename 先落库、items 校验失败 → 半应用（改名成功但内容未改，UI 显示不一致）
@@ -194,7 +242,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 }
             }
 
-            // 重命名：唯一性校验 + 级联同步控件 ListRef（反射遍历 Widget，兼容 ImageWidget/FrameWidget/TextListWidget）
+            // 重命名：同类型唯一性校验 + 级联同步控件引用（ListTypeRefs 按消费类型匹配——U-1 同名跨类型不误级联）
             // ⚠️ 不能提前 return：items 替换分支须独立可达（cli-param-sanitize §12 显式清空语义）
             // new_name 无清空语义：仅判非 null，由内层 Trim + 长度守卫统一净化空白串
             if (p.TryGetValue("new_name", out var nn) && nn != null)
@@ -202,18 +250,11 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 var newName = nn.ToString()!.Trim();
                 if (newName.Length > 0 && newName != name)   // Trim 后空名/同名：跳过重命名，items 分支继续
                 {
-                    if (project.Lists.Any(l => l.Name == newName))
-                        return CommandResult.Fail("DUPLICATE", $"列表 \"{newName}\" 已存在");
+                    if (project.Lists.Any(l => l.Type == list.Type && l.Name == newName))
+                        return CommandResult.Fail("DUPLICATE", $"同类型列表 \"{newName}\" 已存在（{list.Type} 型）");
                     foreach (var screen in project.Screens)
                         foreach (var w in screen.Widgets)
-                        {
-                            var prop = w.GetType().GetProperty(ListRefPropertyName);
-                            if (prop != null && prop.CanRead && prop.CanWrite && prop.GetValue(w) is string refName && refName == name)
-                                prop.SetValue(w, newName);
-                            // S-5（审查 🟡-2）：FrameWidget.VideoListRef（视频源列表引用）级联改名——反射只覆盖 ListRef
-                            if (w is FrameWidget fv && fv.VideoListRef == name)
-                                fv.VideoListRef = newName;
-                        }
+                            ListTypeRefs.RenameRef(w, name, newName, list.Type);
                     list.Name = newName;
                 }
             }
@@ -231,15 +272,13 @@ namespace NavigatorHMI.CommandLayer.Handlers
     /// <summary>删除列表。若被控件 ListRef 引用则拒绝删除（引用保护，防止控件悬空引用）。</summary>
     public class DeleteListHandler : ICommandHandler
     {
-        /// <summary>控件列表引用属性名（反射统一处理防字符串漂移）。</summary>
-        private const string ListRefPropertyName = "ListRef";
-
         public CommandDefinition Definition => new()
         {
             Name = "delete_list", Description = "删除列表（被控件引用时拒绝）",
             Parameters = new()
             {
                 ["name"] = new() { Type = "string", Required = true, Description = "列表名" },
+                ["type"] = new() { Type = "enum", EnumValues = new[] { "Text", "Image", "Video" }, Description = "列表类型（U-1 跨类型同名时必传定位；缺省按唯一名匹配）", KeepInCompact = true },
             }
         };
         public ValidationResult Validate(Dictionary<string, object?> p)
@@ -251,19 +290,36 @@ namespace NavigatorHMI.CommandLayer.Handlers
         public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
         {
             var name = p["name"]!.ToString()!.Trim();   // 与 create_list 对齐：查找前 Trim
-            var list = project.Lists.FirstOrDefault(l => l.Name == name);
-            if (list == null) return CommandResult.Fail("NOT_FOUND", $"列表 \"{name}\" 不存在");
+            // U-1：type 可选——提供则同类型定位（未命中=该类型列表不存在 → NOT_FOUND）；缺省按名唯一匹配（同名多报 AMBIGUOUS）
+            ListType? typeFilter = null;
+            if (p.TryGetValue("type", out var tp) && tp != null && tp.ToString()!.Length > 0)
+            {
+                if (!Enum.TryParse<ListType>(tp.ToString(), ignoreCase: true, out var t2))
+                    return CommandResult.Fail("INVALID_PARAM", $"未知列表类型: {tp}（Text/Image/Video）");
+                typeFilter = t2;
+            }
+            ListDef? list;
+            if (typeFilter is { } tf)
+            {
+                list = project.Lists.FirstOrDefault(l => l.Type == tf && l.Name == name);
+                if (list == null) return CommandResult.Fail("NOT_FOUND", $"列表 \"{name}\"（{tf} 型）不存在");
+            }
+            else
+            {
+                var matches = project.Lists.Where(l => l.Name == name).ToList();
+                if (matches.Count == 0) return CommandResult.Fail("NOT_FOUND", $"列表 \"{name}\" 不存在");
+                if (matches.Count > 1)
+                    return CommandResult.Fail("AMBIGUOUS", $"列表 \"{name}\" 跨类型同名（Text/Image/Video），请用 type 参数指定");
+                list = matches[0];
+            }
 
-            // 引用检查：控件 ListRef（反射遍历，兼容 ImageWidget/FrameWidget/TextListWidget）+ FrameWidget.VideoListRef（S-5 视频源列表——审查 🟡-2）
+            // 引用检查：按消费类型匹配（U-1 ListTypeRefs——同名跨类型不互拦）
             var widgetRefs = project.Screens
-                .SelectMany(s => s.Widgets.Where(w =>
-                        (w.GetType().GetProperty(ListRefPropertyName) is { } prop
-                         && prop.CanRead && prop.GetValue(w) is string refName && refName == name)
-                        || (w is FrameWidget fv && fv.VideoListRef == name))
+                .SelectMany(s => s.Widgets.Where(w => ListTypeRefs.WidgetRefs(w, name, list.Type))
                     .Select(w => $"{s.Name}/{w.ObjectName}"))
                 .ToList();
             if (widgetRefs.Count > 0)
-                return CommandResult.Fail("IN_USE", $"列表 \"{name}\" 仍被控件引用（{string.Join(", ", widgetRefs)}），请先解除绑定");
+                return CommandResult.Fail("IN_USE", $"列表 \"{name}\"（{list.Type} 型）仍被控件引用（{string.Join(", ", widgetRefs)}），请先解除绑定");
 
             project.Lists.Remove(list);
             return CommandResult.Ok(new { list_name = name });
