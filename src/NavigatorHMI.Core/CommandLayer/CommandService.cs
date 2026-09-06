@@ -66,6 +66,8 @@ namespace NavigatorHMI.CommandLayer
                 ["copy_screen"]     = new CopyScreenHandler(),
                 ["paste_screen"]    = new PasteScreenHandler(),
                 ["current_screen"]  = new CurrentScreenHandler(),
+                ["save_screen_template"] = new SaveScreenTemplateHandler(),   // W-A: 画面存模板（深拷贝快照）
+                ["apply_screen_template"] = new ApplyScreenTemplateHandler(), // W-A: 应用模板到画面（控件整体替换）
 
                 // ── 控件操作 ──
                 ["add_widget"]      = new AddWidgetHandler(),

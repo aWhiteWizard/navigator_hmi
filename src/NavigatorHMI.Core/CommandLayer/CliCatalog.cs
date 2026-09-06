@@ -109,6 +109,10 @@ namespace NavigatorHMI.CommandLayer
                 CliParameterView.Rk("name")));
             Add(Meta("paste-screen", "paste_screen", "画面命令", "粘贴画面 ([--name <name>])",
                 CliParameterView.Pk("name")));
+            Add(Meta("save-screen-template", "save_screen_template", "画面命令", "保存画面为模板 (--screen <name> --template-name <模板名>；重名=覆盖更新，受保护画面不可存)",
+                CliParameterView.R("screen", "screen_name"), CliParameterView.R("template-name", "template_name")));
+            Add(Meta("apply-screen-template", "apply_screen_template", "画面命令", "应用模板到画面 (--template-name <模板名> --screen <name>；目标画面控件整体替换为模板布局)",
+                CliParameterView.R("template-name", "template_name"), CliParameterView.R("screen", "screen_name")));
 
             // ══ 控件 ══
             Add(Meta("add-widget", "add_widget", "控件命令", "添加控件 (--screen <name> --type button [--x 100] [--y 100] [--width 100] [--height 40] [--center false] [--bound-tag <tag>] [--window-type userview|alarmview|robotlist])",

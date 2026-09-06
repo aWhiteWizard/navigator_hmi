@@ -65,8 +65,9 @@ namespace NavigatorHMI.Common
         /// </summary>
         public static ChangeDomain DomainOf(string commandName) => commandName switch
         {
-            // 工程操作（非数据修改）
-            "create_project" or "open_project" or "save_project" or "compile" => ChangeDomain.None,
+            // 工程操作（非数据修改；save_screen_template = 设计期模板库，非画面/编译数据段）
+            "create_project" or "open_project" or "save_project" or "compile"
+                or "save_screen_template" => ChangeDomain.None,
             // 设备运行时（不修改工程数据）
             "connect" or "disconnect" or "scan_devices" or "deploy_project"
                 or "deploy_firmware" or "blink_device" or "vnc" => ChangeDomain.None,
@@ -78,7 +79,8 @@ namespace NavigatorHMI.Common
                 or "set_property" or "bind_robot_slot" or "bind_tag"
                 or "bring_to_front" or "bring_forward" or "send_backward" or "send_to_back"
                 or "align_widgets" or "array_layout"
-                or "copy_widget" or "paste_widget" => ChangeDomain.Widget,
+                or "copy_widget" or "paste_widget"
+                or "apply_screen_template" => ChangeDomain.Widget,   // 应用模板 = 目标画面控件整体替换
             // 事件
             "bind_event" or "add_event" or "remove_event" or "update_event" => ChangeDomain.Event,
             // 变量
