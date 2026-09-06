@@ -67,112 +67,32 @@ public static class Program
         return RouteCommand();
     }
 
-    private static int RouteCommand() => _command switch
+    /// <summary>
+    /// 路由命令：查 CliCatalog 声明式路由表（单一事实源，命令层 Definition 交叉校验见 CliCatalog.ValidateDefinitions）。
+    /// 元数据命令（Handler=None）走通用 MetaCmd（按目录参数视图构建参数字典）；custom 命令按 Handler 分派专用执行器
+    /// （工程命令有特殊加载/构造逻辑、事件家族有 params key=value 串解析、ai 有 LLM/规则后端）。
+    /// </summary>
+    private static int RouteCommand()
+    {
+        var spec = CliCatalog.Find(_command);
+        if (spec == null) return UnknownCommand();
+        return spec.Handler switch
         {
-            // 工程
-            "create-project" => CreateProject(),
-            "open-project"   => OpenProject(),
-            "save-project"   => SaveProject(),
-            "compile"        => Compile(),
-
-            // 画面
-            "create-screen"  => Cmd("create_screen", Require("name"), Opt("type", "custom"), Opt("width", ""), Opt("height", "")),
-            "delete-screen"  => Cmd("delete_screen", Require("name")),
-            "rename-screen"  => Cmd("rename_screen", Require("name"), Require("new-name", "new_name")),
-            "current-screen" => Cmd("current_screen"),
-            "copy-screen"    => Cmd("copy_screen", Require("name")),
-            "paste-screen"   => Cmd("paste_screen", Opt("name", "")),
-
-            // 控件
-            "add-widget"     => Cmd("add_widget", Require("screen", "screen_name"), OptMap("type", "widget_type", "button"), Opt("x", "100"), Opt("y", "100"), Opt("width", "100"), Opt("height", "40"), Opt("center", "false"), OptMap("bound-tag", "bound_tag", ""), OptMap("window-type", "window_type", "userview")),
-            "move-widget"    => Cmd("move_widget", Require("screen", "screen_name"), Require("widget", "widget_name"), Require("x"), Require("y")),
-            "resize-widget"  => Cmd("resize_widget", Require("screen", "screen_name"), Require("widget", "widget_name"), Require("width"), Require("height")),
-            "delete-widget"  => Cmd("delete_widget", Require("screen", "screen_name"), Require("widget", "widget_name")),
-            "set-property"   => Cmd("set_property", Require("screen", "screen_name"), Require("widget", "widget_name"), Require("key"), Require("value")),
-            "bind-robot-slot" => Cmd("bind_robot_slot", Require("screen", "screen_name"), Require("widget", "widget_name"), Require("slot"), OptIfProvided("id-tag", "id_tag"), OptIfProvided("status-tag", "status_tag"), OptIfProvided("location-tag", "location_tag"), OptIfProvided("detail-tag", "detail_tag"), OptIfProvided("oper-tag", "oper_tag")),
-
-            // 层级
-            "bring-to-front" => Cmd("bring_to_front", Require("screen", "screen_name"), Require("widget", "widget_name")),
-            "bring-forward"  => Cmd("bring_forward", Require("screen", "screen_name"), Require("widget", "widget_name")),
-            "send-backward"  => Cmd("send_backward", Require("screen", "screen_name"), Require("widget", "widget_name")),
-            "send-to-back"   => Cmd("send_to_back", Require("screen", "screen_name"), Require("widget", "widget_name")),
-
-            // 事件
-            "bind-event"     => BindEvent(),
-            "add-event"      => AddEvent(),
-            "remove-event"   => RemoveEvent(),
-            "update-event"   => UpdateEvent(),
-
-            // 世界地图（命令层已有，CLI 补齐路由：测试工程脚本化生成用）
-            "add-work-point"     => Cmd("add_work_point", Require("screen", "screen_name"), Require("name"), OptMap("lng-lat", "lng_lat", ""), OptMap("bound-tag", "bound_tag", "")),
-            "add-work-range-point" => Cmd("add_work_range_point", Require("screen", "screen_name"), OptMap("lng-lat", "lng_lat", ""), OptMap("bound-tag", "bound_tag", "")),
-            "clear-work-range"   => Cmd("clear_work_range", Require("screen", "screen_name")),
-            "delete-work-point"  => Cmd("delete_work_point", Require("screen", "screen_name"), Require("name")),
-            "update-world-map"   => Cmd("update_world_map", Require("screen", "screen_name"), OptMap("tile-source", "tile_source", ""), OptMap("zoom-level", "zoom_level", ""), OptMap("show-global-overlay", "show_global_overlay", ""), OptMap("view-locked", "view_locked", "")),
-
-            // 布局
-            "align"          => Cmd("align_widgets", Require("screen", "screen_name"), Require("widgets"), Require("direction")),
-            "array"          => Cmd("array_layout", Require("screen", "screen_name"), Require("widgets"), Require("mode"),
-                                    OptMap("start-x", "start_x", "0"), OptMap("start-y", "start_y", "0"), OptIfProvided("cols"), OptIfProvided("rows"),
-                                    OptMap("spacing-x", "spacing_x", "120"), OptMap("spacing-y", "spacing_y", "80"),
-                                    OptMap("center-x", "center_x", "0"), OptMap("center-y", "center_y", "0"),
-                                    Opt("radius", "150"), OptMap("start-angle", "start_angle", "0"), OptMap("end-angle", "end_angle", "360")),
-
-            // 变量
-            "create-tag"     => Cmd("create_tag", Require("name"), Require("type", "data_type"), Opt("source", ""), Opt("unit"), OptMap("scan-interval", "scan_interval", "100"), Opt("deadband", "0"), Opt("description"), OptMap("base-value", "base_value", "")),
-            "update-tag"     => Cmd("update_tag", Require("name"),
-                                    OptIfProvided("new-name", "new_name"), OptIfProvided("type", "data_type"), OptIfProvided("source"), OptIfProvided("unit"),
-                                    OptIfProvided("scan-interval", "scan_interval"), OptIfProvided("deadband"), OptIfProvided("description"), OptIfProvided("base-value", "base_value")),
-            "delete-tag"     => Cmd("delete_tag", Require("name")),
-            "create-user"    => Cmd("create_user", Require("user-name", "user_name"), Require("password"), OptMap("group-name", "group_name", "访客")),
-            "update-user"    => Cmd("update_user", Require("user-name", "user_name"), OptMap("new-user-name", "new_user_name", ""), OptMap("new-password", "new_password", ""), OptMap("new-group-name", "new_group_name", "")),
-            "delete-user"    => Cmd("delete_user", Require("user-name", "user_name")),
-            "list-users"     => Cmd("list_users"),
-            "create-group"   => Cmd("create_group", Require("group-name", "group_name"), OptIfProvided("permissions")),
-            "update-group"   => Cmd("update_group", Require("group-name", "group_name"), OptMap("new-group-name", "new_group_name", ""), OptIfProvided("permissions")),
-            "delete-group"   => Cmd("delete_group", Require("group-name", "group_name")),            "bind-tag"       => Cmd("bind_tag", Require("screen", "screen_name"), Require("widget", "widget_name"), Require("tag", "tag_name")),
-
-            // 列表
-            "create-list"    => Cmd("create_list", Require("name"), Require("type"), Opt("items", "")),
-            "update-list"    => Cmd("update_list", Require("name"), OptIfProvided("type"), OptIfProvided("new-name", "new_name"), OptIfProvided("items")),
-            "delete-list"    => Cmd("delete_list", Require("name"), OptIfProvided("type")),
-
-            // 剪贴板
-            "copy-widget"    => Cmd("copy_widget", Require("screen", "screen_name"), Require("widget", "widget_name")),
-            "paste-widget"   => Cmd("paste_widget", Require("screen", "screen_name"), Opt("x", ""), Opt("y", "")),
-
-            // 默认字体
-            "set-default-font" => Cmd("set_default_font",
-                                    OptMap("font-family", "font_family", ""), OptMap("font-size", "font_size", ""),
-                                    OptMap("font-weight", "font_weight", ""), OptMap("font-style", "font_style", ""),
-                                    OptMap("text-decoration", "text_decoration", "")),
-
-            // 报警
-            "create-alarm"   => Cmd("create_alarm", Require("name"), Require("tag", "tag_name"), Require("type"), Require("threshold"), Opt("deadband", "0"), OptMap("delay", "delay_ms", "0"), Opt("severity", "Warning"), Opt("message"), OptMap("trigger-mode", "trigger_mode", "Threshold"), OptMap("category", "category", "User"), Opt("priority", "0"), OptMap("ack-required", "ack_required", "true"), OptMap("ack-group", "ack_group", ""), OptMap("color-override", "color_override", "")),
-            "update-alarm"   => Cmd("update_alarm", Require("name"), OptIfProvided("new-name", "new_name"), OptIfProvided("tag", "tag_name"), OptIfProvided("type"), OptIfProvided("threshold"), OptIfProvided("deadband"), OptIfProvided("delay", "delay_ms"), OptIfProvided("severity"), OptIfProvided("message"), OptIfProvided("trigger-mode", "trigger_mode"), OptIfProvided("category", "category"), OptIfProvided("priority"), OptIfProvided("ack-required", "ack_required"), OptIfProvided("ack-group", "ack_group"), OptIfProvided("color-override", "color_override")),
-            "delete-alarm"   => Cmd("delete_alarm", Require("name")),
-
-
-            // 设备
-            "configure-device" => Cmd("configure_device", Require("name"), Require("protocol"), Require("connection", "connection_info")),
-            "update-device"   => Cmd("update_device", Require("name"), OptIfProvided("new-name", "new_name"), OptIfProvided("protocol"), OptIfProvided("connection", "connection_info")),
-            "delete-device"   => Cmd("delete_device", Require("name")),
-            "connect"         => Cmd("connect", Require("ip"), Opt("model", "NavigatorHMI-7"), OptMap("size-inch", "size_inch", "")),
-            "disconnect"      => Cmd("disconnect"),
-            "scan"            => Cmd("scan_devices", Opt("nic", "eth0")),
-            "deploy-project"  => Cmd("deploy_project", Require("ip", "device_ip"), OptMap("file", "file_path", "")),
-            "deploy-firmware" => Cmd("deploy_firmware", Require("ip", "device_ip"), OptMap("file", "file_path", "")),
-            "blink-device"    => Cmd("blink_device", Require("ip"), Require("enable")),
-            "vnc"             => Cmd("vnc", Require("ip"), Require("enable")),
-
-            // AI Agent（本地 LLM Function Calling）
-            "ai"              => AiCommand(),
-
-            _ => UnknownCommand()
+            CliCustomHandler.CreateProject => CreateProject(),
+            CliCustomHandler.OpenProject   => OpenProject(),
+            CliCustomHandler.SaveProject   => SaveProject(),
+            CliCustomHandler.Compile       => Compile(),
+            CliCustomHandler.BindEvent     => BindEvent(),
+            CliCustomHandler.AddEvent      => AddEvent(),
+            CliCustomHandler.RemoveEvent   => RemoveEvent(),
+            CliCustomHandler.UpdateEvent   => UpdateEvent(),
+            CliCustomHandler.Ai            => AiCommand(),
+            _ => MetaCmd(spec),
         };
+    }
 
     // ═══════════════════════════════════════════
-    // 工程命令（直接操作，不走 CommandService）
+    // 工程命令（custom：CLI 有特殊装配——经 CommandService.Execute 执行 + 新工程/替换工程引用）
     // ═══════════════════════════════════════════
 
     private static int CreateProject()
@@ -210,39 +130,82 @@ public static class Program
         return Execute(service, "save_project", new() { ["path"] = OptVal("path", "") });
     }
 
+    /// <summary>
+    /// 编译工程。compile handler 输出变化摘要（V-6：自上次编译以来未编译修改的域/画面）。
+    /// 文本模式默认打 data（含 output_path/changed_domains/changed_screens）；--summary 打易读变化摘要行；--json 打机器可读完整输出。
+    /// </summary>
     private static int Compile()
     {
         var (service, _) = LoadProject();
-        return Execute(service, "compile", new());
+        var result = service.Execute("compile", new());
+        if (!result.Success)
+        {
+            PrintError($"[{result.ErrorCode}] {result.ErrorMessage}");
+            return 1;
+        }
+        if (_jsonOutput)
+        {
+            Console.WriteLine(JsonSerializer.Serialize(new { success = true, data = result.Data }, _jsonOpts));
+            return 0;
+        }
+        var dataJson = result.Data != null ? JsonSerializer.Serialize(result.Data, _jsonOpts) : "{}";
+        // --summary 为无值 flag：Main 解析归 _flagOpts（不进 _opts，防哨兵值碰撞）——两处都查。
+        // 注：变化跟踪挂在 HMIProject 实例（进程内存态）——CLI 单命令与 REPL 每命令都经 LoadProject
+        // 从磁盘重建工程（新空 ChangeTracker）→ 摘要恒空；唯一有值场景 = GUI 单一 CommandService
+        // 会话内连续修改后编译（V-6 骨架的信息展示定位；TodoQueue 式跨进程脏持久化留 V+1）。
+        var summaryWanted = _opts.ContainsKey("summary") || _flagOpts.Contains("summary");
+        if (summaryWanted && result.Data != null)
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(dataJson);
+            var root = doc.RootElement;
+            var domains = root.TryGetProperty("changed_domains", out var d) && d.ValueKind == System.Text.Json.JsonValueKind.Array
+                ? string.Join("、", d.EnumerateArray().Select(x => x.GetString())) : "";
+            var screens = root.TryGetProperty("changed_screens", out var s) && s.ValueKind == System.Text.Json.JsonValueKind.Array
+                ? string.Join("、", s.EnumerateArray().Select(x => x.GetString())) : "";
+            var output = root.TryGetProperty("output_path", out var o) ? o.GetString() : "";
+            var parts = new List<string>();
+            if (domains.Length > 0) parts.Add($"域: {domains}");
+            if (screens.Length > 0) parts.Add($"画面: {screens}");
+            Console.WriteLine($"✓ compile 成功{(parts.Count > 0 ? " — 变化 " + string.Join(" | ", parts) : " — 无未编译变化")}");
+            if (output.Length > 0) Console.WriteLine($"  输出: {output}");
+            return 0;
+        }
+        Console.WriteLine($"✓ compile — {dataJson}");
+        return 0;
     }
 
     // ═══════════════════════════════════════════
     // 通用命令执行（映射 CLI 参数 → CommandService）
     // ═══════════════════════════════════════════
 
-    private static int Cmd(string commandName, params ParamDef[] defs)
+    /// <summary>
+    /// 通用命令执行（元数据命令）：按 CliCatalog 参数视图把 CLI 键 → 命令层 cmd 键构建参数字典。
+    /// 语义与历史 Cmd() 完全一致：Required → 缺参报错；有默认 → 未提供写默认（含空串 = handler 自行解释）；
+    /// 无默认（provided-only，update 类）→ 显式提供才写（未提供保留现值；无值参数只记 _flagOpts 不进 _opts → 天然保留）。
+    /// </summary>
+    private static int MetaCmd(CliCommandSpec spec)
     {
         var (service, project) = LoadProject();
         var parameters = new Dictionary<string, object?>();
-        foreach (var d in defs)
+        foreach (var v in spec.Views)
         {
-            if (d.Required)
+            if (v.Required)
             {
-                parameters[d.CmdKey] = RequireVal(d.CliKey);
+                parameters[v.CmdKey] = RequireVal(v.CliKey);
             }
-            else if (d.Default != null)
+            else if (v.Default != null)
             {
                 // 有默认值：未提供时写入默认值（与 handler 的 GetValueOrDefault 兜底一致）
-                parameters[d.CmdKey] = OptVal(d.CliKey, d.Default);
+                parameters[v.CmdKey] = OptVal(v.CliKey, v.Default);
             }
-            else if (_opts.ContainsKey(d.CliKey))
+            else if (_opts.ContainsKey(v.CliKey))
             {
-                // 无默认值（OptIfProvided）：显式提供才写入（含空串 = 清空语义，如 update-tag --source "" 改回内部变量）；
+                // 无默认（provided-only）：显式提供才写入（含空串 = 清空语义）；
                 // 无值参数（--key 后无值）只记入 _flagOpts 不进 _opts → ContainsKey 失败 → handler 保留模型现值
-                parameters[d.CmdKey] = OptVal(d.CliKey);
+                parameters[v.CmdKey] = OptVal(v.CliKey);
             }
         }
-        var exitCode = Execute(service, commandName, parameters);
+        var exitCode = Execute(service, spec.CommandName!, parameters);
         if (exitCode == 0) AutoSave(project);
         return exitCode;
     }
@@ -471,19 +434,6 @@ public static class Program
         return value;
     }
 
-    private record ParamDef(string CliKey, string CmdKey, bool Required, string? Default)
-    {
-        public static ParamDef Require(string key, string? cmdKey = null) => new(key, cmdKey ?? key, true, null);
-        public static ParamDef Opt(string key, string defaultValue, string? cmdKey = null) => new(key, cmdKey ?? key, false, defaultValue);
-        /// <summary>可选参数（无默认值）：未提供时不进参数字典，handler 保留模型现值。</summary>
-        public static ParamDef OptIfProvided(string key, string? cmdKey = null) => new(key, cmdKey ?? key, false, null);
-    }
-
-    private static ParamDef Require(string cliKey, string? cmdKey = null) => ParamDef.Require(cliKey, cmdKey);
-    private static ParamDef Opt(string cliKey, string defaultValue = "") => ParamDef.Opt(cliKey, defaultValue);
-    private static ParamDef OptMap(string cliKey, string cmdKey, string defaultValue) => ParamDef.Opt(cliKey, defaultValue, cmdKey);
-    private static ParamDef OptIfProvided(string cliKey, string? cmdKey = null) => ParamDef.OptIfProvided(cliKey, cmdKey);
-
     /// <summary>
     /// 加载工程文件。优先级: --project 参数 > 当前目录 *.hmiproj。
     /// </summary>
@@ -602,161 +552,25 @@ public static class Program
         return result.ToArray();
     }
 
+    /// <summary>REPL 帮助：命令清单由 CliCatalog 分组生成（单源，无重复手写）；属性键说明随附。</summary>
     private static void ShowReplHelp()
     {
-        Console.WriteLine("""
-可用命令:
-  工程: create-project, open-project, save-project, compile
-  画面: create-screen, delete-screen, rename-screen, copy-screen, paste-screen, current-screen（无参=显示当前画面）
-  控件: add-widget, move-widget, resize-widget, delete-widget, set-property, bind-robot-slot
-  剪贴板: copy-widget, paste-widget
-  默认字体: set-default-font
-  层级: bring-to-front, bring-forward, send-backward, send-to-back
-  布局: align, array
-  事件: bind-event, add-event, remove-event, update-event
-  变量: create-tag, update-tag, delete-tag, bind-tag
-  列表: create-list, update-list, delete-list
-  用户: create-user, update-user, delete-user, list-users, create-group, update-group, delete-group
-  世界地图: add-work-point, add-work-range-point, clear-work-range, delete-work-point, update-world-map
-报警: create-alarm, update-alarm, delete-alarm
-  设备: configure-device, update-device, delete-device, connect, disconnect, scan, deploy-project, deploy-firmware, blink-device, vnc
-
-set-property 属性键 (--screen <画面> --widget <控件> --key <键> --value <值>):
-  文本: text | content | title | onText | offText
-  颜色: textColor | fillColor | strokeColor
-  字体: fontFamily | fontSize | fontWeight | fontStyle | textDecoration
-  数值: value | min | max | strokeThickness | x2 | y2
-  其他: hAlign | imagePath | stretchMode | isOn | isChecked | isReadOnly | fillStyle
-
-参数格式: --key value  或  --key "value with spaces"
-退出: exit / quit / q
-""");
+        Console.WriteLine("可用命令:");
+        foreach (var group in CliCatalog.All.GroupBy(c => c.Category))
+            Console.WriteLine($"  {group.Key}: {string.Join(", ", group.Select(c => c.CliName))}");
+        Console.WriteLine();
+        Console.WriteLine("参数格式: --key value  或  --key \"value with spaces\"");
+        Console.WriteLine("查看完整帮助: navihmi --help（含各命令参数说明）");
+        Console.WriteLine("退出: exit / quit / q");
+        Console.WriteLine();
+        // set-property 属性键说明（与 --help 同源：CliCatalog.SetPropertyKeyHelp 首段）
+        Console.WriteLine(CliCatalog.SetPropertyKeyHelp
+            .Split("示例:", 2)[0].TrimEnd());
     }
 
+    /// <summary>CLI 帮助：从 CliCatalog 单源生成（路由与帮助双维护已消除）。</summary>
     private static void ShowHelp()
     {
-        Console.WriteLine("""
-NavigatorHMI CLI — 组态软件命令行接口
-
-用法: navihmi [--project <path>] [--json] <command> [--key value ...]
-
-全局选项:
-  --project, -p <path>   工程文件路径 (默认查找当前目录 *.hmiproj)
-  --json                 以 JSON 格式输出结果
-  --help, -h             显示此帮助
-
-工程命令:
-  create-project         --name <name> [--path <dir>] [--width 800] [--height 480]
-  open-project           --path <file>
-  save-project           [--path <file>]
-  compile                [--output <path>]
-
-画面命令:
-  create-screen          --name <name> [--type custom] [--width 800] [--height 480]
-  delete-screen          --name <name>
-  rename-screen          --name <name> --new-name <name>
-  copy-screen            --name <name>
-  paste-screen           [--name <name>]
-  current-screen         （无参=显示当前画面）
-
-控件命令:
-  add-widget             --screen <name> --type button --x <n> --y <n> [--width <n>] [--height <n>] [--window-type userview|alarmview|robotlist]
-  move-widget            --screen <name> --widget <name> --x <n> --y <n>
-  resize-widget          --screen <name> --widget <name> --width <n> --height <n>
-  delete-widget          --screen <name> --widget <name>
-  set-property           --screen <name> --widget <name> --key <key> --value <val>
-  bind-robot-slot        --screen <name> --widget <name> --slot <n> [--id-tag <t>] [--status-tag <t>] [--location-tag <t>] [--detail-tag <t>] [--oper-tag <t>]   # 机器人列表槽位绑定变量（--slot 未提供=新增槽位）
-
-set-property 属性键 (--screen <画面> --widget <控件> --key <键> --value <值>):
-  文本: text | content | title | onText | offText
-  颜色: textColor | fillColor | strokeColor
-  字体: fontFamily | fontSize | fontWeight | fontStyle | textDecoration
-  数值: value | min | max | strokeThickness | x2 | y2
-  其他: hAlign | imagePath | stretchMode | isOn | isChecked | isReadOnly | fillStyle
-
-层级命令:
-  bring-to-front         --screen <name> --widget <name>
-  bring-forward          --screen <name> --widget <name>
-  send-backward          --screen <name> --widget <name>
-  send-to-back           --screen <name> --widget <name>
-
-布局命令:
-  align                  --screen <name> --widgets <a,b,c> --direction <left|center_h|right|top|center_v|bottom>
-  array                  --screen <name> --widgets <a,b,c> --mode <rect|circle>
-                         [--start-x <n>] [--start-y <n>] [--cols <n>] [--rows <n>] [--spacing-x <n>] [--spacing-y <n>]
-                         [--center-x <n>] [--center-y <n>] [--radius <n>] [--start-angle <deg>] [--end-angle <deg>]
-                         （--cols/--rows 省略时按控件数自动计算：4 个 → 2×2）
-
-事件命令:
-  bind-event             --screen <name> --widget <name> --event <type> --action <type> [--params "k1=v1,k2=v2"]
-  add-event              --screen <name> --widget <name> --event <type> --action <type> [--params "k1=v1,k2=v2"] [--condition <expr>]   # 新增事件（含触发条件，I-3）
-  remove-event           --screen <name> --widget <name> --event <type> [--action <type>]   # 移除事件
-  update-event           --screen <name> --widget <name> --event <type> --action <type> [--new-action <type>] [--params "k1=v1,k2=v2"] [--condition <expr>]   # 更新事件（condition 显式空串=清空）
-
-列表命令:
-  create-list            --name <name> --type <type> [--items <a,b,c>]
-  update-list            --name <name> [--type <type>] [--new-name <name>] [--items <a,b,c>]   # --type：跨类型同名时定位（U-1）
-  delete-list            --name <name> [--type <type>]
-
-用户/组命令:
-  create-user            --user-name <name> --password <pwd> [--group-name 管理员|操作员|访客]
-  update-user            --user-name <name> [--new-user-name <n>] [--new-password <p>] [--new-group-name <g>]   # 留空=不改
-  delete-user            --user-name <name>   # 不能删除最后一个管理员
-  list-users
-  create-group           --group-name <name> [--permissions <a,b,c>]
-  update-group           --group-name <name> [--new-group-name <name>] [--permissions <a,b,c>]
-  delete-group           --group-name <name>
-
-世界地图命令:
-  add-work-point         --screen <name> --name <n> (--lng-lat <经纬度> 或 --bound-tag <GPS变量>)   # 二选一
-  add-work-range-point   --screen <name> (--lng-lat <经纬度> 或 --bound-tag <GPS变量>)   # 围栏顶点
-  clear-work-range       --screen <name>
-  delete-work-point      --screen <name> --name <n>
-  update-world-map       --screen <name> [--tile-source offline|amap|<自定义>] [--zoom-level <n>] [--show-global-overlay true|false] [--view-locked true|false]
-
-变量命令:
-  create-tag             --name <name> --type <BOOL|INT16|FLOAT|...> [--source <uri>] [--unit <u>] [--scan-interval <ms>] [--base-value <n>]   # source 缺省 = 内部变量；base-value = 设计态基准值
-create-user            --user-name <name> --password <pwd> [--group-name 管理员|操作员|访客]
-update-user            --user-name <name> [--new-user-name <n>] [--new-password <p>] [--new-group-name <g>]   # 留空=不改
-delete-user            --user-name <name>   # 不能删除最后一个管理员
-list-users
-  update-tag             --name <name> [--new-name <name>] [--type <...>] [--source <uri>] [--unit <u>] [--scan-interval <ms>] [--deadband <n>] [--description <text>] [--base-value <n>]  重命名自动同步控件/报警引用；--source "" 清空为内部变量；--unit "" / --description "" 清空
-  delete-tag             --name <name>   被控件/报警引用时拒绝
-  bind-tag               --screen <name> --widget <name> --tag <name>
-
-剪贴板命令:
-  copy-widget            --screen <name> --widget <name>
-  paste-widget           --screen <name> [--x <n>] [--y <n>]
-
-默认字体命令:
-  set-default-font       [--font-family <name>] [--font-size <n>] [--font-weight Normal|Bold] [--font-style Normal|Italic] [--text-decoration None|Underline]
-
-报警命令:
-  create-alarm           --name <name> --tag <name> --type <High|Low|...> --threshold <n> [--severity Warning] [--trigger-mode Threshold|OnRising|...] [--category System|User|Error] [--priority <n>] [--ack-group <组>] [--ack-required true|false] [--color-override #RRGGBB]
-  update-alarm           --name <name> [--new-name <name>] [--tag <name>] [--type <...>] [--threshold <n>] [--deadband <n>] [--delay <ms>] [--severity <...>] [--message <text>] [--trigger-mode <m>] [--category <c>] [--priority <n>] [--ack-required <b>] [--ack-group <g>] [--color-override <c>]
-  delete-alarm           --name <name>
-
-设备命令:
-  configure-device       --name <name> --protocol <ModbusRTU|ModbusTCP|MQTT> --connection <json>
-  update-device          --name <name> [--new-name <name>] [--protocol <...>] [--connection <json>]
-  delete-device          --name <name>
-  connect                --ip <addr> [--model NavigatorHMI-7] [--size-inch 7寸]   # size-inch = 设备尺寸（profile 校验）
-  disconnect             断开设备连接
-  scan                   [--nic eth0]
-  deploy-project         --ip <addr> [--file <path>]   编译+打包+传输工程（deploy 前置编译门禁）
-  deploy-firmware        --ip <addr> [--file <path>]   下载固件（OTA，D 批）
-  blink-device           --ip <addr> --enable <on|off>  设备闪烁（定位）
-  vnc                    --ip <addr> --enable <on|off>  VNC 运行时启停
-
-AI 命令:
-  ai                     <指令> 或 --prompt <指令> [--mode rule|cloud|local]  规则映射默认（离线）；cloud=DeepSeek API FC；local=本地模型 FC
-
-示例:
-  navihmi create-project --name "产线监控" --path "./"
-  navihmi --project ./产线监控.hmiproj create-screen --name "温度页"
-  navihmi -p ./test.hmiproj add-widget --screen "温度页" --type button --x 100 --y 50
-  navihmi compile
-  navihmi --json create-screen --name "test" --type custom
-""");
+        Console.WriteLine(CliCatalog.BuildHelpText());
     }
 }

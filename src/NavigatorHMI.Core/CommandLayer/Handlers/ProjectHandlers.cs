@@ -115,7 +115,34 @@ namespace NavigatorHMI.CommandLayer.Handlers
         {
             var result = ProjectGenerator.Compile(project);
             if (result.HasErrors) return CommandResult.Fail("BUILD_FAILED", string.Join("; ", result.Errors));
-            return CommandResult.Ok(new { output_path = result.OutputPath });
+
+            // V-6 增量编译链（P13 骨架）：编译成功输出变化摘要（自上次编译以来未编译修改的域/画面）并重置基线。
+            // compile 命令自身域 = None（ProjectChangeTracker.DomainOf），不会污染下一次变化累积。
+            var changed = project.ChangeTracker.Snapshot();
+            project.ChangeTracker.Reset();
+            return CommandResult.Ok(new
+            {
+                output_path = result.OutputPath,
+                changed_domains = changed.Domains.Select(DomainLabel).OrderBy(x => x).ToList(),
+                changed_screens = changed.Screens,
+            });
         }
+
+        private static string DomainLabel(ChangeDomain d) => d switch
+        {
+            ChangeDomain.Screen => "画面",
+            ChangeDomain.Widget => "控件",
+            ChangeDomain.Event => "事件",
+            ChangeDomain.Tag => "变量",
+            ChangeDomain.Alarm => "报警",
+            ChangeDomain.User => "用户",
+            ChangeDomain.Group => "用户组",
+            ChangeDomain.List => "列表",
+            ChangeDomain.Device => "设备",
+            ChangeDomain.Font => "字体",
+            ChangeDomain.Clipboard => "剪贴板",
+            ChangeDomain.WorldMap => "世界地图",
+            _ => d.ToString(),
+        };
     }
 }

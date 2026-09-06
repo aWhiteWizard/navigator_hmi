@@ -269,5 +269,13 @@ namespace NavigatorHMI.Common
             Screens.CollectionChanged += OnCollectionChanged;
             Tags.CollectionChanged += OnCollectionChanged;
         }
+
+        /// <summary>
+        /// V-6 增量编译链（P13 骨架）：CommandService.Execute 成功时记录变化域/画面，compile 消费摘要并重置基线。
+        /// 运行时状态（[ProtoIgnore] 不落盘——与 IsDirty/CurrentScreenName 同风格；protobuf-net 显式 [ProtoContract]
+        /// 本就不序列化未标注成员，标注为自文档 + 防御未来 ImplicitFields 类改动）。
+        /// </summary>
+        [ProtoIgnore]
+        public ProjectChangeTracker ChangeTracker { get; } = new();
     }
 }

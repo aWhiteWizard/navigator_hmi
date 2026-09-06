@@ -166,7 +166,12 @@ namespace NavigatorHMI.CommandLayer
                 return CommandResult.Fail("CONNECTION_REQUIRED", "请先连接设备 (connect)");
 
             var result = handler.Execute(_project, parameters);
-            if (result.Success) SafeInvokeCommandExecuted(commandName, parameters, result);
+            if (result.Success)
+            {
+                // V-6 增量编译链（P13 骨架）：成功命令记录变化域/画面（compile 消费；设备运行时等 None 域天然忽略）
+                _project.ChangeTracker.Record(commandName, parameters);
+                SafeInvokeCommandExecuted(commandName, parameters, result);
+            }
             return result;
             }
             catch (Exception ex)
