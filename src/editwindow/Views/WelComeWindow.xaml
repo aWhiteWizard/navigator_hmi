@@ -95,5 +95,13 @@
                 </ListBox>
             </Grid>
         </Grid>
+        <!-- W-B 后台加载：打开工程进度遮罩（反序列化后台执行期间显示，防用户重复操作） -->
+        <Grid x:Name="LoadingOverlay" Grid.RowSpan="2" Background="#CCFFFFFF" Visibility="Collapsed">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Width="320">
+                <ProgressBar IsIndeterminate="True" Height="6" Foreground="#1382B1"/>
+                <TextBlock x:Name="LoadingProgressText" Text="正在打开工程…" TextAlignment="Center"
+                           Margin="0,14,0,0" FontSize="13" Foreground="#444444"/>
+            </StackPanel>
+        </Grid>
     </Grid>
 </Window>

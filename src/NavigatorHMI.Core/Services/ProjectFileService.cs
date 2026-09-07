@@ -54,13 +54,35 @@ namespace NavigatorHMI.Common
         }
 
         /// <summary>
-        /// 从 .hmiproj 文件反序列化加载工程。
+        /// 从 .hmiproj 文件反序列化加载工程（同步，CLI/命令层用）。
         /// </summary>
         /// <param name="filePath">工程文件路径（含 .hmiproj 扩展名）</param>
-        /// <returns>反序列化后的 <see cref="HMIProject"/> 对象，已设置 ProjectFilePath 和 LastModifiedTime</returns>
+        /// <returns>反序列化后的 <see cref="HMIProject"/> 对象，已设置 ProjectFilePath；
+        /// LastModifiedTime 从文件还原（持久化字段，非本次写入——W-B 打开路径统一此语义）</returns>
         /// <exception cref="FileNotFoundException">文件不存在</exception>
         /// <exception cref="InvalidDataException">文件损坏或 ProtoBuf 格式不兼容</exception>
-        public static HMIProject Load(string filePath)
+        public static HMIProject Load(string filePath) => LoadCore(filePath);
+
+        /// <summary>
+        /// 从 .hmiproj 文件**异步**加载工程（W-B 后台加载：Task.Run 反序列化 + 阶段进度回调，大工程不冻结 UI）。
+        /// GUI 打开工程路径使用；异常语义与 <see cref="Load"/> 一致（await 时抛出）。
+        /// </summary>
+        /// <param name="filePath">工程文件路径（含 .hmiproj 扩展名）</param>
+        /// <param name="progress">可选阶段进度回调（后台线程调用，GUI 侧用 Progress&lt;string&gt; 封送回 UI 线程）</param>
+        public static Task<HMIProject> LoadAsync(string filePath, IProgress<string>? progress = null)
+        {
+            // 完整在后台执行（文件 IO + protobuf 反序列化 + 后处理）——脱离 UI 线程防冻结；
+            // 不做 async/await 文件 API：protobuf-net 反序列化本身同步消耗 CPU，Task.Run 直接包住即可
+            return Task.Run(() =>
+            {
+                progress?.Report("正在读取工程文件…");
+                var project = LoadCore(filePath);
+                progress?.Report("工程解析完成，正在打开编辑器…");
+                return project;
+            });
+        }
+
+        private static HMIProject LoadCore(string filePath)
         {
             if (!File.Exists(filePath))
                 throw new FileNotFoundException($"工程文件不存在: {filePath}");

@@ -374,7 +374,8 @@ namespace NavigatorHMI.Views
                 foreach (var w in screen.Widgets.Where(WidgetDesignValue.HasBinding))
                     WidgetDesignValue.Clear(w);
 
-            LoadCanvas(_viewModel.CurrentScreen);
+            // W-B 壳先行：首画面渲染从构造延后到 Loaded 后 UI 空闲执行（EditWindow_Loaded 尾部 Background 分派）——
+            // 大工程首画面（ItemsControl 实例化全部控件）不阻塞窗口弹出（先见壳后见数据）
 
             _currentProject?.ClearDirty();   // K-1d：打开/切换工程后清脏（加载清脏在 ProjectFileService.Load）
             this.CheckBinding();
@@ -1725,7 +1726,9 @@ namespace NavigatorHMI.Views
 
         private void EditWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            EnsureItemsControlInCanvas();
+            // W-B 壳先行：首渲染统一由本方法尾部 Dispatcher.Background 分派执行（先见壳后见数据）——
+            // 此处不再同步 EnsureItemsControlInCanvas()（否则构造删渲染后此处变同步首渲染，
+            // 抵消壳先行 + 与尾部 Background 分派构成每次打开双全量渲染——reviewer E1）
 
             // P10：首次 Loaded 保存 XAML 默认布局（内存流），「恢复默认布局」菜单从此恢复
             RegisterLayoutContents();   // 收集 ContentId → Content（反序列化回调回填用）
@@ -1791,6 +1794,20 @@ namespace NavigatorHMI.Views
             }
 
             AiBallToggle.IsChecked = true;   // 任务11：🛰 开关状态置开（内嵌球 XAML 默认可见）
+
+            // W-B 壳先行：窗口已显示（壳），首画面渲染延后到 UI 空闲（Background 优先级低于 Input）——
+            // 大工程首画面构建不阻塞打开；异常不崩溃窗口（Trace 记录，可后续切换画面重载）
+            Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+            {
+                try
+                {
+                    LoadCanvas(_viewModel.CurrentScreen);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Trace.WriteLine($"[EditWindow] 首画面渲染失败（W-B 后台分派）: {ex.Message}");
+                }
+            }));
 
             System.Diagnostics.Debug.WriteLine($"✅ EditWindow 加载完成");
             System.Diagnostics.Debug.WriteLine($"   CurrentScreen: {_viewModel?.CurrentScreen?.Name}");
@@ -2967,20 +2984,6 @@ namespace NavigatorHMI.Views
         #endregion
 
         #region ItemsControl & 画布
-
-        private void EnsureItemsControlInCanvas()
-        {
-            // 按 Name 定位主层 ItemsControl（虚影层同样为 ItemsControl，不能靠 OfType 唯一假设）
-            var existingItemsControl = DrawingCanvas.Children.OfType<ItemsControl>()
-                .FirstOrDefault(c => c.Name == "MyItemsControl");
-            if (existingItemsControl == null)
-            {
-                if (_viewModel?.CurrentScreen != null)
-                {
-                    LoadCanvas(_viewModel.CurrentScreen);
-                }
-            }
-        }
 
         /// <summary>虚影层 ItemsControl 的 Name（局部刷新/定位用，与主层 "MyItemsControl" 区分）。</summary>
         private const string GlobalGhostName = "GlobalGhostItemsControl";

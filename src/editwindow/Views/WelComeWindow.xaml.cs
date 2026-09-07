@@ -1,17 +1,19 @@
-﻿using System;
-using System.IO;
+using System;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using Microsoft.Win32;
 using NavigatorHMI.Common;
 using NavigatorHMI.ViewModels;
-using ProtoBuf;
 
 namespace NavigatorHMI.Views
 {
     public partial class WelComeWindow : Window
     {
+        /// <summary>W-B：打开工程进行中标志——防加载期间重复点击进入（竞态护栏）。</summary>
+        private bool _isOpening;
+
         #region 加载欢迎页面
         public WelComeWindow()
         {
@@ -56,13 +58,8 @@ namespace NavigatorHMI.Views
                     }
                     return;
                 }
-                HMIProject project;
-                using (var fs = new FileStream(selected.Path, FileMode.Open))
-                {
-                    project = Serializer.Deserialize<HMIProject>(fs);
-                }
-                // 打开工程（调用已有的 OpenProject 方法）
-                this.OpenProject(project);
+                // W-B：异步打开完整流程（后台反序列化 + 进度遮罩；成功打开/失败回退均在内部处理）
+                _ = OpenProjectAsync(selected.Path);
             }
         }
         private void RefreshRecentList()
@@ -85,27 +82,41 @@ namespace NavigatorHMI.Views
             // 2. 显示对话框，判断用户是否点击“打开”
             if (dialog.ShowDialog() == true)
             {
-                string filePath = dialog.FileName;
+                // W-B：异步打开完整流程
+                _ = OpenProjectAsync(dialog.FileName);
+            }
+        }
 
-                try
-                {
-                    // 3. 反序列化加载工程对象（使用 protobuf-net）
-                    HMIProject project;
-                    using (var fs = new FileStream(filePath, FileMode.Open))
-                    {
-                        project = Serializer.Deserialize<HMIProject>(fs);
-                    }
+        /// <summary>
+        /// W-B 后台加载：反序列化在后台线程（ProjectFileService.LoadAsync + 进度回调），
+        /// UI 线程显示进度遮罩（防重复操作）；成功 → OpenProject；失败 → 错误提示并停留在欢迎页（回退不残留）。
+        /// </summary>
+        private async Task OpenProjectAsync(string filePath)
+        {
+            if (_isOpening) return;   // 竞态护栏：加载中不重复进入
+            _isOpening = true;
+            try
+            {
+                // 进度回调封送回 UI 线程更新遮罩文本（Progress<T> 捕获当前 SynchronizationContext）
+                var progress = new Progress<string>(s => LoadingProgressText.Text = s);
+                LoadingOverlay.Visibility = Visibility.Visible;
 
-                    // 更新工程路径和修改时间
-                    project.ProjectFilePath = filePath;
-                    project.LastModifiedTime = DateTime.UtcNow;
+                var project = await ProjectFileService.LoadAsync(filePath, progress);
+                if (!IsVisible) return;   // 加载期间窗口被关闭——中止，不再打开编辑器
 
-                    this.OpenProject(project);
-                }
-                catch (Exception ex)
-                {
+                LoadingOverlay.Visibility = Visibility.Collapsed;
+                this.OpenProject(project);   // UI 线程继续（Hide → EditWindow.Show → Close）
+            }
+            catch (Exception ex)
+            {
+                LoadingOverlay.Visibility = Visibility.Collapsed;
+                if (IsVisible)
                     MessageBox.Show($"打开工程失败：{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
+                // 停留欢迎页——加载失败不动当前状态（事务性纪律，回退不残留）
+            }
+            finally
+            {
+                _isOpening = false;
             }
         }
 
