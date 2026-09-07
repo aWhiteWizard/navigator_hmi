@@ -263,32 +263,11 @@ namespace NavigatorHMI.Common
             set { if (!ReferenceEquals(_security, value)) { _security = value; OnPropertyChanged(); MarkDirty(); } }
         }
 
-        /// <summary>W-A（P12 画面模板）：设计期画面布局复用库（深拷贝快照；重名保存=覆盖更新）。</summary>
-        private ObservableCollection<ScreenTemplate> _templates = new();
-
-        [ProtoMember(24)]
-        public ObservableCollection<ScreenTemplate> Templates
-        {
-            get => _templates;
-            set
-            {
-                if (!ReferenceEquals(_templates, value))
-                {
-                    _templates.CollectionChanged -= OnCollectionChanged;
-                    _templates = value ?? new ObservableCollection<ScreenTemplate>();   // 🟡1：null 兜底（对齐 Screens/Tags）
-                    _templates.CollectionChanged += OnCollectionChanged;
-                    OnPropertyChanged();
-                    MarkDirty();
-                }
-            }
-        }
-
-        /// <summary>构造：Screens/Tags/Templates 集合增删改自动置脏（K 循环 IsDirty 单点化）。</summary>
+        /// <summary>构造：Screens/Tags 集合增删改自动置脏（K 循环 IsDirty 单点化）。</summary>
         public HMIProject()
         {
             Screens.CollectionChanged += OnCollectionChanged;
             Tags.CollectionChanged += OnCollectionChanged;
-            Templates.CollectionChanged += OnCollectionChanged;
         }
 
         /// <summary>

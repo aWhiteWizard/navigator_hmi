@@ -13,11 +13,10 @@ namespace NavigatorHMI.Tests
         private static List<CommandDefinition> AllDefinitions()
             => new CommandService(new HMIProject()).GetAvailableCommands();
 
-        /// <summary>有意不参与变化跟踪的命令（工程操作/查询/设备运行时/设计期模板库）。</summary>
+        /// <summary>有意不参与变化跟踪的命令（工程操作/查询/设备运行时）。</summary>
         private static readonly HashSet<string> KnownNoneCommands = new()
         {
             "create_project", "open_project", "save_project", "compile",
-            "save_screen_template",   // W-A: 模板库=设计期复用，非画面/编译数据段
             "connect", "disconnect", "scan_devices", "deploy_project",
             "deploy_firmware", "blink_device", "vnc",
             "current_screen", "list_users",
