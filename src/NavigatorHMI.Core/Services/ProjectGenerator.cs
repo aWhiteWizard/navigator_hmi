@@ -203,6 +203,27 @@ namespace NavigatorHMI.Common
                         result.Errors.Add($"GPS 变量 \"{gt.Name}\" 需工程含世界地图底图（勾选「设备端显示世界地图画面」并划定作业范围 ≥3 点）——无地图工程不能配置 GPS 变量");
             }
 
+            // 3h. 校验（Y-3b 2026-09-10 ④通信批 MQTT——v1.1-design §5.4 编译时校验：引用对象存在/状态 tag 存在/映射引用一致）
+            var mqtt = project.MqttSettings;
+            if (mqtt != null && mqtt.EnableMqtt)
+            {
+                // ① EnableMqtt 开启但无 MQTT 设备（连接参数真源 = DeviceConfig MQTT——Y-3a 裁决）→ 报错防 FW 无连接可建
+                if (!project.Devices.Any(d => d.Protocol == ProtocolType.MQTT))
+                    result.Errors.Add("MQTT 总开关已启用，但工程无 MQTT 设备——请在通讯配置中新建 MQTT 设备并填写连接参数");
+                // ② Binding 引用对象存在：TopicName 须在 Topics、TagName 须在 Tags（防悬空映射静默失效）
+                foreach (var b in mqtt.Bindings)
+                {
+                    if (!mqtt.Topics.Any(t => t.Name == b.TopicName))
+                        result.Errors.Add($"MQTT 绑定 {b.TagName}↔{b.FieldName} 引用的主题配置 \"{b.TopicName}\" 不存在");
+                    if (!project.Tags.Any(t => t.Name == b.TagName))
+                        result.Errors.Add($"MQTT 绑定 {b.TagName}↔{b.FieldName} 引用的变量 \"{b.TagName}\" 不存在");
+                }
+                // ③ StatusTag 引用存在（连接状态回写变量）
+                var statusTag = mqtt.Config?.StatusTag;
+                if (!string.IsNullOrWhiteSpace(statusTag) && !project.Tags.Any(t => t.Name == statusTag))
+                    result.Errors.Add($"MQTT StatusTag \"{statusTag}\" 变量不存在（请在变量管理器创建或清空状态回写设置）");
+            }
+
             if (result.HasErrors)
                 return result;
 

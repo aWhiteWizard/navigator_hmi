@@ -235,6 +235,12 @@ namespace NavigatorHMI.Common
             get => _responseTopic;
             set { if (_responseTopic != value) { _responseTopic = value ?? ""; OnPropertyChanged(); } }
         }
+
+        /// <summary>方向中文显示（UI 用；[ProtoIgnore] 语义——非 ProtoMember 不落盘）。</summary>
+        public string DirectionText => Direction == MqttTopicDirection.Publish ? "发布" : "订阅";
+
+        /// <summary>JSON 模板显示名（UI 用；KV / KV+时间戳）。</summary>
+        public string JsonTemplateText => JsonTemplate == MqttJsonTemplate.Kv ? "KV" : "KV+时间戳";
     }
 
     /// <summary>变量↔字段绑定（三层映射最底层：TagName 引用 Tag.Name，FieldName = JSON 字段名）。</summary>

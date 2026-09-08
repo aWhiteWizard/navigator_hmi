@@ -498,5 +498,37 @@ namespace NavigatorHMI.ViewModels
             DoubleClickCommand = new RelayCommand(() => _parent.NotifyProjectDownloadSelected());
         }
     }
+
+    /// <summary>
+    /// Y-3b「MQTT 设置」根节点（④通信批，2026-09-10）：与用户/报警/设备管理同级独立根——
+    /// 单子「MQTT 设置」双击打开三层映射配置页（Config 连接 / Topic 发布订阅 / Binding 变量↔字段）。
+    /// 照 AlarmRootNode（单子）模式；连接参数真源 = DeviceConfig MQTT 设备（Y-3a 裁决），
+    /// MqttSettings（HMIProject 24）承载 EnableMqtt/Topics/Bindings 映射层（config 保留不填充）。
+    /// </summary>
+    public class MqttRootNode : ProjectTreeViewModel
+    {
+        public MqttRootNode()
+        {
+            Name = "MQTT 设置";
+            Children.Add(new MqttSettingsNode(this));
+        }
+
+        /// <summary>「MQTT 设置」子节点被选中时触发（上层打开 MQTT 三层映射配置 Tab）。</summary>
+        public event Action? OnMqttSettingsSelected;
+
+        internal void NotifyMqttSettingsSelected() => OnMqttSettingsSelected?.Invoke();
+    }
+
+    /// <summary>「MQTT 设置」叶子：打开 MQTT 三层映射配置页（Config/Topic/Binding）。</summary>
+    public class MqttSettingsNode : ProjectTreeViewModel
+    {
+        private readonly MqttRootNode _parent;
+        public MqttSettingsNode(MqttRootNode parent)
+        {
+            _parent = parent;
+            Name = "MQTT 设置";
+            DoubleClickCommand = new RelayCommand(() => _parent.NotifyMqttSettingsSelected());
+        }
+    }
 }
  

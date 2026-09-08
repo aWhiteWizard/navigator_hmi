@@ -1494,6 +1494,16 @@
                                         <HierarchicalDataTemplate DataType="{x:Type vm:DeviceRootNode}" ItemsSource="{Binding Children}">
                                             <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
                                         </HierarchicalDataTemplate>
+                                        <!-- Y-3b MQTT 设置根节点（单子「MQTT 设置」打开三层映射页） -->
+                                        <HierarchicalDataTemplate DataType="{x:Type vm:MqttRootNode}" ItemsSource="{Binding Children}">
+                                            <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
+                                        </HierarchicalDataTemplate>
+                                        <DataTemplate DataType="{x:Type vm:MqttSettingsNode}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="✅" Visibility="{Binding IsCurrent, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,4,0" FontSize="12"/>
+                                                <TextBlock Text="{Binding Name}"/>
+                                            </StackPanel>
+                                        </DataTemplate>
                                         <!-- O 轮批 C C-1 设备管理四子节点（✅ 高亮随子页激活） -->
                                         <DataTemplate DataType="{x:Type vm:DeviceConnectNode}">
                                             <StackPanel Orientation="Horizontal">
@@ -1656,6 +1666,28 @@
                                                 <TextBlock Text="设备管理" FontSize="12" VerticalAlignment="Center"/>
                                                 <TextBlock Text=" ✕" FontSize="10" Foreground="#888888" VerticalAlignment="Center" Margin="4,0,0,0"
                                                            Cursor="Hand" MouseLeftButtonDown="DeviceTabClose_Click"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <!-- Y-3b MQTT 设置 Tab（由「MQTT 设置」树节点双击打开，打开才显示，激活高亮） -->
+                                        <Border x:Name="MqttTab" BorderThickness="1" CornerRadius="3" Padding="6,3" Margin="0,0,4,0"
+                                                Cursor="Hand" MouseLeftButtonDown="MqttTab_Click"
+                                                Visibility="{Binding MqttTabOpen, Converter={StaticResource BoolToVisibilityConverter}}">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="#E0E0E0"/>
+                                                    <Setter Property="BorderBrush" Value="#B0B0B0"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding MqttActive}" Value="True">
+                                                            <Setter Property="Background" Value="#0078D4"/>
+                                                            <Setter Property="BorderBrush" Value="#0078D4"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="MQTT 设置" FontSize="12" VerticalAlignment="Center"/>
+                                                <TextBlock Text=" ✕" FontSize="10" Foreground="#888888" VerticalAlignment="Center" Margin="4,0,0,0"
+                                                           Cursor="Hand" MouseLeftButtonDown="MqttTabClose_Click"/>
                                             </StackPanel>
                                         </Border>
                                         <!-- 变量管理器 Tab（由「通信变量→变量」树节点双击打开，打开才显示，激活高亮） -->
@@ -2195,6 +2227,71 @@
                                 <Grid Grid.Row="1" Margin="3" DataContext="{Binding DevicePanelVM}"
                                       Visibility="{Binding DataContext.DeviceActive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
                                     <ctrl:DevicePanelView/>
+                                </Grid>
+                                <!-- Y-3b MQTT 设置页内容（MQTT 设置 Tab 激活时显示；三层映射：连接 Config / Topic 发布订阅 / Binding 变量↔字段） -->
+                                <Grid Grid.Row="1" Margin="3" DataContext="{Binding MqttSettingsVM, RelativeSource={RelativeSource AncestorType=Window}}"
+                                      Visibility="{Binding DataContext.MqttActive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <!-- 连接 Config 层（真源 = DeviceConfig MQTT 设备；按钮开 DeviceEditDialog 编辑） -->
+                                    <Border Grid.Row="0" BorderBrush="#B0B0B0" BorderThickness="1" CornerRadius="3" Padding="8" Margin="0,0,0,4" Background="#FAFAFA">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="MQTT 总开关:" VerticalAlignment="Center" FontSize="12"/>
+                                            <CheckBox Margin="8,0,16,0" VerticalAlignment="Center" FontSize="12"
+                                                      IsChecked="{Binding EnableMqtt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                      ToolTip="禁用 = FW 不建 MQTT 连接对象"/>
+                                            <TextBlock Text="{Binding ConnectionSummary}" VerticalAlignment="Center" FontSize="12" Foreground="#444444"/>
+                                            <Button Content="⚙ 配置连接…" Height="28" Margin="16,0,0,0" Command="{Binding EditConnectionCommand}" ToolTip="编辑 MQTT 连接参数（无设备则新建——DeviceEditDialog 全字段）"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <!-- Topic 配置层（发布/订阅分离表 + 新增行） -->
+                                    <Grid Grid.Row="1" Margin="0,0,0,4">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,2">
+                                            <TextBlock Text="Topic 配置（发布/订阅）" FontWeight="Bold" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                            <TextBox Text="{Binding NewTopicName, UpdateSourceTrigger=PropertyChanged}" Width="120" Height="24" VerticalContentAlignment="Center" FontSize="11" ToolTip="配置名（唯一）"/>
+                                            <ComboBox Width="70" Height="24" Margin="4,0,0,0" VerticalContentAlignment="Center" FontSize="11"
+                                                      SelectedIndex="{Binding NewTopicDirectionIndex, Mode=TwoWay, FallbackValue=0}">
+                                                <ComboBoxItem Content="发布"/>
+                                                <ComboBoxItem Content="订阅"/>
+                                            </ComboBox>
+                                            <TextBox Text="{Binding NewTopicPath, UpdateSourceTrigger=PropertyChanged}" Width="200" Height="24" Margin="4,0,0,0" VerticalContentAlignment="Center" FontSize="11" ToolTip="Topic 路径（发布禁 +/#、≤512；订阅合法通配符）"/>
+                                            <Button Content="＋ 添加" Width="70" Height="24" Margin="4,0,0,0" Command="{Binding NewTopicCommand}"/>
+                                        </StackPanel>
+                                        <DataGrid Grid.Row="1" ItemsSource="{Binding Topics}" SelectedItem="{Binding SelectedTopic}" AutoGenerateColumns="False"
+                                                  CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" FontSize="12" RowHeight="24" MaxHeight="140">
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="配置名" Binding="{Binding Name}" Width="110" IsReadOnly="True"/>
+                                                <DataGridTextColumn Header="方向" Binding="{Binding DirectionText}" Width="60" IsReadOnly="True"/>
+                                                <DataGridTextColumn Header="Topic" Binding="{Binding Topic}" Width="*" IsReadOnly="True"/>
+                                                <DataGridTextColumn Header="QoS" Binding="{Binding Qos}" Width="45" IsReadOnly="True"/>
+                                                <DataGridCheckBoxColumn Header="Retain" Binding="{Binding Retain}" Width="55" IsReadOnly="True"/>
+                                                <DataGridTextColumn Header="发布周期ms" Binding="{Binding PublishIntervalMs}" Width="80" IsReadOnly="True"/>
+                                                <DataGridTextColumn Header="JSON模板" Binding="{Binding JsonTemplateText}" Width="80" IsReadOnly="True"/>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,2,0,0" HorizontalAlignment="Right">
+                                            <Button Content="🗑 删除选中 Topic（连带绑定）" Height="24" Command="{Binding DeleteTopicCommand}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                    <!-- Binding 层（变量↔字段 表格） -->
+                                    <Grid Grid.Row="2">
+                                        <DataGrid ItemsSource="{Binding Bindings}" AutoGenerateColumns="False"
+                                                  CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" FontSize="12" RowHeight="24">
+                                            <DataGrid.Columns>
+                                                <DataGridTextColumn Header="Topic" Binding="{Binding TopicName}" Width="120" IsReadOnly="True"/>
+                                                <DataGridTextColumn Header="变量" Binding="{Binding TagName}" Width="150" IsReadOnly="True"/>
+                                                <DataGridTextColumn Header="JSON 字段名" Binding="{Binding FieldName}" Width="*" IsReadOnly="True"/>
+                                            </DataGrid.Columns>
+                                        </DataGrid>
+                                    </Grid>
                                 </Grid>
                                 <!-- 列表管理内容（Tab 激活时显示，与画布同一位置切换；Visibility 从 Window.DataContext 取防 DataContext 覆盖） -->
                                 <Grid Grid.Row="1" Margin="3" DataContext="{Binding ListManagerVM, RelativeSource={RelativeSource AncestorType=Window}}"

@@ -32,6 +32,12 @@ namespace NavigatorHMI.ViewModels
         /// <summary>设备管理面板 VM（K-4：连接测试/闪烁/VNC/下载，门禁灰显）。</summary>
         public DevicePanelViewModel DevicePanelVM { get; private set; } = null!;
 
+        /// <summary>Y-3b MQTT 三层映射配置页 VM（EnableMqtt/Topic/Binding；连接编辑事件透传 View 层开 DeviceEditDialog）。</summary>
+        public MqttSettingsViewModel MqttSettingsVM { get; private set; } = null!;
+
+        /// <summary>Y-3b：请求打开 MQTT 连接配置对话框（View 处理 DeviceEditDialog——无设备=新建 MQTT 设备）。</summary>
+        public event Action<DeviceConfig?>? MqttConnectionEditRequested;
+
         public int DeviceHeight => _currentProject.DeviceHeight;
         public int DeviceWidth => _currentProject.DeviceWidth;
 
@@ -104,6 +110,7 @@ namespace NavigatorHMI.ViewModels
             UserActive = false;
             AlarmActive = false;
             DeviceActive = false;   // L-B1 互斥（审查🔴#1）
+            MqttActive = false;   // Y-3b 互斥（MQTT 设置页与其他页互斥）
             RefreshTreeCurrentStatus();
         }
 
@@ -117,6 +124,7 @@ namespace NavigatorHMI.ViewModels
             UserActive = false;
             AlarmActive = false;
             DeviceActive = false;   // L-B1 互斥（审查🔴#1）
+            MqttActive = false;   // Y-3b 互斥（MQTT 设置页与其他页互斥）
             RefreshTreeCurrentStatus();
         }
 
@@ -160,6 +168,7 @@ namespace NavigatorHMI.ViewModels
             UserActive = false;
             AlarmActive = false;
             DeviceActive = false;   // L-B1 互斥（审查🔴#1）
+            MqttActive = false;   // Y-3b 互斥（MQTT 设置页与其他页互斥）
             RefreshTreeCurrentStatus();
         }
 
@@ -173,6 +182,7 @@ namespace NavigatorHMI.ViewModels
             UserActive = false;
             AlarmActive = false;
             DeviceActive = false;   // L-B1 互斥（审查🔴#1）
+            MqttActive = false;   // Y-3b 互斥（MQTT 设置页与其他页互斥）
             RefreshTreeCurrentStatus();
         }
 
@@ -252,6 +262,7 @@ namespace NavigatorHMI.ViewModels
             AlarmActive = false;
             UserActive = false;
             DeviceActive = false;   // L-B1 互斥（审查🔴#1）
+            MqttActive = false;   // Y-3b 互斥（MQTT 设置页与其他页互斥）
             RefreshTreeCurrentStatus();
         }
 
@@ -267,6 +278,7 @@ namespace NavigatorHMI.ViewModels
             AlarmActive = false;
             UserActive = false;
             DeviceActive = false;   // L-B1 互斥（审查🔴#1）
+            MqttActive = false;   // Y-3b 互斥（MQTT 设置页与其他页互斥）
             RefreshTreeCurrentStatus();
         }
 
@@ -310,6 +322,7 @@ namespace NavigatorHMI.ViewModels
             ListManagerActive = false;
             UserActive = false;
             DeviceActive = false;   // L-B1 互斥（审查🔴#1）
+            MqttActive = false;   // Y-3b 互斥（MQTT 设置页与其他页互斥）
             RefreshTreeCurrentStatus();
         }
 
@@ -323,6 +336,7 @@ namespace NavigatorHMI.ViewModels
             ListManagerActive = false;
             UserActive = false;
             DeviceActive = false;   // L-B1 互斥（审查🔴#1）
+            MqttActive = false;   // Y-3b 互斥（MQTT 设置页与其他页互斥）
             RefreshTreeCurrentStatus();
         }
 
@@ -331,6 +345,66 @@ namespace NavigatorHMI.ViewModels
         {
             if (AlarmActive) AlarmActive = false;
             AlarmTabOpen = false;
+            RefreshTreeCurrentStatus();
+        }
+
+        // ═══════════════════════════════════════════
+        // Y-3b MQTT 设置页（④通信批：三层映射 Config/Topic/Binding，与变量/通讯/列表/报警/用户/设备管理互斥）
+        // ═══════════════════════════════════════════
+
+        private bool _mqttTabOpen;
+
+        /// <summary>MQTT 设置 Tab 是否打开（打开才在标签栏显示）。</summary>
+        public bool MqttTabOpen
+        {
+            get => _mqttTabOpen;
+            set { if (_mqttTabOpen != value) { _mqttTabOpen = value; OnPropertyChanged(); } }
+        }
+
+        private bool _mqttActive;
+
+        /// <summary>当前内容是否为 MQTT 设置（true=显示三层映射页，false=其他）。</summary>
+        public bool MqttActive
+        {
+            get => _mqttActive;
+            set { if (_mqttActive != value) { _mqttActive = value; OnPropertyChanged(); } }
+        }
+
+        /// <summary>打开 MQTT 设置页（三层映射：Config 连接 / Topic 发布订阅 / Binding 变量↔字段）。</summary>
+        public void OpenMqttSettings()
+        {
+            MqttTabOpen = true;
+            MqttActive = true;
+            VariableManagerActive = false;
+            CommunicationActive = false;
+            ListManagerActive = false;
+            UserActive = false;
+            AlarmActive = false;
+            DeviceActive = false;   // L-B1 互斥（审查🔴#1）
+            MqttSettingsVM.Refresh();   // Y-3b reviewer 🟡3：每次打开刷新（通讯页可能已建/改 MQTT 设备）
+            RefreshTreeCurrentStatus();
+        }
+
+        /// <summary>激活 MQTT 设置视图（Tab 已打开时点击标签栏）。</summary>
+        public void ActivateMqtt()
+        {
+            if (!MqttTabOpen) MqttTabOpen = true;
+            MqttActive = true;
+            VariableManagerActive = false;
+            CommunicationActive = false;
+            ListManagerActive = false;
+            UserActive = false;
+            AlarmActive = false;
+            DeviceActive = false;   // L-B1 互斥
+            MqttSettingsVM.Refresh();   // Y-3b reviewer 🟡3
+            RefreshTreeCurrentStatus();
+        }
+
+        /// <summary>关闭 MQTT 设置 Tab（若当前激活则切回当前画面，树高亮恢复画面节点）。</summary>
+        public void CloseMqttTab()
+        {
+            if (MqttActive) MqttActive = false;
+            MqttTabOpen = false;
             RefreshTreeCurrentStatus();
         }
 
@@ -399,6 +473,7 @@ namespace NavigatorHMI.ViewModels
             ListManagerActive = false;
             AlarmActive = false;
             UserActive = false;
+            MqttActive = false;   // Y-3b 互斥（reviewer 🔴 D：设备管理对漏插）
             DeviceActive = true;
             // 无条件刷新树高亮：DevicePanelPage 可能已等于目标页（page=0 首开）——setter 内刷新不触发，此处兜底
             DevicePanelPage = page;
@@ -423,6 +498,7 @@ namespace NavigatorHMI.ViewModels
             ListManagerActive = false;
             AlarmActive = false;
             UserActive = false;
+            MqttActive = false;   // Y-3b 互斥（reviewer 🔴 D：设备管理对漏插）
             DeviceActive = true;
             RefreshTreeCurrentStatus();
         }
@@ -445,6 +521,7 @@ namespace NavigatorHMI.ViewModels
             ListManagerActive = false;
             AlarmActive = false;
             DeviceActive = false;   // L-B1 互斥（审查🔴#1）
+            MqttActive = false;   // Y-3b 互斥（MQTT 设置页与其他页互斥）
             RefreshUserPanel();   // W3b：打开面板同步用户/组/策略数据
             RefreshTreeCurrentStatus();
         }
@@ -467,6 +544,7 @@ namespace NavigatorHMI.ViewModels
             ListManagerActive = false;
             AlarmActive = false;
             DeviceActive = false;   // L-B1 互斥（审查🔴#1）
+            MqttActive = false;   // Y-3b 互斥（MQTT 设置页与其他页互斥）
             UserActive = true;
             RefreshUserPanel();
             RefreshTreeCurrentStatus();
@@ -836,6 +914,7 @@ namespace NavigatorHMI.ViewModels
             UserActive = false;
             AlarmActive = false;
             DeviceActive = false;   // L-B1 互斥（审查🔴#1）
+            MqttActive = false;   // Y-3b 互斥（MQTT 设置页与其他页互斥）
             CurrentScreen = screen;   // 可能短路（值未变），短路时树高亮靠下方 RefreshTreeCurrentStatus 兜底
             RefreshTreeCurrentStatus();
         }
@@ -866,6 +945,7 @@ namespace NavigatorHMI.ViewModels
                 AlarmActive = false;
                 UserActive = false;
                 DeviceActive = false;   // L-B1 互斥（审查🔴#1）
+                MqttActive = false;     // Y-3b 互斥（MQTT 设置页与其他页互斥）
 
                 // 打开画面 → 自动加入标签集合（打开才显示标签）
                 EnsureScreenOpen(value);
@@ -888,15 +968,15 @@ namespace NavigatorHMI.ViewModels
         {
             foreach (var root in TreeRoots)
             {
-                UpdateNodeRecursive(root, CurrentScreen, VariableManagerActive, CommunicationActive, ListManagerActive, AlarmActive, UserActive, DeviceActive, UserPanelPage, ListManagerListType, DevicePanelPage);
+                UpdateNodeRecursive(root, CurrentScreen, VariableManagerActive, CommunicationActive, ListManagerActive, AlarmActive, UserActive, DeviceActive, MqttActive, UserPanelPage, ListManagerListType, DevicePanelPage);
             }
         }
 
-        private static void UpdateNodeRecursive(ProjectTreeViewModel node, Screen currentScreen, bool variableManagerActive, bool communicationActive, bool listManagerActive, bool alarmActive, bool userActive, bool deviceActive, int userPanelPage, ListType listManagerListType, int devicePanelPage)
+        private static void UpdateNodeRecursive(ProjectTreeViewModel node, Screen currentScreen, bool variableManagerActive, bool communicationActive, bool listManagerActive, bool alarmActive, bool userActive, bool deviceActive, bool mqttActive, int userPanelPage, ListType listManagerListType, int devicePanelPage)
         {
             if (node is ScreenItemNode screenNode)
             {
-                screenNode.IsCurrent = !variableManagerActive && !communicationActive && !listManagerActive && !alarmActive && !userActive && !deviceActive && (screenNode.Screen == currentScreen);
+                screenNode.IsCurrent = !variableManagerActive && !communicationActive && !listManagerActive && !alarmActive && !userActive && !deviceActive && !mqttActive && (screenNode.Screen == currentScreen);
             }
             else if (node is VariableManagerNode vmNode)
             {
@@ -951,9 +1031,14 @@ namespace NavigatorHMI.ViewModels
             {
                 pdNode.IsCurrent = deviceActive && devicePanelPage == 3;
             }
+            // Y-3b（reviewer 🟡4）：MQTT 设置叶子高亮
+            else if (node is MqttSettingsNode mqNode)
+            {
+                mqNode.IsCurrent = mqttActive;
+            }
             foreach (var child in node.Children)
             {
-                UpdateNodeRecursive(child, currentScreen, variableManagerActive, communicationActive, listManagerActive, alarmActive, userActive, deviceActive, userPanelPage, listManagerListType, devicePanelPage);
+                UpdateNodeRecursive(child, currentScreen, variableManagerActive, communicationActive, listManagerActive, alarmActive, userActive, deviceActive, mqttActive, userPanelPage, listManagerListType, devicePanelPage);
             }
         }
 
@@ -1074,6 +1159,15 @@ namespace NavigatorHMI.ViewModels
             TreeRoots.Add(BuildAlarmRootNode());
             TreeRoots.Add(BuildUserRootNode());
             TreeRoots.Add(BuildDeviceRootNode());   // L 循环 L-B1：设备管理独立根节点（与通信变量/用户/报警/列表同等级）
+            TreeRoots.Add(BuildMqttRootNode());     // Y-3b：MQTT 设置独立根节点
+        }
+
+        /// <summary>Y-3b 构建「MQTT 设置」根节点（单子「MQTT 设置」双击打开三层映射配置页）。</summary>
+        private MqttRootNode BuildMqttRootNode()
+        {
+            var node = new MqttRootNode();
+            node.OnMqttSettingsSelected += OpenMqttSettings;
+            return node;
         }
 
         /// <summary>构建「通信变量」根节点（含「变量」/「通讯」子节点，双击在画布位置打开对应 Tab）。</summary>
@@ -1186,6 +1280,8 @@ namespace NavigatorHMI.ViewModels
             CurrentProject = project;
             CommandService = new CommandService(project);
             DevicePanelVM = new DevicePanelViewModel(CommandService);   // K-4：设备管理面板
+            MqttSettingsVM = new MqttSettingsViewModel(project, CommandService);   // Y-3b：MQTT 三层映射页
+            MqttSettingsVM.ConnectionEditRequested += dev => MqttConnectionEditRequested?.Invoke(dev);
             CommandService.CommandExecuted += OnCommandExecuted;
             // 构建树根：全局画面、地图画面、自定义画面列表根
             // 注意：树节点选中一律走 ActivateScreen（当前画面未变时也能退出变量管理器视图）
@@ -1217,6 +1313,7 @@ namespace NavigatorHMI.ViewModels
             TreeRoots.Add(BuildAlarmRootNode());
             TreeRoots.Add(BuildUserRootNode());
             TreeRoots.Add(BuildDeviceRootNode());   // L 循环 L-B1：设备管理独立根节点（构造时即加入——用户实测「点编译后才出现」根因：构造方法漏加）
+            TreeRoots.Add(BuildMqttRootNode());     // Y-3b：MQTT 设置独立根节点（④通信批；与设备管理同级）
 
             // 默认选中世界地图画面（旧工程缺 WorldMap 时兜底退回全局画面——FirstOrDefault 防抛异常）
             CurrentScreen = project.Screens.FirstOrDefault(s => s.Type == ScreenType.WorldMap)

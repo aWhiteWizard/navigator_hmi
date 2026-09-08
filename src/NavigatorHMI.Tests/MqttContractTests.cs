@@ -140,6 +140,14 @@ namespace NavigatorHMI.Tests
                 ProjectFilePath = Path.Combine(dir, "y2-mqtt.hmiproj"),
             };
             p.Screens.Add(new Screen { Name = "画面A", Type = ScreenType.Custom });
+            // Y-3b 3h 编译校验（2026-09-10）：EnableMqtt 开启需 MQTT 设备 + Binding 变量存在——测试工程补足
+            p.Devices.Add(new DeviceConfig
+            {
+                Name = "MQTT-Broker",
+                Protocol = ProtocolType.MQTT,
+                ConnectionInfo = "{\"broker\":\"192.168.1.100\",\"port\":1883}",
+            });
+            p.Tags.Add(new Tag { Name = "V1", DataType = TagDataType.FLOAT });
             p.MqttSettings = new MqttSettings
             {
                 EnableMqtt = true,
