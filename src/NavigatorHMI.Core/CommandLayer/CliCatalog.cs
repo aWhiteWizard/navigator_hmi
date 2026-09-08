@@ -270,6 +270,24 @@ namespace NavigatorHMI.CommandLayer
             Add(Meta("vnc", "vnc", "设备命令", "VNC 运行时启停 (--ip <addr> --enable <on|off>)",
                 CliParameterView.Rk("ip"), CliParameterView.Rk("enable")));
 
+            // ══ MQTT 映射（Y-3b ④通信批；GUI 三层映射页的命令层入口——CLI 对等）══
+            Add(Meta("mqtt-set-enabled", "mqtt_set_enabled", "MQTT 命令", "设置 MQTT 总开关 (--enabled <true|false>)",
+                CliParameterView.Rk("enabled")));
+            Add(Meta("mqtt-add-topic", "mqtt_add_topic", "MQTT 命令", "新增主题配置 (--name <配置名> --topic <路径> [--direction publish|subscribe] [--qos 0] [--retain false] [--publish-interval-ms 0] [--json-template 0])",
+                CliParameterView.Rk("name"), CliParameterView.Rk("topic"), CliParameterView.D("direction", "direction", "publish"),
+                CliParameterView.Dk("qos", "0"), CliParameterView.Dk("retain", "false"),
+                CliParameterView.D("publish-interval-ms", "publish_interval_ms", "0"),
+                CliParameterView.D("json-template", "json_template", "0")));
+            Add(Meta("mqtt-update-topic", "mqtt_update_topic", "MQTT 命令", "更新主题配置属性 (--name <配置名> [--qos] [--retain] [--publish-interval-ms] [--json-template])",
+                CliParameterView.Rk("name"), CliParameterView.Pk("qos"), CliParameterView.Pk("retain"),
+                CliParameterView.P("publish-interval-ms", "publish_interval_ms"), CliParameterView.P("json-template", "json_template")));
+            Add(Meta("mqtt-delete-topic", "mqtt_delete_topic", "MQTT 命令", "删除主题配置 (--name <配置名>；连带删除其绑定)",
+                CliParameterView.Rk("name")));
+            Add(Meta("mqtt-set-binding", "mqtt_set_binding", "MQTT 命令", "设置变量↔字段绑定 (--topic-name <配置名> --tag-name <变量> --field-name <字段>)",
+                CliParameterView.R("topic-name", "topic_name"), CliParameterView.R("tag-name", "tag_name"), CliParameterView.R("field-name", "field_name")));
+            Add(Meta("mqtt-remove-binding", "mqtt_remove_binding", "MQTT 命令", "移除变量↔字段绑定 (--topic-name <配置名> --tag-name <变量>)",
+                CliParameterView.R("topic-name", "topic_name"), CliParameterView.R("tag-name", "tag_name")));
+
             // ══ AI（custom）══
             Add(new CliCommandSpec { CliName = "ai", Category = "AI 命令", Handler = CliCustomHandler.Ai, Summary = "<指令> 或 --prompt <指令> [--mode rule|cloud|local]（规则映射默认离线；cloud=DeepSeek API FC；local=本地模型 FC）",
                 Views = new[] { CliParameterView.Pk("prompt"), CliParameterView.Dk("mode", "rule"), CliParameterView.Pk("model") } });
