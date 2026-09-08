@@ -116,6 +116,8 @@ namespace NavigatorHMI.CommandLayer
                 ["update_tag"]      = new UpdateTagHandler(),
                 ["delete_tag"]      = new DeleteTagHandler(),
                 ["bind_tag"]        = new BindTagHandler(),
+                ["list_tags"]       = new ListTagsHandler(),        // Y-5a：变量清单 CLI 查询口
+                ["list_tag_groups"] = new ListTagGroupsHandler(),   // Y-5a：分组名清单
 
                 // ── 列表操作 ──
                 ["create_list"]     = new CreateListHandler(),

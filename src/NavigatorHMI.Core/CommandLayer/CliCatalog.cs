@@ -177,17 +177,20 @@ namespace NavigatorHMI.CommandLayer
                 CliParameterView.P("show-global-overlay", "show_global_overlay"), CliParameterView.P("view-locked", "view_locked")));
 
             // ══ 变量/用户 ══
-            Add(Meta("create-tag", "create_tag", "变量命令", "创建变量 (--name <name> --type <BOOL|INT16|UINT16|INT32|FLOAT|STRING|DATETIME|GPS> [--source <uri>] [--unit <u>] [--scan-interval 100] [--deadband 0] [--description <text>] [--base-value <n>]；source 缺省=内部变量)",
+            Add(Meta("create-tag", "create_tag", "变量命令", "创建变量 (--name <name> --type <BOOL|INT16|UINT16|INT32|FLOAT|STRING|DATETIME|GPS> [--source <uri>] [--unit <u>] [--scan-interval 100] [--deadband 0] [--description <text>] [--base-value <n>] [--group <组名>]；source 缺省=内部变量)",
                 CliParameterView.Rk("name"), CliParameterView.R("type", "data_type"), CliParameterView.Dk("source", ""), CliParameterView.Dk("unit", ""),
                 CliParameterView.D("scan-interval", "scan_interval", "100"), CliParameterView.Dk("deadband", "0"), CliParameterView.Dk("description", ""),
-                CliParameterView.D("base-value", "base_value", "")));
-            Add(Meta("update-tag", "update_tag", "变量命令", "更新变量 (--name <name> [--new-name <name>] [--type <...>] [--source <uri>] [--unit <u>] [--scan-interval <ms>] [--deadband <n>] [--description <text>] [--base-value <n>]；--source \"\" 清空为内部变量；--unit \"\" / --description \"\" 清空)",
+                CliParameterView.D("base-value", "base_value", ""), CliParameterView.D("group", "group", "")));
+            Add(Meta("update-tag", "update_tag", "变量命令", "更新变量 (--name <name> [--new-name <name>] [--type <...>] [--source <uri>] [--unit <u>] [--scan-interval <ms>] [--deadband <n>] [--description <text>] [--base-value <n>] [--group <组名>]；--source \"\" 清空为内部变量；--unit \"\" / --description \"\" / --group \"\" 清空)",
                 CliParameterView.Rk("name"),
                 CliParameterView.P("new-name", "new_name"), CliParameterView.P("type", "data_type"), CliParameterView.Pk("source"), CliParameterView.Pk("unit"),
                 CliParameterView.P("scan-interval", "scan_interval"), CliParameterView.Pk("deadband"), CliParameterView.Pk("description"),
-                CliParameterView.P("base-value", "base_value")));
+                CliParameterView.P("base-value", "base_value"), CliParameterView.P("group", "group")));
             Add(Meta("delete-tag", "delete_tag", "变量命令", "删除变量 (--name <name>；被控件/报警引用时拒绝)",
                 CliParameterView.Rk("name")));
+            Add(Meta("list-tags", "list_tags", "变量命令", "列出变量 ([--group <组名>]；空=全部；\"未分组\"=空分组变量——Y-5a)",
+                CliParameterView.D("group", "group", "")));
+            Add(Meta("list-tag-groups", "list_tag_groups", "变量命令", "列出变量分组名（组重命名/删除 = 批量 update-tag --group）——Y-5a"));
             Add(Meta("bind-tag", "bind_tag", "变量命令", "绑定变量到控件 (--screen <name> --widget <name> --tag <name>)",
                 CliParameterView.R("screen", "screen_name"), CliParameterView.R("widget", "widget_name"), CliParameterView.R("tag", "tag_name")));
             Add(Meta("create-user", "create_user", "用户/组命令", "创建用户 (--user-name <name> --password <pwd> [--group-name 管理员|操作员|访客])",

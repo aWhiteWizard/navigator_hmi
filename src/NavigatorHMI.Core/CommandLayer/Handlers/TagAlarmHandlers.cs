@@ -18,12 +18,17 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 ["deadband"] = new() { Type = "double", DefaultValue = 0, Description = "变化死区", KeepInCompact = true },
                 ["description"] = new() { Type = "string", DefaultValue = "", Description = "描述" },
                 ["base_value"] = new() { Type = "string", DefaultValue = "", Description = "基准值（设计态预览）", KeepInCompact = true },
+                ["group"] = new() { Type = "string", DefaultValue = "", Description = "Y-5a 变量分组（空 = 未分组）", KeepInCompact = true },
             }
         };
         public ValidationResult Validate(Dictionary<string, object?> p)
         {
             if (!p.ContainsKey("name") || string.IsNullOrWhiteSpace(p["name"]?.ToString())) return ValidationResult.Fail("缺少必填参数: name");
             if (!p.ContainsKey("data_type") || string.IsNullOrWhiteSpace(p["data_type"]?.ToString())) return ValidationResult.Fail("缺少必填参数: data_type");
+            // Y-5a reviewer 🟡：组名「未分组」为哨兵保留字（list-tags --group 过滤语义）——拒绝真实组用它
+            var grp0 = p.GetValueOrDefault("group")?.ToString();
+            if (grp0 != null && grp0.Trim() == Tag.UngroupedSentinel)
+                return ValidationResult.Fail($"组名 \"{Tag.UngroupedSentinel}\" 为保留字（表示未分组），请换组名");
             // source 可选：空/缺省 = 内部变量（无外部来源）
             // 数值参数预校验：整数+正数、有限数字（防 NaN/Infinity/负数写入工程，bugs §7）
             if (p.TryGetValue("scan_interval", out var si) && si != null && !string.IsNullOrWhiteSpace(si.ToString()))
@@ -65,6 +70,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 Deadband = Convert.ToDouble(p.GetValueOrDefault("deadband", 0), System.Globalization.CultureInfo.InvariantCulture),
                 Description = p.GetValueOrDefault("description")?.ToString() ?? "",
                 BaseValue = baseValue,
+                Group = p.GetValueOrDefault("group")?.ToString() ?? "",   // Y-5a：变量分组（空 = 未分组）
             });
             return CommandResult.Ok(new { tag_name = name });
         }
@@ -449,12 +455,17 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 ["deadband"] = new() { Type = "double", Description = "变化死区", KeepInCompact = true },
                 ["description"] = new() { Type = "string", Description = "描述" },
                 ["base_value"] = new() { Type = "string", Description = "基准值（设计态预览）", KeepInCompact = true },
+                ["group"] = new() { Type = "string", Description = "Y-5a 变量分组；显式空串 = 清空为未分组；留空 = 不改", KeepInCompact = true },
             }
         };
         public ValidationResult Validate(Dictionary<string, object?> p)
         {
             if (!p.ContainsKey("name") || string.IsNullOrWhiteSpace(p["name"]?.ToString()))
                 return ValidationResult.Fail("缺少必填参数: name");
+            // Y-5a reviewer 🟡：组名「未分组」为哨兵保留字——更新亦拒绝（防存量/误传建立冲突组）
+            var grp0 = p.GetValueOrDefault("group")?.ToString();
+            if (grp0 != null && grp0.Trim() == Tag.UngroupedSentinel)
+                return ValidationResult.Fail($"组名 \"{Tag.UngroupedSentinel}\" 为保留字（表示未分组），请换组名");
             if (p.TryGetValue("scan_interval", out var si) && si != null && !string.IsNullOrWhiteSpace(si.ToString()))
             {
                 if (!int.TryParse(si.ToString(), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var scan))
@@ -562,8 +573,71 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 if (targetType == TagDataType.BOOL) newBaseValue = newBaseValue.ToLowerInvariant();   // #4 兜底：改类型/归一路径统一落库小写（防存量变体绕过 create/update 直改路径）
                 tag.BaseValue = newBaseValue;
             }
+            // Y-5a：group 分组（显式空串 = 清空为未分组——OptIfProvided 语义：未提供保留现值）
+            if (p.TryGetValue("group", out var grp) && grp != null)
+                tag.Group = grp.ToString() ?? "";
 
             return CommandResult.Ok(new { tag_name = tag.Name });
+        }
+    }
+
+    /// <summary>list_tags：列出变量（Y-5a 2026-09-10；可选 --group 过滤；对齐 GUI 变量管理器——v1.1 变量清单 CLI 查询口补齐）。</summary>
+    public class ListTagsHandler : ICommandHandler
+    {
+        public CommandDefinition Definition => new()
+        {
+            Name = "list_tags", Description = "列出变量（可选按分组过滤）",
+            Parameters = new()
+            {
+                ["group"] = new() { Type = "string", DefaultValue = "", Description = "分组名过滤（空 = 全部；特殊值 \"未分组\" = 列出空分组变量）", KeepInCompact = true },
+            }
+        };
+        public ValidationResult Validate(Dictionary<string, object?> p) => ValidationResult.Ok;
+        public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
+        {
+            var groupFilter = p.GetValueOrDefault("group")?.ToString() ?? "";
+            IEnumerable<Tag> query = project.Tags;
+            if (groupFilter.Length > 0)
+            {
+                if (groupFilter == "未分组")
+                    query = project.Tags.Where(t => string.IsNullOrEmpty(t.Group));
+                else
+                    query = project.Tags.Where(t => t.Group == groupFilter);
+            }
+            var list = query.Select(t => new
+            {
+                name = t.Name,
+                type = t.DataType.ToString(),
+                source = t.Source,
+                unit = t.Unit,
+                scan_interval_ms = t.ScanIntervalMs,
+                group = string.IsNullOrEmpty(t.Group) ? "未分组" : t.Group,   // 空分组归一显示名
+                description = t.Description,
+            }).ToList();
+            return CommandResult.Ok(new { count = list.Count, tags = list });
+        }
+    }
+
+    /// <summary>list_tag_groups：列出全部变量分组名（Y-5a 2026-09-10；含「未分组」占位语义说明——
+    /// 组重命名/删除 = 批量 update_tag --group（组本身无独立对象）。</summary>
+    public class ListTagGroupsHandler : ICommandHandler
+    {
+        public CommandDefinition Definition => new()
+        {
+            Name = "list_tag_groups", Description = "列出变量分组名清单",
+            Parameters = new()
+        };
+        public ValidationResult Validate(Dictionary<string, object?> p) => ValidationResult.Ok;
+        public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
+        {
+            var groups = project.Tags
+                .Where(t => !string.IsNullOrEmpty(t.Group))
+                .Select(t => t.Group)
+                .Distinct()
+                .OrderBy(g => g, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var ungrouped = project.Tags.Count(t => string.IsNullOrEmpty(t.Group));
+            return CommandResult.Ok(new { count = groups.Count, groups, ungrouped_count = ungrouped });
         }
     }
 }

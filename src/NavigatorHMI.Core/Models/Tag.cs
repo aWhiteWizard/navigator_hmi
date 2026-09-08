@@ -73,5 +73,11 @@ namespace NavigatorHMI.Common
         /// 运行时仅 PC 组态语义，FW 透传即可（不做分组逻辑）。</summary>
         [ProtoMember(10)]
         public string Group { get; set; } = "";
+
+        /// <summary>分组显示名（Y-5a：空 Group → 「未分组」——UI 分组视图用；非 ProtoMember 不落盘）。</summary>
+        public string GroupLabel => string.IsNullOrEmpty(Group) ? UngroupedSentinel : Group;
+
+        /// <summary>「未分组」哨兵（Y-5a reviewer 🟡：保留字——真实组名禁用它，防 list-tags 过滤语义分裂；见 <see cref="GroupLabel"/>）。</summary>
+        public const string UngroupedSentinel = "未分组";
     }
 }
