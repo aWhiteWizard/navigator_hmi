@@ -1396,9 +1396,11 @@ namespace NavigatorHMI.Views
                 e.Handled = true;
             }
             // 列头（排序）/滚动条/行上按下 → 不进入框选（保持拖拽/排序/滚动正常）；仅数据区空白按下框选
+            // Y-5a-2 reviewer 🟡1：分组组头（DataContext=CollectionViewGroup）也排除——防组头按下误拉框选/与展开按钮 capture 竞争
             _tagMarqueeStart = (FindDataContext<Tag>(src) is Tag
                              || FindVisualParent<System.Windows.Controls.Primitives.DataGridColumnHeader>(src) != null
-                             || FindVisualParent<System.Windows.Controls.Primitives.ScrollBar>(src) != null)
+                             || FindVisualParent<System.Windows.Controls.Primitives.ScrollBar>(src) != null
+                             || FindDataContext<System.Windows.Data.CollectionViewGroup>(src) != null)
                 ? null
                 : e.GetPosition(TagGrid);
             if (_tagMarqueeStart != null)

@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Windows.Data;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.Input;
 using NavigatorHMI.CommandLayer;
@@ -14,14 +15,18 @@ namespace NavigatorHMI.ViewModels
     /// 变量管理器面板 ViewModel。展示工程全部变量（Tag），支持搜索过滤。
     /// 新建/编辑/删除一律走 CommandService（GUI/CLI/AI 同一入口）。
     /// 删除时由 delete_tag Handler 做引用保护（被控件/报警引用则拒绝）。
+    /// Y-5a（2026-09-10）：按 Tag.Group 分组显示（DataGrid GroupStyle 组头收起展开；未分组归「未分组」——Tag.GroupLabel）。
     /// </summary>
     public class VariableManagerViewModel : INotifyPropertyChanged
     {
         public HMIProject Project { get; }
         public CommandService CommandService { get; }
 
-        /// <summary>过滤后的变量显示集合（随 SearchText 重建）。</summary>
+        /// <summary>过滤后的变量显示集合（随 SearchText 重建；DataGrid 扁平模式 ItemsSource）。</summary>
         public ObservableCollection<Tag> Tags { get; } = new();
+
+        /// <summary>Y-5a：分组视图（Tags 的分组视图——GroupLabel 分组；DataGrid ItemsSource 绑定此 + GroupStyle 实现组头收起展开）。</summary>
+        public ICollectionView TagView => CollectionViewSource.GetDefaultView(Tags);
 
         private string _searchText = "";
 
@@ -64,6 +69,8 @@ namespace NavigatorHMI.ViewModels
 
             // 外部命令（CLI/AI）改动 Tags 后自动同步列表
             CommandService.CommandExecuted += OnCommandExecuted;
+            // Y-5a：分组视图配置（按 Tag.GroupLabel 分组——空组归一「未分组」；分组描述常驻，收起状态由 UI 维护会话）
+            TagView.GroupDescriptions.Add(new PropertyGroupDescription(nameof(Tag.GroupLabel)));
             Refresh();
         }
 

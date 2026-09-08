@@ -1998,7 +1998,7 @@
                                         <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" FontSize="12" VerticalContentAlignment="Center"/>
                                     </DockPanel>
                                     <Grid Grid.Row="2">
-                                        <DataGrid x:Name="TagGrid" ItemsSource="{Binding Tags}" SelectedItem="{Binding SelectedTag}"
+                                        <DataGrid x:Name="TagGrid" ItemsSource="{Binding TagView}" SelectedItem="{Binding SelectedTag}"
                                                   AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" CanUserSortColumns="True"
                                                   HeadersVisibility="Column" IsReadOnly="True" MouseDoubleClick="TagGrid_DoubleClick"
                                                   PreviewMouseLeftButtonDown="TagGrid_PreviewMouseLeftButtonDown" PreviewMouseMove="TagGrid_PreviewMouseMove" PreviewMouseLeftButtonUp="TagGrid_PreviewMouseLeftButtonUp" PreviewKeyDown="TagGrid_KeyDown"
@@ -2007,6 +2007,20 @@
                                                   VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
                                                   ScrollViewer.CanContentScroll="True"
                                                   SizeChanged="TagGrid_SizeChanged">
+                                            <!-- Y-5a：按分组显示（Tag.GroupLabel）——组头行显示组名+计数；默认 GroupItem 容器含展开控件（▾ 点击收起/展开） -->
+                                            <DataGrid.GroupStyle>
+                                                <GroupStyle>
+                                                    <GroupStyle.HeaderTemplate>
+                                                        <DataTemplate>
+                                                            <StackPanel Orientation="Horizontal" Margin="2,0,0,0">
+                                                                <TextBlock FontWeight="Bold" FontSize="12">
+                                                                    <Run Text="组: "/><Run Text="{Binding Name}"/><Run Text="  ("/><Run Text="{Binding ItemCount}"/><Run Text=")"/>
+                                                                </TextBlock>
+                                                            </StackPanel>
+                                                        </DataTemplate>
+                                                    </GroupStyle.HeaderTemplate>
+                                                </GroupStyle>
+                                            </DataGrid.GroupStyle>
                                             <DataGrid.RowStyle>
                                                 <!-- 强制选中样式：不依赖 DataGrid 激活状态（未激活时默认用 InactiveSelectionHighlightBrush 浅灰≈背景，
                                                      用户反馈框选后高亮不可见；显式固定蓝色选中，激活/未激活一致） -->
