@@ -65,17 +65,24 @@ namespace NavigatorHMI.CommandLayer.Handlers
         {
             if (!p.ContainsKey("screen_name")) return ValidationResult.Fail("缺少必填参数: screen_name");
             if (!p.ContainsKey("name") || string.IsNullOrWhiteSpace(p["name"]?.ToString())) return ValidationResult.Fail("缺少必填参数: name");
+            // Y-6（2026-09-10，X 循环 inbox NEED_RULE 并入）：作业点名禁 , | 分隔符——FW 注入串按 ,| 分隔的解析防点名碰撞
+            var pointName = p["name"]!.ToString()!;
+            if (pointName.Contains(',') || pointName.Contains('|'))
+                return ValidationResult.Fail("作业点名不能包含 , 或 | 分隔符（运行时注入串分隔——重名/非法名同风格立即提示）");
             return ValidationResult.Ok;
         }
         public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
         {
             var (wm, err) = WorldMapCommandCommon.FindWorldMap(project, p);
             if (err != null) return err;
+            var pointName = p["name"]!.ToString()!;
+            if (pointName.Contains(',') || pointName.Contains('|'))
+                return CommandResult.Fail("INVALID_PARAM", "作业点名不能包含 , 或 | 分隔符（运行时注入串分隔——防点名碰撞）");
             var (fixedPoint, boundTag, geoErr) = WorldMapCommandCommon.ResolveGeo(p);
             if (geoErr != null) return geoErr;
             var tagErr = WorldMapCommandCommon.ValidateBoundTag(project, boundTag);
             if (tagErr != null) return tagErr;
-            wm!.WorkPoints.Add(new MapWorkPoint { Name = p["name"]!.ToString()!, FixedPoint = fixedPoint, BoundTag = boundTag });
+            wm!.WorkPoints.Add(new MapWorkPoint { Name = pointName, FixedPoint = fixedPoint, BoundTag = boundTag });
             return CommandResult.Ok(new Dictionary<string, object?> { ["count"] = wm.WorkPoints.Count });
         }
     }

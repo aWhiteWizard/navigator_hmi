@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
@@ -2222,8 +2222,28 @@ namespace NavigatorHMI.ViewModels
         public string Name
         {
             get => Model.Name;
-            set { var v = value?.Trim() ?? ""; if (Model.Name != v) { _beforeModify?.Invoke(); Model.Name = v; _onChanged?.Invoke(); OnPropertyChanged(); } }
+            set
+            {
+                var v = value?.Trim() ?? "";
+                // Y-6（2026-09-10，X 循环 NEED_RULE 并入）：作业点名禁 , | 分隔符（FW 注入串按 ,| 分隔——防点名碰撞；
+                // 含则标 NameError 不落库——对齐重名「标错不拦截」风格）
+                if (v.Contains(',') || v.Contains('|'))
+                {
+                    NameError = "作业点名不能包含 , 或 | 分隔符";
+                    return;   // 不落库（模型保持旧值；名称框停留——DataGrid 提交回滚）
+                }
+                NameError = "";
+                if (Model.Name != v) { _beforeModify?.Invoke(); Model.Name = v; _onChanged?.Invoke(); OnPropertyChanged(); }
+            }
         }
+        /// <summary>Y-6：作业点名非法标记（含 , | 分隔符——气泡/ToolTip 提示；空 = 合法）。</summary>
+        private string _nameError = "";
+        public string NameError
+        {
+            get => _nameError;
+            set { if (_nameError != value) { _nameError = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasNameError)); } }
+        }
+        public bool HasNameError => _nameError.Length > 0;
         /// <summary>V-4a：名称重复标记（续28 B 方案：重名不删行不拦截，名称框标粉红 + ToolTip 提示；改名后自动恢复）。</summary>
         private bool _isDuplicateName;
         public bool IsDuplicateName

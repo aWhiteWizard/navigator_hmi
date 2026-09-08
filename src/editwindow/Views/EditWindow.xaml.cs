@@ -2532,6 +2532,14 @@ namespace NavigatorHMI.Views
         {
             if (e.EditAction != DataGridEditAction.Commit) return;
             if (e.Row.Item is not WorkPointRowVM row) return;
+            // Y-6 reviewer 🟡3：新行含分隔符名（Name 拒写但坐标可能已落）→ 阻止挂入（防无名作业点——GUI 与命令层对称）
+            if (row.HasNameError)
+            {
+                if (e.Row.IsNewItem)
+                    row.Model.Name = "";   // 分隔符名未落库；清名防「坐标已写 + 名空」误挂——保持行待改
+                ShowErrorBubble(FindDataGridCell(e.Row, 0), row.NameError);
+                return;
+            }
             if (e.Row.IsNewItem) _propertyViewModel.CommitNewWorkPointRow(row);
             // W-3a：名称重名提交 → 名称列旁立即弹气泡（IsDuplicateName 由 CellEditEnding UpdateSource 更新；悬停 ToolTip 保留）
             if (row.IsDuplicateName) ShowErrorBubble(FindDataGridCell(e.Row, 0), "作业点名称重复，请改名");
@@ -2678,7 +2686,8 @@ namespace NavigatorHMI.Views
                 _geoHintTextBox = tb;
                 _geoHintHandler = (_, _) =>
                 {
-                    if (row.IsDuplicateName) ShowErrorBubble(FindDataGridCell(e.Row, 0), "作业点名称重复，请改名");
+                    if (row.HasNameError) ShowErrorBubble(FindDataGridCell(e.Row, 0), row.NameError);   // Y-6：分隔符实时弹泡
+                    else if (row.IsDuplicateName) ShowErrorBubble(FindDataGridCell(e.Row, 0), "作业点名称重复，请改名");
                     else HideErrorBubble();
                 };
                 tb.TextChanged += _geoHintHandler;

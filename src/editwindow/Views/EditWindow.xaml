@@ -248,6 +248,11 @@
                                             <Setter Property="Background" Value="LightPink"/>
                                             <Setter Property="ToolTip" Value="作业点名称重复，请改名"/>
                                         </DataTrigger>
+                                        <!-- Y-6：名称含 , | 分隔符 → 粉红 + 提示（不落库） -->
+                                        <DataTrigger Binding="{Binding HasNameError}" Value="True">
+                                            <Setter Property="Background" Value="LightPink"/>
+                                            <Setter Property="ToolTip" Value="{Binding NameError}"/>
+                                        </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
                             </DataGridTextColumn.CellStyle>

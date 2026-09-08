@@ -425,11 +425,40 @@ namespace NavigatorHMI.CommandLayer.Handlers
             // 引用检查：报警 TagName
             var alarmRefs = project.Alarms.Where(a => a.TagName == name)
                 .Select(a => a.Name).ToList();
-            if (widgetRefs.Count > 0 || alarmRefs.Count > 0)
+            // Y-6（2026-09-10）：MQTT 映射引用（MqttBinding.TagName——三层映射绑定变量被删 → 拒绝）
+            var mqttRefs = project.MqttSettings?.Bindings
+                .Where(b => b.TagName == name)
+                .Select(b => $"MQTT:{b.TopicName}↔{b.FieldName}").ToList() ?? new List<string>();
+            // Y-6：事件动作参数引用（tag_write/条件表达式等动作 parameters["tag_name"] == name——画面控件事件 + 世界地图事件）
+            var eventRefs = new List<string>();
+            foreach (var screen in project.Screens)
+                foreach (var w in screen.Widgets)
+                    foreach (var ev in w.Events)
+                        foreach (var act in ev.Actions)
+                            if (act.Parameters.TryGetValue("tag_name", out var tn) && tn == name)
+                                eventRefs.Add($"{screen.Name}/{w.ObjectName}.{ev.Type}");
+            if (project.WorldMap != null)
+                foreach (var ev in project.WorldMap.Events)
+                    foreach (var act in ev.Actions)
+                        if (act.Parameters.TryGetValue("tag_name", out var tn) && tn == name)
+                            eventRefs.Add($"世界地图.{ev.Type}");
+            // Y-6 reviewer 🟡1：世界地图作业点/范围点绑定 GPS 变量（BoundTag）→ 删除拒绝（防地图点悬空失联）
+            var mapRefs = new List<string>();
+            if (project.WorldMap != null)
+            {
+                foreach (var wp in project.WorldMap.WorkPoints.Where(w => w.BoundTag == name))
+                    mapRefs.Add($"作业点:{wp.Name}");
+                int rpCount = project.WorldMap.WorkRangePoints.Count(w => w.BoundTag == name);
+                if (rpCount > 0) mapRefs.Add($"作业范围点×{rpCount}");
+            }
+            if (widgetRefs.Count > 0 || alarmRefs.Count > 0 || mqttRefs.Count > 0 || eventRefs.Count > 0 || mapRefs.Count > 0)
             {
                 var parts = new List<string>();
                 if (widgetRefs.Count > 0) parts.Add($"控件: {string.Join(", ", widgetRefs)}");
                 if (alarmRefs.Count > 0) parts.Add($"报警: {string.Join(", ", alarmRefs)}");
+                if (mqttRefs.Count > 0) parts.Add($"MQTT 映射: {string.Join(", ", mqttRefs)}");
+                if (eventRefs.Count > 0) parts.Add($"事件动作: {string.Join(", ", eventRefs)}");
+                if (mapRefs.Count > 0) parts.Add($"地图绑定: {string.Join(", ", mapRefs)}");
                 return CommandResult.Fail("IN_USE", $"变量 \"{name}\" 仍被引用（{string.Join("；", parts)}），请先解除绑定");
             }
 
@@ -553,6 +582,29 @@ namespace NavigatorHMI.CommandLayer.Handlers
                         w.BoundTag = newName;
                 foreach (var alarm in project.Alarms.Where(a => a.TagName == name))
                     alarm.TagName = newName;
+                // Y-6（2026-09-10）：MQTT 映射绑定 TagName 级联 + 事件动作参数 tag_name 级联
+                if (project.MqttSettings != null)
+                    foreach (var b in project.MqttSettings.Bindings.Where(b => b.TagName == name))
+                        b.TagName = newName;
+                foreach (var screen in project.Screens)
+                    foreach (var w in screen.Widgets)
+                        foreach (var ev in w.Events)
+                            foreach (var act in ev.Actions)
+                                if (act.Parameters.TryGetValue("tag_name", out var tn) && tn == name)
+                                    act.Parameters["tag_name"] = newName;
+                if (project.WorldMap != null)
+                    foreach (var ev in project.WorldMap.Events)
+                        foreach (var act in ev.Actions)
+                            if (act.Parameters.TryGetValue("tag_name", out var tn) && tn == name)
+                                act.Parameters["tag_name"] = newName;
+                // Y-6 reviewer 🟡1：世界地图作业点/范围点 BoundTag 级联（防改名后地图点悬空）
+                if (project.WorldMap != null)
+                {
+                    foreach (var wp in project.WorldMap.WorkPoints.Where(w => w.BoundTag == name))
+                        wp.BoundTag = newName;
+                    foreach (var rp in project.WorldMap.WorkRangePoints.Where(r => r.BoundTag == name))
+                        rp.BoundTag = newName;
+                }
                 tag.Name = newName;
             }
             if (p.TryGetValue("data_type", out var dt2) && dt2 != null && !string.IsNullOrWhiteSpace(dt2.ToString()))
