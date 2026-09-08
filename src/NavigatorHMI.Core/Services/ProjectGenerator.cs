@@ -186,6 +186,23 @@ namespace NavigatorHMI.Common
                                 + $"超过单文件防呆上限（{DeploymentPackageBuilder.MaxUploadBytes / (1024 * 1024)}MB，实际 {(vlen + 1024 * 1024 - 1) / (1024 * 1024)}MB）——请压缩视频或改用 RTSP 流");
                     }
 
+            // 3g. 校验（X-1，2026-09-08 用户规格——GPS CoordinatePicker 前置；按执行序：先范围规则后 GPS 规则）：
+            //   ① 设备端含世界地图的画面 ⇒ 划定作业范围——「有地图必须划作业范围（作业范围生成地图底图）」
+            //   ② GPS 变量 ⇔ 工程含世界地图画面 + 设备端包含 + 划定作业范围（≥3 点）——「无地图工程不能配置 GPS 变量」
+            var worldMapScreen = project.Screens.FirstOrDefault(s => s.Type == ScreenType.WorldMap);
+            var wm = project.WorldMap;
+            int wmRangeCount = wm?.WorkRangePoints.Count ?? 0;
+            if (worldMapScreen != null && project.IncludeWorldMapOnDevice && wmRangeCount < 3)
+                result.Errors.Add("工程含世界地图画面，需先划定作业范围（至少 3 个范围点——作业范围确定地图底图与显示区域）");
+            var gpsTags = project.Tags.Where(t => t.DataType == TagDataType.GPS).ToList();
+            if (gpsTags.Count > 0)
+            {
+                bool mapReady = worldMapScreen != null && project.IncludeWorldMapOnDevice && wmRangeCount >= 3;
+                if (!mapReady)
+                    foreach (var gt in gpsTags)
+                        result.Errors.Add($"GPS 变量 \"{gt.Name}\" 需工程含世界地图底图（勾选「设备端显示世界地图画面」并划定作业范围 ≥3 点）——无地图工程不能配置 GPS 变量");
+            }
+
             if (result.HasErrors)
                 return result;
 
