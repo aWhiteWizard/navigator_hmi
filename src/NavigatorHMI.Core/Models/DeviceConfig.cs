@@ -31,7 +31,10 @@ namespace NavigatorHMI.Common
         /// 连接信息，JSON 字符串格式。
         /// ModbusRTU: {"port":"/dev/ttyS1","baud":9600,"slaveId":1}
         /// ModbusTCP: {"ip":"192.168.1.50","port":502,"slaveId":1}
-        /// MQTT:      {"broker":"mqtt://192.168.1.1:1883","clientId":"hmi-01"}
+        /// MQTT (Y-3a 2026-09-10 全字段): {"broker":"192.168.1.1","port":1883,"version":0,"clientId":"hmi-01",
+        ///   "username":"","password":"<加密包>","keepAlive":60,"enableTls":false,"statusTag":""}
+        ///   —— broker 不含协议前缀；password 存 DPAPI 加密包（绝不明文进 .navihmi）；
+        ///   version 0=3.1.1/1=5.0；缺省字段取默认（port 1883/keepAlive 60）
         /// </summary>
         [ProtoMember(3)]
         public string ConnectionInfo { get; set; } = "";

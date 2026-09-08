@@ -133,6 +133,7 @@ namespace NavigatorHMI.CommandLayer
                 ["configure_device"] = new ConfigureDeviceHandler(),
                 ["update_device"]    = new UpdateDeviceHandler(),
                 ["delete_device"]    = new DeleteDeviceHandler(),
+                ["list_devices"]     = new ListDevicesHandler(),   // Y-3a：设备清单 CLI 查询口（对齐 GUI 通讯表格）
                 ["connect"]          = new ConnectHandler(),
                 ["disconnect"]       = new DisconnectHandler(),   // K-2：断开设备连接（幂等）
                 ["scan_devices"]     = new ScanDevicesHandler(),

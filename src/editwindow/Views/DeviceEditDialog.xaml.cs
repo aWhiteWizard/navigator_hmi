@@ -17,6 +17,13 @@ namespace NavigatorHMI.Views
         private readonly DeviceConfig? _existing;
         private readonly HMIProject _project;
 
+        /// <summary>编辑模式原存储密码（dpapi: 密文）——用户未改动密码框（占位符）时原样保留；改动则用明文加密覆盖。</summary>
+        private string _mqttStoredPassword = "";
+
+        /// <summary>密码框是否被用户改动（reviewer 🟡：占位符 "******" 判等会误伤真实密码恰为 6 星号——
+        /// 改 PasswordChanged 置位标志，保存时按此判断用明文加密覆盖或保留原密文）。</summary>
+        private bool _mqttPasswordTouched;
+
         /// <summary>用户确认后输出的配置（编辑模式下为字段副本，非原对象）。</summary>
         public DeviceConfig Result { get; private set; } = new();
 
@@ -53,6 +60,10 @@ namespace NavigatorHMI.Views
             if (!Enum.TryParse<ProtocolType>(item.Content.ToString(), out var pt)) return;
             ShowProtocolPanel(pt);
         }
+
+        /// <summary>密码框改动标记（reviewer 🟡：占位符判等会误伤真实 6 星号密码——PasswordChanged 置位）。</summary>
+        private void MqttPasswordBox_PasswordChanged(object sender, RoutedEventArgs e)
+            => _mqttPasswordTouched = true;
 
         private void ShowProtocolPanel(ProtocolType pt)
         {
@@ -92,8 +103,41 @@ namespace NavigatorHMI.Views
                 }
                 else if (existing.Protocol == ProtocolType.MQTT)
                 {
-                    if (root.TryGetProperty("broker", out var br) && br.ValueKind == JsonValueKind.String) MqttBrokerBox.Text = br.GetString() ?? MqttBrokerBox.Text;
+                    // Y-3a：MQTT 全字段回填（broker/port/version/clientId/username/password/keepAlive/enableTls/statusTag）
+                    if (root.TryGetProperty("broker", out var br) && br.ValueKind == JsonValueKind.String)
+                    {
+                        var broker = br.GetString() ?? "";
+                        // Y-3a reviewer 🟡2（2026-09-10）：旧数据 broker 含 mqtt:// 前缀（Y-3a 前允许）——
+                        // 回填时剥一次前缀迁移（剥后校验放行，保存不再被拒；仅剥已知前缀避免误伤）
+                        foreach (var prefix in new[] { "mqtt://", "tcp://" })
+                            if (broker.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                            {
+                                broker = broker[prefix.Length..];
+                                break;
+                            }
+                        MqttBrokerBox.Text = broker;
+                    }
+                    if (root.TryGetProperty("port", out var mp) && mp.ValueKind == JsonValueKind.Number) MqttPortBox.Text = mp.GetInt32().ToString();
+                    if (root.TryGetProperty("version", out var mv) && mv.ValueKind == JsonValueKind.Number)
+                    {
+                        var ver = mv.GetInt32().ToString();
+                        foreach (System.Windows.Controls.ComboBoxItem item in MqttVersionBox.Items)
+                            if (item.Tag?.ToString() == ver) { MqttVersionBox.SelectedItem = item; break; }
+                    }
                     if (root.TryGetProperty("clientId", out var c) && c.ValueKind == JsonValueKind.String) MqttClientIdBox.Text = c.GetString() ?? MqttClientIdBox.Text;
+                    if (root.TryGetProperty("username", out var u) && u.ValueKind == JsonValueKind.String) MqttUsernameBox.Text = u.GetString() ?? "";
+                    if (root.TryGetProperty("password", out var pw) && pw.ValueKind == JsonValueKind.String)
+                    {
+                        // 密码框不回显密文：已加密显示占位（编辑不动则保留原密文），改动后明文覆盖
+                        var stored = pw.GetString() ?? "";
+                        _mqttStoredPassword = stored;
+                        _mqttPasswordTouched = false;   // 回填不视为用户改动（先于 PasswordBox.Password 赋值——事件会置 true，这里先复位）
+                        MqttPasswordBox.Password = CredentialStore.IsEncrypted(stored) ? "******" : stored;
+                        _mqttPasswordTouched = false;   // 赋值触发 PasswordChanged → 复位（回填不算改动）
+                    }
+                    if (root.TryGetProperty("keepAlive", out var ka) && ka.ValueKind == JsonValueKind.Number) MqttKeepAliveBox.Text = ka.GetInt32().ToString();
+                    if (root.TryGetProperty("enableTls", out var t) && t.ValueKind == JsonValueKind.True) MqttTlsBox.IsChecked = true;
+                    if (root.TryGetProperty("statusTag", out var st) && st.ValueKind == JsonValueKind.String) MqttStatusTagBox.Text = st.GetString() ?? "";
                 }
             }
             catch (Exception ex) when (ex is JsonException or InvalidOperationException or FormatException)
@@ -127,6 +171,22 @@ namespace NavigatorHMI.Views
                 if (!int.TryParse(TcpSlaveBox.Text.Trim(), out var s) || s < 1 || s > 247)
                 { ShowError("从站号必须是 1-247 的整数"); return; }
             }
+            else if (pt == ProtocolType.MQTT)
+            {
+                // Y-3a：MQTT 全字段编辑时校验（与命令层 DeviceConnectionInfoValidator 同规则，先于入库双保险）
+                var broker = MqttBrokerBox.Text.Trim();
+                if (broker.Length == 0) { ShowError("Broker 不能为空（主机/IP，不含协议前缀）"); return; }
+                if (broker.StartsWith("mqtt://", StringComparison.OrdinalIgnoreCase)
+                 || broker.StartsWith("tcp://", StringComparison.OrdinalIgnoreCase))
+                { ShowError("Broker 不应带协议前缀（如 mqtt://），请只填主机/IP"); return; }
+                if (broker.Contains('/')) { ShowError("Broker 不应含路径（协议前缀会带 / 路径，请去除）"); return; }   // Y-3a reviewer 🟡：对话框与命令层同规则（防对话框过、命令层拒后编辑丢失）
+                if (!int.TryParse(MqttPortBox.Text.Trim(), out var mp) || mp < 1 || mp > 65535)
+                { ShowError("端口必须是 1-65535 的整数"); return; }
+                var cid = MqttClientIdBox.Text.Trim();
+                if (cid.Length > 64 || cid.Contains(' ')) { ShowError("ClientId 必须 ≤64 字符且不含空格"); return; }
+                if (!int.TryParse(MqttKeepAliveBox.Text.Trim(), out var ka) || ka < 0)
+                { ShowError("keepAlive 必须 ≥0（0 = 禁用心跳）"); return; }
+            }
 
             string json;
             try
@@ -142,9 +202,7 @@ namespace NavigatorHMI.Views
                         ("ip", TcpIpBox.Text.Trim()),
                         ("port", TcpPortBox.Text.Trim()),
                         ("slaveId", TcpSlaveBox.Text.Trim())),
-                    _ => BuildJson(intKeys: Array.Empty<string>(),
-                        ("broker", MqttBrokerBox.Text.Trim()),
-                        ("clientId", MqttClientIdBox.Text.Trim())),
+                    ProtocolType.MQTT => BuildMqttJson(),
                 };
             }
             catch (Exception ex) { ShowError(ex.Message); return; }
@@ -176,6 +234,41 @@ namespace NavigatorHMI.Views
             }
             sb.Append('}');
             return sb.ToString();
+        }
+
+        /// <summary>Y-3a：MQTT 全字段 JSON 拼装（broker/port/version/clientId/username/password/keepAlive/enableTls/statusTag）。
+        /// 密码：用户改动（非占位符）→ 明文 DPAPI 加密；未改动 → 保留原密文（_mqttStoredPassword）；新建设备空密码不落字段。
+        /// 缺省字段省略（FW 兜底默认），仅显式不同才写入。</summary>
+        private string BuildMqttJson()
+        {
+            var parts = new System.Collections.Generic.List<string>();
+            parts.Add($"\"broker\":{JsonSerializer.Serialize(MqttBrokerBox.Text.Trim())}");
+            if (int.TryParse(MqttPortBox.Text.Trim(), out var port) && port != 1883)
+                parts.Add($"\"port\":{port}");
+            if (MqttVersionBox.SelectedItem is System.Windows.Controls.ComboBoxItem vi && vi.Tag?.ToString() == "1")
+                parts.Add($"\"version\":1");
+            var cid = MqttClientIdBox.Text.Trim();
+            if (cid.Length > 0 && cid != "hmi-01") parts.Add($"\"clientId\":{JsonSerializer.Serialize(cid)}");
+            var user = MqttUsernameBox.Text.Trim();
+            if (user.Length > 0) parts.Add($"\"username\":{JsonSerializer.Serialize(user)}");
+            // 密码：改动（PasswordChanged 置位）→ 明文 DPAPI 加密；未动（保留占位符）→ 保留原密文；空 → 不落
+            var typed = MqttPasswordBox.Password;
+            if (_mqttPasswordTouched)
+            {
+                if (typed.Length > 0)
+                    parts.Add($"\"password\":{JsonSerializer.Serialize(CredentialStore.Encrypt(typed))}");
+                // 改动后清空 = 移除密码（不落字段）
+            }
+            else if (CredentialStore.IsEncrypted(_mqttStoredPassword))
+            {
+                parts.Add($"\"password\":{JsonSerializer.Serialize(_mqttStoredPassword)}");
+            }
+            if (int.TryParse(MqttKeepAliveBox.Text.Trim(), out var ka) && ka != 60)
+                parts.Add($"\"keepAlive\":{ka}");
+            if (MqttTlsBox.IsChecked == true) parts.Add($"\"enableTls\":true");
+            var statusTag = MqttStatusTagBox.Text.Trim();
+            if (statusTag.Length > 0) parts.Add($"\"statusTag\":{JsonSerializer.Serialize(statusTag)}");
+            return "{" + string.Join(",", parts) + "}";
         }
 
         private void Cancel_Click(object sender, RoutedEventArgs e) => DialogResult = false;

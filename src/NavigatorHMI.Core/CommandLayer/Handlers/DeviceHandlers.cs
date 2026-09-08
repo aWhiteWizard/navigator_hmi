@@ -39,9 +39,44 @@ namespace NavigatorHMI.CommandLayer.Handlers
                             return "ModbusTCP slaveId 必须是 1-247 的整数";
                         break;
                     case ProtocolType.MQTT:
-                        if (!root.TryGetProperty("broker", out var br) || br.ValueKind != System.Text.Json.JsonValueKind.String)
-                            return "MQTT 必须包含字符串 broker 字段";
+                    {
+                        // Y-3a（2026-09-10）：MQTT 连接全字段校验——broker/port/version/clientId/username/password/keepAlive/enableTls/statusTag
+                        // 可选字段缺省取默认（port 1883/version 0=3.1.1/keepAlive 60），仅校必填与格式
+                        if (!root.TryGetProperty("broker", out var br) || br.ValueKind != System.Text.Json.JsonValueKind.String
+                         || string.IsNullOrWhiteSpace(br.GetString()))
+                            return "MQTT 必须包含非空字符串 broker 字段（主机/IP，不含协议前缀，如 192.168.1.1）";
+                        var broker = br.GetString()!;
+                        if (broker.StartsWith("mqtt://", StringComparison.OrdinalIgnoreCase)
+                         || broker.StartsWith("tcp://", StringComparison.OrdinalIgnoreCase))
+                            return "MQTT broker 不应带协议前缀（如 mqtt://），请只填主机/IP 或域名";
+                        if (broker.Contains('/'))
+                            return "MQTT broker 不应含路径（协议前缀会带 / 路径，请去除）";
+                        if (root.TryGetProperty("port", out var mport) && mport.ValueKind == System.Text.Json.JsonValueKind.Number
+                         && mport.GetInt32() is < 1 or > 65535)
+                            return "MQTT port 必须是 1-65535 的整数";
+                        if (root.TryGetProperty("version", out var ver) && ver.ValueKind == System.Text.Json.JsonValueKind.Number
+                         && ver.GetInt32() is not (0 or 1))
+                            return "MQTT version 必须是 0（3.1.1）或 1（5.0）";
+                        if (root.TryGetProperty("clientId", out var cid) && cid.ValueKind == System.Text.Json.JsonValueKind.String)
+                        {
+                            var clientId = cid.GetString();
+                            if (clientId != null && (clientId.Length > 64 || clientId.Contains(' ')))
+                                return "MQTT clientId 必须 ≤64 字符且不含空格";
+                        }
+                        if (root.TryGetProperty("keepAlive", out var ka) && ka.ValueKind == System.Text.Json.JsonValueKind.Number
+                         && ka.GetInt32() < 0)
+                            return "MQTT keepAlive 必须 ≥0（0 = 禁用心跳）";
+                        if (root.TryGetProperty("enableTls", out var tls)
+                         && tls.ValueKind is not (System.Text.Json.JsonValueKind.True or System.Text.Json.JsonValueKind.False))
+                            return "MQTT enableTls 必须是布尔值";
+                        if (root.TryGetProperty("password", out var pwd) && pwd.ValueKind == System.Text.Json.JsonValueKind.String
+                         && !string.IsNullOrEmpty(pwd.GetString())
+                         && !pwd.GetString()!.StartsWith("dpapi:", StringComparison.Ordinal))
+                            // Y-3a reviewer 🟡1（2026-09-10）：非空 password 必须带 dpapi: 前缀（GUI CredentialStore
+                            // 加密后入库）；CLI/直传明文一律拒绝——绝不明文进工程文件/.navihmi（匿名联调 password 空不受影响）
+                            return "MQTT password 必须为 dpapi: 加密包（明文密码禁止入库——请通过 GUI 设备对话框设置，内部自动加密）";
                         break;
+                    }
                 }
                 return null;
             }
@@ -581,5 +616,65 @@ namespace NavigatorHMI.CommandLayer.Handlers
             project.Devices.Remove(device);
             return CommandResult.Ok(new { device_name = name });
         }
+    }
+
+    /// <summary>列出全部设备（Y-3a 2026-09-10 新增——对齐 GUI 通讯表格，v1.1 设备清单无 CLI 查询口缺口补齐）。
+    /// 输出：name/protocol/连接摘要（MQTT 掩码凭据与敏感字段——绝不明文回显；password 显示为 [已加密]）。</summary>
+    public class ListDevicesHandler : ICommandHandler
+    {
+        public CommandDefinition Definition => new()
+        {
+            Name = "list_devices", Description = "列出全部设备（含连接摘要；MQTT 凭据掩码）",
+            Parameters = new()
+        };
+        public ValidationResult Validate(Dictionary<string, object?> p) => ValidationResult.Ok;
+        public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
+        {
+            var list = project.Devices.Select(d => new
+            {
+                name = d.Name,
+                protocol = d.Protocol.ToString(),
+                summary = Summarize(d),
+            }).ToList();
+            return CommandResult.Ok(new { count = list.Count, devices = list });
+        }
+
+        /// <summary>连接摘要（JSON 解析失败/未知协议回退原始串；MQTT 掩码 password/enableTls 之外的敏感键）。</summary>
+        private static string Summarize(DeviceConfig d)
+        {
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(string.IsNullOrWhiteSpace(d.ConnectionInfo) ? "{}" : d.ConnectionInfo);
+                var root = doc.RootElement;
+                if (root.ValueKind != System.Text.Json.JsonValueKind.Object) return d.ConnectionInfo;
+                switch (d.Protocol)
+                {
+                    case ProtocolType.ModbusRTU:
+                        return $"port={GetStr(root, "port")} baud={GetNum(root, "baud")} slaveId={GetNum(root, "slaveId")}";
+                    case ProtocolType.ModbusTCP:
+                        return $"ip={GetStr(root, "ip")} port={GetNum(root, "port")} slaveId={GetNum(root, "slaveId")}";
+                    case ProtocolType.MQTT:
+                        // Y-3a：掩码凭据——password 只显示状态不显示内容（防 CLI 日志/回显泄露；ASCII 标记防 unicode 转义歧义）
+                        var pwd = root.TryGetProperty("password", out var pw) && pw.ValueKind == System.Text.Json.JsonValueKind.String
+                                  && !string.IsNullOrEmpty(pw.GetString()) ? "[encrypted]" : "";
+                        return $"broker={GetStr(root, "broker")} port={GetNum(root, "port", 1883)} version={GetNum(root, "version", 0)}"
+                               + (string.IsNullOrEmpty(pwd) ? "" : $" password={pwd}");
+                    default:
+                        return d.ConnectionInfo;
+                }
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                return d.ConnectionInfo;   // 非法 JSON：回退原始串（不静默吞——调用方已在上游校验过，此处兜底）
+            }
+        }
+
+        private static string GetStr(System.Text.Json.JsonElement root, string key)
+            => root.TryGetProperty(key, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.String ? v.GetString() ?? "" : "";
+
+        private static string GetNum(System.Text.Json.JsonElement root, string key, int fallback = 0)
+            => root.TryGetProperty(key, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.Number
+               ? v.GetInt32().ToString(System.Globalization.CultureInfo.InvariantCulture)
+               : fallback.ToString(System.Globalization.CultureInfo.InvariantCulture);
     }
 }

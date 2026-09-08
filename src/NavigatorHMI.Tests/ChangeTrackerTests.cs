@@ -20,6 +20,7 @@ namespace NavigatorHMI.Tests
             "connect", "disconnect", "scan_devices", "deploy_project",
             "deploy_firmware", "blink_device", "vnc",
             "current_screen", "list_users",
+            "list_devices",   // Y-3a：查询命令（不修改工程，不触发增量编译）
         };
 
         [Fact]

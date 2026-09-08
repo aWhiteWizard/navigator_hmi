@@ -244,13 +244,15 @@ namespace NavigatorHMI.CommandLayer
                 CliParameterView.Rk("name")));
 
             // ══ 设备 ══
-            Add(Meta("configure-device", "configure_device", "设备命令", "配置设备通信 (--name <name> --protocol <ModbusRTU|ModbusTCP|MQTT> --connection <json>)",
+            Add(Meta("configure-device", "configure_device", "设备命令", "配置设备通信 (--name <name> --protocol <ModbusRTU|ModbusTCP|MQTT> --connection <json>；MQTT JSON 全字段: broker/port/version(0=3.1.1,1=5.0)/clientId/username/password/keepAlive/enableTls/statusTag)",
                 CliParameterView.Rk("name"), CliParameterView.Rk("protocol"), CliParameterView.R("connection", "connection_info")));
             Add(Meta("update-device", "update_device", "设备命令", "更新设备 (--name <name> [--new-name <name>] [--protocol <...>] [--connection <json>])",
                 CliParameterView.Rk("name"),
                 CliParameterView.P("new-name", "new_name"), CliParameterView.Pk("protocol"), CliParameterView.P("connection", "connection_info")));
             Add(Meta("delete-device", "delete_device", "设备命令", "删除设备 (--name <name>)",
                 CliParameterView.Rk("name")));
+            Add(Meta("list-devices", "list_devices", "设备命令", "列出全部设备 (对齐 GUI 通讯表格；每设备含 name/protocol/连接摘要——MQTT 掩码凭据不显示)",
+                Array.Empty<CliParameterView>()));
             Add(Meta("connect", "connect", "设备命令", "连接设备 (--ip <addr> [--model NavigatorHMI-7] [--size-inch 7寸])",
                 CliParameterView.Rk("ip"), CliParameterView.Dk("model", "NavigatorHMI-7"), CliParameterView.D("size-inch", "size_inch", "")));
             Add(Meta("disconnect", "disconnect", "设备命令", "断开设备连接"));
