@@ -4273,8 +4273,8 @@ namespace NavigatorHMI.Views
 
             if (!result.Success)
             {
+                // X 循环 Check（2026-09-10 用户）：编译失败不弹窗——只下方输出窗口显示错误
                 AppendOutput($"[编译] ✗ [{result.ErrorCode}] {result.ErrorMessage}");
-                MessageBox.Show($"[{result.ErrorCode}] {result.ErrorMessage}", "编译失败", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
             var summary = FormatCompileData(result.Data);
