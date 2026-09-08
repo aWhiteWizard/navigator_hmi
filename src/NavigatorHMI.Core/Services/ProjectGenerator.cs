@@ -270,6 +270,7 @@ namespace NavigatorHMI.Common
                 Security = p.Security,
                 DeviceModel = p.DeviceModel,   // 工程目标设备型号写入契约（设备身份由设备自身配置决定，与工程无关——2026-08-30 用户 Check 指正）
                 IncludeWorldMapOnDevice = p.IncludeWorldMapOnDevice,   // P-3：透传（FW 读取可感知工程意图；FW 启动兜底靠 screens 列表本身）
+                MqttSettings = p.MqttSettings,   // Y-2：MQTT 三层映射透传（null = 未配置 → FW 不建连接对象）
             };
         }
 

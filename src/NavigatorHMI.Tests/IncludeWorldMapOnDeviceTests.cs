@@ -23,6 +23,15 @@ namespace NavigatorHMI.Tests
             p.Screens.Add(new Screen { Name = "世界地图", Type = ScreenType.WorldMap });
             p.Screens.Add(new Screen { Name = "全局画面", Type = ScreenType.Template });
             p.Screens.Add(new Screen { Name = "画面A", Type = ScreenType.Custom });
+            if (includeOnDevice)
+            {
+                // X-1 校验（2026-09-08）：设备端包含世界地图 ⇒ 须划定作业范围 ≥3 点——测试工程补足（否则 3g 编译校验拦截，
+                // P-3 测试 helper 未同步 X-1 语义，2026-09-10 Y 循环修复）
+                var wm = new WorldMapConfig();
+                for (int i = 0; i < 4; i++)
+                    wm.WorkRangePoints.Add(new WorkRangePoint());
+                p.WorldMap = wm;
+            }
             return p;
         }
 

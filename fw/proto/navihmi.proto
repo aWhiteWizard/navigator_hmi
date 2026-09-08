@@ -1,4 +1,4 @@
-﻿syntax = "proto3";
+syntax = "proto3";
 package navihmi_pb;   // C++ 生成类命名空间（与运行时模型 navihmi 区分；wire 格式不受 package 影响）
 option optimize_for = LITE_RUNTIME;
 
@@ -177,10 +177,11 @@ message HMIProject {
   repeated UserAccount users = 18;
   repeated UserGroup groups = 19;
   SecuritySettings security = 20;
-  bool enable_vnc = 21;       // 启用 VNC 镜像（eglfs 物理屏照常，额外开 5900 远程显示通道；默认关=零开销）
+  bool enable_vnc = 21;       // 启用 VNC 镜像（eglfs 物理屏照常，额外开远程显示通道；默认关=零开销；端口见 /etc/navigatorhmi/fw-config.json 默认 5900）
   string device_model = 22;   // 工程目标设备型号（PC 端 device-profile 写入；设备身份由设备自身配置决定，与工程无关——2026-08-30 用户 Check 指正）
   bool include_world_map_on_device = 23;   // P-3：设备端是否显示世界地图画面（PC 编译产物按此过滤 WorldMap Screen + world_map 配置；默认 true 兼容旧工程）。
                                           // ⚠️ proto3 bool 无 presence——旧产物缺省为 false；PC 端 IsRequired 恒写 true/false，FW 若消费此 flag 勿以「false=旧产物」判断，须配合 screens 列表是否含 SCREEN_WORLD_MAP 为准（FW 现靠 screens 列表本身，本 flag 仅透传）
+  MqttSettings mqtt_settings = 24;   // Y-2 MQTT 三层映射（④通信批；proto3 缺省=未配置 → FW 不建 MQTT 连接对象）
 }
 
 message Screen {
@@ -307,6 +308,11 @@ message WidgetEvent {
   EventType type = 1;
   string condition = 2;      // 可选触发条件表达式（如 "value > 80"），空 = 无条件触发
   repeated EventAction actions = 3;
+  int32 priority = 4;        // 事件优先级（V-3c 2026-09-06）：0=Normal(默认,零值纪律)/1=High/2=Emergency；
+                             // Low 档因 Normal 默认零值无法低于其表达（v1.1-design 四档与零值纪律内在矛盾——
+                             // 实现取三档语义，Low 名义保留于枚举待 V+1 队列排序时定权重）
+                             // ⚠️ Y-2 补齐（2026-09-10）：8b95036 当时只同步 FW 独立仓 proto + C# DTO，
+                             // PC fw/proto 漏加 priority=4（N+9 教训反向例）——Y 循环首契约修复
 }
 
 message EventAction {
@@ -324,6 +330,7 @@ message Tag {
   string description = 7;
   string base_value = 8;     // 设计态基准值
   string device_name = 9;    // 关联设备名（DeviceConfig.Name；空 = 无）
+  string group = 10;         // Y-5 变量分组（空 = 未分组；运行时仅 PC 组态语义，FW 透传）
 }
 
 message AlarmRule {
@@ -406,4 +413,68 @@ message SecuritySettings {
   int32 password_max_age_days = 6;  // 0=不过期
   int32 failed_login_lockout = 7;   // 0=不锁定
   int32 lock_minutes = 8;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Y-2 MQTT 三层映射（④通信批 B1，2026-09-10 契约先行——与 C# NavihmiDto/Mqtt*.cs 严格对齐）
+// 设计源: v1.1-design §5.4 P0-1（三层 Config→Topic→Binding，proto 一次设计到位）
+//        西门子借鉴: Topic 层挂 QoS/周期/模板/Retain/响应主题；Binding 变量↔字段名
+// 边界: 动态 topic（%0-%9）V1.2 预留（topic 字段保留模板字符串语义）；TLS 本轮不做
+//       （字段预留 enable_tls，恒 false——V1.2 按需补）
+// ═══════════════════════════════════════════════════════════════════
+
+enum MqttVersion {
+  MQTT_V3_1_1 = 0;   // 默认（匿名 1883 本地测试基线）
+  MQTT_V5_0 = 1;
+}
+
+enum MqttTopicDirection {
+  MQTT_DIR_PUBLISH = 0;    // 发布（HMI → Broker）
+  MQTT_DIR_SUBSCRIBE = 1;  // 订阅（Broker → HMI）
+}
+
+enum MqttJsonTemplate {
+  MQTT_TPL_KV = 0;             // 键值对 {"字段名":"值"}
+  MQTT_TPL_KV_TIMESTAMP = 1;   // 键值对 + 时间戳
+}
+
+/// 连接配置（MqttSettings.config；凭据两级加密——password 存编译侧加密包，绝不明文）
+message MqttConfig {
+  string broker = 1;        // broker 主机/IP（不含协议前缀；本地测试 "127.0.0.1"）
+  int32 port = 2;           // 端口（默认 1883）
+  MqttVersion version = 3;  // 协议版本（3.1.1 / 5.0）
+  string client_id = 4;     // 客户端 ID（空 = FW 自动生成）
+  string username = 5;      // 用户名（匿名 = 空）
+  string password = 6;      // 密码加密包（PC 编译侧再加密；FW 端解密使用；绝不明文进 .navihmi）
+  int32 keep_alive_sec = 7; // keepAlive 心跳（秒，默认 60）
+  bool enable_tls = 8;      // TLS 开关（本轮恒 false——V1.2 按需补；proto 预留）
+  string status_tag = 9;    // 连接状态回写变量名（4 态/错误码；空 = 不回写）
+}
+
+/// 主题配置（发布/订阅分离维护：publish 禁 +/#、≤512；subscribe 合法 wildcard、同父节点禁重复）
+message MqttTopic {
+  string name = 1;              // 主题配置名（工程内唯一标识，Binding 引用锚；如 "泵站状态"）
+  MqttTopicDirection direction = 2;
+  string topic = 3;             // topic 路径（发布禁 +/#、≤512；订阅允许通配符 +/# 但同父节点禁重复）
+  int32 qos = 4;                // QoS 0/1/2
+  bool retain = 5;              // 保留消息（发布侧）
+  int32 publish_interval_ms = 6;   // 周期发布间隔（ms；0 = 不周期，仅按需——事件驱动为主）
+  MqttJsonTemplate json_template = 7;  // JSON 模板（KV / 带时间戳；模板枚举两端同步）
+  string response_topic = 8;    // 响应主题（请求-响应模式用；空 = 无）
+}
+
+/// 变量↔字段绑定（三层映射最底层：tag_name 引用 Tag.name，field_name = JSON 字段名）
+message MqttBinding {
+  string topic_name = 1;    // 所属 MqttTopic.name（发布/订阅方向由 topic 决定）
+  string tag_name = 2;      // 变量名（Tag.Name；订阅 = 写入目标，发布 = 数据源）
+  string field_name = 3;    // JSON 字段名
+}
+
+/// 工程级 MQTT 三层映射根（HMIProject 24；缺省 = 未配置 MQTT）
+message MqttSettings {
+  bool enable_mqtt = 1;        // EnableMqtt 总开关（禁用：PC 灰显、FW 不建连接对象）
+  int32 schema_version = 2;    // JSON 模板 schema 版本号（PC/设备共用——联调硬约束，不匹配告警）
+  MqttConfig config = 3;       // 连接配置（单 broker）
+  repeated MqttTopic topics = 4;    // 主题组（发布/订阅分离）
+  repeated MqttBinding bindings = 5; // 变量↔字段绑定表
 }

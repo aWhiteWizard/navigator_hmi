@@ -166,6 +166,20 @@ namespace NavigatorHMI.Common
         }
 
         // ═══════════════════════════════════════════
+        // Y-2 MQTT 三层映射（④通信批；ProtoMember 24——与 DTO/proto 字段号一致）
+        // ═══════════════════════════════════════════
+
+        private MqttSettings? _mqttSettings;
+
+        /// <summary>MQTT 三层映射配置（null = 未配置 MQTT——FW 不建连接对象；项目树「MQTT 设置」根节点读写）。</summary>
+        [ProtoMember(24)]
+        public MqttSettings? MqttSettings
+        {
+            get => _mqttSettings;
+            set { if (!ReferenceEquals(_mqttSettings, value)) { _mqttSettings = value; OnPropertyChanged(); MarkDirty(); } }
+        }
+
+        // ═══════════════════════════════════════════
         // v2.0 新增字段 (ProtoMember 9+)
         // ═══════════════════════════════════════════
 

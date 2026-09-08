@@ -68,5 +68,10 @@ namespace NavigatorHMI.Common
         /// <summary>W1 所属设备名（通信设备/控制器——RobotList BoundDevice 两态过滤用；空=内部变量）。</summary>
         [ProtoMember(9)]
         public string DeviceName { get; set; } = "";
+
+        /// <summary>Y-5 变量分组（2026-09-10 ④通信批）：空 = 未分组；变量管理器按此分组收起展开（UI 会话状态不落盘）。
+        /// 运行时仅 PC 组态语义，FW 透传即可（不做分组逻辑）。</summary>
+        [ProtoMember(10)]
+        public string Group { get; set; } = "";
     }
 }
