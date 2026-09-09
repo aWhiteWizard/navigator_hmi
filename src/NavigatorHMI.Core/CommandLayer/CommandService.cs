@@ -97,9 +97,12 @@ namespace NavigatorHMI.CommandLayer
                 ["add_work_range_point"] = new AddWorkRangePointHandler(),
                 ["clear_work_range"]    = new ClearWorkRangeHandler(),
                 ["update_world_map"]    = new UpdateWorldMapHandler(),
-                // ── MQTT 三层映射（Y-3b 2026-09-10 ④通信批；EnableMqtt 开关/Topic 配置/Binding 绑定）──
+                // ── MQTT 多连接管理器（Y-3b 单连接 2026-09-10 + Z 循环多连接重构 2026-09-11：
+                //    连接 CRUD（mqtt_add/delete/update_connection）+ 映射命令带 connection_name；mqtt_set_device 废弃删除）──
                 ["mqtt_set_enabled"]    = new MqttSetEnabledHandler(),
-                ["mqtt_set_device"]     = new MqttSetDeviceHandler(),   // Y Check 裁决（2026-09-11）：选定 MQTT 连接设备（通讯页建后引用）
+                ["mqtt_add_connection"] = new MqttAddConnectionHandler(),
+                ["mqtt_update_connection"] = new MqttUpdateConnectionHandler(),
+                ["mqtt_delete_connection"] = new MqttDeleteConnectionHandler(),
                 ["mqtt_add_topic"]      = new MqttAddTopicHandler(),
                 ["mqtt_update_topic"]   = new MqttUpdateTopicHandler(),
                 ["mqtt_delete_topic"]   = new MqttDeleteTopicHandler(),

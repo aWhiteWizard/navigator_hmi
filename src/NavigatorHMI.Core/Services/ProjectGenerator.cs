@@ -203,31 +203,31 @@ namespace NavigatorHMI.Common
                         result.Errors.Add($"GPS 变量 \"{gt.Name}\" 需工程含世界地图底图（勾选「设备端显示世界地图画面」并划定作业范围 ≥3 点）——无地图工程不能配置 GPS 变量");
             }
 
-            // 3h. 校验（Y-3b 2026-09-10 ④通信批 MQTT——v1.1-design §5.4 编译时校验：引用对象存在/状态 tag 存在/映射引用一致）
+            // 3h. 校验（Y-3b 2026-09-10 + Z 循环多连接 2026-09-11：连接级——每连接 broker/Binding 引用/StatusTag；
+            //   旧单份 DeviceName 语义废弃（Z-4 迁移归 Connections[0]），本校验不再查设备）
             var mqtt = project.MqttSettings;
             if (mqtt != null && mqtt.EnableMqtt)
             {
-                // ① EnableMqtt 开启须选定 MQTT 设备（Y Check 裁决 2026-09-11：设备在通讯配置创建后，MQTT 设置页下拉选定
-                //   MqttSettings.DeviceName——连接参数真源 = 该 DeviceConfig.connection_info，防 FW 无连接可建）
-                var dev = string.IsNullOrWhiteSpace(mqtt.DeviceName)
-                    ? null
-                    : project.Devices.FirstOrDefault(d => d.Name == mqtt.DeviceName && d.Protocol == ProtocolType.MQTT);
-                if (dev == null)
-                    result.Errors.Add(string.IsNullOrWhiteSpace(mqtt.DeviceName)
-                        ? "MQTT 总开关已启用，但未选定 MQTT 设备——请先在「通讯配置」创建 MQTT 设备，再到 MQTT 设置页下拉选择"
-                        : $"MQTT 选定的设备 \"{mqtt.DeviceName}\" 不存在或协议非 MQTT——请在通讯配置中修正或重新选择");
-                // ② Binding 引用对象存在：TopicName 须在 Topics、TagName 须在 Tags（防悬空映射静默失效）
-                foreach (var b in mqtt.Bindings)
+                if (mqtt.Connections.Count == 0)
+                    result.Errors.Add("MQTT 总开关已启用，但未配置任何连接——请在 MQTT 根节点「＋新建连接」创建（连接页填 broker 地址）");
+                foreach (var c in mqtt.Connections)
                 {
-                    if (!mqtt.Topics.Any(t => t.Name == b.TopicName))
-                        result.Errors.Add($"MQTT 绑定 {b.TagName}↔{b.FieldName} 引用的主题配置 \"{b.TopicName}\" 不存在");
-                    if (!project.Tags.Any(t => t.Name == b.TagName))
-                        result.Errors.Add($"MQTT 绑定 {b.TagName}↔{b.FieldName} 引用的变量 \"{b.TagName}\" 不存在");
+                    // 连接参数编译级兜底（命令层已校验格式——此处防绕过：broker 为空即不可建连接）
+                    if (string.IsNullOrWhiteSpace(c.Config?.Broker))
+                        result.Errors.Add($"MQTT 连接 \"{c.Name}\" 未填写 broker 地址（连接页连接参数——主机/IP 不含协议前缀）");
+                    // Binding 引用对象存在：TopicName 须在本连接 Topics、TagName 须在 Tags（防悬空映射静默失效）
+                    foreach (var b in c.Bindings)
+                    {
+                        if (!c.Topics.Any(t => t.Name == b.TopicName))
+                            result.Errors.Add($"MQTT 连接 \"{c.Name}\" 绑定 {b.TagName}↔{b.FieldName} 引用的主题配置 \"{b.TopicName}\" 不存在");
+                        if (!project.Tags.Any(t => t.Name == b.TagName))
+                            result.Errors.Add($"MQTT 连接 \"{c.Name}\" 绑定 {b.TagName}↔{b.FieldName} 引用的变量 \"{b.TagName}\" 不存在");
+                    }
+                    // StatusTag 引用存在（该连接状态回写变量）
+                    var statusTag = c.Config?.StatusTag;
+                    if (!string.IsNullOrWhiteSpace(statusTag) && !project.Tags.Any(t => t.Name == statusTag))
+                        result.Errors.Add($"MQTT 连接 \"{c.Name}\" 的 StatusTag \"{statusTag}\" 变量不存在（请在变量管理器创建或清空状态回写设置）");
                 }
-                // ③ StatusTag 引用存在（连接状态回写变量）
-                var statusTag = mqtt.Config?.StatusTag;
-                if (!string.IsNullOrWhiteSpace(statusTag) && !project.Tags.Any(t => t.Name == statusTag))
-                    result.Errors.Add($"MQTT StatusTag \"{statusTag}\" 变量不存在（请在变量管理器创建或清空状态回写设置）");
             }
 
             if (result.HasErrors)
@@ -297,7 +297,9 @@ namespace NavigatorHMI.Common
                 Security = p.Security,
                 DeviceModel = p.DeviceModel,   // 工程目标设备型号写入契约（设备身份由设备自身配置决定，与工程无关——2026-08-30 用户 Check 指正）
                 IncludeWorldMapOnDevice = p.IncludeWorldMapOnDevice,   // P-3：透传（FW 读取可感知工程意图；FW 启动兜底靠 screens 列表本身）
-                MqttSettings = p.MqttSettings,   // Y-2：MQTT 三层映射透传（null = 未配置 → FW 不建连接对象）
+                MqttSettings = p.MqttSettings != null && p.MqttSettings.EnableMqtt ? p.MqttSettings : null,
+                // Y-2/Z 循环：EnableMqtt=false 或未配置 → 编译 Nullify（FW 不建任何连接对象——设计②总开关禁用语义；
+                //   PC 编辑态数据保留在 p.MqttSettings，仅产物空化）
             };
         }
 

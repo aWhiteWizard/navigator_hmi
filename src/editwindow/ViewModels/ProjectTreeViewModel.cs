@@ -223,7 +223,8 @@ namespace NavigatorHMI.ViewModels
         }
     }
 
-    /// <summary>「通信变量」根节点：展开显示「变量」「通讯」子节点，双击子节点在画布位置打开对应 Tab。</summary>
+    /// <summary>「通信变量」根节点：展开显示「变量」「通讯」子节点，双击子节点在画布位置打开对应 Tab。
+    /// Z 循环（2026-09-11）：MQTT 移出为独立根节点（MqttRootNode）——通讯页只配 Modbus。</summary>
     public class CommunicationRootNode : ProjectTreeViewModel
     {
         public CommunicationRootNode()
@@ -231,8 +232,7 @@ namespace NavigatorHMI.ViewModels
             Name = "通信变量";
             Children.Add(new VariableManagerNode(this));
             Children.Add(new DeviceConfigNode(this));
-            Children.Add(new MqttSettingsNode(this));   // Y Check 裁决（2026-09-11）：MQTT 设置移入本根（原独立 MqttRootNode）
-            // W3：报警配置移出为独立根节点（AlarmRootNode）
+            // W3：报警配置移出为独立根节点（AlarmRootNode）；MQTT 移出为独立根（Z 循环 MqttRootNode）
         }
 
         /// <summary>「变量」子节点被选中时触发（上层打开变量管理器 Tab）。</summary>
@@ -241,17 +241,11 @@ namespace NavigatorHMI.ViewModels
         /// <summary>「通讯」子节点被选中时触发（上层打开通讯配置 Tab）。</summary>
         public event Action? OnDeviceConfigSelected;
 
-        /// <summary>「MQTT 设置」子节点被选中时触发（Y Check 2026-09-11：上层打开 MQTT 三层映射 Tab）。</summary>
-        public event Action? OnMqttSettingsSelected;
-
         /// <summary>供子节点调用的内部入口。</summary>
         internal void NotifyVariableManagerSelected() => OnVariableManagerSelected?.Invoke();
 
         /// <summary>供子节点调用的内部入口。</summary>
         internal void NotifyDeviceConfigSelected() => OnDeviceConfigSelected?.Invoke();
-
-        /// <summary>供子节点调用的内部入口。</summary>
-        internal void NotifyMqttSettingsSelected() => OnMqttSettingsSelected?.Invoke();
 
     }
 
@@ -506,18 +500,85 @@ namespace NavigatorHMI.ViewModels
         }
     }
 
-    /// <summary>「MQTT 设置」叶子：打开 MQTT 三层映射配置页（Config 选定设备 / Topic 发布订阅 / Binding 变量↔字段）。
-    /// Y Check 裁决（2026-09-11）：MQTT 入口移入「通信变量」根作第三子节点（变量/通讯/MQTT 设置），
-    /// 删除独立 MqttRootNode 根——通讯相关配置集中一个根（用户操作逻辑）；MqttSettingsNode 接收 CommunicationRootNode 父
-    /// （同 VariableManagerNode/DeviceConfigNode 模式）；连接参数真源 = DeviceConfig MQTT 设备（Y-3a 裁决不变）。</summary>
-    public class MqttSettingsNode : ProjectTreeViewModel
+    // ═══════════════════════════════════════════
+    // Z 循环 MQTT 多连接管理器独立根（2026-09-11 重构——MQTT 从通信变量拿出；
+    // 树结构：MQTT 根 → 连接管理(总览) / ＋新建连接 / 每连接叶子（名含 broker:port 摘要））
+    // ═══════════════════════════════════════════
+
+    /// <summary>「MQTT」独立根节点（与「通信变量」平级——通讯页只配 Modbus，MQTT 连接管理器独立成根）。
+    /// 构造含固定两叶子（连接管理/＋新建连接）；连接叶子由 RebuildConnections 按工程 Connections 重建
+    /// （树命令后全量重建——EditWindowViewModel.RebuildProjectTree 调）。</summary>
+    public class MqttRootNode : ProjectTreeViewModel
     {
-        private readonly CommunicationRootNode _parent;
-        public MqttSettingsNode(CommunicationRootNode parent)
+        public MqttRootNode()
+        {
+            Name = "MQTT";
+            Children.Add(new MqttOverviewNode(this));
+            Children.Add(new AddMqttConnectionNode(this));
+        }
+
+        /// <summary>「连接管理」叶子双击（打开总览页：总开关 + 连接列表）。</summary>
+        public event Action? OnMqttOverviewSelected;
+
+        /// <summary>连接叶子双击（打开该连接页）。</summary>
+        public event Action<string>? OnMqttConnectionSelected;
+
+        /// <summary>「＋新建连接」叶子双击（建默认连接并进连接页）。</summary>
+        public event Action? OnAddConnectionRequested;
+
+        internal void NotifyOverviewSelected() => OnMqttOverviewSelected?.Invoke();
+        internal void NotifyConnectionSelected(string name) => OnMqttConnectionSelected?.Invoke(name);
+        internal void NotifyAddConnectionRequested() => OnAddConnectionRequested?.Invoke();
+
+        /// <summary>重建连接叶子（保持固定两节点，其后按 Connections 序重建——每连接叶子名含 broker:port 摘要）。</summary>
+        public void RebuildConnections(IEnumerable<MqttConnection> conns)
+        {
+            for (int i = Children.Count - 1; i >= 0; i--)
+                if (Children[i] is MqttConnectionLeafNode) Children.RemoveAt(i);
+            foreach (var c in conns)
+                Children.Add(new MqttConnectionLeafNode(this, c));
+        }
+    }
+
+    /// <summary>「连接管理」叶子：打开 MQTT 总览页（EnableMqtt 总开关 + 连接列表/新建）。</summary>
+    public class MqttOverviewNode : ProjectTreeViewModel
+    {
+        private readonly MqttRootNode _parent;
+        public MqttOverviewNode(MqttRootNode parent)
         {
             _parent = parent;
-            Name = "MQTT 设置";
-            DoubleClickCommand = new RelayCommand(() => _parent.NotifyMqttSettingsSelected());
+            Name = "连接管理";
+            DoubleClickCommand = new RelayCommand(() => _parent.NotifyOverviewSelected());
+        }
+    }
+
+    /// <summary>「＋新建连接」叶子：照画面添加模式（AddScreenNode）——双击建默认连接并进连接页编辑。</summary>
+    public class AddMqttConnectionNode : ProjectTreeViewModel
+    {
+        private readonly MqttRootNode _parent;
+        public AddMqttConnectionNode(MqttRootNode parent)
+        {
+            _parent = parent;
+            Name = "＋新建连接";
+            DoubleClickCommand = new RelayCommand(() => _parent.NotifyAddConnectionRequested());
+        }
+    }
+
+    /// <summary>单连接叶子（每 MqttConnection 一个）：显示名含 broker:port 摘要；双击进该连接页（连接参数 + 本连接 Topic/Binding）。
+    /// ConnectionName = 连接标识（高亮/打开用）；Name = 显示（含摘要）。</summary>
+    public class MqttConnectionLeafNode : ProjectTreeViewModel
+    {
+        private readonly MqttRootNode _parent;
+        public string ConnectionName { get; }
+        public MqttConnectionLeafNode(MqttRootNode parent, MqttConnection conn)
+        {
+            _parent = parent;
+            ConnectionName = conn.Name;
+            var cfg = conn.Config;
+            var summary = cfg != null && !string.IsNullOrWhiteSpace(cfg.Broker)
+                ? (cfg.Port > 0 ? $"{cfg.Broker}:{cfg.Port}" : cfg.Broker) : "未填 broker";
+            Name = $"{conn.Name} ({summary})";
+            DoubleClickCommand = new RelayCommand(() => _parent.NotifyConnectionSelected(ConnectionName));
         }
     }
 }

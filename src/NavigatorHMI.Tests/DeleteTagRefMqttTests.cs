@@ -22,8 +22,16 @@ namespace NavigatorHMI.Tests
             p.MqttSettings = new MqttSettings
             {
                 EnableMqtt = true,
-                Topics = { new MqttTopic { Name = "t1", Direction = MqttTopicDirection.Publish, Topic = "a/b" } },
-                Bindings = { new MqttBinding { TopicName = "t1", TagName = "被引用变量", FieldName = "val" } },
+                Connections =
+                {
+                    new MqttConnection   // Z 循环：绑定挂连接内（跨连接引用遍历）
+                    {
+                        Name = "broker-A",
+                        Config = new MqttConfig { Broker = "192.168.1.1", Port = 1883 },
+                        Topics = { new MqttTopic { Name = "t1", Direction = MqttTopicDirection.Publish, Topic = "a/b" } },
+                        Bindings = { new MqttBinding { TopicName = "t1", TagName = "被引用变量", FieldName = "val" } },
+                    }
+                },
             };
             return p;
         }
@@ -121,7 +129,7 @@ namespace NavigatorHMI.Tests
                 ["name"] = "被引用变量", ["new_name"] = "新名字",
             });
             Assert.True(r.Success, r.ErrorMessage);
-            Assert.Equal("新名字", p.MqttSettings!.Bindings.Single().TagName);   // MQTT 映射级联
+            Assert.Equal("新名字", p.MqttSettings!.Connections.Single().Bindings.Single().TagName);   // MQTT 映射级联（连接内）
             // 事件动作参数级联
             var actParams = p.Screens[0].Widgets[0].Events[0].Actions[0].Parameters;
             Assert.Equal("新名字", actParams["tag_name"]);

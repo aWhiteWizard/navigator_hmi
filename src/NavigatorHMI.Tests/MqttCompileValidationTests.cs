@@ -3,8 +3,10 @@ using NavigatorHMI.Common;
 namespace NavigatorHMI.Tests
 {
     /// <summary>
-    /// Y-3b（2026-09-10 ④通信批）：MQTT 编译校验测试（ProjectGenerator 3h 段）——
-    /// EnableMqtt 开启无 MQTT 设备 / Binding 引用悬空（主题不存在/变量不存在）/ StatusTag 变量不存在 → COMPILE_FAILED。
+    /// Y-3b（2026-09-10 ④通信批）+ Z 循环多连接重构（2026-09-11）：MQTT 编译校验测试（ProjectGenerator 3h 段）——
+    /// EnableMqtt 开启无连接 / 连接未填 broker / Binding 引用悬空（本连接主题不存在/变量不存在）/ StatusTag 变量不存在 →
+    /// COMPILE_FAILED；EnableMqtt 禁用 → 编译 Nullify（产物 MqttSettings null，FW 不建连接对象）。
+    /// 旧单份 DeviceName 设备语义废弃（校验连接级；Z-4 迁移归 Connections[0]）。
     /// </summary>
     public class MqttCompileValidationTests
     {
@@ -23,14 +25,18 @@ namespace NavigatorHMI.Tests
             return p;
         }
 
-        private static void AddMqttDevice(HMIProject p, string name = "MQTT-Broker")
+        /// <summary>建连接（直接模型——编译校验测数据构造；EnableMqtt 默认置 true）。</summary>
+        private static MqttConnection AddConn(HMIProject p, string name = "broker-A", string broker = "192.168.1.1")
         {
-            p.Devices.Add(new DeviceConfig
+            p.MqttSettings ??= new MqttSettings { SchemaVersion = 1 };
+            p.MqttSettings.EnableMqtt = true;
+            var c = new MqttConnection
             {
                 Name = name,
-                Protocol = ProtocolType.MQTT,
-                ConnectionInfo = "{\"broker\":\"192.168.1.1\",\"port\":1883}",
-            });
+                Config = new MqttConfig { Broker = broker, Port = 1883, KeepAliveSec = 60 },
+            };
+            p.MqttSettings.Connections.Add(c);
+            return c;
         }
 
         private static void CleanOutput(HMIProject p)
@@ -40,7 +46,7 @@ namespace NavigatorHMI.Tests
         }
 
         [Fact]
-        public void EnableMqtt开启_无MQTT设备_编译报错()
+        public void EnableMqtt开启_无连接_编译报错()
         {
             var p = ProjectWithMqtt();
             p.MqttSettings = new MqttSettings { EnableMqtt = true };
@@ -48,18 +54,16 @@ namespace NavigatorHMI.Tests
             {
                 var r = ProjectGenerator.Compile(p);
                 Assert.True(r.HasErrors);
-                Assert.Contains(r.Errors, e => e.Contains("MQTT 设备"));
+                Assert.Contains(r.Errors, e => e.Contains("未配置任何连接"));
             }
             finally { CleanOutput(p); }
         }
 
         [Fact]
-        public void EnableMqtt开启_有MQTT设备_无映射_编译通过()
+        public void EnableMqtt开启_有连接无映射_编译通过()
         {
             var p = ProjectWithMqtt();
-            AddMqttDevice(p);
-            // Y Check 裁决（2026-09-11）：须选定设备（MqttSettings.DeviceName 指向已建 MQTT 设备）才编译通过
-            p.MqttSettings = new MqttSettings { EnableMqtt = true, DeviceName = "MQTT-Broker" };
+            AddConn(p);
             try
             {
                 var r = ProjectGenerator.Compile(p);
@@ -69,16 +73,24 @@ namespace NavigatorHMI.Tests
         }
 
         [Fact]
+        public void 连接未填broker_编译报错()
+        {
+            var p = ProjectWithMqtt();
+            AddConn(p, broker: "");   // broker 空——编译级兜底（命令层已拦，防绕过）
+            try
+            {
+                var r = ProjectGenerator.Compile(p);
+                Assert.True(r.HasErrors);
+                Assert.Contains(r.Errors, e => e.Contains("broker"));
+            }
+            finally { CleanOutput(p); }
+        }
+
+        [Fact]
         public void Binding引用主题不存在_编译报错()
         {
             var p = ProjectWithMqtt();
-            AddMqttDevice(p);
-            p.MqttSettings = new MqttSettings
-            {
-                EnableMqtt = true,
-                DeviceName = "MQTT-Broker",   // Y Check 裁决：隔离校验①（须先选定设备）
-                Bindings = { new MqttBinding { TopicName = "无此主题", TagName = "温度", FieldName = "t" } },
-            };
+            AddConn(p).Bindings.Add(new MqttBinding { TopicName = "无此主题", TagName = "温度", FieldName = "t" });
             try
             {
                 var r = ProjectGenerator.Compile(p);
@@ -92,14 +104,9 @@ namespace NavigatorHMI.Tests
         public void Binding引用变量不存在_编译报错()
         {
             var p = ProjectWithMqtt();
-            AddMqttDevice(p);
-            p.MqttSettings = new MqttSettings
-            {
-                EnableMqtt = true,
-                DeviceName = "MQTT-Broker",   // Y Check 裁决：隔离校验①
-                Topics = { new MqttTopic { Name = "t1", Direction = MqttTopicDirection.Publish, Topic = "a/b" } },
-                Bindings = { new MqttBinding { TopicName = "t1", TagName = "不存在变量", FieldName = "t" } },
-            };
+            var c = AddConn(p);
+            c.Topics.Add(new MqttTopic { Name = "t1", Direction = MqttTopicDirection.Publish, Topic = "a/b" });
+            c.Bindings.Add(new MqttBinding { TopicName = "t1", TagName = "不存在变量", FieldName = "t" });
             try
             {
                 var r = ProjectGenerator.Compile(p);
@@ -113,13 +120,7 @@ namespace NavigatorHMI.Tests
         public void StatusTag变量不存在_编译报错()
         {
             var p = ProjectWithMqtt();
-            AddMqttDevice(p);
-            p.MqttSettings = new MqttSettings
-            {
-                EnableMqtt = true,
-                DeviceName = "MQTT-Broker",   // Y Check 裁决：隔离校验①
-                Config = new MqttConfig { Broker = "192.168.1.1", StatusTag = "无此状态变量" },
-            };
+            AddConn(p).Config.StatusTag = "无此状态变量";
             try
             {
                 var r = ProjectGenerator.Compile(p);
@@ -130,33 +131,21 @@ namespace NavigatorHMI.Tests
         }
 
         [Fact]
-        public void 选定设备不存在_编译报错()
+        public void EnableMqtt禁用_编译Nullify_产物无MqttSettings()
         {
+            // Z 循环设计②：EnableMqtt=false → 编译 Nullify（FW 不建任何连接对象——产物 MqttSettings null；PC 编辑态数据保留）
             var p = ProjectWithMqtt();
-            AddMqttDevice(p);
-            // 指向不存在设备（有 MQTT 设备但 DeviceName 悬空）
-            p.MqttSettings = new MqttSettings { EnableMqtt = true, DeviceName = "不存在的设备" };
+            var c = AddConn(p);
+            c.Topics.Add(new MqttTopic { Name = "温度上报", Direction = MqttTopicDirection.Publish, Topic = "plant/temp" });
+            c.Bindings.Add(new MqttBinding { TopicName = "温度上报", TagName = "温度", FieldName = "temp" });
+            p.MqttSettings!.EnableMqtt = false;
             try
             {
                 var r = ProjectGenerator.Compile(p);
-                Assert.True(r.HasErrors);
-                Assert.Contains(r.Errors, e => e.Contains("不存在") || e.Contains("非 MQTT"));
-            }
-            finally { CleanOutput(p); }
-        }
-
-        [Fact]
-        public void 选定设备协议非MQTT_编译报错()
-        {
-            var p = ProjectWithMqtt();
-            AddMqttDevice(p, name: "MQTT-Broker");
-            p.Devices.Add(new DeviceConfig { Name = "TCP-1", Protocol = ProtocolType.ModbusTCP });
-            p.MqttSettings = new MqttSettings { EnableMqtt = true, DeviceName = "TCP-1" };
-            try
-            {
-                var r = ProjectGenerator.Compile(p);
-                Assert.True(r.HasErrors);
-                Assert.Contains(r.Errors, e => e.Contains("非 MQTT"));
+                Assert.False(r.HasErrors, string.Join("; ", r.Errors));   // 禁用不校验连接（编辑期半成品允许）
+                using var fs = File.OpenRead(r.OutputPath);
+                var nav = ProtoBuf.Serializer.Deserialize<NavihmiProject>(fs);
+                Assert.Null(nav.MqttSettings);   // Nullify：产物无 MQTT 段
             }
             finally { CleanOutput(p); }
         }
@@ -165,24 +154,13 @@ namespace NavigatorHMI.Tests
         public void 完整MQTT配置_编译通过_产物含MqttSettings()
         {
             var p = ProjectWithMqtt();
-            AddMqttDevice(p);
-            p.MqttSettings = new MqttSettings
-            {
-                EnableMqtt = true,
-                DeviceName = "MQTT-Broker",   // Y Check 裁决（2026-09-11）：选定设备
-                SchemaVersion = 1,
-                Config = new MqttConfig { Broker = "192.168.1.1", Port = 1883, KeepAliveSec = 60 },
-                Topics =
-                {
-                    new MqttTopic { Name = "温度上报", Direction = MqttTopicDirection.Publish, Topic = "plant/temp", PublishIntervalMs = 5000 },
-                    new MqttTopic { Name = "泵站", Direction = MqttTopicDirection.Subscribe, Topic = "plant/+/status" },
-                },
-                Bindings =
-                {
-                    new MqttBinding { TopicName = "温度上报", TagName = "温度", FieldName = "temp" },
-                    new MqttBinding { TopicName = "泵站", TagName = "温度", FieldName = "pumpTemp" },
-                },
-            };
+            var c = AddConn(p);
+            c.Config.StatusTag = "状态";
+            p.Tags.Add(new Tag { Name = "状态", DataType = TagDataType.FLOAT });
+            c.Topics.Add(new MqttTopic { Name = "温度上报", Direction = MqttTopicDirection.Publish, Topic = "plant/temp", PublishIntervalMs = 5000 });
+            c.Topics.Add(new MqttTopic { Name = "泵站", Direction = MqttTopicDirection.Subscribe, Topic = "plant/+/status" });
+            c.Bindings.Add(new MqttBinding { TopicName = "温度上报", TagName = "温度", FieldName = "temp" });
+            c.Bindings.Add(new MqttBinding { TopicName = "泵站", TagName = "温度", FieldName = "pumpTemp" });
             try
             {
                 var r = ProjectGenerator.Compile(p);
@@ -191,8 +169,10 @@ namespace NavigatorHMI.Tests
                 var nav = ProtoBuf.Serializer.Deserialize<NavihmiProject>(fs);
                 Assert.NotNull(nav.MqttSettings);
                 Assert.True(nav.MqttSettings!.EnableMqtt);
-                Assert.Equal(2, nav.MqttSettings.Topics.Count);
-                Assert.Equal(2, nav.MqttSettings.Bindings.Count);
+                var conn = Assert.Single(nav.MqttSettings.Connections);
+                Assert.Equal("broker-A", conn.Name);
+                Assert.Equal(2, conn.Topics.Count);
+                Assert.Equal(2, conn.Bindings.Count);
             }
             finally { CleanOutput(p); }
         }

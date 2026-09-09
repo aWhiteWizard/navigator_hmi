@@ -425,10 +425,12 @@ namespace NavigatorHMI.CommandLayer.Handlers
             // 引用检查：报警 TagName
             var alarmRefs = project.Alarms.Where(a => a.TagName == name)
                 .Select(a => a.Name).ToList();
-            // Y-6（2026-09-10）：MQTT 映射引用（MqttBinding.TagName——三层映射绑定变量被删 → 拒绝）
-            var mqttRefs = project.MqttSettings?.Bindings
-                .Where(b => b.TagName == name)
-                .Select(b => $"MQTT:{b.TopicName}↔{b.FieldName}").ToList() ?? new List<string>();
+            // Y-6 + Z 循环（2026-09-11）：MQTT 映射引用跨连接遍历（MqttBinding.TagName——所有连接 Bindings；
+            // 引用串带连接名区分——西门子同构 Binding 挂 Topic 树即属该连接）
+            var mqttRefs = (project.MqttSettings?.Connections ?? new List<MqttConnection>())
+                .Where(c => c.Bindings.Any(b => b.TagName == name))
+                .SelectMany(c => c.Bindings.Where(b => b.TagName == name)
+                    .Select(b => $"MQTT:{c.Name}/{b.TopicName}↔{b.FieldName}")).ToList();
             // Y-6：事件动作参数引用（tag_write/条件表达式等动作 parameters["tag_name"] == name——画面控件事件 + 世界地图事件）
             var eventRefs = new List<string>();
             foreach (var screen in project.Screens)
@@ -582,10 +584,11 @@ namespace NavigatorHMI.CommandLayer.Handlers
                         w.BoundTag = newName;
                 foreach (var alarm in project.Alarms.Where(a => a.TagName == name))
                     alarm.TagName = newName;
-                // Y-6（2026-09-10）：MQTT 映射绑定 TagName 级联 + 事件动作参数 tag_name 级联
+                // Y-6 + Z 循环（2026-09-11）：MQTT 映射绑定 TagName 级联跨连接遍历 + 事件动作参数 tag_name 级联
                 if (project.MqttSettings != null)
-                    foreach (var b in project.MqttSettings.Bindings.Where(b => b.TagName == name))
-                        b.TagName = newName;
+                    foreach (var c in project.MqttSettings.Connections)
+                        foreach (var b in c.Bindings.Where(b => b.TagName == name))
+                            b.TagName = newName;
                 foreach (var screen in project.Screens)
                     foreach (var w in screen.Widgets)
                         foreach (var ev in w.Events)

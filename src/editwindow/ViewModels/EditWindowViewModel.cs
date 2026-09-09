@@ -367,8 +367,9 @@ namespace NavigatorHMI.ViewModels
             set { if (_mqttActive != value) { _mqttActive = value; OnPropertyChanged(); } }
         }
 
-        /// <summary>打开 MQTT 设置页（三层映射：Config 连接 / Topic 发布订阅 / Binding 变量↔字段）。</summary>
-        public void OpenMqttSettings()
+        /// <summary>打开 MQTT 页（connectionName 空 = 总览态——总开关 + 连接列表；非空 = 该连接页）。
+        /// Z 循环：树「连接管理/＋新建连接/连接叶子」双击触发；页面两态互斥其它画布 Tab。</summary>
+        public void OpenMqttSettings(string connectionName = "")
         {
             MqttTabOpen = true;
             MqttActive = true;
@@ -378,11 +379,12 @@ namespace NavigatorHMI.ViewModels
             UserActive = false;
             AlarmActive = false;
             DeviceActive = false;   // L-B1 互斥（审查🔴#1）
-            MqttSettingsVM.Refresh();   // Y-3b reviewer 🟡3：每次打开刷新（通讯页可能已建/改 MQTT 设备）
+            MqttSettingsVM.SelectedConnectionName = connectionName ?? "";   // Z 循环：总览/连接页切换（空 = 总览）
+            MqttSettingsVM.Refresh();
             RefreshTreeCurrentStatus();
         }
 
-        /// <summary>激活 MQTT 设置视图（Tab 已打开时点击标签栏）。</summary>
+        /// <summary>激活 MQTT 设置视图（Tab 已打开时点击标签栏——保持当前总览/连接页态不重置）。</summary>
         public void ActivateMqtt()
         {
             if (!MqttTabOpen) MqttTabOpen = true;
@@ -393,7 +395,7 @@ namespace NavigatorHMI.ViewModels
             UserActive = false;
             AlarmActive = false;
             DeviceActive = false;   // L-B1 互斥
-            MqttSettingsVM.Refresh();   // Y-3b reviewer 🟡3
+            MqttSettingsVM.Refresh();
             RefreshTreeCurrentStatus();
         }
 
@@ -965,11 +967,11 @@ namespace NavigatorHMI.ViewModels
         {
             foreach (var root in TreeRoots)
             {
-                UpdateNodeRecursive(root, CurrentScreen, VariableManagerActive, CommunicationActive, ListManagerActive, AlarmActive, UserActive, DeviceActive, MqttActive, UserPanelPage, ListManagerListType, DevicePanelPage);
+                UpdateNodeRecursive(root, CurrentScreen, VariableManagerActive, CommunicationActive, ListManagerActive, AlarmActive, UserActive, DeviceActive, MqttActive, UserPanelPage, ListManagerListType, DevicePanelPage, MqttSettingsVM.SelectedConnectionName);
             }
         }
 
-        private static void UpdateNodeRecursive(ProjectTreeViewModel node, Screen currentScreen, bool variableManagerActive, bool communicationActive, bool listManagerActive, bool alarmActive, bool userActive, bool deviceActive, bool mqttActive, int userPanelPage, ListType listManagerListType, int devicePanelPage)
+        private static void UpdateNodeRecursive(ProjectTreeViewModel node, Screen currentScreen, bool variableManagerActive, bool communicationActive, bool listManagerActive, bool alarmActive, bool userActive, bool deviceActive, bool mqttActive, int userPanelPage, ListType listManagerListType, int devicePanelPage, string selectedMqttConnection)
         {
             if (node is ScreenItemNode screenNode)
             {
@@ -1028,14 +1030,18 @@ namespace NavigatorHMI.ViewModels
             {
                 pdNode.IsCurrent = deviceActive && devicePanelPage == 3;
             }
-            // Y-3b（reviewer 🟡4）：MQTT 设置叶子高亮
-            else if (node is MqttSettingsNode mqNode)
+            // Z 循环（2026-09-11）：MQTT 多连接管理器根叶子高亮——总览（连接管理）/连接叶子按 SelectedConnectionName
+            else if (node is MqttOverviewNode ovNode)
             {
-                mqNode.IsCurrent = mqttActive;
+                ovNode.IsCurrent = mqttActive && string.IsNullOrEmpty(selectedMqttConnection);
+            }
+            else if (node is MqttConnectionLeafNode connNode)
+            {
+                connNode.IsCurrent = mqttActive && connNode.ConnectionName == selectedMqttConnection;
             }
             foreach (var child in node.Children)
             {
-                UpdateNodeRecursive(child, currentScreen, variableManagerActive, communicationActive, listManagerActive, alarmActive, userActive, deviceActive, mqttActive, userPanelPage, listManagerListType, devicePanelPage);
+                UpdateNodeRecursive(child, currentScreen, variableManagerActive, communicationActive, listManagerActive, alarmActive, userActive, deviceActive, mqttActive, userPanelPage, listManagerListType, devicePanelPage, selectedMqttConnection);
             }
         }
 
@@ -1152,21 +1158,37 @@ namespace NavigatorHMI.ViewModels
             TreeRoots.Add(mapNode);
             TreeRoots.Add(customRoot);
             TreeRoots.Add(BuildCommunicationRootNode());
+            TreeRoots.Add(BuildMqttRootNode());   // Z 循环：MQTT 多连接管理器独立根（2026-09-11 从通信变量拿出）
             TreeRoots.Add(BuildListRootNode());
             TreeRoots.Add(BuildAlarmRootNode());
             TreeRoots.Add(BuildUserRootNode());
             TreeRoots.Add(BuildDeviceRootNode());   // L 循环 L-B1：设备管理独立根节点（与通信变量/用户/报警/列表同等级）
-            // Y Check 裁决（2026-09-11）：MQTT 设置已移入「通信变量」根第三子节点（BuildCommunicationRootNode 内）——不再独立根
         }
 
-        /// <summary>构建「通信变量」根节点（含「变量」/「通讯」/「MQTT 设置」子节点，双击在画布位置打开对应 Tab）。
-        /// Y Check 裁决（2026-09-11）：MQTT 设置子节点并入本根（用户操作逻辑——通讯相关配置集中；原独立 MqttRootNode 已删）。</summary>
+        /// <summary>构建「通信变量」根节点（「变量」/「通讯」子节点，双击在画布位置打开对应 Tab）。
+        /// Z 循环（2026-09-11）：MQTT 移出独立根（BuildMqttRootNode）——通讯页只配 Modbus。</summary>
         private CommunicationRootNode BuildCommunicationRootNode()
         {
             var node = new CommunicationRootNode();
             node.OnVariableManagerSelected += OpenVariableManager;
             node.OnDeviceConfigSelected += OpenCommunication;
-            node.OnMqttSettingsSelected += OpenMqttSettings;   // Y Check：MQTT 设置随本根
+            return node;
+        }
+
+        /// <summary>Z 循环：构建「MQTT」多连接管理器独立根（连接管理总览/＋新建连接/每连接叶子——
+        /// 连接叶子随工程 Connections 重建；双击事件分别开总览/连接页/新建连接）。</summary>
+        private MqttRootNode BuildMqttRootNode()
+        {
+            var node = new MqttRootNode();
+            node.RebuildConnections(CurrentProject.MqttSettings?.Connections
+                ?? new System.Collections.Generic.List<MqttConnection>());
+            node.OnMqttOverviewSelected += () => OpenMqttSettings("");
+            node.OnMqttConnectionSelected += name => OpenMqttSettings(name);
+            node.OnAddConnectionRequested += () =>
+            {
+                MqttSettingsVM.AddNewConnection();   // 建默认连接（命令层落库 → CommandExecuted → 树重建）
+                OpenMqttSettings(MqttSettingsVM.SelectedConnectionName);   // 进新建连接页编辑参数
+            };
             return node;
         }
 
@@ -1271,8 +1293,8 @@ namespace NavigatorHMI.ViewModels
             CurrentProject = project;
             CommandService = new CommandService(project);
             DevicePanelVM = new DevicePanelViewModel(CommandService);   // K-4：设备管理面板
-            MqttSettingsVM = new MqttSettingsViewModel(project, CommandService);   // Y-3b：MQTT 三层映射页
-            MqttSettingsVM.OpenCommunicationRequested += OpenCommunication;   // Y Check 裁决（2026-09-11）：管理通讯按钮跳通讯配置页
+            MqttSettingsVM = new MqttSettingsViewModel(project, CommandService);   // Z 循环：MQTT 多连接管理器页（总览/连接页）
+            MqttSettingsVM.ConnectionSwitched += RefreshTreeCurrentStatus;   // 🟡C3（reviewer Z-2）：连接切换（双击/返回/回落）→ 树 ✅ 高亮同步
             CommandService.CommandExecuted += OnCommandExecuted;
             // 构建树根：全局画面、地图画面、自定义画面列表根
             // 注意：树节点选中一律走 ActivateScreen（当前画面未变时也能退出变量管理器视图）
@@ -1300,21 +1322,11 @@ namespace NavigatorHMI.ViewModels
             TreeRoots.Add(mapNode);
             TreeRoots.Add(customRoot);
             TreeRoots.Add(BuildCommunicationRootNode());
+            TreeRoots.Add(BuildMqttRootNode());   // Z 循环：MQTT 多连接管理器独立根（2026-09-11 从通信变量拿出）
             TreeRoots.Add(BuildListRootNode());
             TreeRoots.Add(BuildAlarmRootNode());
             TreeRoots.Add(BuildUserRootNode());
             TreeRoots.Add(BuildDeviceRootNode());   // L 循环 L-B1：设备管理独立根节点（构造时即加入——用户实测「点编译后才出现」根因：构造方法漏加）
-            // Y Check 裁决（2026-09-11）：MQTT 设置已移入「通信变量」根第三子节点（BuildCommunicationRootNode 内）——不再独立根
-
-            // Y Check 升级迁移（2026-09-11 review 🟡5）：旧工程 EnableMqtt 开启 + 恰好唯一 MQTT 设备 + 未选定 →
-            // 自动回填 DeviceName（新编译校验要求选定；唯一设备时无歧义直接选定，免手动一步）
-            if (project.MqttSettings != null && project.MqttSettings.EnableMqtt
-                && string.IsNullOrEmpty(project.MqttSettings.DeviceName))
-            {
-                var mqttDevs = project.Devices.Where(d => d.Protocol == ProtocolType.MQTT).ToList();
-                if (mqttDevs.Count == 1)
-                    project.MqttSettings.DeviceName = mqttDevs[0].Name;   // 直接写模型（加载期无绑定，不经命令层避免副作用）
-            }
 
             // 默认选中世界地图画面（旧工程缺 WorldMap 时兜底退回全局画面——FirstOrDefault 防抛异常）
             CurrentScreen = project.Screens.FirstOrDefault(s => s.Type == ScreenType.WorldMap)

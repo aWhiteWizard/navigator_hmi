@@ -208,21 +208,21 @@ namespace NavigatorHMI.Tests
                 ProjectFilePath = Path.Combine(dir, "y2-mqtt.hmiproj"),
             };
             p.Screens.Add(new Screen { Name = "画面A", Type = ScreenType.Custom });
-            // Y-3b 3h 编译校验（2026-09-10）：EnableMqtt 开启需 MQTT 设备 + Binding 变量存在——测试工程补足
-            p.Devices.Add(new DeviceConfig
-            {
-                Name = "MQTT-Broker",
-                Protocol = ProtocolType.MQTT,
-                ConnectionInfo = "{\"broker\":\"192.168.1.100\",\"port\":1883}",
-            });
+            // Z 循环编译校验：EnableMqtt 开启需连接（broker 非空）+ Binding 变量存在——测试工程补足（连接级；旧 DeviceName 设备语义废弃）
             p.Tags.Add(new Tag { Name = "V1", DataType = TagDataType.FLOAT });
             p.MqttSettings = new MqttSettings
             {
                 EnableMqtt = true,
-                DeviceName = "MQTT-Broker",   // Y Check 裁决（2026-09-11）：选定设备（连接真源引用）
-                Config = new MqttConfig { Broker = "192.168.1.100", Port = 1883 },
-                Topics = { new MqttTopic { Name = "t1", Direction = MqttTopicDirection.Publish, Topic = "a/b" } },
-                Bindings = { new MqttBinding { TopicName = "t1", TagName = "V1", FieldName = "v1" } },
+                Connections =
+                {
+                    new MqttConnection
+                    {
+                        Name = "broker-A",
+                        Config = new MqttConfig { Broker = "192.168.1.100", Port = 1883 },
+                        Topics = { new MqttTopic { Name = "t1", Direction = MqttTopicDirection.Publish, Topic = "a/b" } },
+                        Bindings = { new MqttBinding { TopicName = "t1", TagName = "V1", FieldName = "v1" } },
+                    }
+                },
             };
             try
             {
@@ -232,10 +232,11 @@ namespace NavigatorHMI.Tests
                 var nav = ProtoBuf.Serializer.Deserialize<NavihmiProject>(fs);
                 Assert.NotNull(nav.MqttSettings);
                 Assert.True(nav.MqttSettings!.EnableMqtt);
-                Assert.Equal("MQTT-Broker", nav.MqttSettings.DeviceName);   // 透传选定设备
-                Assert.Equal("192.168.1.100", nav.MqttSettings.Config.Broker);
-                Assert.Equal("a/b", nav.MqttSettings.Topics[0].Topic);
-                Assert.Equal("V1", nav.MqttSettings.Bindings[0].TagName);
+                var conn = Assert.Single(nav.MqttSettings.Connections);   // Z 循环多连接透传（西门子同构归属）
+                Assert.Equal("broker-A", conn.Name);
+                Assert.Equal("192.168.1.100", conn.Config.Broker);
+                Assert.Equal("a/b", conn.Topics[0].Topic);
+                Assert.Equal("V1", conn.Bindings[0].TagName);
             }
             finally
             {

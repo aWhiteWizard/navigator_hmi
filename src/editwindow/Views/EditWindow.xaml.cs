@@ -191,6 +191,10 @@ namespace NavigatorHMI.Views
             // 1. 先创建 ViewModel 并设置 DataContext
             _viewModel = new EditWindowViewModel(project);
             this.DataContext = _viewModel;
+            // 🔴C1（reviewer Z-2）：MQTT 连接切换/密码应用成功 → 清 PasswordBox 明文（LoadConnectionEdits 只清 VM 字段，
+            // 控件文本无绑定会跨连接残留——旧字符+新字符整体加密写错连接；Clear 触发 PasswordChanged 推空串幂等无害）
+            _viewModel.MqttSettingsVM.ConnectionSwitched += ClearMqttPasswordBox;
+            _viewModel.MqttSettingsVM.PasswordApplied += ClearMqttPasswordBox;
 
             // 2. 保存项目引用
             _currentProject = project;
@@ -4150,6 +4154,28 @@ namespace NavigatorHMI.Views
         {
             _viewModel.CloseMqttTab();
             e.Handled = true;
+        }
+
+        /// <summary>🔴C1（reviewer Z-2）：清 MQTT 连接页密码框明文（切连接/应用成功回调）。</summary>
+        private void ClearMqttPasswordBox()
+        {
+            if (MqttConnPasswordBox != null && MqttConnPasswordBox.Password.Length > 0)
+                MqttConnPasswordBox.Clear();   // Clear 触发 PasswordChanged → 推空串到 VM.PasswordPlain（幂等）
+        }
+
+        /// <summary>Z 循环：MQTT 总览连接列表双击 → 进入该连接页（ViewModel.SelectedConnectionName）。</summary>
+        private void MqttConnList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (MqttConnListBox?.SelectedItem is NavigatorHMI.ViewModels.MqttSettingsViewModel.ConnectionItem item)
+                _viewModel.MqttSettingsVM.SelectedConnectionName = item.Model.Name;
+            e.Handled = true;
+        }
+
+        /// <summary>Z 循环：连接页密码框输入 → 暂存明文到 VM（「应用连接参数」时 DPAPI 加密提交——不回显密文）。</summary>
+        private void MqttConnPasswordBox_PasswordChanged(object sender, RoutedEventArgs e)
+        {
+            if (MqttConnPasswordBox != null)
+                _viewModel.MqttSettingsVM.PasswordPlain = MqttConnPasswordBox.Password;
         }
         #endregion
 

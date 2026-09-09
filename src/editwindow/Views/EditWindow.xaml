@@ -1499,9 +1499,20 @@
                                         <HierarchicalDataTemplate DataType="{x:Type vm:DeviceRootNode}" ItemsSource="{Binding Children}">
                                             <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
                                         </HierarchicalDataTemplate>
-                                        <!-- Y-3b MQTT 设置（Y Check 裁决 2026-09-11：已移入「通信变量」根第三子节点——叶子模板保留，
-                                             不再有独立 MqttRootNode 根 → 原 HierarchicalDataTemplate MqttRootNode 已删） -->
-                                        <DataTemplate DataType="{x:Type vm:MqttSettingsNode}">
+                                        <!-- Z 循环 MQTT 多连接管理器独立根（2026-09-11：连接管理总览 / ＋新建连接 / 每连接叶子，✅ 随总览/连接页高亮） -->
+                                        <HierarchicalDataTemplate DataType="{x:Type vm:MqttRootNode}" ItemsSource="{Binding Children}">
+                                            <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
+                                        </HierarchicalDataTemplate>
+                                        <DataTemplate DataType="{x:Type vm:MqttOverviewNode}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="✅" Visibility="{Binding IsCurrent, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,4,0" FontSize="12"/>
+                                                <TextBlock Text="{Binding Name}"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                        <DataTemplate DataType="{x:Type vm:AddMqttConnectionNode}">
+                                            <TextBlock Text="{Binding Name}" Foreground="Green" Cursor="Hand"/>
+                                        </DataTemplate>
+                                        <DataTemplate DataType="{x:Type vm:MqttConnectionLeafNode}">
                                             <StackPanel Orientation="Horizontal">
                                                 <TextBlock Text="✅" Visibility="{Binding IsCurrent, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,4,0" FontSize="12"/>
                                                 <TextBlock Text="{Binding Name}"/>
@@ -2048,14 +2059,15 @@
                                                 </Style>
                                             </DataGrid.RowStyle>
                                             <DataGrid.Columns>
-                                                <!-- Y Check 修复（2026-09-11）：分组视图下星号列测量异常（挤一坨/末列出界）→ 显式列宽按内容合理分配；
-                                                     列宽用户可拖微调（DataGrid 默认列可拖） -->
+                                                <!-- ⑤ Z 循环（2026-09-11 用户复测点 1）：基准值列改单 * 占满最后一列；
+                                                     ⚠️ 4_bugs wpf-datagrid-grouped-star-columns：分组视图星号列曾测量异常（挤一坨）→ 显式列宽修复；
+                                                     基准值居末列 + 前 5 列固定宽，改 * 后须分组视图复测（2026-09-11 注记，用户 GUI 复测） -->
                                                 <DataGridTextColumn Header="名称" Binding="{Binding Name}" Width="130"/>
                                                 <DataGridTextColumn Header="类型" Binding="{Binding DataType}" Width="60"/>
                                                 <DataGridTextColumn Header="来源" Binding="{Binding Source}" Width="130"/>
                                                 <DataGridTextColumn Header="单位" Binding="{Binding Unit}" Width="50"/>
                                                 <DataGridTextColumn Header="周期" Binding="{Binding ScanIntervalMs}" Width="55"/>
-                                                <DataGridTextColumn Header="基准值" Binding="{Binding BaseValue}" Width="130"/>
+                                                <DataGridTextColumn Header="基准值" Binding="{Binding BaseValue}" Width="*"/>
                                             </DataGrid.Columns>
                                             <DataGrid.ContextMenu>
                                                 <ContextMenu>
@@ -2258,83 +2270,172 @@
                                       Visibility="{Binding DataContext.DeviceActive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
                                     <ctrl:DevicePanelView/>
                                 </Grid>
-                                <!-- Y-3b MQTT 设置页内容（MQTT 设置 Tab 激活时显示；三层映射：连接 Config / Topic 发布订阅 / Binding 变量↔字段）
-                                     Y Check 修复（2026-09-11）：DataContext 改继承绑定——真根因：RelativeSource Window 裸路径解析对象是 Window 类本体，
-                                     MqttSettingsVM 挂在 Window.DataContext（EditWindowViewModel）上（EditWindow 类无此属性）→ 绑定失败 DataContext=null
-                                     （按钮 Command 失效无反应；同 Grid Visibility 的 RelativeSource DataContext.MqttActive 一直正常即证非容器解析问题）；
-                                     同容器设备管理 Grid（DevicePanelVM 同挂 EditWindowViewModel）用继承绑定先例正常。Visibility 保持 RelativeSource Window
-                                     （MqttActive 挂 EditWindowViewModel，兄弟 Grid 同款惯例） -->
+                                <!-- Z 循环 MQTT 多连接管理器页内容（MQTT Tab 激活时显示；两态：总览 IsOverview / 连接页 IsConnectionPage）
+                                     2026-09-11 重构：取代 Y-3b 单连接三层映射（设备下拉选定废弃——连接参数内联 MqttConnection.Config，
+                                     通讯页只配 Modbus）；DataContext 继承绑定（Y Check 修复先例：RelativeSource Window 裸路径绑 Window 类本体坑）；
+                                     Visibility 保持 RelativeSource Window（MqttActive 挂 EditWindowViewModel，兄弟 Grid 同款惯例） -->
                                 <Grid Grid.Row="1" Margin="3" DataContext="{Binding MqttSettingsVM}"
                                       Visibility="{Binding DataContext.MqttActive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
-                                    <!-- 连接 Config 层（真源 = DeviceConfig MQTT 设备——通讯配置页创建/编辑；本层下拉只做引用选定）
-                                         Y Check 裁决（2026-09-11）：⚙配置连接弹窗 → 改为「MQTT 设备」下拉（列出通讯页已建 MQTT 设备，
-                                         显示「名 (broker IP)」；选中落盘 MqttSettings.DeviceName——FW 连接真源）；无设备/未选定 → 摘要提示去通讯配置 -->
+                                    <!-- 页头：MQTT 总开关（两态恒显）+ 连接页态显示返回按钮 -->
                                     <Border Grid.Row="0" BorderBrush="#B0B0B0" BorderThickness="1" CornerRadius="3" Padding="8" Margin="0,0,0,4" Background="#FAFAFA">
                                         <DockPanel>
                                             <TextBlock DockPanel.Dock="Left" Text="MQTT 总开关:" VerticalAlignment="Center" FontSize="12"/>
                                             <CheckBox DockPanel.Dock="Left" Margin="8,0,16,0" VerticalAlignment="Center" FontSize="12"
                                                       IsChecked="{Binding EnableMqtt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                      ToolTip="禁用 = FW 不建 MQTT 连接对象"/>
-                                            <TextBlock DockPanel.Dock="Left" Text="MQTT 设备:" VerticalAlignment="Center" FontSize="12" Margin="16,0,6,0"/>
-                                            <ComboBox DockPanel.Dock="Left" Width="240" Height="28" VerticalContentAlignment="Center" FontSize="12"
-                                                      ItemsSource="{Binding MqttDevices}" DisplayMemberPath="Display"
-                                                      SelectedValuePath="Name" SelectedValue="{Binding SelectedMqttDeviceName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                                      ToolTip="选择通讯配置中已建的 MQTT 设备（作为本工程 MQTT 连接；新建/编辑请到通讯配置）"/>
-                                            <Button DockPanel.Dock="Right" Content="⚙ 管理通讯…" Height="28" Margin="16,0,0,0" Command="{Binding GoToCommunicationCommand}" ToolTip="跳转通讯配置页——MQTT 设备在此创建/编辑"/>
-                                            <TextBlock Text="{Binding ConnectionSummary}" VerticalAlignment="Center" FontSize="12" Foreground="#444444"
-                                                       TextTrimming="CharacterEllipsis" ToolTip="{Binding ConnectionSummary}" Margin="16,0,0,0"/>
+                                                      ToolTip="禁用 = FW 不建任何 MQTT 连接对象（编译 Nullify）"/>
+                                            <Button DockPanel.Dock="Right" Content="← 返回连接列表" Height="26" Margin="8,0,0,0" FontSize="12"
+                                                    Command="{Binding BackToOverviewCommand}"
+                                                    Visibility="{Binding IsConnectionPage, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}"/>
+                                            <TextBlock DockPanel.Dock="Right" Text="{Binding CurrentConnectionName}" VerticalAlignment="Center" FontSize="13" FontWeight="Bold" Foreground="#1A5FB4"
+                                                       Visibility="{Binding IsConnectionPage, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}" Margin="0,0,10,0"/>
                                         </DockPanel>
                                     </Border>
-                                    <!-- Topic 配置层（发布/订阅分离表 + 新增行） -->
-                                    <Grid Grid.Row="1" Margin="0,0,0,4">
+                                    <!-- ═══ 总览态：连接列表（多 broker）═══ -->
+                                    <Grid Grid.Row="1" Visibility="{Binding IsOverview, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
                                         </Grid.RowDefinitions>
-                                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,2">
-                                            <TextBlock Text="Topic 配置（发布/订阅）" FontWeight="Bold" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                            <TextBox Text="{Binding NewTopicName, UpdateSourceTrigger=PropertyChanged}" Width="120" Height="24" VerticalContentAlignment="Center" FontSize="11" ToolTip="配置名（唯一）"/>
-                                            <ComboBox Width="70" Height="24" Margin="4,0,0,0" VerticalContentAlignment="Center" FontSize="11"
-                                                      SelectedIndex="{Binding NewTopicDirectionIndex, Mode=TwoWay, FallbackValue=0}">
-                                                <ComboBoxItem Content="发布"/>
-                                                <ComboBoxItem Content="订阅"/>
-                                            </ComboBox>
-                                            <TextBox Text="{Binding NewTopicPath, UpdateSourceTrigger=PropertyChanged}" Width="200" Height="24" Margin="4,0,0,0" VerticalContentAlignment="Center" FontSize="11" ToolTip="Topic 路径（发布禁 +/#、≤512；订阅合法通配符）"/>
-                                            <Button Content="＋ 添加" Width="70" Height="24" Margin="4,0,0,0" Command="{Binding NewTopicCommand}"/>
+                                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,6">
+                                            <TextBlock Text="连接列表（多 broker——每连接各自 Topic/Binding，西门子同构归属）" FontWeight="Bold" FontSize="13" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                            <Button Content="＋ 新建连接" Width="110" Height="26" FontSize="12" Command="{Binding AddConnectionCommand}" ToolTip="新建 broker 连接（默认名「连接N」，随后编辑连接参数）"/>
+                                            <TextBlock Text="双击连接进入编辑；每连接连接参数 + Topic/变量绑定独立" VerticalAlignment="Center" FontSize="11" Foreground="#888888" Margin="12,0,0,0"/>
                                         </StackPanel>
-                                        <DataGrid Grid.Row="1" ItemsSource="{Binding Topics}" SelectedItem="{Binding SelectedTopic}" AutoGenerateColumns="False"
-                                                  CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" FontSize="12" RowHeight="24" MaxHeight="140">
-                                            <DataGrid.Columns>
-                                                <DataGridTextColumn Header="配置名" Binding="{Binding Name}" Width="110" IsReadOnly="True"/>
-                                                <DataGridTextColumn Header="方向" Binding="{Binding DirectionText}" Width="60" IsReadOnly="True"/>
-                                                <DataGridTextColumn Header="Topic" Binding="{Binding Topic}" Width="*" IsReadOnly="True"/>
-                                                <DataGridTextColumn Header="QoS" Binding="{Binding Qos}" Width="45" IsReadOnly="True"/>
-                                                <DataGridCheckBoxColumn Header="Retain" Binding="{Binding Retain}" Width="55" IsReadOnly="True"/>
-                                                <DataGridTextColumn Header="发布周期ms" Binding="{Binding PublishIntervalMs}" Width="80" IsReadOnly="True"/>
-                                                <DataGridTextColumn Header="JSON模板" Binding="{Binding JsonTemplateText}" Width="80" IsReadOnly="True"/>
-                                            </DataGrid.Columns>
-                                        </DataGrid>
-                                        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,2,0,0" HorizontalAlignment="Right">
-                                            <Button Content="🗑 删除选中 Topic（连带绑定）" Height="24" Command="{Binding DeleteTopicCommand}"/>
+                                        <ListBox x:Name="MqttConnListBox" Grid.Row="1" ItemsSource="{Binding Connections}" FontSize="13"
+                                                 MouseDoubleClick="MqttConnList_MouseDoubleClick" ToolTip="双击连接进入该连接页">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Margin="2">
+                                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                                                        <TextBlock Text="{Binding Summary}" FontSize="11" Foreground="#666666"/>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                    </Grid>
+                                    <!-- ═══ 连接页态：连接参数 + 本连接 Topic/Binding ═══ -->
+                                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                                                  Visibility="{Binding IsConnectionPage, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
+                                        <StackPanel>
+                                            <!-- 连接参数（内联 MqttConnection.Config；「应用」一次性经 mqtt_update_connection 落库） -->
+                                            <Border BorderBrush="#B0B0B0" BorderThickness="1" CornerRadius="3" Padding="8" Margin="0,0,0,4" Background="#FAFAFA">
+                                                <StackPanel>
+                                                    <DockPanel Margin="0,0,0,4">
+                                                        <TextBlock DockPanel.Dock="Left" Text="连接参数（broker）" FontWeight="Bold" FontSize="12" VerticalAlignment="Center"/>
+                                                        <Button DockPanel.Dock="Right" Content="🗑 删除此连接（连带 Topic/绑定）" Height="24" FontSize="11"
+                                                                Command="{Binding DeleteConnectionCommand}" Foreground="#B00000"/>
+                                                    </DockPanel>
+                                                    <WrapPanel>
+                                                        <TextBlock Text="Broker:" VerticalAlignment="Center" FontSize="12" Margin="0,0,4,0"/>
+                                                        <TextBox Text="{Binding ConnBrokerText, UpdateSourceTrigger=PropertyChanged}" Width="170" Height="24" VerticalContentAlignment="Center" FontSize="12" ToolTip="主机/IP（不含协议前缀；如 192.168.1.14）"/>
+                                                        <TextBlock Text="端口:" VerticalAlignment="Center" FontSize="12" Margin="10,0,4,0"/>
+                                                        <TextBox Text="{Binding ConnPortText, UpdateSourceTrigger=PropertyChanged}" Width="60" Height="24" VerticalContentAlignment="Center" FontSize="12"/>
+                                                        <TextBlock Text="版本:" VerticalAlignment="Center" FontSize="12" Margin="10,0,4,0"/>
+                                                        <ComboBox Width="90" Height="24" VerticalContentAlignment="Center" FontSize="12"
+                                                                  SelectedIndex="{Binding ConnVersionIndex, Mode=TwoWay, FallbackValue=0}">
+                                                            <ComboBoxItem Content="3.1.1"/>
+                                                            <ComboBoxItem Content="5.0"/>
+                                                        </ComboBox>
+                                                        <TextBlock Text="ClientId:" VerticalAlignment="Center" FontSize="12" Margin="10,0,4,0"/>
+                                                        <TextBox Text="{Binding ConnClientIdText, UpdateSourceTrigger=PropertyChanged}" Width="130" Height="24" VerticalContentAlignment="Center" FontSize="12" ToolTip="空 = FW 自动生成"/>
+                                                    </WrapPanel>
+                                                    <WrapPanel Margin="0,4,0,0">
+                                                        <TextBlock Text="用户名:" VerticalAlignment="Center" FontSize="12" Margin="0,0,4,0"/>
+                                                        <TextBox Text="{Binding ConnUsernameText, UpdateSourceTrigger=PropertyChanged}" Width="130" Height="24" VerticalContentAlignment="Center" FontSize="12" ToolTip="匿名 = 空"/>
+                                                        <TextBlock Text="密码:" VerticalAlignment="Center" FontSize="12" Margin="10,0,4,0"/>
+                                                        <PasswordBox x:Name="MqttConnPasswordBox" Width="130" Height="24" VerticalContentAlignment="Center" FontSize="12"
+                                                                     PasswordChanged="MqttConnPasswordBox_PasswordChanged" ToolTip="输入新密码将 DPAPI 加密存储（不明文）；留空 = 不改"/>
+                                                        <TextBlock Text="keepAlive(s):" VerticalAlignment="Center" FontSize="12" Margin="10,0,4,0"/>
+                                                        <TextBox Text="{Binding ConnKeepAliveText, UpdateSourceTrigger=PropertyChanged}" Width="60" Height="24" VerticalContentAlignment="Center" FontSize="12"/>
+                                                        <TextBlock Text="StatusTag:" VerticalAlignment="Center" FontSize="12" Margin="10,0,4,0"/>
+                                                        <TextBox Text="{Binding ConnStatusTagText, UpdateSourceTrigger=PropertyChanged}" Width="120" Height="24" VerticalContentAlignment="Center" FontSize="12" ToolTip="连接状态回写变量（4 态 0-3；空=不回写）"/>
+                                                        <TextBlock Text="{Binding HasStoredPassword, StringFormat=已存密码: {}}" VerticalAlignment="Center" FontSize="11" Foreground="#888888" Margin="8,0,0,0"/>
+                                                    </WrapPanel>
+                                                    <Button Content="✔ 应用连接参数" Width="130" Height="26" Margin="0,6,0,0" HorizontalAlignment="Left" FontSize="12"
+                                                            Command="{Binding ApplyConnectionCommand}" ToolTip="校验并保存连接参数（broker 格式/端口范围/密码 dpapi 加密）"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <!-- Topic 配置（本连接发布/订阅；新增行 + 表格 + 选中编辑区） -->
+                                            <Border BorderBrush="#B0B0B0" BorderThickness="1" CornerRadius="3" Padding="8" Margin="0,0,0,4" Background="#FFFFFF">
+                                                <StackPanel>
+                                                    <DockPanel Margin="0,0,0,4">
+                                                        <TextBlock DockPanel.Dock="Left" Text="Topic 配置（本连接发布/订阅）" FontWeight="Bold" FontSize="12" VerticalAlignment="Center"/>
+                                                        <TextBlock DockPanel.Dock="Right" Text="跨连接允许同名 Topic（不同 broker 命名空间）" FontSize="11" Foreground="#888888" VerticalAlignment="Center"/>
+                                                    </DockPanel>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                                        <TextBox Text="{Binding NewTopicName, UpdateSourceTrigger=PropertyChanged}" Width="110" Height="24" VerticalContentAlignment="Center" FontSize="11" ToolTip="配置名（本连接内唯一）"/>
+                                                        <ComboBox Width="65" Height="24" Margin="4,0,0,0" VerticalContentAlignment="Center" FontSize="11"
+                                                                  SelectedIndex="{Binding NewTopicDirectionIndex, Mode=TwoWay, FallbackValue=0}">
+                                                            <ComboBoxItem Content="发布"/>
+                                                            <ComboBoxItem Content="订阅"/>
+                                                        </ComboBox>
+                                                        <TextBox Text="{Binding NewTopicPath, UpdateSourceTrigger=PropertyChanged}" Width="210" Height="24" Margin="4,0,0,0" VerticalContentAlignment="Center" FontSize="11" ToolTip="Topic 路径（发布禁 +/#、≤512；订阅合法通配符）"/>
+                                                        <Button Content="＋ 添加" Width="70" Height="24" Margin="4,0,0,0" Command="{Binding AddTopicCommand}"/>
+                                                        <Button Content="🗑 删除选中" Height="24" Margin="8,0,0,0" Command="{Binding DeleteTopicCommand}"/>
+                                                    </StackPanel>
+                                                    <DataGrid ItemsSource="{Binding Topics}" SelectedItem="{Binding SelectedTopic}" AutoGenerateColumns="False"
+                                                              CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" FontSize="12" RowHeight="24" MaxHeight="130">
+                                                        <DataGrid.Columns>
+                                                            <DataGridTextColumn Header="配置名" Binding="{Binding Name}" Width="110" IsReadOnly="True"/>
+                                                            <DataGridTextColumn Header="方向" Binding="{Binding DirectionText}" Width="55" IsReadOnly="True"/>
+                                                            <DataGridTextColumn Header="Topic" Binding="{Binding Topic}" Width="*" IsReadOnly="True"/>
+                                                            <DataGridTextColumn Header="QoS" Binding="{Binding Qos}" Width="40" IsReadOnly="True"/>
+                                                            <DataGridCheckBoxColumn Header="Retain" Binding="{Binding Retain}" Width="50" IsReadOnly="True"/>
+                                                            <DataGridTextColumn Header="周期ms" Binding="{Binding PublishIntervalMs}" Width="60" IsReadOnly="True"/>
+                                                            <DataGridTextColumn Header="JSON模板" Binding="{Binding JsonTemplateText}" Width="75" IsReadOnly="True"/>
+                                                        </DataGrid.Columns>
+                                                    </DataGrid>
+                                                    <WrapPanel Margin="0,4,0,0">
+                                                        <TextBlock Text="选中编辑 →" VerticalAlignment="Center" FontSize="11" Foreground="#666666"/>
+                                                        <TextBlock Text="QoS:" VerticalAlignment="Center" FontSize="11" Margin="8,0,2,0"/>
+                                                        <ComboBox Width="55" Height="22" VerticalContentAlignment="Center" FontSize="11" SelectedIndex="{Binding TopicQosIndex, Mode=TwoWay, FallbackValue=0}">
+                                                            <ComboBoxItem Content="0"/><ComboBoxItem Content="1"/><ComboBoxItem Content="2"/>
+                                                        </ComboBox>
+                                                        <CheckBox Content="Retain" VerticalAlignment="Center" FontSize="11" Margin="8,0,0,0" IsChecked="{Binding TopicRetain, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                                        <TextBlock Text="周期ms:" VerticalAlignment="Center" FontSize="11" Margin="8,0,2,0"/>
+                                                        <TextBox Text="{Binding TopicIntervalText, UpdateSourceTrigger=PropertyChanged}" Width="60" Height="22" VerticalContentAlignment="Center" FontSize="11"/>
+                                                        <TextBlock Text="模板:" VerticalAlignment="Center" FontSize="11" Margin="8,0,2,0"/>
+                                                        <ComboBox Width="110" Height="22" VerticalContentAlignment="Center" FontSize="11" SelectedIndex="{Binding TopicTemplateIndex, Mode=TwoWay, FallbackValue=0}">
+                                                            <ComboBoxItem Content="KV"/><ComboBoxItem Content="KV+时间戳"/>
+                                                        </ComboBox>
+                                                        <TextBlock Text="响应Topic:" VerticalAlignment="Center" FontSize="11" Margin="8,0,2,0"/>
+                                                        <TextBox Text="{Binding TopicResponseText, UpdateSourceTrigger=PropertyChanged}" Width="110" Height="22" VerticalContentAlignment="Center" FontSize="11"/>
+                                                        <Button Content="✔ 更新所选" Height="22" Margin="8,0,0,0" FontSize="11" Command="{Binding UpdateTopicCommand}"/>
+                                                    </WrapPanel>
+                                                </StackPanel>
+                                            </Border>
+                                            <!-- Binding 层（本连接变量↔字段；西门子同构：Binding 挂本连接 Topic 树） -->
+                                            <Border BorderBrush="#B0B0B0" BorderThickness="1" CornerRadius="3" Padding="8" Background="#FFFFFF">
+                                                <StackPanel>
+                                                    <DockPanel Margin="0,0,0,4">
+                                                        <TextBlock DockPanel.Dock="Left" Text="变量绑定（本连接：Topic ↔ 变量 ↔ JSON 字段）" FontWeight="Bold" FontSize="12" VerticalAlignment="Center"/>
+                                                    </DockPanel>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                                        <ComboBox Width="150" Height="24" VerticalContentAlignment="Center" FontSize="11"
+                                                                  ItemsSource="{Binding BindingTopicOptions}" DisplayMemberPath="Name" SelectedIndex="{Binding NewBindingTopicIndex, Mode=TwoWay, FallbackValue=-1}"/>
+                                                        <TextBlock Text="↔" VerticalAlignment="Center" Margin="4,0"/>
+                                                        <ComboBox Width="150" Height="24" VerticalContentAlignment="Center" FontSize="11"
+                                                                  ItemsSource="{Binding BindingTagOptions}" DisplayMemberPath="Name" SelectedIndex="{Binding NewBindingTagIndex, Mode=TwoWay, FallbackValue=-1}"/>
+                                                        <TextBox Text="{Binding NewBindingFieldText, UpdateSourceTrigger=PropertyChanged}" Width="120" Height="24" Margin="4,0,0,0" VerticalContentAlignment="Center" FontSize="11" ToolTip="JSON 字段名"/>
+                                                        <Button Content="＋ 绑定" Width="70" Height="24" Margin="4,0,0,0" Command="{Binding AddBindingCommand}"/>
+                                                        <Button Content="🗑 解除选中" Height="24" Margin="8,0,0,0" Command="{Binding DeleteBindingCommand}"/>
+                                                    </StackPanel>
+                                                    <DataGrid ItemsSource="{Binding Bindings}" SelectedItem="{Binding SelectedBinding}" AutoGenerateColumns="False"
+                                                              CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" FontSize="12" RowHeight="24">
+                                                        <DataGrid.Columns>
+                                                            <DataGridTextColumn Header="Topic" Binding="{Binding TopicName}" Width="130" IsReadOnly="True"/>
+                                                            <DataGridTextColumn Header="变量" Binding="{Binding TagName}" Width="140" IsReadOnly="True"/>
+                                                            <DataGridTextColumn Header="JSON 字段名" Binding="{Binding FieldName}" Width="*" IsReadOnly="True"/>
+                                                        </DataGrid.Columns>
+                                                    </DataGrid>
+                                                </StackPanel>
+                                            </Border>
                                         </StackPanel>
-                                    </Grid>
-                                    <!-- Binding 层（变量↔字段 表格） -->
-                                    <Grid Grid.Row="2">
-                                        <DataGrid ItemsSource="{Binding Bindings}" AutoGenerateColumns="False"
-                                                  CanUserAddRows="False" CanUserDeleteRows="False" HeadersVisibility="Column" FontSize="12" RowHeight="24">
-                                            <DataGrid.Columns>
-                                                <DataGridTextColumn Header="Topic" Binding="{Binding TopicName}" Width="120" IsReadOnly="True"/>
-                                                <DataGridTextColumn Header="变量" Binding="{Binding TagName}" Width="150" IsReadOnly="True"/>
-                                                <DataGridTextColumn Header="JSON 字段名" Binding="{Binding FieldName}" Width="*" IsReadOnly="True"/>
-                                            </DataGrid.Columns>
-                                        </DataGrid>
-                                    </Grid>
+                                    </ScrollViewer>
                                 </Grid>
                                 <!-- 列表管理内容（Tab 激活时显示，与画布同一位置切换；Visibility 从 Window.DataContext 取防 DataContext 覆盖） -->
                                 <Grid Grid.Row="1" Margin="3" DataContext="{Binding ListManagerVM, RelativeSource={RelativeSource AncestorType=Window}}"
