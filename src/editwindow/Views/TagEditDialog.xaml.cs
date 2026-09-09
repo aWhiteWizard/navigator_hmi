@@ -76,7 +76,9 @@ namespace NavigatorHMI.Views
         private void PopulateSourceBox()
         {
             SourceBox.Items.Add(new ComboBoxItem { Content = "内部变量", Tag = _internalSource });
-            foreach (var dev in _project.Devices)
+            // Z 循环（2026-09-11）：MQTT 设备协议 deprecated（移出通讯页——连接在 MQTT 根配置）——
+            // 变量来源不再列 MQTT 设备（MQTT 映射由 Binding 承载，Tag.source 的 mqtt:// 语义废弃）
+            foreach (var dev in _project.Devices.Where(d => d.Protocol != ProtocolType.MQTT))
             {
                 SourceBox.Items.Add(new ComboBoxItem { Content = $"{dev.Protocol}: {dev.Name}", Tag = dev });
             }
@@ -110,18 +112,7 @@ namespace NavigatorHMI.Views
                     }
                 }
             }
-            // mqtt://{topic}
-            else if (source.StartsWith("mqtt://", StringComparison.OrdinalIgnoreCase))
-            {
-                var topic = source["mqtt://".Length..];
-                var dev = _project.Devices.FirstOrDefault(d => d.Protocol == ProtocolType.MQTT);
-                if (dev != null)
-                {
-                    SelectSourceItem(dev);
-                    AddressBox.Text = topic;
-                    return;
-                }
-            }
+            // Z 循环：mqtt:// 来源反推分支删除（MQTT 设备 deprecated——旧 mqtt:// 源 tag 打开走下方「自定义」fallback 保留原值）
             // 反推失败（设备已删/来源格式变化）：动态追加「自定义」兜底项，保留原始来源不丢失
             var fallback = new ComboBoxItem { Content = $"自定义: {source}", Tag = source };
             SourceBox.Items.Add(fallback);
@@ -232,10 +223,8 @@ namespace NavigatorHMI.Views
             if (srcItem.Tag is DeviceConfig dev)
             {
                 var addr = AddressBox.Text.Trim();
-                if (addr.Length == 0) { ShowError("请填写地址（寄存器地址或 MQTT 主题）"); return; }
-                source = dev.Protocol == ProtocolType.MQTT
-                    ? $"mqtt://{addr}"
-                    : $"modbus://{GetSlaveId(dev)}/{addr}";
+                if (addr.Length == 0) { ShowError("请填写地址（寄存器地址）"); return; }
+                source = $"modbus://{GetSlaveId(dev)}/{addr}";   // Z 循环：来源仅 Modbus（MQTT deprecated——下拉已滤）
             }
             else if (srcItem.Tag is string customUri)
             {

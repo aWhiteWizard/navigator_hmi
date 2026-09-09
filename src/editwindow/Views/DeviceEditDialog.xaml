@@ -31,7 +31,7 @@
             <ComboBox Grid.Row="1" Grid.Column="1" x:Name="ProtocolBox" SelectionChanged="ProtocolBox_SelectionChanged">
                 <ComboBoxItem Content="ModbusRTU"/>
                 <ComboBoxItem Content="ModbusTCP"/>
-                <ComboBoxItem Content="MQTT"/>
+                <!-- Z 循环（2026-09-11）：MQTT 移出通讯页（专用 MQTT 根多连接管理器——连接参数内联 MqttConnection）→ 只配 Modbus -->
             </ComboBox>
 
             <!-- 连接参数区：按协议联动显示 -->
@@ -62,40 +62,6 @@
                     <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0" Text="从站号:" VerticalAlignment="Center"/>
                         <TextBox Grid.Column="1" x:Name="TcpSlaveBox" Text="1" ToolTip="1-247"/>
-                    </Grid>
-                </StackPanel>
-                <!-- MQTT（Y-3a 2026-09-10 全字段：Broker/Port/Version/ClientId/用户名/密码/keepAlive/TLS/StatusTag） -->
-                <StackPanel x:Name="MqttPanel" Visibility="Collapsed">
-                    <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="Broker:" VerticalAlignment="Center" ToolTip="主机/IP，不含协议前缀（如 192.168.1.1）"/>
-                        <TextBox Grid.Column="1" x:Name="MqttBrokerBox" Text="192.168.1.1" ToolTip="主机/IP，不含 mqtt:// 前缀"/>
-                        <TextBlock Grid.Column="2" Text="端口:" VerticalAlignment="Center"/>
-                        <TextBox Grid.Column="3" x:Name="MqttPortBox" Text="1883" ToolTip="1-65535（默认 1883）"/>
-                    </Grid>
-                    <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="版本:" VerticalAlignment="Center"/>
-                        <ComboBox Grid.Column="1" x:Name="MqttVersionBox" SelectedIndex="0">
-                            <ComboBoxItem Content="3.1.1" Tag="0"/>
-                            <ComboBoxItem Content="5.0" Tag="1"/>
-                        </ComboBox>
-                        <TextBlock Grid.Column="2" Text="ClientId:" VerticalAlignment="Center"/>
-                        <TextBox Grid.Column="3" x:Name="MqttClientIdBox" Text="hmi-01" ToolTip="≤64 字符，不含空格"/>
-                    </Grid>
-                    <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="用户名:" VerticalAlignment="Center"/>
-                        <TextBox Grid.Column="1" x:Name="MqttUsernameBox" ToolTip="匿名 = 留空"/>
-                        <TextBlock Grid.Column="2" Text="密码:" VerticalAlignment="Center"/>
-                        <PasswordBox Grid.Column="3" x:Name="MqttPasswordBox" PasswordChanged="MqttPasswordBox_PasswordChanged" ToolTip="DPAPI 加密存储，绝不明文入库"/>
-                    </Grid>
-                    <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="keepAlive:" VerticalAlignment="Center"/>
-                        <TextBox Grid.Column="1" x:Name="MqttKeepAliveBox" Text="60" ToolTip="心跳秒（0 = 禁用心跳）"/>
-                        <TextBlock Grid.Column="2" Text="TLS:" VerticalAlignment="Center"/>
-                        <CheckBox Grid.Column="3" x:Name="MqttTlsBox" VerticalAlignment="Center" ToolTip="V1.2 预留（本轮恒不启用）"/>
-                    </Grid>
-                    <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="StatusTag:" VerticalAlignment="Center"/>
-                        <TextBox Grid.Column="1" x:Name="MqttStatusTagBox" ToolTip="连接状态回写变量名（空 = 不回写）"/>
                     </Grid>
                 </StackPanel>
             </Grid>

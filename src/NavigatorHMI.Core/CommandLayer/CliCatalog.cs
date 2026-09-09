@@ -247,7 +247,7 @@ namespace NavigatorHMI.CommandLayer
                 CliParameterView.Rk("name")));
 
             // ══ 设备 ══
-            Add(Meta("configure-device", "configure_device", "设备命令", "配置设备通信 (--name <name> --protocol <ModbusRTU|ModbusTCP|MQTT> --connection <json>；MQTT JSON 全字段: broker/port/version(0=3.1.1,1=5.0)/clientId/username/password/keepAlive/enableTls/statusTag)",
+            Add(Meta("configure-device", "configure_device", "设备命令", "配置设备通信 (--name <name> --protocol <ModbusRTU|ModbusTCP> --connection <json>；Z 循环：MQTT 移出通讯页——专用 MQTT 根配置连接)",
                 CliParameterView.Rk("name"), CliParameterView.Rk("protocol"), CliParameterView.R("connection", "connection_info")));
             Add(Meta("update-device", "update_device", "设备命令", "更新设备 (--name <name> [--new-name <name>] [--protocol <...>] [--connection <json>])",
                 CliParameterView.Rk("name"),

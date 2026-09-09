@@ -39,44 +39,10 @@ namespace NavigatorHMI.CommandLayer.Handlers
                             return "ModbusTCP slaveId 必须是 1-247 的整数";
                         break;
                     case ProtocolType.MQTT:
-                    {
-                        // Y-3a（2026-09-10）：MQTT 连接全字段校验——broker/port/version/clientId/username/password/keepAlive/enableTls/statusTag
-                        // 可选字段缺省取默认（port 1883/version 0=3.1.1/keepAlive 60），仅校必填与格式
-                        if (!root.TryGetProperty("broker", out var br) || br.ValueKind != System.Text.Json.JsonValueKind.String
-                         || string.IsNullOrWhiteSpace(br.GetString()))
-                            return "MQTT 必须包含非空字符串 broker 字段（主机/IP，不含协议前缀，如 192.168.1.1）";
-                        var broker = br.GetString()!;
-                        if (broker.StartsWith("mqtt://", StringComparison.OrdinalIgnoreCase)
-                         || broker.StartsWith("tcp://", StringComparison.OrdinalIgnoreCase))
-                            return "MQTT broker 不应带协议前缀（如 mqtt://），请只填主机/IP 或域名";
-                        if (broker.Contains('/'))
-                            return "MQTT broker 不应含路径（协议前缀会带 / 路径，请去除）";
-                        if (root.TryGetProperty("port", out var mport) && mport.ValueKind == System.Text.Json.JsonValueKind.Number
-                         && mport.GetInt32() is < 1 or > 65535)
-                            return "MQTT port 必须是 1-65535 的整数";
-                        if (root.TryGetProperty("version", out var ver) && ver.ValueKind == System.Text.Json.JsonValueKind.Number
-                         && ver.GetInt32() is not (0 or 1))
-                            return "MQTT version 必须是 0（3.1.1）或 1（5.0）";
-                        if (root.TryGetProperty("clientId", out var cid) && cid.ValueKind == System.Text.Json.JsonValueKind.String)
-                        {
-                            var clientId = cid.GetString();
-                            if (clientId != null && (clientId.Length > 64 || clientId.Contains(' ')))
-                                return "MQTT clientId 必须 ≤64 字符且不含空格";
-                        }
-                        if (root.TryGetProperty("keepAlive", out var ka) && ka.ValueKind == System.Text.Json.JsonValueKind.Number
-                         && ka.GetInt32() < 0)
-                            return "MQTT keepAlive 必须 ≥0（0 = 禁用心跳）";
-                        if (root.TryGetProperty("enableTls", out var tls)
-                         && tls.ValueKind is not (System.Text.Json.JsonValueKind.True or System.Text.Json.JsonValueKind.False))
-                            return "MQTT enableTls 必须是布尔值";
-                        if (root.TryGetProperty("password", out var pwd) && pwd.ValueKind == System.Text.Json.JsonValueKind.String
-                         && !string.IsNullOrEmpty(pwd.GetString())
-                         && !pwd.GetString()!.StartsWith("dpapi:", StringComparison.Ordinal))
-                            // Y-3a reviewer 🟡1（2026-09-10）：非空 password 必须带 dpapi: 前缀（GUI CredentialStore
-                            // 加密后入库）；CLI/直传明文一律拒绝——绝不明文进工程文件/.navihmi（匿名联调 password 空不受影响）
-                            return "MQTT password 必须为 dpapi: 加密包（明文密码禁止入库——请通过 GUI 设备对话框设置，内部自动加密）";
-                        break;
-                    }
+                        // Z 循环（2026-09-11）：MQTT 移出通讯页——设备协议不再承载 MQTT 连接（连接参数内联
+                        // MqttConnection.Config，专用 MQTT 根多连接管理器）；ProtocolType.MQTT 保留 deprecated
+                        // （旧工程反序列化兼容），configure/update 直达一律拒绝防绕过
+                        return "MQTT 已移出通讯配置页——请在项目树「MQTT」根「＋新建连接」配置（连接参数内联，Z 循环 2026-09-11）";
                 }
                 return null;
             }
@@ -97,7 +63,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
             Parameters = new()
             {
                 ["name"] = new() { Type = "string", Required = true, Description = "设备名称" },
-                ["protocol"] = new() { Type = "enum", Required = true, EnumValues = new[] { "ModbusRTU", "ModbusTCP", "MQTT" }, Description = "通信协议" },
+                ["protocol"] = new() { Type = "enum", Required = true, EnumValues = new[] { "ModbusRTU", "ModbusTCP" }, Description = "通信协议（Z 循环：MQTT 移出通讯页——专用 MQTT 根配置）" },
                 ["connection_info"] = new() { Type = "string", Required = true, Description = "连接信息 (JSON)" },
             }
         };
@@ -542,7 +508,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
             {
                 ["name"] = new() { Type = "string", Required = true, Description = "原设备名" },
                 ["new_name"] = new() { Type = "string", Description = "新设备名（重命名）", KeepInCompact = true },
-                ["protocol"] = new() { Type = "enum", EnumValues = new[] { "ModbusRTU", "ModbusTCP", "MQTT" }, Description = "通信协议", KeepInCompact = true },
+                ["protocol"] = new() { Type = "enum", EnumValues = new[] { "ModbusRTU", "ModbusTCP" }, Description = "通信协议（Z 循环：MQTT 移出通讯页）", KeepInCompact = true },
                 ["connection_info"] = new() { Type = "string", Description = "连接信息 (JSON)", KeepInCompact = true },
             }
         };
@@ -572,6 +538,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 if (!Enum.TryParse<ProtocolType>(pt.ToString(), ignoreCase: true, out var proto)
                  || !Enum.IsDefined(proto))
                     return CommandResult.Fail("INVALID_PARAM", $"未知协议: {pt}");
+                if (proto == ProtocolType.MQTT)   // Z 循环：MQTT 移出通讯页（Enum.IsDefined 仍真——显式拦防绕过）
+                    return CommandResult.Fail("INVALID_PARAM", "MQTT 已移出通讯配置页——请在项目树「MQTT」根配置连接（Z 循环 2026-09-11）");
                 newProto = proto;
             }
             if (p.TryGetValue("connection_info", out var ci) && ci != null && !string.IsNullOrWhiteSpace(ci.ToString()))
@@ -584,9 +552,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
             // 全部校验通过，统一应用
             if (newName != null)
             {
-                // Y Check 裁决（2026-09-11 review 🟡）：改名级联 MqttSettings.DeviceName（若本设备为当前选定 MQTT 设备）
-                if (project.MqttSettings?.DeviceName == name)
-                    project.MqttSettings.DeviceName = newName;
+                // Z 循环：DeviceName deprecated（MQTT 连接参数内联）——设备改名不再级联 MQTT（原 Y Check review 🟡 级联已随语义废弃移除）
                 device.Name = newName;
             }
             if (newProto != null) device.Protocol = newProto.Value;
@@ -619,14 +585,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
             var name = p["name"]!.ToString()!;
             var device = project.Devices.FirstOrDefault(d => d.Name == name);
             if (device == null) return CommandResult.Fail("NOT_FOUND", $"设备 \"{name}\" 不存在");
-            // Y Check 裁决（2026-09-11 review 🟡）：删除当前选定的 MQTT 设备——EnableMqtt 开启时拒绝（提示先取消选定，
-            // 防编译悬空误导）；未启用时删除并清空 DeviceName 引用
-            if (project.MqttSettings?.DeviceName == name)
-            {
-                if (project.MqttSettings.EnableMqtt)
-                    return CommandResult.Fail("IN_USE", $"设备 \"{name}\" 是当前选定的 MQTT 设备（MQTT 总开关已启用）——请先在 MQTT 设置页清除选定再删除");
-                project.MqttSettings.DeviceName = "";
-            }
+            // Z 循环：DeviceName deprecated（MQTT 连接参数内联 MqttConnection）——删除设备无 MQTT IN_USE 守卫
+            // （原 Y Check review 🟡 F1 死锁清理：旧工程 MQTT 设备随 Z-4 迁移移除，无残留引用场景）
             project.Devices.Remove(device);
             return CommandResult.Ok(new { device_name = name });
         }
