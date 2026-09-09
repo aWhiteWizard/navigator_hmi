@@ -357,9 +357,6 @@ namespace NavigatorHMI.Views
             _commDeviceVM = new CommunicationDeviceViewModel(_currentProject, _viewModel.CommandService);
             _commDeviceVM.DeviceEditRequested += OnDeviceEditRequested;
 
-            // 12.5 Y-3b：MQTT 设置页连接配置（DeviceEditDialog 编辑/新建 MQTT 设备——与通讯配置同一入口）
-            _viewModel.MqttConnectionEditRequested += OnMqttConnectionEditRequested;
-
             // 12.6 初始化报警配置面板（新建/编辑/删除走 CommandService）
             _alarmVM = new AlarmManagerViewModel(_currentProject, _viewModel.CommandService);
             _alarmVM.AlarmEditRequested += OnAlarmEditRequested;
@@ -911,39 +908,6 @@ namespace NavigatorHMI.Views
                     if (!r.Success) MessageBox.Show(r.ErrorMessage ?? "更新设备失败", "通讯", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
             }
-        }
-
-        /// <summary>Y-3b：MQTT 设置页「配置连接」——编辑现有 MQTT 设备；无则新建并预置 MQTT 协议。
-        /// 连接参数真源 = DeviceConfig.connection_info JSON（Y-3a 裁决）——复用通讯配置同一对话框/命令路径。</summary>
-        private void OnMqttConnectionEditRequested(DeviceConfig? device)
-        {
-            if (device != null)
-            {
-                OnDeviceEditRequested(device);   // 已有 MQTT 设备 → 直接编辑
-                _viewModel.MqttSettingsVM.Refresh();
-                return;
-            }
-            var dlg = new DeviceEditDialog(null, _currentProject) { Owner = this };
-            // 预置 MQTT 协议（新建对话框默认 ModbusTCP——MQTT 设置页入口语义为配置 MQTT 连接）
-            foreach (System.Windows.Controls.ComboBoxItem item in dlg.ProtocolBox.Items)
-            {
-                if (item.Content?.ToString() == "MQTT")
-                {
-                    dlg.ProtocolBox.SelectedItem = item;
-                    break;
-                }
-            }
-            if (dlg.ShowDialog() != true) return;
-            var result = dlg.Result;
-            // reviewer ⚪：用户可能改选其他协议——按实际所选入库（预置 MQTT 只是入口默认，不强制）
-            var r = _viewModel.CommandService.Execute("configure_device", new Dictionary<string, object?>
-            {
-                ["name"] = result.Name,
-                ["protocol"] = result.Protocol.ToString(),
-                ["connection_info"] = result.ConnectionInfo,
-            });
-            if (!r.Success) MessageBox.Show(r.ErrorMessage ?? "新建设备失败", "MQTT 设置", MessageBoxButton.OK, MessageBoxImage.Warning);
-            else _viewModel.MqttSettingsVM.Refresh();
         }
 
         /// <summary>双击设备行 → 编辑。</summary>

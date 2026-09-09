@@ -151,6 +151,7 @@ namespace NavigatorHMI.Tests
             p.MqttSettings = new MqttSettings
             {
                 EnableMqtt = true,
+                DeviceName = "MQTT-Broker",   // Y Check 裁决（2026-09-11）：选定设备（连接真源引用）
                 Config = new MqttConfig { Broker = "192.168.1.100", Port = 1883 },
                 Topics = { new MqttTopic { Name = "t1", Direction = MqttTopicDirection.Publish, Topic = "a/b" } },
                 Bindings = { new MqttBinding { TopicName = "t1", TagName = "V1", FieldName = "v1" } },
@@ -163,6 +164,7 @@ namespace NavigatorHMI.Tests
                 var nav = ProtoBuf.Serializer.Deserialize<NavihmiProject>(fs);
                 Assert.NotNull(nav.MqttSettings);
                 Assert.True(nav.MqttSettings!.EnableMqtt);
+                Assert.Equal("MQTT-Broker", nav.MqttSettings.DeviceName);   // 透传选定设备
                 Assert.Equal("192.168.1.100", nav.MqttSettings.Config.Broker);
                 Assert.Equal("a/b", nav.MqttSettings.Topics[0].Topic);
                 Assert.Equal("V1", nav.MqttSettings.Bindings[0].TagName);
@@ -249,13 +251,14 @@ namespace NavigatorHMI.Tests
         public void MqttSettings_字段号与proto对齐()
         {
             var f = FieldNumbers(typeof(MqttSettings));
-            // proto MqttSettings: enable_mqtt=1 schema_version=2 config=3 topics=4 bindings=5
+            // proto MqttSettings: enable_mqtt=1 schema_version=2 config=3 topics=4 bindings=5 device_name=6
             Assert.Equal(1, f[nameof(MqttSettings.EnableMqtt)]);
             Assert.Equal(2, f[nameof(MqttSettings.SchemaVersion)]);
             Assert.Equal(3, f[nameof(MqttSettings.Config)]);
             Assert.Equal(4, f[nameof(MqttSettings.Topics)]);
             Assert.Equal(5, f[nameof(MqttSettings.Bindings)]);
-            Assert.Equal(5, f.Count);
+            Assert.Equal(6, f[nameof(MqttSettings.DeviceName)]);   // Y Check 裁决（2026-09-11）：选定 MQTT 设备名（连接真源引用）
+            Assert.Equal(6, f.Count);
         }
 
         [Fact]

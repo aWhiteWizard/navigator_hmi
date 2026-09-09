@@ -582,7 +582,13 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 if (ciError != null) return CommandResult.Fail("INVALID_PARAM", ciError);
             }
             // 全部校验通过，统一应用
-            if (newName != null) device.Name = newName;
+            if (newName != null)
+            {
+                // Y Check 裁决（2026-09-11 review 🟡）：改名级联 MqttSettings.DeviceName（若本设备为当前选定 MQTT 设备）
+                if (project.MqttSettings?.DeviceName == name)
+                    project.MqttSettings.DeviceName = newName;
+                device.Name = newName;
+            }
             if (newProto != null) device.Protocol = newProto.Value;
             if (p.TryGetValue("connection_info", out var ci2) && ci2 != null && !string.IsNullOrWhiteSpace(ci2.ToString()))
                 device.ConnectionInfo = ci2.ToString()!;
@@ -613,6 +619,14 @@ namespace NavigatorHMI.CommandLayer.Handlers
             var name = p["name"]!.ToString()!;
             var device = project.Devices.FirstOrDefault(d => d.Name == name);
             if (device == null) return CommandResult.Fail("NOT_FOUND", $"设备 \"{name}\" 不存在");
+            // Y Check 裁决（2026-09-11 review 🟡）：删除当前选定的 MQTT 设备——EnableMqtt 开启时拒绝（提示先取消选定，
+            // 防编译悬空误导）；未启用时删除并清空 DeviceName 引用
+            if (project.MqttSettings?.DeviceName == name)
+            {
+                if (project.MqttSettings.EnableMqtt)
+                    return CommandResult.Fail("IN_USE", $"设备 \"{name}\" 是当前选定的 MQTT 设备（MQTT 总开关已启用）——请先在 MQTT 设置页清除选定再删除");
+                project.MqttSettings.DeviceName = "";
+            }
             project.Devices.Remove(device);
             return CommandResult.Ok(new { device_name = name });
         }

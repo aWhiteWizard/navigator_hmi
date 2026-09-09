@@ -345,5 +345,17 @@ namespace NavigatorHMI.Common
             get => _bindings;
             set { if (!ReferenceEquals(_bindings, value)) { _bindings = value ?? new List<MqttBinding>(); OnPropertyChanged(); } }
         }
+
+        private string _deviceName = "";
+
+        /// <summary>Y Check 裁决（2026-09-11）：本工程 MQTT 连接选定的 MQTT 设备名（DeviceConfig.Name，Protocol==MQTT——
+        /// 通讯页创建后此处引用；空 = 未选定）。FW 连接参数真源：优先本字段 → 该 DeviceConfig.connection_info。
+        /// （MqttConfig.config 保留不填充——防双源，Y-3a 裁决不变）</summary>
+        [ProtoMember(6)]
+        public string DeviceName
+        {
+            get => _deviceName;
+            set { if (_deviceName != value) { _deviceName = value ?? ""; OnPropertyChanged(); } }
+        }
     }
 }

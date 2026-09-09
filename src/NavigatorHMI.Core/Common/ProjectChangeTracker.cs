@@ -93,7 +93,7 @@ namespace NavigatorHMI.Common
             // 设备（通信配置 = 工程数据；MQTT 引用校验细节归入本域，V+1 补全）
             "configure_device" or "update_device" or "delete_device" => ChangeDomain.Device,
             // MQTT 三层映射（Y-3b：开关/Topic/Binding 均通信配置域——增量编译变化域与设备配置一致）
-            "mqtt_set_enabled" or "mqtt_add_topic" or "mqtt_update_topic" or "mqtt_delete_topic"
+            "mqtt_set_enabled" or "mqtt_set_device" or "mqtt_add_topic" or "mqtt_update_topic" or "mqtt_delete_topic"
                 or "mqtt_set_binding" or "mqtt_remove_binding" => ChangeDomain.Device,
             // 字体
             "set_default_font" => ChangeDomain.Font,

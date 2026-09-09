@@ -273,6 +273,8 @@ namespace NavigatorHMI.CommandLayer
             // ══ MQTT 映射（Y-3b ④通信批；GUI 三层映射页的命令层入口——CLI 对等）══
             Add(Meta("mqtt-set-enabled", "mqtt_set_enabled", "MQTT 命令", "设置 MQTT 总开关 (--enabled <true|false>)",
                 CliParameterView.Rk("enabled")));
+            Add(Meta("mqtt-set-device", "mqtt_set_device", "MQTT 命令", "选定 MQTT 连接设备 (--device-name <通讯页中已建的 MQTT 设备名；空串=清除>)",
+                CliParameterView.R("device-name", "device_name")));
             Add(Meta("mqtt-add-topic", "mqtt_add_topic", "MQTT 命令", "新增主题配置 (--name <配置名> --topic <路径> [--direction publish|subscribe] [--qos 0] [--retain false] [--publish-interval-ms 0] [--json-template 0])",
                 CliParameterView.Rk("name"), CliParameterView.Rk("topic"), CliParameterView.D("direction", "direction", "publish"),
                 CliParameterView.Dk("qos", "0"), CliParameterView.Dk("retain", "false"),

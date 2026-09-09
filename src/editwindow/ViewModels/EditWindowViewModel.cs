@@ -35,9 +35,6 @@ namespace NavigatorHMI.ViewModels
         /// <summary>Y-3b MQTT 三层映射配置页 VM（EnableMqtt/Topic/Binding；连接编辑事件透传 View 层开 DeviceEditDialog）。</summary>
         public MqttSettingsViewModel MqttSettingsVM { get; private set; } = null!;
 
-        /// <summary>Y-3b：请求打开 MQTT 连接配置对话框（View 处理 DeviceEditDialog——无设备=新建 MQTT 设备）。</summary>
-        public event Action<DeviceConfig?>? MqttConnectionEditRequested;
-
         public int DeviceHeight => _currentProject.DeviceHeight;
         public int DeviceWidth => _currentProject.DeviceWidth;
 
@@ -1159,23 +1156,17 @@ namespace NavigatorHMI.ViewModels
             TreeRoots.Add(BuildAlarmRootNode());
             TreeRoots.Add(BuildUserRootNode());
             TreeRoots.Add(BuildDeviceRootNode());   // L 循环 L-B1：设备管理独立根节点（与通信变量/用户/报警/列表同等级）
-            TreeRoots.Add(BuildMqttRootNode());     // Y-3b：MQTT 设置独立根节点
+            // Y Check 裁决（2026-09-11）：MQTT 设置已移入「通信变量」根第三子节点（BuildCommunicationRootNode 内）——不再独立根
         }
 
-        /// <summary>Y-3b 构建「MQTT 设置」根节点（单子「MQTT 设置」双击打开三层映射配置页）。</summary>
-        private MqttRootNode BuildMqttRootNode()
-        {
-            var node = new MqttRootNode();
-            node.OnMqttSettingsSelected += OpenMqttSettings;
-            return node;
-        }
-
-        /// <summary>构建「通信变量」根节点（含「变量」/「通讯」子节点，双击在画布位置打开对应 Tab）。</summary>
+        /// <summary>构建「通信变量」根节点（含「变量」/「通讯」/「MQTT 设置」子节点，双击在画布位置打开对应 Tab）。
+        /// Y Check 裁决（2026-09-11）：MQTT 设置子节点并入本根（用户操作逻辑——通讯相关配置集中；原独立 MqttRootNode 已删）。</summary>
         private CommunicationRootNode BuildCommunicationRootNode()
         {
             var node = new CommunicationRootNode();
             node.OnVariableManagerSelected += OpenVariableManager;
             node.OnDeviceConfigSelected += OpenCommunication;
+            node.OnMqttSettingsSelected += OpenMqttSettings;   // Y Check：MQTT 设置随本根
             return node;
         }
 
@@ -1281,7 +1272,7 @@ namespace NavigatorHMI.ViewModels
             CommandService = new CommandService(project);
             DevicePanelVM = new DevicePanelViewModel(CommandService);   // K-4：设备管理面板
             MqttSettingsVM = new MqttSettingsViewModel(project, CommandService);   // Y-3b：MQTT 三层映射页
-            MqttSettingsVM.ConnectionEditRequested += dev => MqttConnectionEditRequested?.Invoke(dev);
+            MqttSettingsVM.OpenCommunicationRequested += OpenCommunication;   // Y Check 裁决（2026-09-11）：管理通讯按钮跳通讯配置页
             CommandService.CommandExecuted += OnCommandExecuted;
             // 构建树根：全局画面、地图画面、自定义画面列表根
             // 注意：树节点选中一律走 ActivateScreen（当前画面未变时也能退出变量管理器视图）
@@ -1313,7 +1304,17 @@ namespace NavigatorHMI.ViewModels
             TreeRoots.Add(BuildAlarmRootNode());
             TreeRoots.Add(BuildUserRootNode());
             TreeRoots.Add(BuildDeviceRootNode());   // L 循环 L-B1：设备管理独立根节点（构造时即加入——用户实测「点编译后才出现」根因：构造方法漏加）
-            TreeRoots.Add(BuildMqttRootNode());     // Y-3b：MQTT 设置独立根节点（④通信批；与设备管理同级）
+            // Y Check 裁决（2026-09-11）：MQTT 设置已移入「通信变量」根第三子节点（BuildCommunicationRootNode 内）——不再独立根
+
+            // Y Check 升级迁移（2026-09-11 review 🟡5）：旧工程 EnableMqtt 开启 + 恰好唯一 MQTT 设备 + 未选定 →
+            // 自动回填 DeviceName（新编译校验要求选定；唯一设备时无歧义直接选定，免手动一步）
+            if (project.MqttSettings != null && project.MqttSettings.EnableMqtt
+                && string.IsNullOrEmpty(project.MqttSettings.DeviceName))
+            {
+                var mqttDevs = project.Devices.Where(d => d.Protocol == ProtocolType.MQTT).ToList();
+                if (mqttDevs.Count == 1)
+                    project.MqttSettings.DeviceName = mqttDevs[0].Name;   // 直接写模型（加载期无绑定，不经命令层避免副作用）
+            }
 
             // 默认选中世界地图画面（旧工程缺 WorldMap 时兜底退回全局画面——FirstOrDefault 防抛异常）
             CurrentScreen = project.Screens.FirstOrDefault(s => s.Type == ScreenType.WorldMap)

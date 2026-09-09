@@ -1499,10 +1499,8 @@
                                         <HierarchicalDataTemplate DataType="{x:Type vm:DeviceRootNode}" ItemsSource="{Binding Children}">
                                             <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
                                         </HierarchicalDataTemplate>
-                                        <!-- Y-3b MQTT 设置根节点（单子「MQTT 设置」打开三层映射页） -->
-                                        <HierarchicalDataTemplate DataType="{x:Type vm:MqttRootNode}" ItemsSource="{Binding Children}">
-                                            <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
-                                        </HierarchicalDataTemplate>
+                                        <!-- Y-3b MQTT 设置（Y Check 裁决 2026-09-11：已移入「通信变量」根第三子节点——叶子模板保留，
+                                             不再有独立 MqttRootNode 根 → 原 HierarchicalDataTemplate MqttRootNode 已删） -->
                                         <DataTemplate DataType="{x:Type vm:MqttSettingsNode}">
                                             <StackPanel Orientation="Horizontal">
                                                 <TextBlock Text="✅" Visibility="{Binding IsCurrent, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,4,0" FontSize="12"/>
@@ -2050,12 +2048,14 @@
                                                 </Style>
                                             </DataGrid.RowStyle>
                                             <DataGrid.Columns>
-                                                <DataGridTextColumn Header="名称" Binding="{Binding Name}" Width="*"/>
-                                                <DataGridTextColumn Header="类型" Binding="{Binding DataType}" Width="55"/>
-                                                <DataGridTextColumn Header="来源" Binding="{Binding Source}" Width="*"/>
-                                                <DataGridTextColumn Header="单位" Binding="{Binding Unit}" Width="42"/>
-                                                <DataGridTextColumn Header="周期" Binding="{Binding ScanIntervalMs}" Width="48"/>
-                                                <DataGridTextColumn Header="基准值" Binding="{Binding BaseValue}" Width="*" MinWidth="120"/>
+                                                <!-- Y Check 修复（2026-09-11）：分组视图下星号列测量异常（挤一坨/末列出界）→ 显式列宽按内容合理分配；
+                                                     列宽用户可拖微调（DataGrid 默认列可拖） -->
+                                                <DataGridTextColumn Header="名称" Binding="{Binding Name}" Width="130"/>
+                                                <DataGridTextColumn Header="类型" Binding="{Binding DataType}" Width="60"/>
+                                                <DataGridTextColumn Header="来源" Binding="{Binding Source}" Width="130"/>
+                                                <DataGridTextColumn Header="单位" Binding="{Binding Unit}" Width="50"/>
+                                                <DataGridTextColumn Header="周期" Binding="{Binding ScanIntervalMs}" Width="55"/>
+                                                <DataGridTextColumn Header="基准值" Binding="{Binding BaseValue}" Width="130"/>
                                             </DataGrid.Columns>
                                             <DataGrid.ContextMenu>
                                                 <ContextMenu>
@@ -2271,20 +2271,23 @@
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
-                                    <!-- 连接 Config 层（真源 = DeviceConfig MQTT 设备；按钮开 DeviceEditDialog 编辑）
-                                         Y Check 修复（2026-09-11）：StackPanel→DockPanel——无设备态 ConnectionSummary 长文案
-                                         （MqttSettingsViewModel:125 提示 30+ 字符）会把末位按钮推出 Border 可点区（Horizontal
-                                         StackPanel 不裁剪不换行，WPF 测量语义）→ 按钮 Dock=Right 恒在右缘可见；摘要 TextBlock
-                                         填剩余宽 + 截断 + ToolTip 保留全文 -->
+                                    <!-- 连接 Config 层（真源 = DeviceConfig MQTT 设备——通讯配置页创建/编辑；本层下拉只做引用选定）
+                                         Y Check 裁决（2026-09-11）：⚙配置连接弹窗 → 改为「MQTT 设备」下拉（列出通讯页已建 MQTT 设备，
+                                         显示「名 (broker IP)」；选中落盘 MqttSettings.DeviceName——FW 连接真源）；无设备/未选定 → 摘要提示去通讯配置 -->
                                     <Border Grid.Row="0" BorderBrush="#B0B0B0" BorderThickness="1" CornerRadius="3" Padding="8" Margin="0,0,0,4" Background="#FAFAFA">
                                         <DockPanel>
                                             <TextBlock DockPanel.Dock="Left" Text="MQTT 总开关:" VerticalAlignment="Center" FontSize="12"/>
                                             <CheckBox DockPanel.Dock="Left" Margin="8,0,16,0" VerticalAlignment="Center" FontSize="12"
                                                       IsChecked="{Binding EnableMqtt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                       ToolTip="禁用 = FW 不建 MQTT 连接对象"/>
-                                            <Button DockPanel.Dock="Right" Content="⚙ 配置连接…" Height="28" Margin="16,0,0,0" Command="{Binding EditConnectionCommand}" ToolTip="编辑 MQTT 连接参数（无设备则新建——DeviceEditDialog 全字段）"/>
+                                            <TextBlock DockPanel.Dock="Left" Text="MQTT 设备:" VerticalAlignment="Center" FontSize="12" Margin="16,0,6,0"/>
+                                            <ComboBox DockPanel.Dock="Left" Width="240" Height="28" VerticalContentAlignment="Center" FontSize="12"
+                                                      ItemsSource="{Binding MqttDevices}" DisplayMemberPath="Display"
+                                                      SelectedValuePath="Name" SelectedValue="{Binding SelectedMqttDeviceName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                      ToolTip="选择通讯配置中已建的 MQTT 设备（作为本工程 MQTT 连接；新建/编辑请到通讯配置）"/>
+                                            <Button DockPanel.Dock="Right" Content="⚙ 管理通讯…" Height="28" Margin="16,0,0,0" Command="{Binding GoToCommunicationCommand}" ToolTip="跳转通讯配置页——MQTT 设备在此创建/编辑"/>
                                             <TextBlock Text="{Binding ConnectionSummary}" VerticalAlignment="Center" FontSize="12" Foreground="#444444"
-                                                       TextTrimming="CharacterEllipsis" ToolTip="{Binding ConnectionSummary}"/>
+                                                       TextTrimming="CharacterEllipsis" ToolTip="{Binding ConnectionSummary}" Margin="16,0,0,0"/>
                                         </DockPanel>
                                     </Border>
                                     <!-- Topic 配置层（发布/订阅分离表 + 新增行） -->

@@ -75,6 +75,39 @@ namespace NavigatorHMI.CommandLayer.Handlers
         }
     }
 
+    /// <summary>mqtt_set_device：选定本工程 MQTT 连接使用的 MQTT 设备（DeviceConfig.Name，Protocol==MQTT——
+    /// Y Check 裁决 2026-09-11：设备在通讯配置页创建，本命令只做「引用选定」；空 = 未选定/清除）。
+    /// 连接参数真源 = DeviceConfig.connection_info（Y-3a 防双源不变；MqttSettings.config 不填充）。</summary>
+    public class MqttSetDeviceHandler : ICommandHandler
+    {
+        public CommandDefinition Definition => new()
+        {
+            Name = "mqtt_set_device", Description = "选定 MQTT 连接使用的 MQTT 设备（通讯配置中已建，Protocol==MQTT）",
+            Parameters = new()
+            {
+                ["device_name"] = new() { Type = "string", Required = true, Description = "MQTT 设备名（通讯配置中创建；空串 = 清除选定）" },
+            }
+        };
+        public ValidationResult Validate(Dictionary<string, object?> p)
+        {
+            if (!p.ContainsKey("device_name")) return ValidationResult.Fail("缺少必填参数: device_name");
+            return ValidationResult.Ok;
+        }
+        public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
+        {
+            var deviceName = p["device_name"]?.ToString() ?? "";
+            if (deviceName.Length > 0)
+            {
+                var dev = project.Devices.FirstOrDefault(d => d.Name == deviceName && d.Protocol == ProtocolType.MQTT);
+                if (dev == null)
+                    return CommandResult.Fail("INVALID_PARAM", $"MQTT 设备 \"{deviceName}\" 不存在或协议非 MQTT——请在通讯配置中创建 MQTT 设备");
+            }
+            var s = project.MqttSettings ??= new MqttSettings { SchemaVersion = 1 };
+            s.DeviceName = deviceName;
+            return CommandResult.Ok(new { device_name = s.DeviceName });
+        }
+    }
+
     /// <summary>mqtt_add_topic：新增主题配置（发布/订阅分离；含 topic 路径校验 + 同父重复/同名查重）。</summary>
     public class MqttAddTopicHandler : ICommandHandler
     {

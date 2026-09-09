@@ -11,10 +11,10 @@ using NavigatorHMI.Common;
 namespace NavigatorHMI.ViewModels
 {
     /// <summary>
-    /// Y-3b MQTT 三层映射配置页 ViewModel（2026-09-10 ④通信批）。
-    /// 数据模型：HMIProject.MqttSettings（EnableMqtt 总开关 + Topics + Bindings + SchemaVersion）——
-    /// proto 24 契约（Y-2 已建）；连接参数真源 = DeviceConfig MQTT 设备 connection_info JSON（Y-3a 裁决，
-    /// Config 层复用 DeviceEditDialog 编辑，本 VM 不重复存连接）。
+    /// Y-3b MQTT 三层映射配置页 ViewModel（2026-09-10 ④通信批；Y Check 裁决 2026-09-11 改造）。
+    /// 数据模型：HMIProject.MqttSettings（EnableMqtt + DeviceName 选定设备 + Topics + Bindings + SchemaVersion）——
+    /// proto 24 契约（Y-2 已建）；**连接参数真源 = DeviceConfig MQTT 设备 connection_info JSON**（Y-3a 裁决：
+    /// 设备在通讯配置页创建/编辑；本页「MQTT 设备」下拉只做引用选定（MqttSettings.DeviceName 落盘），不重复存连接）。
     /// GUI/CLI/AI 同一入口：本页编辑经 CommandService（mqtt_* 命令）落库（脏标记/撤销一致）；
     /// 外部命令改动 → CommandExecuted 事件同步刷新。
     /// </summary>
@@ -23,8 +23,52 @@ namespace NavigatorHMI.ViewModels
         public HMIProject Project { get; }
         public CommandService CommandService { get; }
 
-        /// <summary>MQTT 设备连接（DeviceConfig.Protocol==MQTT 首项；null=未配置——Config 层提示先建设备）。</summary>
-        public DeviceConfig? MqttDevice => Project.Devices.FirstOrDefault(d => d.Protocol == ProtocolType.MQTT);
+        /// <summary>MQTT 设备下拉条目（通讯页 Protocol==MQTT 设备；显示「名 (broker IP)」——Y Check 裁决）。
+        /// Name=设备名；Display 含 broker 地址便于区分多 MQTT 通信。</summary>
+        public sealed class MqttDeviceOption
+        {
+            public string Name { get; }
+            public string BrokerIp { get; }
+            public MqttDeviceOption(string name, string brokerIp) { Name = name; BrokerIp = brokerIp; }
+            public string Display => BrokerIp.Length > 0 ? $"{Name} ({BrokerIp})" : Name;
+        }
+
+        /// <summary>MQTT 设备选项集合（每次刷新同步——通讯页建/改/删设备后更新；index0 恒为「未选定」空占位，其后为 MQTT 设备）。</summary>
+        public ObservableCollection<MqttDeviceOption> MqttDevices { get; } = new();
+
+        /// <summary>Y Check 修复（reviewer 🔴1 复审 2026-09-11）：Refresh 同步期间抑制 SelectedValue TwoWay 回写——
+        /// SyncDeviceOptions 移除当前选中项（改名级联/删设备）瞬间 ComboBox SelectedValue 失配会异步回写清空 DeviceName；
+        /// suppress 窗口覆盖同步块 + Dispatcher 延迟一拍（防逃出同步窗口的异步回写）。</summary>
+        private bool _suppressDeviceSelection;
+
+        /// <summary>当前选定的 MQTT 设备名（MqttSettings.DeviceName；空 = 未选定）。</summary>
+        public string SelectedMqttDeviceName
+        {
+            get => Project.MqttSettings?.DeviceName ?? "";
+            set
+            {
+                if (_suppressDeviceSelection) return;   // Refresh 同步/异步窗口内不回写（reviewer 🔴1）
+                var cur = Project.MqttSettings?.DeviceName ?? "";
+                if (cur == (value ?? "")) return;
+                var r = CommandService.Execute("mqtt_set_device", new Dictionary<string, object?> { ["device_name"] = value ?? "" });
+                if (!r.Success) System.Windows.MessageBox.Show(r.ErrorMessage ?? "选定设备失败");
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(MqttDevice));
+                OnPropertyChanged(nameof(ConnectionSummary));
+            }
+        }
+
+        /// <summary>当前生效的 MQTT 设备（按 MqttSettings.DeviceName 查；未选定/不存在 → null——提示去通讯页选）。</summary>
+        public DeviceConfig? MqttDevice
+        {
+            get
+            {
+                var dn = Project.MqttSettings?.DeviceName;
+                if (!string.IsNullOrEmpty(dn))
+                    return Project.Devices.FirstOrDefault(d => d.Name == dn && d.Protocol == ProtocolType.MQTT);
+                return null;
+            }
+        }
 
         /// <summary>Topics 显示集合（随工程 MqttSettings.Topics 同步）。</summary>
         public ObservableCollection<MqttTopic> Topics { get; } = new();
@@ -75,12 +119,12 @@ namespace NavigatorHMI.ViewModels
             }
         }
 
-        /// <summary>请求打开连接配置（DeviceEditDialog 编辑 MQTT 设备；无设备 → 新建）。</summary>
-        public event Action<DeviceConfig?>? ConnectionEditRequested;
+        /// <summary>请求跳转通讯配置页（Y Check 2026-09-11：MQTT 设备创建/编辑收敛通讯配置——本页无设备时提示去建）。</summary>
+        public event Action? OpenCommunicationRequested;
 
         public ICommand NewTopicCommand { get; }
         public ICommand DeleteTopicCommand { get; }
-        public ICommand EditConnectionCommand { get; }
+        public ICommand GoToCommunicationCommand { get; }
 
         public MqttSettingsViewModel(HMIProject project, CommandService commandService)
         {
@@ -88,7 +132,7 @@ namespace NavigatorHMI.ViewModels
             CommandService = commandService;
             NewTopicCommand = new RelayCommand(AddTopic);
             DeleteTopicCommand = new RelayCommand(DeleteSelectedTopic);
-            EditConnectionCommand = new RelayCommand(() => ConnectionEditRequested?.Invoke(MqttDevice));
+            GoToCommunicationCommand = new RelayCommand(() => OpenCommunicationRequested?.Invoke());
 
             CommandService.CommandExecuted += OnCommandExecuted;
             Refresh();
@@ -97,32 +141,102 @@ namespace NavigatorHMI.ViewModels
         private void OnCommandExecuted(string cmdName, Dictionary<string, object?> parameters, CommandResult result)
         {
             // reviewer 🟡3：MQTT 命令 + 设备配置命令（连接真源 = DeviceConfig——通讯页建/改/删 MQTT 设备后本页需刷新）
-            if (result.Success && (cmdName.StartsWith("mqtt_", StringComparison.Ordinal)
+            if (!result.Success || !(cmdName.StartsWith("mqtt_", StringComparison.Ordinal)
                  || cmdName is "configure_device" or "update_device" or "delete_device"))
-                Refresh();
+                return;
+            // Y Check 修复（reviewer 🟡1 2026-09-11）：AI 后台线程触发时跨线程改 ObservableCollection 会被吞
+            // （对照 VariableManagerViewModel 同款封送——CommandExecuted 同步逐订阅者调用，本 handler 可能在后台线程）
+            if (!System.Windows.Application.Current.Dispatcher.CheckAccess())
+            {
+                System.Windows.Application.Current.Dispatcher.BeginInvoke(
+                    new Action(() => Refresh()));
+                return;
+            }
+            Refresh();
         }
 
-        /// <summary>从工程模型同步 Topics/Bindings 集合（CommandExecuted/页面打开时调用）。</summary>
+        /// <summary>从工程模型同步设备选项 + Topics/Bindings 集合（CommandExecuted/页面打开时调用）。
+        /// Y Check 修复（reviewer 🔴1 2026-09-11）：设备选项用增量对齐（禁 Clear+Add 瞬态）+ suppress 窗口——
+        /// Clear/移除当前选中项会让绑定 ComboBox SelectedValue 失配 → TwoWay 回写清空 DeviceName（选中即丢）；
+        /// suppress 置位覆盖同步变更 + Dispatcher 延迟一拍清除（防异步回写逃窗）。</summary>
         public void Refresh()
         {
-            SyncCollection(Topics, Project.MqttSettings?.Topics ?? Enumerable.Empty<MqttTopic>());
-            SyncCollection(Bindings, Project.MqttSettings?.Bindings ?? Enumerable.Empty<MqttBinding>());
-            OnPropertyChanged(nameof(MqttDevice));
-            OnPropertyChanged(nameof(HasMqttDevice));
-            OnPropertyChanged(nameof(ConnectionSummary));
-            OnPropertyChanged(nameof(MqttSettingsReady));
-            OnPropertyChanged(nameof(EnableMqtt));   // reviewer 🟡3：外部 mqtt_set_enabled 后 CheckBox 同步
+            _suppressDeviceSelection = true;
+            try
+            {
+                // 设备选项增量对齐：占位首项（Name=""）恒在 index0；其后按 Name 同步（新增 append、删除 remove、broker 变化原位更新）
+                SyncDeviceOptions();
+                SyncCollection(Topics, Project.MqttSettings?.Topics ?? Enumerable.Empty<MqttTopic>());
+                SyncCollection(Bindings, Project.MqttSettings?.Bindings ?? Enumerable.Empty<MqttBinding>());
+                OnPropertyChanged(nameof(SelectedMqttDeviceName));
+                OnPropertyChanged(nameof(MqttDevice));
+                OnPropertyChanged(nameof(ConnectionSummary));
+                OnPropertyChanged(nameof(HasMqttDevice));
+                OnPropertyChanged(nameof(MqttSettingsReady));
+                OnPropertyChanged(nameof(EnableMqtt));   // reviewer 🟡3：外部 mqtt_set_enabled 后 CheckBox 同步
+            }
+            finally
+            {
+                _suppressDeviceSelection = false;
+                // 延迟一拍再清：绑定失配回写可能经 Dispatcher 异步逃出同步窗口（KB wpf-combobox-style §补充1）
+                System.Windows.Application.Current?.Dispatcher.BeginInvoke(
+                    new Action(() => _suppressDeviceSelection = false));
+            }
+        }
+
+        /// <summary>设备选项增量对齐（reviewer 🔴1：禁 Clear+Add——保持占位首项与已选设备项实例稳定，TwoWay SelectedValue 不失配）。
+        /// 结构：index0 = 空「未选定」占位（Name=""）；其后按工程 MQTT 设备序。增量规则：仅 remove 不存在的、update broker 变化的、append 新增的。</summary>
+        private void SyncDeviceOptions()
+        {
+            // 0) 确保占位首项（index0，Name=""）——首次刷新集合为空也先插占位，防首台真实设备落 index0（幽灵/清空语义丢失）
+            if (MqttDevices.Count == 0 || MqttDevices[0].Name.Length > 0)
+                MqttDevices.Insert(0, new MqttDeviceOption("", ""));
+            var desired = new List<MqttDeviceOption> { new("", "") };
+            desired.AddRange(Project.Devices.Where(d => d.Protocol == ProtocolType.MQTT)
+                .Select(d => new MqttDeviceOption(d.Name, BrokerIpOf(d.ConnectionInfo))));
+            // 1) 移除多余（index0 占位恒保留——从 index1 起删不存在的）
+            for (int i = MqttDevices.Count - 1; i >= 1; i--)
+                if (!desired.Any(x => x.Name == MqttDevices[i].Name))
+                    MqttDevices.RemoveAt(i);
+            // 2) 更新/追加（index0 后按 desired 序对齐；Name 相同 → 复用实例原位刷 Display——防 SelectedItem 引用失效）
+            int anchor = 1;
+            foreach (var d in desired.Skip(1))
+            {
+                var existing = MqttDevices.Skip(1).FirstOrDefault(x => x.Name == d.Name);
+                if (existing != null)
+                {
+                    if (existing.BrokerIp != d.BrokerIp)
+                        MqttDevices[MqttDevices.IndexOf(existing)] = d;   // broker 变化原位替换（保持位置）
+                }
+                else
+                {
+                    MqttDevices.Insert(Math.Min(anchor, MqttDevices.Count), d);   // 追加到设备区（index0 占位后）
+                }
+                anchor++;
+            }
+        }
+
+        private static string BrokerIpOf(string connectionInfo)
+        {
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(string.IsNullOrWhiteSpace(connectionInfo) ? "{}" : connectionInfo);
+                if (doc.RootElement.TryGetProperty("broker", out var b) && b.ValueKind == System.Text.Json.JsonValueKind.String)
+                    return b.GetString() ?? "";
+            }
+            catch (System.Text.Json.JsonException) { /* 回落空 */ }
+            return "";
         }
 
         public bool HasMqttDevice => MqttDevice != null;
         public bool MqttSettingsReady => Project.MqttSettings != null;
 
-        /// <summary>连接摘要（无设备时提示先建）。</summary>
+        /// <summary>连接摘要（未选定/无设备时提示去通讯配置新建/选择）。</summary>
         public string ConnectionSummary
         {
             get
             {
-                if (MqttDevice == null) return "未配置 MQTT 设备——请先「配置连接」新建（broker 主机/IP）";
+                if (MqttDevice == null) return "未选定 MQTT 设备——请到「通讯配置」创建 MQTT 设备后在此下拉选择";
                 var summary = MqttDevice.ConnectionInfo;
                 try
                 {

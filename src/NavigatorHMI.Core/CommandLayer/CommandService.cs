@@ -99,6 +99,7 @@ namespace NavigatorHMI.CommandLayer
                 ["update_world_map"]    = new UpdateWorldMapHandler(),
                 // ── MQTT 三层映射（Y-3b 2026-09-10 ④通信批；EnableMqtt 开关/Topic 配置/Binding 绑定）──
                 ["mqtt_set_enabled"]    = new MqttSetEnabledHandler(),
+                ["mqtt_set_device"]     = new MqttSetDeviceHandler(),   // Y Check 裁决（2026-09-11）：选定 MQTT 连接设备（通讯页建后引用）
                 ["mqtt_add_topic"]      = new MqttAddTopicHandler(),
                 ["mqtt_update_topic"]   = new MqttUpdateTopicHandler(),
                 ["mqtt_delete_topic"]   = new MqttDeleteTopicHandler(),

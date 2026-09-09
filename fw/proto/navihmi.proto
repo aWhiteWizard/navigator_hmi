@@ -474,7 +474,10 @@ message MqttBinding {
 message MqttSettings {
   bool enable_mqtt = 1;        // EnableMqtt 总开关（禁用：PC 灰显、FW 不建连接对象）
   int32 schema_version = 2;    // JSON 模板 schema 版本号（PC/设备共用——联调硬约束，不匹配告警）
-  MqttConfig config = 3;       // 连接配置（单 broker）
+  MqttConfig config = 3;       // 连接配置（单 broker；本轮不填充——连接参数真源 = DeviceConfig，防双源）
   repeated MqttTopic topics = 4;    // 主题组（发布/订阅分离）
   repeated MqttBinding bindings = 5; // 变量↔字段绑定表
+  string device_name = 6;      // Y Check 裁决（2026-09-11）：本工程 MQTT 连接选定的 MQTT 设备名
+                               // （DeviceConfig.Name，Protocol==MQTT——通讯页创建后此处引用；空 = 未选定）
+                               // FW 连接参数真源：优先本字段 → 该 DeviceConfig.connection_info（connInfoForDevice）
 }

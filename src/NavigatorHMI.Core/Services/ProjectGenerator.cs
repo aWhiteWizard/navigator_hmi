@@ -207,9 +207,15 @@ namespace NavigatorHMI.Common
             var mqtt = project.MqttSettings;
             if (mqtt != null && mqtt.EnableMqtt)
             {
-                // ① EnableMqtt 开启但无 MQTT 设备（连接参数真源 = DeviceConfig MQTT——Y-3a 裁决）→ 报错防 FW 无连接可建
-                if (!project.Devices.Any(d => d.Protocol == ProtocolType.MQTT))
-                    result.Errors.Add("MQTT 总开关已启用，但工程无 MQTT 设备——请在通讯配置中新建 MQTT 设备并填写连接参数");
+                // ① EnableMqtt 开启须选定 MQTT 设备（Y Check 裁决 2026-09-11：设备在通讯配置创建后，MQTT 设置页下拉选定
+                //   MqttSettings.DeviceName——连接参数真源 = 该 DeviceConfig.connection_info，防 FW 无连接可建）
+                var dev = string.IsNullOrWhiteSpace(mqtt.DeviceName)
+                    ? null
+                    : project.Devices.FirstOrDefault(d => d.Name == mqtt.DeviceName && d.Protocol == ProtocolType.MQTT);
+                if (dev == null)
+                    result.Errors.Add(string.IsNullOrWhiteSpace(mqtt.DeviceName)
+                        ? "MQTT 总开关已启用，但未选定 MQTT 设备——请先在「通讯配置」创建 MQTT 设备，再到 MQTT 设置页下拉选择"
+                        : $"MQTT 选定的设备 \"{mqtt.DeviceName}\" 不存在或协议非 MQTT——请在通讯配置中修正或重新选择");
                 // ② Binding 引用对象存在：TopicName 须在 Topics、TagName 须在 Tags（防悬空映射静默失效）
                 foreach (var b in mqtt.Bindings)
                 {

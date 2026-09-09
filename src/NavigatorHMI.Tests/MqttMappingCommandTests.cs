@@ -276,5 +276,46 @@ namespace NavigatorHMI.Tests
             Assert.True(r.Success, r.ErrorMessage);
             Assert.Empty(p.MqttSettings!.Bindings);
         }
+
+        // ═══ Y Check 裁决（2026-09-11）：mqtt_set_device——选定 MQTT 连接设备（通讯页创建后引用）═══
+        [Fact]
+        public void 选定MQTT设备_成功_落库DeviceName()
+        {
+            var svc = NewService(out var p);
+            p.Devices.Add(new DeviceConfig { Name = "MQTT-Broker", Protocol = ProtocolType.MQTT, ConnectionInfo = "{\"broker\":\"192.168.1.1\"}" });
+            var r = svc.Execute("mqtt_set_device", new Dictionary<string, object?> { ["device_name"] = "MQTT-Broker" });
+            Assert.True(r.Success, r.ErrorMessage);
+            Assert.Equal("MQTT-Broker", p.MqttSettings!.DeviceName);
+        }
+
+        [Fact]
+        public void 清除选定MQTT设备_空串_成功()
+        {
+            var svc = NewService(out var p);
+            p.Devices.Add(new DeviceConfig { Name = "MQTT-Broker", Protocol = ProtocolType.MQTT });
+            svc.Execute("mqtt_set_device", new Dictionary<string, object?> { ["device_name"] = "MQTT-Broker" });
+            var r = svc.Execute("mqtt_set_device", new Dictionary<string, object?> { ["device_name"] = "" });
+            Assert.True(r.Success, r.ErrorMessage);
+            Assert.Equal("", p.MqttSettings!.DeviceName);
+        }
+
+        [Fact]
+        public void 选定MQTT设备_不存在_拒绝()
+        {
+            var svc = NewService(out _);
+            var r = svc.Execute("mqtt_set_device", new Dictionary<string, object?> { ["device_name"] = "无此设备" });
+            Assert.False(r.Success);
+            Assert.Equal("INVALID_PARAM", r.ErrorCode);
+        }
+
+        [Fact]
+        public void 选定MQTT设备_协议非MQTT_拒绝()
+        {
+            var svc = NewService(out var p);
+            p.Devices.Add(new DeviceConfig { Name = "ModbusTCP-1", Protocol = ProtocolType.ModbusTCP });
+            var r = svc.Execute("mqtt_set_device", new Dictionary<string, object?> { ["device_name"] = "ModbusTCP-1" });
+            Assert.False(r.Success);
+            Assert.Equal("INVALID_PARAM", r.ErrorCode);
+        }
     }
 }
