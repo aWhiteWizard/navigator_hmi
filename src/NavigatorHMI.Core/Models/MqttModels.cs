@@ -43,7 +43,8 @@ namespace NavigatorHMI.Common
         KvWithTimestamp = 1,
     }
 
-    /// <summary>连接配置（MqttSettings.Config；凭据两级加密——Password 存编译侧加密包，绝不明文进 .navihmi）。</summary>
+    /// <summary>连接配置（复用——新主载体为 MqttConnection.Config=2；旧单份 MqttSettings.Config=3 deprecated 仅迁移读取；
+    /// 凭据两级加密——Password 存编译侧加密包，绝不明文进 .navihmi）。</summary>
     [ProtoContract]
     public class MqttConfig : INotifyPropertyChanged
     {
@@ -138,7 +139,8 @@ namespace NavigatorHMI.Common
 
         private string _statusTag = "";
 
-        /// <summary>连接状态回写变量名（回写 4 态枚举 MqttConnectionState 数值 0-3——断开/连接中/已连接/错误；空 = 不回写）</summary>
+        /// <summary>连接状态回写变量名（回写 4 态数值 0-3——断开/连接中/已连接/错误；MqttConnectionState 为 proto 专属枚举，
+        /// C# 无镜像——FW 侧实现；空 = 不回写）</summary>
         [ProtoMember(9)]
         public string StatusTag
         {

@@ -327,6 +327,7 @@ namespace NavigatorHMI.Tests
             Assert.Equal(5, f[nameof(MqttSettings.Bindings)]);
             Assert.Equal(6, f[nameof(MqttSettings.DeviceName)]);
             Assert.Equal(7, f[nameof(MqttSettings.Connections)]);   // Z 循环多连接管理器（2026-09-11）
+            Assert.Equal(f.Count, f.Values.Distinct().Count());   // 🟡3（reviewer Z-1）：防两属性同 Tag 漏检
             Assert.Equal(7, f.Count);
         }
 
@@ -339,7 +340,20 @@ namespace NavigatorHMI.Tests
             Assert.Equal(2, f[nameof(MqttConnection.Config)]);
             Assert.Equal(3, f[nameof(MqttConnection.Topics)]);
             Assert.Equal(4, f[nameof(MqttConnection.Bindings)]);
+            Assert.Equal(f.Count, f.Values.Distinct().Count());   // 🟡3（reviewer Z-1）：防两属性同 Tag 漏检
             Assert.Equal(4, f.Count);
+        }
+
+        [Fact]
+        public void MqttSettings_空Connections_round_trip()
+        {
+            // 🟡4（reviewer Z-1）：Connections 空表（EnableMqtt 开但未建连接）序列化回读——空表保真、Config 恒非空兜底
+            var s = new MqttSettings { EnableMqtt = true, SchemaVersion = 1 };
+            var back = Deserialize<MqttSettings>(Serialize(s));
+            Assert.True(back.EnableMqtt);
+            Assert.Empty(back.Connections);
+            Assert.NotNull(back.Connections);
+            Assert.NotNull(back.Config);   // new() 兜底恒非空（判"未配置"须用 EnableMqtt/Connections 空，非 null）
         }
 
         [Fact]

@@ -438,7 +438,8 @@ enum MqttJsonTemplate {
   MQTT_TPL_KV_TIMESTAMP = 1;   // 键值对 + 时间戳
 }
 
-/// 连接配置（MqttSettings.config；凭据两级加密——password 存编译侧加密包，绝不明文）
+/// 连接配置（复用——新主载体为 MqttConnection.config=2；旧单份 MqttSettings.config=3 deprecated 仅迁移读取；
+/// 凭据两级加密——password 存编译侧加密包，绝不明文）
 message MqttConfig {
   string broker = 1;        // broker 主机/IP（不含协议前缀；本地测试 "127.0.0.1"）
   int32 port = 2;           // 端口（默认 1883）
