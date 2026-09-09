@@ -2021,14 +2021,16 @@
                                                   VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
                                                   ScrollViewer.CanContentScroll="True"
                                                   SizeChanged="TagGrid_SizeChanged">
-                                            <!-- Y-5a：按分组显示（Tag.GroupLabel）——组头行显示组名+计数；默认 GroupItem 容器含展开控件（▾ 点击收起/展开） -->
+                                            <!-- Y-5a：按分组显示（Tag.GroupLabel）——组头行显示组名+计数；默认 GroupItem 容器含展开控件（▾ 点击收起/展开）
+                                                 Y Check 修复（2026-09-11）：Run.Text 绑定显式 Mode=OneWay——Run.Text 默认 TwoWay，
+                                                 绑 CollectionViewGroupInternal.Name/ItemCount（只读）→ XamlParseException（用户实测打开变量页抛异常） -->
                                             <DataGrid.GroupStyle>
                                                 <GroupStyle>
                                                     <GroupStyle.HeaderTemplate>
                                                         <DataTemplate>
                                                             <StackPanel Orientation="Horizontal" Margin="2,0,0,0">
                                                                 <TextBlock FontWeight="Bold" FontSize="12">
-                                                                    <Run Text="组: "/><Run Text="{Binding Name}"/><Run Text="  ("/><Run Text="{Binding ItemCount}"/><Run Text=")"/>
+                                                                    <Run Text="组: "/><Run Text="{Binding Name, Mode=OneWay}"/><Run Text="  ("/><Run Text="{Binding ItemCount, Mode=OneWay}"/><Run Text=")"/>
                                                                 </TextBlock>
                                                             </StackPanel>
                                                         </DataTemplate>
@@ -2256,8 +2258,13 @@
                                       Visibility="{Binding DataContext.DeviceActive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
                                     <ctrl:DevicePanelView/>
                                 </Grid>
-                                <!-- Y-3b MQTT 设置页内容（MQTT 设置 Tab 激活时显示；三层映射：连接 Config / Topic 发布订阅 / Binding 变量↔字段） -->
-                                <Grid Grid.Row="1" Margin="3" DataContext="{Binding MqttSettingsVM, RelativeSource={RelativeSource AncestorType=Window}}"
+                                <!-- Y-3b MQTT 设置页内容（MQTT 设置 Tab 激活时显示；三层映射：连接 Config / Topic 发布订阅 / Binding 变量↔字段）
+                                     Y Check 修复（2026-09-11）：DataContext 改继承绑定——真根因：RelativeSource Window 裸路径解析对象是 Window 类本体，
+                                     MqttSettingsVM 挂在 Window.DataContext（EditWindowViewModel）上（EditWindow 类无此属性）→ 绑定失败 DataContext=null
+                                     （按钮 Command 失效无反应；同 Grid Visibility 的 RelativeSource DataContext.MqttActive 一直正常即证非容器解析问题）；
+                                     同容器设备管理 Grid（DevicePanelVM 同挂 EditWindowViewModel）用继承绑定先例正常。Visibility 保持 RelativeSource Window
+                                     （MqttActive 挂 EditWindowViewModel，兄弟 Grid 同款惯例） -->
+                                <Grid Grid.Row="1" Margin="3" DataContext="{Binding MqttSettingsVM}"
                                       Visibility="{Binding DataContext.MqttActive, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
