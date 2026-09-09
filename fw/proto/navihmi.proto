@@ -448,12 +448,12 @@ message MqttConfig {
   string password = 6;      // 密码加密包（PC 编译侧再加密；FW 端解密使用；绝不明文进 .navihmi）
   int32 keep_alive_sec = 7; // keepAlive 心跳（秒，默认 60）
   bool enable_tls = 8;      // TLS 开关（本轮恒 false——V1.2 按需补；proto 预留）
-  string status_tag = 9;    // 连接状态回写变量名（4 态/错误码；空 = 不回写）
+  string status_tag = 9;    // 连接状态回写变量名（回写 MqttConnectionState 枚举数值 0-3；空 = 不回写）
 }
 
 /// 主题配置（发布/订阅分离维护：publish 禁 +/#、≤512；subscribe 合法 wildcard、同父节点禁重复）
 message MqttTopic {
-  string name = 1;              // 主题配置名（工程内唯一标识，Binding 引用锚；如 "泵站状态"）
+  string name = 1;              // 主题配置名（连接内唯一标识，Binding 引用锚；如 "泵站状态"）
   MqttTopicDirection direction = 2;
   string topic = 3;             // topic 路径（发布禁 +/#、≤512；订阅允许通配符 +/# 但同父节点禁重复）
   int32 qos = 4;                // QoS 0/1/2
@@ -470,14 +470,31 @@ message MqttBinding {
   string field_name = 3;    // JSON 字段名
 }
 
-/// 工程级 MQTT 三层映射根（HMIProject 24；缺省 = 未配置 MQTT）
+/// 连接状态（StatusTag 回写 4 态——Z 循环 2026-09-11 按西门子归档定稿；回写 tag 值 = 枚举数值 0-3）
+enum MqttConnectionState {
+  MQTT_STATE_DISCONNECTED = 0;  // 未连接（proto3 零值默认）
+  MQTT_STATE_CONNECTING = 1;    // 连接中
+  MQTT_STATE_CONNECTED = 2;     // 已连接（订阅就绪）
+  MQTT_STATE_ERROR = 3;         // 错误（连接拒绝/连续失败退避中）
+}
+
+/// 单个 broker 连接（Z 循环多连接管理器：MqttSettings.connections 元素；
+/// 西门子同构——本连接 config + topics + bindings 三层归属，Binding 挂哪棵 Topic 树即属哪个连接）
+message MqttConnection {
+  string name = 1;           // 连接名（工程内唯一；UI 树节点名含 broker IP 摘要）
+  MqttConfig config = 2;     // 连接参数（复用 MqttConfig——host/port/凭据 DPAPI/keepAlive/TLS/status_tag 按连接）
+  repeated MqttTopic topics = 3;     // 本连接主题（发布/订阅；同名 Topic 跨连接互不干扰——不同 broker 命名空间）
+  repeated MqttBinding bindings = 4; // 本连接变量↔字段绑定（tag 不加归属字段，经 Binding→Topic→Connection 路由）
+}
+
+/// 工程级 MQTT 连接管理器根（HMIProject 24；缺省 = 未配置 MQTT）
 message MqttSettings {
   bool enable_mqtt = 1;        // EnableMqtt 总开关（禁用：PC 灰显、FW 不建连接对象）
   int32 schema_version = 2;    // JSON 模板 schema 版本号（PC/设备共用——联调硬约束，不匹配告警）
-  MqttConfig config = 3;       // 连接配置（单 broker；本轮不填充——连接参数真源 = DeviceConfig，防双源）
-  repeated MqttTopic topics = 4;    // 主题组（发布/订阅分离）
-  repeated MqttBinding bindings = 5; // 变量↔字段绑定表
-  string device_name = 6;      // Y Check 裁决（2026-09-11）：本工程 MQTT 连接选定的 MQTT 设备名
-                               // （DeviceConfig.Name，Protocol==MQTT——通讯页创建后此处引用；空 = 未选定）
-                               // FW 连接参数真源：优先本字段 → 该 DeviceConfig.connection_info（connInfoForDevice）
+  MqttConfig config = 3;       // [deprecated Z 循环] 旧单份连接配置——连接参数真源改 MqttConnection.config（仅迁移读取）
+  repeated MqttTopic topics = 4;    // [deprecated Z 循环] 旧单份主题组（仅迁移读取）
+  repeated MqttBinding bindings = 5; // [deprecated Z 循环] 旧单份绑定表（仅迁移读取）
+  string device_name = 6;      // [deprecated Z 循环] 旧单份选定 MQTT 设备名（仅迁移读取）
+                               // 旧单份结构仅 PC Z-4 迁移读取；FW 不兜底（只认 connections——用户 2026-09-11 拍板）
+  repeated MqttConnection connections = 7;  // 多连接管理器（Z 循环 2026-09-11：每项 name + config + topics + bindings）
 }

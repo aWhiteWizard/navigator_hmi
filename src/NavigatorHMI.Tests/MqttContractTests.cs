@@ -7,11 +7,12 @@ using Xunit;
 namespace NavigatorHMI.Tests
 {
     /// <summary>
-    /// Y-2 MQTT 三层映射契约测试（2026-09-10 ④通信批）。
+    /// Y-2 MQTT 三层映射契约测试（2026-09-10 ④通信批）+ Z 循环多连接管理器（2026-09-11）。
     /// 1) protobuf round-trip：MqttSettings 三层（Config/Topic/Binding）序列化回读一致；
+    ///    （Z：Connections 多连接每项 name+config+topics+bindings round-trip；旧单份字段 3/4/5/6 deprecated 保留可序列化——迁移读取依赖）
     /// 2) 编译 DTO 透传：HMIProject.MqttSettings → NavihmiProject.MqttSettings（ProjectGenerator ToDto）；
     /// 3) Tag.Group 字段 round-trip（Y-5 变量分组契约先行）；
-    /// 4) 字段号审计：C# ProtoMember ↔ proto 字段号对拍（Mqtt* 四类型 + 锚点 24/10/4——
+    /// 4) 字段号审计：C# ProtoMember ↔ proto 字段号对拍（Mqtt* 五类型含 MqttConnection + 锚点 24/10/4——
     ///    锁两端同步，防 N+9「PC proto 漏同步」型错位，2026-09-10 reviewer 🟡 闭环）；
     /// 5) KeepAliveSec=0（MQTT 禁用心跳合法值）IsRequired 恒写回读保真。
     /// 字段号与 proto（fw/proto/navihmi.proto）逐字段对齐——改契约须两端同步（N+9 教训）。
@@ -119,6 +120,73 @@ namespace NavigatorHMI.Tests
             Assert.Equal("温度上报", back.Bindings[2].TopicName);
             Assert.Equal("Temp_1", back.Bindings[2].TagName);
             Assert.Equal("temp", back.Bindings[2].FieldName);
+        }
+
+        [Fact]
+        public void MqttSettings_多连接_round_trip_每连接独立三层()
+        {
+            // Z 循环（2026-09-11）：MqttSettings.Connections 多连接——每连接 name+config+topics+bindings
+            // 独立 round-trip（西门子同构归属：Binding 挂该连接 Topic 树；同名 Topic 跨连接互不干扰）
+            var s = new MqttSettings
+            {
+                EnableMqtt = true,
+                SchemaVersion = 1,
+                Connections =
+                {
+                    new MqttConnection
+                    {
+                        Name = "broker-A",
+                        Config = new MqttConfig { Broker = "192.168.1.14", Port = 1883, ClientId = "hmi-A", StatusTag = "conn_a" },
+                        Topics =
+                        {
+                            new MqttTopic { Name = "温度上报", Direction = MqttTopicDirection.Publish, Topic = "plant/temp", Qos = 0, Retain = true, PublishIntervalMs = 5000, JsonTemplate = MqttJsonTemplate.KvWithTimestamp },
+                            new MqttTopic { Name = "泵站", Direction = MqttTopicDirection.Subscribe, Topic = "plant/+/status", Qos = 1 },
+                        },
+                        Bindings =
+                        {
+                            new MqttBinding { TopicName = "温度上报", TagName = "Temp_1", FieldName = "temp" },
+                            new MqttBinding { TopicName = "泵站", TagName = "Pump_Run", FieldName = "run" },
+                        },
+                    },
+                    new MqttConnection
+                    {
+                        Name = "broker-B",
+                        Config = new MqttConfig { Broker = "192.168.1.14", Port = 1884, StatusTag = "conn_b" },
+                        Topics =
+                        {
+                            // 与 broker-A 同名 Topic 合法（不同 broker 命名空间）
+                            new MqttTopic { Name = "温度上报", Direction = MqttTopicDirection.Publish, Topic = "sec/temp", JsonTemplate = MqttJsonTemplate.Kv },
+                        },
+                        Bindings =
+                        {
+                            new MqttBinding { TopicName = "温度上报", TagName = "Temp_2", FieldName = "t" },
+                        },
+                    },
+                },
+            };
+            var back = Deserialize<MqttSettings>(Serialize(s));
+
+            Assert.True(back.EnableMqtt);
+            Assert.Equal(2, back.Connections.Count);
+            // broker-A 全字段
+            Assert.Equal("broker-A", back.Connections[0].Name);
+            Assert.Equal("192.168.1.14", back.Connections[0].Config.Broker);
+            Assert.Equal(1883, back.Connections[0].Config.Port);
+            Assert.Equal("hmi-A", back.Connections[0].Config.ClientId);
+            Assert.Equal("conn_a", back.Connections[0].Config.StatusTag);
+            Assert.Equal(2, back.Connections[0].Topics.Count);
+            Assert.Equal("plant/temp", back.Connections[0].Topics[0].Topic);
+            Assert.Equal(5000, back.Connections[0].Topics[0].PublishIntervalMs);
+            Assert.Equal("plant/+/status", back.Connections[0].Topics[1].Topic);
+            Assert.Equal(2, back.Connections[0].Bindings.Count);
+            Assert.Equal("Temp_1", back.Connections[0].Bindings[0].TagName);
+            Assert.Equal("run", back.Connections[0].Bindings[1].FieldName);
+            // broker-B 独立三层（同名 Topic 归属各自连接）
+            Assert.Equal("broker-B", back.Connections[1].Name);
+            Assert.Equal(1884, back.Connections[1].Config.Port);
+            Assert.Equal("sec/temp", back.Connections[1].Topics[0].Topic);
+            Assert.Single(back.Connections[1].Bindings);
+            Assert.Equal("Temp_2", back.Connections[1].Bindings[0].TagName);
         }
 
         [Fact]
@@ -251,14 +319,27 @@ namespace NavigatorHMI.Tests
         public void MqttSettings_字段号与proto对齐()
         {
             var f = FieldNumbers(typeof(MqttSettings));
-            // proto MqttSettings: enable_mqtt=1 schema_version=2 config=3 topics=4 bindings=5 device_name=6
+            // proto MqttSettings: enable_mqtt=1 schema_version=2 config=3(deprecated) topics=4(deprecated) bindings=5(deprecated) device_name=6(deprecated) connections=7(Z 循环)
             Assert.Equal(1, f[nameof(MqttSettings.EnableMqtt)]);
             Assert.Equal(2, f[nameof(MqttSettings.SchemaVersion)]);
             Assert.Equal(3, f[nameof(MqttSettings.Config)]);
             Assert.Equal(4, f[nameof(MqttSettings.Topics)]);
             Assert.Equal(5, f[nameof(MqttSettings.Bindings)]);
-            Assert.Equal(6, f[nameof(MqttSettings.DeviceName)]);   // Y Check 裁决（2026-09-11）：选定 MQTT 设备名（连接真源引用）
-            Assert.Equal(6, f.Count);
+            Assert.Equal(6, f[nameof(MqttSettings.DeviceName)]);
+            Assert.Equal(7, f[nameof(MqttSettings.Connections)]);   // Z 循环多连接管理器（2026-09-11）
+            Assert.Equal(7, f.Count);
+        }
+
+        [Fact]
+        public void MqttConnection_字段号与proto对齐()
+        {
+            var f = FieldNumbers(typeof(MqttConnection));
+            // proto MqttConnection: name=1 config=2 topics=3 bindings=4
+            Assert.Equal(1, f[nameof(MqttConnection.Name)]);
+            Assert.Equal(2, f[nameof(MqttConnection.Config)]);
+            Assert.Equal(3, f[nameof(MqttConnection.Topics)]);
+            Assert.Equal(4, f[nameof(MqttConnection.Bindings)]);
+            Assert.Equal(4, f.Count);
         }
 
         [Fact]

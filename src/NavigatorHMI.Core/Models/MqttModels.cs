@@ -6,11 +6,13 @@ using ProtoBuf;
 namespace NavigatorHMI.Common
 {
     // ═══════════════════════════════════════════════════════════════
-    // MQTT 三层映射模型（Y-2 ④通信批，2026-09-10 契约先行）
-    // 与 proto MqttSettings/MqttConfig/MqttTopic/MqttBinding 逐字段对齐
+    // MQTT 模型（Y-2 ④通信批 2026-09-10 契约先行 + Z 循环多连接管理器 2026-09-11 重构）
+    // 与 proto MqttSettings/MqttConnection/MqttConfig/MqttTopic/MqttBinding 逐字段对齐
     // （字段号 = proto 字段号；两端一致性由 MqttContractTests 字段号审计测试锁——
     // V-3c 8b95036「PC fw/proto 漏同步」N+9 教训直接对治，2026-09-10）
     // 设计源: v1.1-design §5.4 P0-1（Config→Topic→Binding 三层，proto 一次设计到位）
+    //         + §5.4 追加段（Z 循环：MqttSettings.connections 多连接管理器——西门子同构
+    //         Connection→Topic→Binding 三层归属；旧单份字段 3/4/5/6 deprecated 仅迁移读取）
     // ═══════════════════════════════════════════════════════════════
 
     /// <summary>MQTT 协议版本（与 proto MqttVersion 值一致）。
@@ -136,7 +138,7 @@ namespace NavigatorHMI.Common
 
         private string _statusTag = "";
 
-        /// <summary>连接状态回写变量名（4 态/错误码；空 = 不回写）</summary>
+        /// <summary>连接状态回写变量名（回写 4 态枚举 MqttConnectionState 数值 0-3——断开/连接中/已连接/错误；空 = 不回写）</summary>
         [ProtoMember(9)]
         public string StatusTag
         {
@@ -158,7 +160,7 @@ namespace NavigatorHMI.Common
 
         private string _name = "";
 
-        /// <summary>主题配置名（工程内唯一标识，Binding 引用锚；如 "泵站状态"）</summary>
+        /// <summary>主题配置名（连接内唯一标识，Binding 引用锚；如 "泵站状态"——Z 循环：跨连接允许同名，归属连接收窄）</summary>
         [ProtoMember(1)]
         public string Name
         {
@@ -285,7 +287,60 @@ namespace NavigatorHMI.Common
         }
     }
 
-    /// <summary>工程级 MQTT 三层映射根（HMIProject 24；null = 未配置 MQTT）。</summary>
+    /// <summary>单个 broker 连接（Z 循环多连接管理器 MqttSettings.Connections 元素；西门子同构——
+    /// 本连接 Config + Topics + Bindings 三层归属，Binding 挂哪棵 Topic 树即属哪个连接）。</summary>
+    [ProtoContract]
+    public class MqttConnection : INotifyPropertyChanged
+    {
+        /// <inheritdoc/>
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        /// <summary>触发 PropertyChanged 事件</summary>
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+            => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+
+        private string _name = "";
+
+        /// <summary>连接名（工程内唯一；UI 树节点名含 broker IP 摘要）</summary>
+        [ProtoMember(1)]
+        public string Name
+        {
+            get => _name;
+            set { if (_name != value) { _name = value ?? ""; OnPropertyChanged(); } }
+        }
+
+        private MqttConfig _config = new();
+
+        /// <summary>连接参数（复用 MqttConfig——broker/port/凭据 DPAPI/keepAlive/TLS/StatusTag 按连接）</summary>
+        [ProtoMember(2)]
+        public MqttConfig Config
+        {
+            get => _config;
+            set { if (!ReferenceEquals(_config, value)) { _config = value ?? new MqttConfig(); OnPropertyChanged(); } }
+        }
+
+        private List<MqttTopic> _topics = new();
+
+        /// <summary>本连接主题（发布/订阅；同名 Topic 跨连接互不干扰——不同 broker 命名空间）</summary>
+        [ProtoMember(3)]
+        public List<MqttTopic> Topics
+        {
+            get => _topics;
+            set { if (!ReferenceEquals(_topics, value)) { _topics = value ?? new List<MqttTopic>(); OnPropertyChanged(); } }
+        }
+
+        private List<MqttBinding> _bindings = new();
+
+        /// <summary>本连接变量↔字段绑定（tag 不加归属字段，经 Binding→Topic→Connection 路由）</summary>
+        [ProtoMember(4)]
+        public List<MqttBinding> Bindings
+        {
+            get => _bindings;
+            set { if (!ReferenceEquals(_bindings, value)) { _bindings = value ?? new List<MqttBinding>(); OnPropertyChanged(); } }
+        }
+    }
+
+    /// <summary>工程级 MQTT 连接管理器根（HMIProject 24；null = 未配置 MQTT）。</summary>
     [ProtoContract]
     public class MqttSettings : INotifyPropertyChanged
     {
@@ -318,7 +373,7 @@ namespace NavigatorHMI.Common
 
         private MqttConfig _config = new();
 
-        /// <summary>连接配置（单 broker）</summary>
+        /// <summary>[deprecated Z 循环] 旧单份连接配置——连接参数真源改 MqttConnection.Config（仅迁移读取）。</summary>
         [ProtoMember(3)]
         public MqttConfig Config
         {
@@ -328,7 +383,7 @@ namespace NavigatorHMI.Common
 
         private List<MqttTopic> _topics = new();
 
-        /// <summary>主题组（发布/订阅分离）</summary>
+        /// <summary>[deprecated Z 循环] 旧单份主题组（仅迁移读取——归其 DeviceName 连接下）。</summary>
         [ProtoMember(4)]
         public List<MqttTopic> Topics
         {
@@ -338,7 +393,7 @@ namespace NavigatorHMI.Common
 
         private List<MqttBinding> _bindings = new();
 
-        /// <summary>变量↔字段绑定表</summary>
+        /// <summary>[deprecated Z 循环] 旧单份绑定表（仅迁移读取）。</summary>
         [ProtoMember(5)]
         public List<MqttBinding> Bindings
         {
@@ -348,14 +403,23 @@ namespace NavigatorHMI.Common
 
         private string _deviceName = "";
 
-        /// <summary>Y Check 裁决（2026-09-11）：本工程 MQTT 连接选定的 MQTT 设备名（DeviceConfig.Name，Protocol==MQTT——
-        /// 通讯页创建后此处引用；空 = 未选定）。FW 连接参数真源：优先本字段 → 该 DeviceConfig.connection_info。
-        /// （MqttConfig.config 保留不填充——防双源，Y-3a 裁决不变）</summary>
+        /// <summary>[deprecated Z 循环] 旧单份选定 MQTT 设备名（仅迁移读取——Z-4 迁移归 Connections[0]；
+        /// 新结构连接参数真源 = MqttConnection.Config，DeviceConfig 不再承担 MQTT 连接参数）。</summary>
         [ProtoMember(6)]
         public string DeviceName
         {
             get => _deviceName;
             set { if (_deviceName != value) { _deviceName = value ?? ""; OnPropertyChanged(); } }
+        }
+
+        private List<MqttConnection> _connections = new();
+
+        /// <summary>多连接管理器（Z 循环 2026-09-11：每项 Name + Config + Topics + Bindings——西门子同构归属）</summary>
+        [ProtoMember(7)]
+        public List<MqttConnection> Connections
+        {
+            get => _connections;
+            set { if (!ReferenceEquals(_connections, value)) { _connections = value ?? new List<MqttConnection>(); OnPropertyChanged(); } }
         }
     }
 }
