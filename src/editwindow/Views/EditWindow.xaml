@@ -1820,7 +1820,7 @@
                                                     </StackPanel>
                                                 </Border>
                                                 <DataTemplate.Triggers>
-                                                    <!-- 当前编辑页高亮；变量管理器/通讯/列表/报警/用户/设备管理激活时画面 Tab 不高亮（高亮互斥，避免双蓝） -->
+                                                    <!-- 当前编辑页高亮；变量管理器/通讯/列表/报警/用户/设备管理/MQTT 设置激活时画面 Tab 不高亮（高亮互斥，避免双蓝） -->
                                                     <MultiDataTrigger>
                                                         <MultiDataTrigger.Conditions>
                                                             <Condition Binding="{Binding IsCurrent}" Value="True"/>
@@ -1830,6 +1830,9 @@
                                                             <Condition Binding="{Binding DataContext.AlarmActive, RelativeSource={RelativeSource AncestorType=Window}}" Value="False"/>
                                                             <Condition Binding="{Binding DataContext.UserActive, RelativeSource={RelativeSource AncestorType=Window}}" Value="False"/>
                                                             <Condition Binding="{Binding DataContext.DeviceActive, RelativeSource={RelativeSource AncestorType=Window}}" Value="False"/>
+                                                            <!-- Y Check 修复（2026-09-11）：MQTT 设置激活时画面 Tab 不高亮（原漏 MqttActive 条件
+                                                                 致 MQTT 页与画面1 同时选中——与树高亮 UpdateNodeRecursive 的 !mqttActive 同语义对齐） -->
+                                                            <Condition Binding="{Binding DataContext.MqttActive, RelativeSource={RelativeSource AncestorType=Window}}" Value="False"/>
                                                         </MultiDataTrigger.Conditions>
                                                         <Setter TargetName="TabBorder" Property="Background" Value="#0078D4"/>
                                                         <Setter TargetName="TabBorder" Property="BorderBrush" Value="#0078D4"/>
@@ -1898,9 +1901,9 @@
                                         <Style TargetType="Border">
                                             <Setter Property="Visibility" Value="Visible"/>
                                             <Style.Triggers>
-                                                <!-- 变量管理器/通讯/列表/报警/用户/设备管理激活时隐藏画布（同一位置切换）
+                                                <!-- 变量管理器/通讯/列表/报警/用户/设备管理/MQTT 设置激活时隐藏画布（同一位置切换）
                                                      用 Hidden 而非 Collapsed：不销毁画布大量控件的布局树，切页/切回更快；
-                                                     Hidden 不渲染且不参与命中测试，变量/通讯/列表 Grid 在 Z 序上正常显示 -->
+                                                     Hidden 不渲染且不参与命中测试，变量/通讯/列表/MQTT Grid 在 Z 序上正常显示 -->
                                                 <MultiDataTrigger>
                                                     <MultiDataTrigger.Conditions>
                                                         <Condition Binding="{Binding VariableManagerActive}" Value="False"/>
@@ -1909,6 +1912,7 @@
                                                         <Condition Binding="{Binding AlarmActive}" Value="False"/>
                                                         <Condition Binding="{Binding UserActive}" Value="False"/>
                                                         <Condition Binding="{Binding DeviceActive}" Value="False"/>
+                                                        <Condition Binding="{Binding MqttActive}" Value="False"/>
                                                     </MultiDataTrigger.Conditions>
                                                     <Setter Property="Visibility" Value="Visible"/>
                                                 </MultiDataTrigger>
@@ -1928,6 +1932,11 @@
                                                     <Setter Property="Visibility" Value="Hidden"/>
                                                 </DataTrigger>
                                                 <DataTrigger Binding="{Binding DeviceActive}" Value="True">
+                                                    <Setter Property="Visibility" Value="Hidden"/>
+                                                </DataTrigger>
+                                                <!-- Y Check 修复（2026-09-11）：MQTT 设置页激活时画布 Hidden——原漏 MqttActive 条件致
+                                                     MQTT 页与画布叠层（视觉透出 + 空隙点击穿透可拖动画面控件 + 配置连接按钮点击不达） -->
+                                                <DataTrigger Binding="{Binding MqttActive}" Value="True">
                                                     <Setter Property="Visibility" Value="Hidden"/>
                                                 </DataTrigger>
                                             </Style.Triggers>
@@ -2255,16 +2264,21 @@
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
-                                    <!-- 连接 Config 层（真源 = DeviceConfig MQTT 设备；按钮开 DeviceEditDialog 编辑） -->
+                                    <!-- 连接 Config 层（真源 = DeviceConfig MQTT 设备；按钮开 DeviceEditDialog 编辑）
+                                         Y Check 修复（2026-09-11）：StackPanel→DockPanel——无设备态 ConnectionSummary 长文案
+                                         （MqttSettingsViewModel:125 提示 30+ 字符）会把末位按钮推出 Border 可点区（Horizontal
+                                         StackPanel 不裁剪不换行，WPF 测量语义）→ 按钮 Dock=Right 恒在右缘可见；摘要 TextBlock
+                                         填剩余宽 + 截断 + ToolTip 保留全文 -->
                                     <Border Grid.Row="0" BorderBrush="#B0B0B0" BorderThickness="1" CornerRadius="3" Padding="8" Margin="0,0,0,4" Background="#FAFAFA">
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="MQTT 总开关:" VerticalAlignment="Center" FontSize="12"/>
-                                            <CheckBox Margin="8,0,16,0" VerticalAlignment="Center" FontSize="12"
+                                        <DockPanel>
+                                            <TextBlock DockPanel.Dock="Left" Text="MQTT 总开关:" VerticalAlignment="Center" FontSize="12"/>
+                                            <CheckBox DockPanel.Dock="Left" Margin="8,0,16,0" VerticalAlignment="Center" FontSize="12"
                                                       IsChecked="{Binding EnableMqtt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                                       ToolTip="禁用 = FW 不建 MQTT 连接对象"/>
-                                            <TextBlock Text="{Binding ConnectionSummary}" VerticalAlignment="Center" FontSize="12" Foreground="#444444"/>
-                                            <Button Content="⚙ 配置连接…" Height="28" Margin="16,0,0,0" Command="{Binding EditConnectionCommand}" ToolTip="编辑 MQTT 连接参数（无设备则新建——DeviceEditDialog 全字段）"/>
-                                        </StackPanel>
+                                            <Button DockPanel.Dock="Right" Content="⚙ 配置连接…" Height="28" Margin="16,0,0,0" Command="{Binding EditConnectionCommand}" ToolTip="编辑 MQTT 连接参数（无设备则新建——DeviceEditDialog 全字段）"/>
+                                            <TextBlock Text="{Binding ConnectionSummary}" VerticalAlignment="Center" FontSize="12" Foreground="#444444"
+                                                       TextTrimming="CharacterEllipsis" ToolTip="{Binding ConnectionSummary}"/>
+                                        </DockPanel>
                                     </Border>
                                     <!-- Topic 配置层（发布/订阅分离表 + 新增行） -->
                                     <Grid Grid.Row="1" Margin="0,0,0,4">
