@@ -346,6 +346,46 @@ namespace NavigatorHMI.Tests
         }
 
         [Fact]
+        public void MqttSettings_新旧混合payload_两侧均保真()
+        {
+            // 🟡2（reviewer Z-1）：Z-4 迁移/双写窗口中间态——deprecated 旧字段（3/4/5/6）+ connections 并存 →
+            // 两侧（旧字段 + 新连接）序列化回读均保真（外层字段 5 Bindings 与内层字段 4 Bindings 不串线）
+            var s = new MqttSettings
+            {
+                EnableMqtt = true,
+                DeviceName = "MQTT-Broker",   // deprecated 旧字段
+                Config = new MqttConfig { Broker = "192.168.1.100", Port = 1883 },
+                Topics = { new MqttTopic { Name = "旧主题", Direction = MqttTopicDirection.Publish, Topic = "legacy/topic" } },
+                Bindings = { new MqttBinding { TopicName = "旧主题", TagName = "V1", FieldName = "v1" } },
+                Connections =
+                {
+                    new MqttConnection
+                    {
+                        Name = "broker-A",
+                        Config = new MqttConfig { Broker = "192.168.1.14", Port = 1884 },
+                        Topics = { new MqttTopic { Name = "新主题", Direction = MqttTopicDirection.Subscribe, Topic = "new/+/topic" } },
+                        Bindings = { new MqttBinding { TopicName = "新主题", TagName = "V2", FieldName = "v2" } },
+                    }
+                },
+            };
+            var back = Deserialize<MqttSettings>(Serialize(s));
+            Assert.Equal("MQTT-Broker", back.DeviceName);   // 旧字段保真
+            Assert.Equal("192.168.1.100", back.Config.Broker);
+            Assert.Single(back.Topics);
+            Assert.Single(back.Bindings);
+            Assert.Equal("legacy/topic", back.Topics[0].Topic);
+            Assert.Equal("V1", back.Bindings[0].TagName);
+            // 新连接保真（内层 Bindings 与外层 deprecated Bindings 不串线）
+            var c = Assert.Single(back.Connections);
+            Assert.Equal("broker-A", c.Name);
+            Assert.Equal("192.168.1.14", c.Config.Broker);
+            Assert.Single(c.Topics);
+            Assert.Single(c.Bindings);
+            Assert.Equal("new/+/topic", c.Topics[0].Topic);
+            Assert.Equal("V2", c.Bindings[0].TagName);
+        }
+
+        [Fact]
         public void MqttSettings_空Connections_round_trip()
         {
             // 🟡4（reviewer Z-1）：Connections 空表（EnableMqtt 开但未建连接）序列化回读——空表保真、Config 恒非空兜底

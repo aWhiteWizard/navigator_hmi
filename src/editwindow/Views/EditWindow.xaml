@@ -2294,8 +2294,9 @@
                                                        Visibility="{Binding IsConnectionPage, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}" Margin="0,0,10,0"/>
                                         </DockPanel>
                                     </Border>
-                                    <!-- ═══ 总览态：连接列表（多 broker）═══ -->
-                                    <Grid Grid.Row="1" Visibility="{Binding IsOverview, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
+                                    <!-- ═══ 总览态：连接列表（多 broker）；② 设计：禁用 = 内容只读（IsEnabled 绑 EnableMqtt——总开关在页头保留可操作）═══ -->
+                                    <Grid Grid.Row="1" IsEnabled="{Binding EnableMqtt}"
+                                          Visibility="{Binding IsOverview, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto"/>
                                             <RowDefinition Height="*"/>
@@ -2317,8 +2318,9 @@
                                             </ListBox.ItemTemplate>
                                         </ListBox>
                                     </Grid>
-                                    <!-- ═══ 连接页态：连接参数 + 本连接 Topic/Binding ═══ -->
-                                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                                    <!-- ═══ 连接页态：连接参数 + 本连接 Topic/Binding；② 设计：禁用 = 内容只读 ═══ -->
+                                    <ScrollViewer Grid.Row="1" IsEnabled="{Binding EnableMqtt}"
+                                                  VerticalScrollBarVisibility="Auto"
                                                   Visibility="{Binding IsConnectionPage, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}">
                                         <StackPanel>
                                             <!-- 连接参数（内联 MqttConnection.Config；「应用」一次性经 mqtt_update_connection 落库） -->

@@ -1165,6 +1165,102 @@ namespace NavigatorHMI.ViewModels
             TreeRoots.Add(BuildDeviceRootNode());   // L 循环 L-B1：设备管理独立根节点（与通信变量/用户/报警/列表同等级）
         }
 
+        /// <summary>
+        /// Z-4c 旧工程 MQTT 迁移（2026-09-11，加载期执行——幂等）：Y 循环单份 MqttSettings
+        /// （config=3/topics=4/bindings=5/device_name=6，连接参数真源 = DeviceConfig MQTT 设备 connection_info）
+        /// → 新多连接管理器 Connections[0]（西门子同构归属）。
+        /// 触发条件：Connections 空 且 旧字段有数据（Topics/Bindings/DeviceName 任一非空）。
+        /// 连接名 = DeviceName（原 MQTT 设备名）或「默认连接」；连接参数 = 原 MQTT 设备 connection_info 解析填 Config；
+        /// 迁移后移除 MQTT 设备（通讯页只配 Modbus——Z-4a 收窄后 MQTT 设备无编辑入口）。
+        /// </summary>
+        private static void MigrateLegacyMqttSettings(HMIProject project)
+        {
+            var s = project.MqttSettings;
+            if (s == null || s.Connections.Count > 0) return;   // 已迁移/新结构——幂等
+            bool hasLegacy = s.Topics.Count > 0 || s.Bindings.Count > 0
+                             || !string.IsNullOrWhiteSpace(s.DeviceName)
+                             || (s.Config != null && !string.IsNullOrWhiteSpace(s.Config.Broker));
+            if (!hasLegacy) return;
+
+            var name = string.IsNullOrWhiteSpace(s.DeviceName) ? "默认连接" : s.DeviceName.Trim();
+            // 🟡4（reviewer Z-4c）：连接配置/集合深拷贝（new Config + 复制列表）——迁移后 deprecated 字段冻结快照，
+            // 连接页后续编辑（mqtt_update_connection/update_topic 原地改）不镜像回 deprecated 字段；且为 🟡6 清空铺路
+            var cfg = new MqttConfig();
+            if (s.Config != null)
+            {
+                cfg.Broker = s.Config.Broker;
+                cfg.Port = s.Config.Port;
+                cfg.Version = s.Config.Version;
+                cfg.ClientId = s.Config.ClientId;
+                cfg.Username = s.Config.Username;
+                cfg.Password = s.Config.Password;
+                cfg.KeepAliveSec = s.Config.KeepAliveSec;
+                cfg.EnableTls = s.Config.EnableTls;
+                cfg.StatusTag = s.Config.StatusTag;
+            }
+            // Y 时代连接参数真源 = 选定 MQTT 设备 connection_info（DeviceName 引用）——优先取设备参数
+            var dev = project.Devices.FirstOrDefault(d => d.Name == s.DeviceName && d.Protocol == ProtocolType.MQTT);
+            if (dev != null)
+            {
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(
+                        string.IsNullOrWhiteSpace(dev.ConnectionInfo) ? "{}" : dev.ConnectionInfo);
+                    var root = doc.RootElement;
+                    if (root.TryGetProperty("broker", out var b) && b.ValueKind == System.Text.Json.JsonValueKind.String)
+                        cfg.Broker = b.GetString() ?? "";
+                    // 🟡2（reviewer Z-4c）：数值解析容错——GetInt32 遇越界抛 OverflowException/FormatException → 打开旧工程即崩；
+                    // 统一 TryGetInt32 安全读取（损坏/手改文件不崩，缺省回落）
+                    if (TryGetInt32(root, "port", out var port)) cfg.Port = port;
+                    if (TryGetInt32(root, "version", out var ver)) cfg.Version = ver == 1 ? MqttVersion.V5_0 : MqttVersion.V3_1_1;
+                    if (root.TryGetProperty("clientId", out var c) && c.ValueKind == System.Text.Json.JsonValueKind.String)
+                        cfg.ClientId = c.GetString() ?? "";
+                    if (root.TryGetProperty("username", out var u) && u.ValueKind == System.Text.Json.JsonValueKind.String)
+                        cfg.Username = u.GetString() ?? "";
+                    if (root.TryGetProperty("password", out var pw) && pw.ValueKind == System.Text.Json.JsonValueKind.String)
+                        cfg.Password = pw.GetString() ?? "";   // dpapi: 密文原样随迁（编译再加密 Z-4b 处理）
+                    if (TryGetInt32(root, "keepAlive", out var ka)) cfg.KeepAliveSec = ka;
+                    // 🟡1（reviewer Z-4c）：enableTls 漏随迁（Y-3a 九键全量含 enableTls；true-only 落键按 true 解析——安全位不静默丢）
+                    if (root.TryGetProperty("enableTls", out var tls) && tls.ValueKind == System.Text.Json.JsonValueKind.True)
+                        cfg.EnableTls = true;
+                    if (root.TryGetProperty("statusTag", out var st) && st.ValueKind == System.Text.Json.JsonValueKind.String)
+                        cfg.StatusTag = st.GetString() ?? "";
+                }
+                catch (System.Text.Json.JsonException)
+                {
+                    // connection_info 损坏：回落旧 Config（可能为空——迁移后用户在连接页补 broker）
+                }
+            }
+            var conn = new MqttConnection { Name = name, Config = cfg };
+            conn.Topics.AddRange(s.Topics.Select(t => new MqttTopic   // 🟡4：复制元素（防连接内编辑镜像回 deprecated）
+            {
+                Name = t.Name, Direction = t.Direction, Topic = t.Topic, Qos = t.Qos,
+                Retain = t.Retain, PublishIntervalMs = t.PublishIntervalMs,
+                JsonTemplate = t.JsonTemplate, ResponseTopic = t.ResponseTopic,
+            }));
+            conn.Bindings.AddRange(s.Bindings.Select(b => new MqttBinding
+            {
+                TopicName = b.TopicName, TagName = b.TagName, FieldName = b.FieldName,
+            }));
+            s.Connections.Add(conn);
+            // 移除 MQTT 设备（Z-4a 通讯页只配 Modbus——连接参数已内联，旧设备无保留意义）
+            if (dev != null) project.Devices.Remove(dev);
+            // 🟡6（reviewer Z-4c）：迁移成功清已消费 deprecated 旧字段（深拷贝后安全）——防「删迁移连接→保存→重开复活」；
+            // 顺带消 .navihmi 重复内容（ToDto 整对象透传，旧字段与新连接重复落产物）
+            s.Topics.Clear();
+            s.Bindings.Clear();
+            s.DeviceName = "";
+            s.Config = new MqttConfig();
+        }
+
+        /// <summary>安全读 JSON 数值（ValueKind 预检 + TryGetInt32——防 GetInt32 越界抛异常崩构造，reviewer Z-4c 🟡2）。</summary>
+        private static bool TryGetInt32(System.Text.Json.JsonElement root, string key, out int value)
+        {
+            value = 0;
+            if (!root.TryGetProperty(key, out var el) || el.ValueKind != System.Text.Json.JsonValueKind.Number) return false;
+            return el.TryGetInt32(out value);
+        }
+
         /// <summary>构建「通信变量」根节点（「变量」/「通讯」子节点，双击在画布位置打开对应 Tab）。
         /// Z 循环（2026-09-11）：MQTT 移出独立根（BuildMqttRootNode）——通讯页只配 Modbus。</summary>
         private CommunicationRootNode BuildCommunicationRootNode()
@@ -1296,6 +1392,7 @@ namespace NavigatorHMI.ViewModels
             MqttSettingsVM = new MqttSettingsViewModel(project, CommandService);   // Z 循环：MQTT 多连接管理器页（总览/连接页）
             MqttSettingsVM.ConnectionSwitched += RefreshTreeCurrentStatus;   // 🟡C3（reviewer Z-2）：连接切换（双击/返回/回落）→ 树 ✅ 高亮同步
             CommandService.CommandExecuted += OnCommandExecuted;
+            MigrateLegacyMqttSettings(project);   // Z-4c：旧单份 MQTT 结构 → Connections[0]（迁移先于树构建——新连接叶子即含）
             // 构建树根：全局画面、地图画面、自定义画面列表根
             // 注意：树节点选中一律走 ActivateScreen（当前画面未变时也能退出变量管理器视图）
             var globalNode = new ScreenItemNode(project.Screens.First(s => s.Type == ScreenType.Template), project);
