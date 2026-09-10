@@ -7,8 +7,15 @@ namespace NavigatorHMI.Tests
     /// AB-4（2026-09-11）Check B3 回归：RobotList「绑定设备」两态过滤 —— `Tag.DeviceName` 在 PC 侧的
     /// 第一个消费方（另一消费方是 FW 采集路由）。
     /// 契约：未绑定设备 → 只列内部变量（DeviceName 空）；绑定设备 D → 列出 D 的变量 + 内部变量；
-    /// 选择同时写回 `WindowWidget.BoundDevice` 并触发标脏；「（仅内部变量）」占位项等价于未绑定。
+    /// 选择同时写回 `WindowWidget.BoundDevice`；「（仅内部变量）」占位项等价于未绑定。
     /// 说明：GUI 侧「点六个区域」仍需人工冒烟，本测试锁定的是过滤语义本身。
+    /// <para>
+    /// **脏标记口径（2026-09-11 审查确认，二分法）**：`Widget`/`Screen` **在 View 层订阅面上**
+    /// （`EditWindow.SubscribeModelDirty`）⇒ 写这两个对象**不需要也不应**在 VM 里再补 `DirtyRequested`，
+    /// 此类"只测 VM"的用例可以**复刻订阅**来验证标脏；而**不在订阅面上的嵌套 POCO / POCO 内 List**
+    /// （如 `RobotSlotBinding`、顶点 `List`）**必须**显式 `DirtyRequested`，此类用例**必须直接断言
+    /// `DirtyRequested`**（照搬"复刻订阅"会把缺标脏的真缺陷掩盖成通过）。
+    /// </para>
     /// </summary>
     public class WindowDeviceTagFilterTests
     {
@@ -49,23 +56,34 @@ namespace NavigatorHMI.Tests
         }
 
         [Fact]
-        public void 绑定设备_写回模型并通知变更()
+        public void 绑定设备_写回模型并通知变更_标脏由View订阅承担()
         {
             var (project, w, vm) = Build();
             int undoSnapshots = 0;
             vm.BeforeModify = () => undoSnapshots++;
             var changed = new List<string?>();
-            // 复刻 EditWindow.SubscribeModelDirty：View 层订阅 Widget.PropertyChanged 才落到 MarkProjectDirty
-            // （模型层 POCO 自身不标脏——测试若不建这条订阅会误判为"静默丢改动"）
             w.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
             project.ClearDirty();
 
             vm.WindowBoundDevice = "PT100";
 
+            // 第一段（现状锚定）：只观察、不标脏 ⇒ VM 层单独调用不假标脏
             Assert.Equal("PT100", w.BoundDevice);                         // 模型写回
-            Assert.Contains(nameof(WindowWidget.BoundDevice), changed);   // → View 层据此 MarkProjectDirty
+            Assert.Contains(nameof(WindowWidget.BoundDevice), changed);   // PropertyChanged 已发
             Assert.Equal(1, undoSnapshots);                              // 撤销快照
-            Assert.False(project.IsDirty, "VM 层单独调用不假标脏（真实标脏由 View 订阅承担）");
+            Assert.False(project.IsDirty, "VM 层单独调用不假标脏");
+
+            // 第二段：复刻 EditWindow.SubscribeModelDirty（Canvas.cs:113-140）——含两个瞬态排除项
+            project.ClearDirty();
+            w.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(Widget.IsSelected)) return;
+                if (e.PropertyName == nameof(Widget.DisplayText)) return;
+                project.MarkDirty();
+            };
+            vm.WindowBoundDevice = "TCP-A";
+            Assert.Equal("TCP-A", w.BoundDevice);
+            Assert.True(project.IsDirty, "有了 View 层订阅后，模型写回必须导致工程标脏（防关闭静默丢失）");
         }
 
         [Fact]
