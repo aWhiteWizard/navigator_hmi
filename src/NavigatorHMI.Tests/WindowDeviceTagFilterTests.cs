@@ -97,6 +97,26 @@ namespace NavigatorHMI.Tests
         }
 
         [Fact]
+        public void 同值重复设置_不触发快照与变更通知()
+        {
+            var (_, w, vm) = Build();
+            int undo = 0;
+            vm.BeforeModify = () => undo++;
+            var changed = new List<string?>();
+            w.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+            vm.WindowBoundDevice = "PT100";
+            undo = 0;
+            changed.Clear();
+
+            vm.WindowBoundDevice = "PT100";   // 同值 → setter 短路分支
+
+            Assert.Equal(0, undo);            // 不推撤销快照
+            Assert.Empty(changed);            // 不发变更通知（否则会误标脏/误推快照）
+            Assert.Equal("PT100", w.BoundDevice);
+        }
+
+        [Fact]
         public void 设备列表含占位项与全部设备名()
         {
             var (_, _, vm) = Build();
