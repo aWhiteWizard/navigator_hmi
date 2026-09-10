@@ -35,7 +35,7 @@ namespace NavigatorHMI.Views
     public partial class EditWindow : Window
     {
 
-        #region 原 CLI 控制台（72daf0e^ 第 4931-5467 行）
+#region 原 CLI 控制台（72daf0e^ 第 4931-5467 行；29 个成员块）
 
         /// <summary>沿视觉树向上查找点击目标是否属于 CliOutput 子树（输出区不参与聚焦，保留文本选择/复制能力）。</summary>
         private bool IsDescendantOfCliOutput(DependencyObject? node)

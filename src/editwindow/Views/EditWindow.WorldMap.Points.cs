@@ -35,7 +35,7 @@ namespace NavigatorHMI.Views
     public partial class EditWindow : Window
     {
 
-        // AB-6 复审 🟡-1（2026-09-11）：世界地图作业点/范围点表格 自 EditWindow.WorldMap.cs 纯搬家（内容零改动）
+        // AB-6 复审（2026-09-11）：世界地图作业点/范围点表格处理器与标记绘制 —— 自 EditWindow.WorldMap.cs 纯搬家（基线 72daf0e 第 210-1019 行，23 个成员；内容零改动）
         private void StartEditWorkPoint_Click(object sender, RoutedEventArgs e)
         {
             WorldMapContextMenu.IsOpen = false;

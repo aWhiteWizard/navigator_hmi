@@ -35,7 +35,7 @@ namespace NavigatorHMI.Views
     public partial class EditWindow : Window
     {
 
-        #region 原 树形视图 & 消息（72daf0e^ 第 4117-4135 行）
+#region 原 树形视图 & 消息（72daf0e^ 第 4117-4135 行；2 个成员块）
 
         private void TreeViewItem_DoubleClick(object sender, MouseButtonEventArgs e)
         {
@@ -55,7 +55,7 @@ namespace NavigatorHMI.Views
         }
         #endregion
 
-        #region 原 树形视图右键编辑菜单（72daf0e^ 委托给 TreeViewContextMenuHandler）（第 4136-4346 行）
+#region 原 树形视图右键编辑菜单（委托给 TreeViewContextMenuHandler）（72daf0e^ 第 4136-4346 行；12 个成员块）
 
         /// <summary>画布顶部页面标签关闭：从打开集合移除（画面不删除）。</summary>
         private void ScreenTabClose_Click(object sender, MouseButtonEventArgs e)
@@ -208,7 +208,7 @@ namespace NavigatorHMI.Views
         }
         #endregion
 
-        #region 原 生成xml文件（72daf0e^ 第 4347-4365 行）
+#region 原 生成xml文件（72daf0e^ 第 4347-4365 行；1 个成员块）
 
         /// <summary>
         /// 生成项目（F5 / 菜单点击）：先校验错误，无错误则输出 XML。
@@ -230,7 +230,7 @@ namespace NavigatorHMI.Views
         }
         #endregion
 
-        // AB-6 复审 🟡-3（2026-09-11）：自 EditWindow.xaml.cs 归位（原行 915-922，内容零改动）
+        // AB-6 复审（2026-09-11）：画面新增处理器（树域归位） —— 自 EditWindow.xaml.cs 纯搬家（基线 72daf0e 第 994-1001 行，1 个成员；内容零改动）
         private void OnScreenAdded(object recipient, ScreenAddedMessage message)
         {
             Dispatcher.Invoke(() =>

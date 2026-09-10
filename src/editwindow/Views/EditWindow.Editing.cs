@@ -35,7 +35,7 @@ namespace NavigatorHMI.Views
     public partial class EditWindow : Window
     {
 
-        // AB-6 复审 🟡-1（2026-09-11）：剪贴板复制粘贴/列表名内联编辑 自 EditWindow.Variables.cs 纯搬家（内容零改动）
+        // AB-6 复审（2026-09-11）【编辑辅助域：剪贴板复制粘贴（变量/报警/设备/文本项/图片项）+ 列表名内联编辑】 —— 自 EditWindow.Variables.cs 纯搬家（基线 72daf0e 第 67-287 行，12 个成员；内容零改动）
         private void ListNameBox_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
             if (e.OriginalSource is not DependencyObject src) return;

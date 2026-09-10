@@ -13,7 +13,7 @@ namespace NavigatorHMI.ViewModels
     public partial class PropertyViewModel : INotifyPropertyChanged
     {
 
-        #region 原 未分区块（72daf0e^ 第 76-1135 行，×30 段）
+#region 原 未分区块（72daf0e^ 第 76-1135 行；30 个成员块）
 
         /// <summary>刷新事件栏（世界地图画面选中时调用）：地图级事件仅 onClick（点击切换画面，P2 属性面板入口）。
         /// 事件存 WorldMapConfig.Events；WorldMap 未初始化（未放过点）时先 ??= 初始化再读，防临时列表不落库。</summary>
@@ -279,7 +279,7 @@ namespace NavigatorHMI.ViewModels
         public void WorldMapZoomToBox() => WorldMapZoomToBoxRequested?.Invoke();
         #endregion
 
-        #region 原 绑定变量（72daf0e^ 第 1471-1482 行，×2 段）
+#region 原 绑定变量（72daf0e^ 第 1471-1482 行；2 个成员块）
 
         /// <summary>W-2b：作业点/范围点绑定变量下拉选项 = 「无」+ 工程全部 GPS 变量（ObservableCollection 共享引用，行 VM 直接绑定；变量增删经 RefreshBindableTags 联动）。</summary>
         public ObservableCollection<string> GpsTagNames { get; } = new();
@@ -294,7 +294,7 @@ namespace NavigatorHMI.ViewModels
         }
         #endregion
 
-        // AB-6 复审 🟡-3（2026-09-11）：CollectionChanged 重入守卫 自 PropertyViewModel.cs 归位（内容零改动）
+        // AB-6 复审（2026-09-11）：CollectionChanged 重入守卫（与作业点/范围点表格处理器同文件） —— 自 PropertyViewModel.cs 纯搬家（基线 72daf0e 第 183-212 行，2 个成员；内容零改动）
         private void ValidateDuplicateNames()
         {
             if (Project?.WorldMap == null) return;

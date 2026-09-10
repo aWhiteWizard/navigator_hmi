@@ -13,7 +13,7 @@ namespace NavigatorHMI.ViewModels
     public partial class PropertyViewModel : INotifyPropertyChanged
     {
 
-        #region 原 未分区块（72daf0e^ 第 558-2063 行，×93 段）
+#region 原 未分区块（72daf0e^ 第 558-2063 行；93 个成员块）
 
         // ═══ 批量编辑属性（多选模式，反射应用到所有选中控件） ═══
 

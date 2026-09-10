@@ -35,7 +35,7 @@ namespace NavigatorHMI.Views
     public partial class EditWindow : Window
     {
 
-        #region 原 世界地图交互绘制与视口（72daf0e^ 批 4）（第 1865-2862 行）
+#region 原 世界地图交互绘制与视口（批 4）（72daf0e^ 第 1865-2862 行；60 个成员块）
 
         /// <summary>经纬度 → 画布屏幕坐标（与 ScreenToGeo 互逆；动态点位用）。</summary>
         private Point? GeoToScreen(GeoPoint geo)
@@ -585,7 +585,7 @@ namespace NavigatorHMI.Views
             => AiFabBtn.Visibility = Visibility.Visible;
         #endregion
 
-        // AB-6 复审 🟡-3（2026-09-11）：自 EditWindow.xaml.cs 归位（原行 754-761，内容零改动）
+        // AB-6 复审（2026-09-11）：世界地图坐标换算（与 GeoToScreen 互逆对同文件） —— 自 EditWindow.xaml.cs 纯搬家（基线 72daf0e 第 754-761 行，1 个成员；内容零改动）
         private GeoPoint? ScreenToGeo(Point screenPos)
         {
             var map = WorldMapControl?.Map;

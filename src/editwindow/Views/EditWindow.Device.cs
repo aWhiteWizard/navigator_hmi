@@ -35,7 +35,7 @@ namespace NavigatorHMI.Views
     public partial class EditWindow : Window
     {
 
-        #region 原 通讯配置（72daf0e^ 第 918-924 行）
+#region 原 通讯配置（72daf0e^ 第 918-924 行；1 个成员块）
 
         /// <summary>双击设备行 → 编辑。</summary>
         private void DeviceGrid_DoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
@@ -45,7 +45,7 @@ namespace NavigatorHMI.Views
         }
         #endregion
 
-        #region 原 报警配置（72daf0e^ 第 968-1343 行）
+#region 原 报警配置（72daf0e^ 第 968-1343 行；26 个成员块）
 
         /// <summary>报警删除：确认 → CommandService（delete_alarm 无引用限制，直接删除）。</summary>
         /// <summary>批量删除选中报警（删除按钮 + 右键；多选时全部删除）。</summary>
@@ -424,7 +424,7 @@ namespace NavigatorHMI.Views
         }
         #endregion
 
-        // AB-6 复审 🟡-3（2026-09-11）：自 EditWindow.xaml.cs 归位（原行 449-477，内容零改动）
+        // AB-6 复审（2026-09-11）：设备/报警对话框请求处理器（同域归位） —— 自 EditWindow.xaml.cs 纯搬家（基线 72daf0e 第 449-518 行，2 个成员；内容零改动）
         private void OnDeviceEditRequested(DeviceConfig? device)
         {
             var dlg = new DeviceEditDialog(device, _currentProject) { Owner = this };

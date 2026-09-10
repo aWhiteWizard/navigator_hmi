@@ -13,7 +13,10 @@ namespace NavigatorHMI.ViewModels
     public partial class PropertyViewModel : INotifyPropertyChanged
     {
 
-        #region 原 未分区块（72daf0e^ 第 600-1941 行，×17 段）
+        // AB-6 复审 🟡-2（2026-09-11）：本文件的点行删除复用 PropertyViewModel.WorldMap.cs 的 RemoveRowDeferred
+        // （跨文件共享的 CollectionChanged 重入守卫——作业点/范围点行与该守卫同文件，多边形/矩形点行为其第二消费方；
+        //  改动该守卫须同时核对两处消费者）
+#region 原 未分区块（72daf0e^ 第 600-1941 行；17 个成员块）
         /// <summary>P7：多边形顶点可编辑表格行（画布绝对坐标；行内编辑/末行补行/删除禁 &lt;3 点）。</summary>
         public ObservableCollection<PolygonPointRowVM> PolygonPointRows { get; } = new();
 

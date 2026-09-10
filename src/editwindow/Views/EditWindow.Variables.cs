@@ -35,7 +35,7 @@ namespace NavigatorHMI.Views
     public partial class EditWindow : Window
     {
 
-        #region 原 变量管理器（72daf0e^ 第 444-884 行）
+#region 原 变量管理器（72daf0e^ 第 444-884 行；41 个成员块）
 
         /// <summary>变量删除：确认 → CommandService（delete_tag 自带引用保护）。</summary>
         /// <summary>变量表格快捷键：Delete 删除选中、Ctrl+A 全选。</summary>
@@ -312,7 +312,7 @@ namespace NavigatorHMI.Views
         }
         #endregion
 
-        #region 原 变量拖拽（72daf0e^ 变量行 → 标签页/树节点切画面 → 画布生成绑定 IO Field）（第 1349-1622 行）
+#region 原 变量拖拽（变量行 → 标签页/树节点切画面 → 画布生成绑定 IO Field）（72daf0e^ 第 1349-1622 行；18 个成员块）
         /// <summary>框选起点（空白处按下时为 null；非 null = 框选进行中）。</summary>
         private Point? _tagMarqueeStart;
         /// <summary>悬停切换画面节流时间戳（DragOver 高频触发，200ms 内不重复切换）。</summary>
@@ -589,7 +589,7 @@ namespace NavigatorHMI.Views
         }
         #endregion
 
-        #region 原 变量管理器 Tab（72daf0e^ 画布标签栏）（第 4154-4210 行）
+#region 原 变量管理器 Tab（画布标签栏）（72daf0e^ 第 4154-4210 行；8 个成员块）
 
         /// <summary>关闭「变量管理器」Tab（当前激活时切回当前画面）。</summary>
         private void VarManagerTabClose_Click(object sender, MouseButtonEventArgs e)

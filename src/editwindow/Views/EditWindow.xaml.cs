@@ -34,7 +34,7 @@ namespace NavigatorHMI.Views
     /// </summary>
     public partial class EditWindow : Window
     {
-        #region 原 私有字段（72daf0e^ 第 37-167 行）
+#region 原 私有字段（72daf0e^ 第 37-167 行；31 个成员块）
         // 类内部
         [StructLayout(LayoutKind.Sequential)]
         private struct RECT
@@ -167,7 +167,7 @@ namespace NavigatorHMI.Views
         public ListManagerViewModel ListManagerVM => _listManagerVM;
         #endregion
 
-        #region 原 未分区块（72daf0e^ 第 168-176 行）
+#region 原 未分区块（72daf0e^ 第 168-176 行；1 个成员块）
 
 
         /// <summary>K-4: 连接会话变化 → 状态栏（SessionChanged 可能后台线程——Dispatcher 封送）。</summary>
@@ -177,7 +177,7 @@ namespace NavigatorHMI.Views
         }
         #endregion
 
-        #region 原 构造函数 & 初始化（72daf0e^ 第 177-3027 行）
+#region 原 构造函数 & 初始化（72daf0e^ 第 177-3027 行；32 个成员块）
 
         /// <summary>K-4: 刷新状态栏文本（未连接 / 已连接 IP·型号·固件）。</summary>
         private void UpdateConnectionStatusBar()
@@ -626,7 +626,7 @@ namespace NavigatorHMI.Views
         }
         #endregion
 
-        #region 原 辅助方法（72daf0e^ 第 3028-3035 行）
+#region 原 辅助方法（72daf0e^ 第 3028-3035 行；1 个成员块）
 
 
 
@@ -635,7 +635,7 @@ namespace NavigatorHMI.Views
         private const string GlobalGhostName = "GlobalGhostItemsControl";
         #endregion
 
-        #region 原 项目保存 & 关闭（72daf0e^ 第 4050-4116 行）
+#region 原 项目保存 & 关闭（72daf0e^ 第 4050-4116 行；4 个成员块）
 
         /// <summary>
         /// 检查未保存更改，返回 true 表示可以继续关闭，false 表示用户取消。
@@ -654,7 +654,7 @@ namespace NavigatorHMI.Views
 
         #endregion
 
-        #region 原 未分区块（72daf0e^ 第 4366-4930 行）
+#region 原 未分区块（72daf0e^ 第 4366-4930 行；3 个成员块）
 
         private ToolBar? _dragSource;
         private Point _dragStart;

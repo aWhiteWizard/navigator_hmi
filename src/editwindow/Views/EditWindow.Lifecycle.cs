@@ -35,7 +35,7 @@ namespace NavigatorHMI.Views
     public partial class EditWindow : Window
     {
 
-        // AB-6 复审 🟡-1（2026-09-11）：窗口生命周期/AI 悬浮球/布局清理 自 EditWindow.xaml.cs 纯搬家（内容零改动）
+        // AB-6 复审（2026-09-11）：窗口生命周期/菜单清理/AI 悬浮球/关闭路径 —— 自 EditWindow.xaml.cs 纯搬家（基线 72daf0e 第 662-980 行，12 个成员；内容零改动）
         private void EditWindow_Loaded(object sender, RoutedEventArgs e)
         {
             // W-B 壳先行：首渲染统一由本方法尾部 Dispatcher.Background 分派执行（先见壳后见数据）——

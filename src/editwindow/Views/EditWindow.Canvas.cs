@@ -35,7 +35,7 @@ namespace NavigatorHMI.Views
     public partial class EditWindow : Window
     {
 
-        #region 原 ItemsControl & 画布（72daf0e^ 第 3036-3635 行）
+#region 原 ItemsControl & 画布（72daf0e^ 第 3036-3635 行；25 个成员块）
 
         /// <summary>当前画面是否应叠加全局虚影层：Custom 强制；WorldMap 按属性勾选；Template 自身不叠加；全局画面为空/不存在不叠加。</summary>
         private bool ShouldShowGlobalGhost(Screen screen)
@@ -163,15 +163,6 @@ namespace NavigatorHMI.Views
         /// <summary>
         /// 属性面板数字输入框 Enter 键确认：移动焦点到下一元素（触发 LostFocus 应用绑定值）。
         /// </summary>
-        private void PropField_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
-        {
-            if (e.Key == System.Windows.Input.Key.Enter)
-            {
-                (sender as FrameworkElement)?.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next));
-                e.Handled = true;
-            }
-        }
-
         /// <summary>
         /// 数值输入框字符过滤：整体 TryParse 校验（防多小数点/逗号/非法字符）。
         /// 允许负数前缀态（"-"/"."/"-."）——逐字符输入时中间态，失焦时绑定兜底校验。
@@ -193,19 +184,7 @@ namespace NavigatorHMI.Views
         }
 
         /// <summary>菜单「默认字体」：打开工厂默认字体设置对话框。</summary>
-        private void FontDefaults_Click(object sender, RoutedEventArgs e)
-        {
-            var dialog = new FontDefaultsDialog { Owner = this };
-            dialog.ShowDialog();
-        }
-
         /// <summary>菜单「帮助文档」/ F1：打开帮助对话框。</summary>
-        private void Help_Click(object sender, RoutedEventArgs e)
-        {
-            var dialog = new HelpDialog { Owner = this };
-            dialog.ShowDialog();
-        }
-
         /// <summary>
         /// 选中变化 → 同步属性面板多选状态（框选/单击/清空统一入口）。
         /// </summary>
@@ -386,7 +365,7 @@ namespace NavigatorHMI.Views
             => _widgetContextMenuHandler.Show(widget, screenPos);
         #endregion
 
-        #region 原 Widget 右键菜单（72daf0e^ 委托给 WidgetContextMenuHandler）（第 3636-3848 行）
+#region 原 Widget 右键菜单（委托给 WidgetContextMenuHandler）（72daf0e^ 第 3636-3848 行；7 个成员块）
 
         /// <summary>
         /// 右键菜单「删除」按钮点击：从当前画面移除选中的 Widget。
@@ -417,60 +396,7 @@ namespace NavigatorHMI.Views
         /// <summary>全选当前画面的所有控件（选中状态不持久化，不推 Undo 快照）。</summary>
         /// <summary>方向键微移选中控件（1px / Shift 10px）。同会话连续按键只推一次 Undo 快照（防 key repeat 吃光栈）。</summary>
         private int _nudgeSnapshotDepth = -1;
-        private void NudgeSelectedWidgets(Key key, double step)
-        {
-            var selected = _viewModel.CurrentScreen?.Widgets.Where(w => w.IsSelected).ToList();
-            if (selected == null || selected.Count == 0)
-            {
-                _nudgeSnapshotDepth = -1;
-                return;
-            }
-            // 版本变化（任何 push/undo/redo 发生）→ 重新推快照并记录版本；同版本（纯微移）不重复推
-            if (_nudgeSnapshotDepth != _viewModel.UndoVersion)
-            {
-                _viewModel.PushUndoSnapshot();
-                _nudgeSnapshotDepth = _viewModel.UndoVersion;
-            }
-            double dx = 0, dy = 0;
-            switch (key)
-            {
-                case Key.Left: dx = -step; break;
-                case Key.Right: dx = step; break;
-                case Key.Up: dy = -step; break;
-                case Key.Down: dy = step; break;
-            }
-            foreach (var w in selected)
-            {
-                // P7：多边形顶点为画布绝对坐标——方向键微移同步平移顶点（防表格数据陈旧/重选跳回）
-                if (w is PolygonWidget poly && (dx != 0 || dy != 0)) poly.TranslatePoints(dx, dy);
-                w.X += dx; w.Y += dy;
-            }
-            // 不触发全量 LoadCanvas（会清空选中）：Widget.X/Y setter 的 PropertyChanged
-            // 已驱动 Canvas.Left/Top 绑定自动更新位置，选中状态（TwoWay 绑定）保持不变
-            _selectionManager.UpdateSelectionUI();   // 确保选中装饰器跟随新位置
-            _propertyViewModel.RefreshPolygonPointRowsDisplay();   // C12-12：方向键微移平移顶点后表格实时刷新
-        }
-
         /// <summary>粘贴到当前画布中心附近（快捷键 Ctrl+V；右键菜单粘贴用 PasteWidget_Click）。</summary>
-        private void PasteWidgetsAtCurrent()
-        {
-            if (_viewModel.CurrentScreen == null || _clipboard.Count == 0) return;
-            _viewModel.PushUndoSnapshot();
-            foreach (var data in _clipboard)
-            {
-                using var ms = new MemoryStream(data);
-                var w = Serializer.Deserialize<Widget>(ms);
-                // 相对中心粘贴：后续可改为光标位置
-                double dx = 20 / _zoomLevel, dy = 20 / _zoomLevel;
-                // P7：多边形顶点为画布绝对坐标——整体平移与 X/Y 同步（保持形状相对关系）
-                if (w is PolygonWidget poly && poly.Points.Count > 0) poly.TranslatePoints(dx, dy);
-                w.X += dx; w.Y += dy;
-                w.ObjectName = UniqueName(w.ObjectName);
-                _viewModel.CurrentScreen.Widgets.Add(w);
-            }
-            _viewModel.NotifyCanvasRefreshNeeded();
-        }
-
 
 
 
@@ -479,7 +405,7 @@ namespace NavigatorHMI.Views
         private object? _activeToolboxOriginalContent;  // 保存按钮原始 Content（可能为图标/文本）
         #endregion
 
-        #region 原 添加模式（72daf0e^ 第 3849-3944 行）
+#region 原 添加模式（72daf0e^ 第 3849-3944 行；3 个成员块）
 
         private void ToggleAddWidgetMode(object sender, RoutedEventArgs e)
         {
@@ -576,7 +502,7 @@ namespace NavigatorHMI.Views
         }
         #endregion
 
-        #region 原 视觉树查找（72daf0e^ 第 4030-4049 行）
+#region 原 视觉树查找（72daf0e^ 第 4030-4049 行；2 个成员块）
 
         /// <summary>判断视觉树中是否存在 Button（用于工具栏拖拽检测）。</summary>
         private static bool IsDescendantOfButton(DependencyObject? child)

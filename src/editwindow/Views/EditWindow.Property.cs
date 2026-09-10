@@ -35,7 +35,7 @@ namespace NavigatorHMI.Views
     public partial class EditWindow : Window
     {
 
-        #region 原 属性窗口（72daf0e^ 第 3945-4029 行）
+#region 原 属性窗口（72daf0e^ 第 3945-4029 行；5 个成员块）
 
         /// <summary>选中画面时更新属性面板。</summary>
         private void ShowScreenProperty(Screen screen)
@@ -120,6 +120,28 @@ namespace NavigatorHMI.Views
             return null;
         }
         #endregion
+
+        // AB-6 复审 🟡-1（2026-09-11）：属性面板输入/字体默认/帮助 自 EditWindow.Canvas.cs 归位（属性域收拢）
+        private void PropField_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == System.Windows.Input.Key.Enter)
+            {
+                (sender as FrameworkElement)?.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next));
+                e.Handled = true;
+            }
+        }
+
+        private void FontDefaults_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new FontDefaultsDialog { Owner = this };
+            dialog.ShowDialog();
+        }
+
+        private void Help_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new HelpDialog { Owner = this };
+            dialog.ShowDialog();
+        }
 
     }
 }

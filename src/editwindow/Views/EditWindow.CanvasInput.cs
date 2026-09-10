@@ -35,7 +35,7 @@ namespace NavigatorHMI.Views
     public partial class EditWindow : Window
     {
 
-        // AB-6 复审 🟡-1（2026-09-11）：画布鼠标/绘制预览/键盘快捷键 自 EditWindow.Canvas.cs 纯搬家（内容零改动）
+        // AB-6 复审（2026-09-11）：画布鼠标/绘制预览/Adorner 命中/键盘快捷键 —— 自 EditWindow.Canvas.cs 纯搬家（基线 72daf0e 第 370-787 行，9 个成员；内容零改动）
         private void Canvas_MouseMove(object sender, MouseEventArgs e)
         {
             // 世界地图画面：画布编辑短路（框选/两点式预览不启动），事件到达 MapControl 平移
@@ -405,6 +405,60 @@ namespace NavigatorHMI.Views
             foreach (var w in widgets) w.IsSelected = true;
             _selectionManager.UpdateSelectionUI();
             SyncSelectionToPropertyPanel();
+        }
+
+        // AB-6 复审 🟡-1（2026-09-11）：画布键盘微移/粘贴定位 自 EditWindow.Canvas.cs 补入（画布输入域收拢）
+        private void NudgeSelectedWidgets(Key key, double step)
+        {
+            var selected = _viewModel.CurrentScreen?.Widgets.Where(w => w.IsSelected).ToList();
+            if (selected == null || selected.Count == 0)
+            {
+                _nudgeSnapshotDepth = -1;
+                return;
+            }
+            // 版本变化（任何 push/undo/redo 发生）→ 重新推快照并记录版本；同版本（纯微移）不重复推
+            if (_nudgeSnapshotDepth != _viewModel.UndoVersion)
+            {
+                _viewModel.PushUndoSnapshot();
+                _nudgeSnapshotDepth = _viewModel.UndoVersion;
+            }
+            double dx = 0, dy = 0;
+            switch (key)
+            {
+                case Key.Left: dx = -step; break;
+                case Key.Right: dx = step; break;
+                case Key.Up: dy = -step; break;
+                case Key.Down: dy = step; break;
+            }
+            foreach (var w in selected)
+            {
+                // P7：多边形顶点为画布绝对坐标——方向键微移同步平移顶点（防表格数据陈旧/重选跳回）
+                if (w is PolygonWidget poly && (dx != 0 || dy != 0)) poly.TranslatePoints(dx, dy);
+                w.X += dx; w.Y += dy;
+            }
+            // 不触发全量 LoadCanvas（会清空选中）：Widget.X/Y setter 的 PropertyChanged
+            // 已驱动 Canvas.Left/Top 绑定自动更新位置，选中状态（TwoWay 绑定）保持不变
+            _selectionManager.UpdateSelectionUI();   // 确保选中装饰器跟随新位置
+            _propertyViewModel.RefreshPolygonPointRowsDisplay();   // C12-12：方向键微移平移顶点后表格实时刷新
+        }
+
+        private void PasteWidgetsAtCurrent()
+        {
+            if (_viewModel.CurrentScreen == null || _clipboard.Count == 0) return;
+            _viewModel.PushUndoSnapshot();
+            foreach (var data in _clipboard)
+            {
+                using var ms = new MemoryStream(data);
+                var w = Serializer.Deserialize<Widget>(ms);
+                // 相对中心粘贴：后续可改为光标位置
+                double dx = 20 / _zoomLevel, dy = 20 / _zoomLevel;
+                // P7：多边形顶点为画布绝对坐标——整体平移与 X/Y 同步（保持形状相对关系）
+                if (w is PolygonWidget poly && poly.Points.Count > 0) poly.TranslatePoints(dx, dy);
+                w.X += dx; w.Y += dy;
+                w.ObjectName = UniqueName(w.ObjectName);
+                _viewModel.CurrentScreen.Widgets.Add(w);
+            }
+            _viewModel.NotifyCanvasRefreshNeeded();
         }
 
     }
