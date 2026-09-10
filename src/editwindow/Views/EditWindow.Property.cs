@@ -35,7 +35,7 @@ namespace NavigatorHMI.Views
     public partial class EditWindow : Window
     {
 
-        #region 原 属性窗口（第 3945-4029 行）
+        #region 原 属性窗口（72daf0e^ 第 3945-4029 行）
 
         /// <summary>选中画面时更新属性面板。</summary>
         private void ShowScreenProperty(Screen screen)

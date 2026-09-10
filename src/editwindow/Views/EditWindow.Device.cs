@@ -35,7 +35,7 @@ namespace NavigatorHMI.Views
     public partial class EditWindow : Window
     {
 
-        #region 原 通讯配置（第 918-924 行）
+        #region 原 通讯配置（72daf0e^ 第 918-924 行）
 
         /// <summary>双击设备行 → 编辑。</summary>
         private void DeviceGrid_DoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
@@ -45,7 +45,7 @@ namespace NavigatorHMI.Views
         }
         #endregion
 
-        #region 原 报警配置（第 968-1343 行）
+        #region 原 报警配置（72daf0e^ 第 968-1343 行）
 
         /// <summary>报警删除：确认 → CommandService（delete_alarm 无引用限制，直接删除）。</summary>
         /// <summary>批量删除选中报警（删除按钮 + 右键；多选时全部删除）。</summary>
@@ -423,6 +423,78 @@ namespace NavigatorHMI.Views
                 _alarmVM.EditAlarmCommand.Execute(null);
         }
         #endregion
+
+        // AB-6 复审 🟡-3（2026-09-11）：自 EditWindow.xaml.cs 归位（原行 449-477，内容零改动）
+        private void OnDeviceEditRequested(DeviceConfig? device)
+        {
+            var dlg = new DeviceEditDialog(device, _currentProject) { Owner = this };
+            if (dlg.ShowDialog() != true) return;
+            var result = dlg.Result;
+            if (device == null)
+            {
+                var r = _viewModel.CommandService.Execute("configure_device", new Dictionary<string, object?>
+                {
+                    ["name"] = result.Name,
+                    ["protocol"] = result.Protocol.ToString(),
+                    ["connection_info"] = result.ConnectionInfo,
+                });
+                if (!r.Success) MessageBox.Show(r.ErrorMessage ?? "新建设备失败", "通讯", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            else
+            {
+                // 只提交变化的字段（避免空操作）
+                var p = new Dictionary<string, object?> { ["name"] = device.Name };
+                if (result.Name != device.Name) p["new_name"] = result.Name;
+                if (result.Protocol != device.Protocol) p["protocol"] = result.Protocol.ToString();
+                if (result.ConnectionInfo != device.ConnectionInfo) p["connection_info"] = result.ConnectionInfo;
+                if (p.Count > 1)
+                {
+                    var r = _viewModel.CommandService.Execute("update_device", p);
+                    if (!r.Success) MessageBox.Show(r.ErrorMessage ?? "更新设备失败", "通讯", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+        }
+
+        // AB-6 复审 🟡-3（2026-09-11）：自 EditWindow.xaml.cs 归位（原行 480-518，内容零改动）
+        private void OnAlarmEditRequested(AlarmRule? alarm)
+        {
+            var dlg = new AlarmEditDialog(alarm, _currentProject) { Owner = this };
+            if (dlg.ShowDialog() != true) return;
+            var result = dlg.Result;
+            if (alarm == null)
+            {
+                var r = _viewModel.CommandService.Execute("create_alarm", new Dictionary<string, object?>
+                {
+                    ["name"] = result.Name,
+                    ["tag_name"] = result.TagName,
+                    ["type"] = result.Type.ToString(),
+                    ["threshold"] = result.Threshold,
+                    ["deadband"] = result.Deadband,
+                    ["delay_ms"] = result.DelayMs,
+                    ["severity"] = result.Level.ToString(),
+                    ["message"] = result.Message,
+                });
+                if (!r.Success) MessageBox.Show(r.ErrorMessage ?? "创建报警失败", "报警", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            else
+            {
+                // 只提交变化的字段（避免空操作）
+                var p = new Dictionary<string, object?> { ["name"] = alarm.Name };
+                if (result.Name != alarm.Name) p["new_name"] = result.Name;
+                if (result.TagName != alarm.TagName) p["tag_name"] = result.TagName;
+                if (result.Type != alarm.Type) p["type"] = result.Type.ToString();
+                if (result.Threshold != alarm.Threshold) p["threshold"] = result.Threshold;
+                if (result.Deadband != alarm.Deadband) p["deadband"] = result.Deadband;
+                if (result.DelayMs != alarm.DelayMs) p["delay_ms"] = result.DelayMs;
+                if (result.Level != alarm.Level) p["severity"] = result.Level.ToString();
+                if (result.Message != alarm.Message) p["message"] = result.Message;
+                if (p.Count > 1)
+                {
+                    var r = _viewModel.CommandService.Execute("update_alarm", p);
+                    if (!r.Success) MessageBox.Show(r.ErrorMessage ?? "更新报警失败", "报警", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+        }
 
     }
 }

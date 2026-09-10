@@ -13,7 +13,7 @@ namespace NavigatorHMI.ViewModels
     public partial class PropertyViewModel : INotifyPropertyChanged
     {
 
-        #region 原 绑定变量（第 1377-1582 行）
+        #region 原 绑定变量（72daf0e^ 第 1377-1582 行，×16 段）
 
         /// <summary>「无绑定」哨兵项（非 null，Name=""）。用哨兵替代 null 作下拉首项：
         /// WPF ComboBox 的 ItemsSource 含 null 项时，点击 null 项可能不触发 SelectedItem 回写

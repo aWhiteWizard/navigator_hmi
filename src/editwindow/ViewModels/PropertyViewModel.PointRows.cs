@@ -13,7 +13,7 @@ namespace NavigatorHMI.ViewModels
     public partial class PropertyViewModel : INotifyPropertyChanged
     {
 
-        #region 原 未分区块（第 600-1941 行）
+        #region 原 未分区块（72daf0e^ 第 600-1941 行，×17 段）
         /// <summary>P7：多边形顶点可编辑表格行（画布绝对坐标；行内编辑/末行补行/删除禁 &lt;3 点）。</summary>
         public ObservableCollection<PolygonPointRowVM> PolygonPointRows { get; } = new();
 

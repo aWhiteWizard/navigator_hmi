@@ -35,7 +35,7 @@ namespace NavigatorHMI.Views
     public partial class EditWindow : Window
     {
 
-        #region 原 变量管理器（第 444-884 行）
+        #region 原 变量管理器（72daf0e^ 第 444-884 行）
 
         /// <summary>变量删除：确认 → CommandService（delete_tag 自带引用保护）。</summary>
         /// <summary>变量表格快捷键：Delete 删除选中、Ctrl+A 全选。</summary>
@@ -64,69 +64,8 @@ namespace NavigatorHMI.Views
         private ListDef? _listNameEditTarget;  // 正在编辑的列表
         private bool _listNameSuppress;        // 提交/取消切换态防 LostFocus 递归（Exit 置 Collapsed 亦触发 LostFocus）
 
-        private void ListNameBox_MouseDoubleClick(object sender, MouseButtonEventArgs e)
-        {
-            if (e.OriginalSource is not DependencyObject src) return;
-            var item = FindAncestor<ListBoxItem>(src);
-            if (item?.DataContext is not ListDef list) return;                                        // 空白处双击忽略
-            if (ReferenceEquals(list, _listNameEditTarget) && _listNameEditor != null) return;        // 已在本项编辑（编辑框内双击=选词）忽略
-            if (_listNameEditor != null) CommitListNameEdit();                                        // 已在编辑其它项 → 点其它处即确认
-            var editor = FindVisualChild<TextBox>(item);        // 模板内编辑框（ListBoxItem 范围唯一）
-            var display = FindVisualChild<TextBlock>(item);     // 模板内显示名（ListBoxItem 范围唯一）
-            if (editor == null || display == null) return;
-            _listNameEditor = editor;
-            _listNameDisplay = display;
-            _listNameEditTarget = list;
-            display.Visibility = Visibility.Collapsed;
-            editor.Text = list.Name;
-            editor.Visibility = Visibility.Visible;
-            editor.Focus();
-            editor.SelectAll();
-            e.Handled = true;   // 防双击继续冒泡（向后触发拖选等）
-        }
-
         /// <summary>行内编辑键：回车确认、Esc 取消。</summary>
-        private void ListNameEditor_PreviewKeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.Key == Key.Enter) { CommitListNameEdit(); e.Handled = true; }
-            else if (e.Key == Key.Escape) { CancelListNameEdit(); e.Handled = true; }
-        }
-
         /// <summary>点其它处/切 Tab 等失焦 → 确认提交（用户语义「点其他地方…即确认」）。</summary>
-        private void ListNameEditor_LostFocus(object sender, RoutedEventArgs e)
-        {
-            if (!_listNameSuppress) CommitListNameEdit();
-        }
-
-        private void CommitListNameEdit()
-        {
-            if (_listNameEditor == null || _listNameEditTarget == null) return;
-            var editor = _listNameEditor;
-            var list = _listNameEditTarget;
-            _listNameSuppress = true;   // 覆盖 RenameList 全程——失败弹 MessageBox 模态抢焦点防递归
-            try { _listManagerVM.RenameList(list, editor.Text); }   // Trim/空名/同名早退；update_list；失败弹窗+模型回滚
-            finally
-            {
-                ExitListNameEdit();
-                _listNameSuppress = false;
-            }
-        }
-
-        private void CancelListNameEdit()
-        {
-            if (_listNameEditor == null) return;
-            _listNameSuppress = true;
-            try { ExitListNameEdit(); }   // 不提交——Name 未动（TextBlock 绑定仍原值）
-            finally { _listNameSuppress = false; }
-        }
-
-        private void ExitListNameEdit()
-        {
-            if (_listNameEditor != null) { _listNameEditor.Visibility = Visibility.Collapsed; _listNameEditor = null; }
-            if (_listNameDisplay != null) { _listNameDisplay.Visibility = Visibility.Visible; _listNameDisplay = null; }
-            _listNameEditTarget = null;
-        }
-
         /// <summary>文本列表快捷键：Delete 删除选中、Ctrl+A 全选。</summary>
         private void TextListBox_KeyDown(object sender, KeyEventArgs e)
         {
@@ -174,118 +113,12 @@ namespace NavigatorHMI.Views
             }
         }
         /// <summary>表格行复制剪贴板（Ctrl+C 深拷贝选中行，Ctrl+V 粘贴新建行副本）。</summary>
-        private readonly List<object> _copiedRows = new();
-
         /// <summary>生成不冲突的名字（原名已存在 → 原名_副本 → 原名_副本2 …）。</summary>
-        private static string UniqueName(string name, IEnumerable<string> existing)
-        {
-            if (!existing.Contains(name, StringComparer.OrdinalIgnoreCase)) return name;
-            for (int i = 1; ; i++)
-            {
-                var candidate = $"{name}_副本{i}";
-                if (!existing.Contains(candidate, StringComparer.OrdinalIgnoreCase)) return candidate;
-            }
-        }
-
         /// <summary>变量表格复制粘贴：Ctrl+C 深拷贝选中变量行，Ctrl+V 新建变量副本（重名自动 _副本N）。</summary>
-        private void TagCopyPaste_Click(object sender, bool copy)
-        {
-            if (copy)
-            {
-                _copiedRows.Clear();
-                foreach (Tag t in TagGrid.SelectedItems)
-                    _copiedRows.Add(ProtoBuf.Serializer.DeepClone(t));
-                return;
-            }
-            var existing = _viewModel.CurrentProject.Tags.Select(t => t.Name).ToList();
-            foreach (Tag t in _copiedRows.OfType<Tag>())
-            {
-                var name = UniqueName(t.Name, existing);
-                existing.Add(name);
-                var r = _viewModel.CommandService.Execute("create_tag", new Dictionary<string, object?>
-                {
-                    ["name"] = name, ["data_type"] = t.DataType.ToString(), ["source"] = t.Source,
-                    ["unit"] = t.Unit, ["scan_interval"] = t.ScanIntervalMs, ["deadband"] = t.Deadband,
-                    ["description"] = t.Description, ["base_value"] = t.BaseValue,
-                });
-                if (!r.Success) MessageBox.Show($"{name}: {r.ErrorMessage}", "复制变量", MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
-        }
-
         /// <summary>报警表格复制粘贴：Ctrl+C 深拷贝选中报警行，Ctrl+V 新建报警副本。</summary>
-        private void AlarmCopyPaste_Click(object sender, bool copy)
-        {
-            if (copy)
-            {
-                _copiedRows.Clear();
-                foreach (AlarmRule a in AlarmGrid.SelectedItems)
-                    _copiedRows.Add(ProtoBuf.Serializer.DeepClone(a));
-                return;
-            }
-            var existing = _viewModel.CurrentProject.Alarms.Select(a => a.Name).ToList();
-            foreach (AlarmRule a in _copiedRows.OfType<AlarmRule>())
-            {
-                var name = UniqueName(a.Name, existing);
-                existing.Add(name);
-                var r = _viewModel.CommandService.Execute("create_alarm", new Dictionary<string, object?>
-                {
-                    ["name"] = name, ["tag_name"] = a.TagName, ["type"] = a.Type.ToString(),
-                    ["threshold"] = a.Threshold, ["deadband"] = a.Deadband, ["delay_ms"] = a.DelayMs,
-                    ["severity"] = a.Level.ToString(), ["message"] = a.Message,
-                });
-                if (!r.Success) MessageBox.Show($"{name}: {r.ErrorMessage}", "复制报警", MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
-        }
-
         /// <summary>设备表格复制粘贴：Ctrl+C 深拷贝选中设备行，Ctrl+V 新建设备副本。</summary>
-        private void DeviceCopyPaste_Click(object sender, bool copy)
-        {
-            if (copy)
-            {
-                _copiedRows.Clear();
-                foreach (DeviceConfig d in DeviceGrid.SelectedItems)
-                    _copiedRows.Add(ProtoBuf.Serializer.DeepClone(d));
-                return;
-            }
-            var existing = _viewModel.CurrentProject.Devices.Select(d => d.Name).ToList();
-            foreach (DeviceConfig d in _copiedRows.OfType<DeviceConfig>())
-            {
-                var name = UniqueName(d.Name, existing);
-                existing.Add(name);
-                var r = _viewModel.CommandService.Execute("create_device", new Dictionary<string, object?>
-                {
-                    ["name"] = name, ["protocol"] = d.Protocol.ToString(), ["connection_info"] = d.ConnectionInfo,
-                });
-                if (!r.Success) MessageBox.Show($"{name}: {r.ErrorMessage}", "复制设备", MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
-        }
-
         /// <summary>文本列表项复制粘贴：Ctrl+C 存值，Ctrl+V 添加新项（复制值）。</summary>
-        private void TextItemsCopyPaste_Click(object sender, bool copy)
-        {
-            if (copy)
-            {
-                _copiedRows.Clear();
-                foreach (ListItemVM it in TextItemsGrid.SelectedItems) _copiedRows.Add(it.Value);
-                return;
-            }
-            foreach (string v in _copiedRows.OfType<string>())
-                _listManagerVM.PasteItem(ListType.Text, v);
-        }
-
         /// <summary>图像列表项复制粘贴：Ctrl+C 存值，Ctrl+V 添加新项（复制值）。</summary>
-        private void ImageItemsCopyPaste_Click(object sender, bool copy)
-        {
-            if (copy)
-            {
-                _copiedRows.Clear();
-                foreach (ListItemVM it in ImageItemsGrid.SelectedItems) _copiedRows.Add(it.Value);
-                return;
-            }
-            foreach (string v in _copiedRows.OfType<string>())
-                _listManagerVM.PasteItem(ListType.Image, v);
-        }
-
         /// <summary>P2-1 用户组：新建组弹窗。</summary>
         private void GroupAdd_Click(object sender, RoutedEventArgs e)
         {
@@ -479,7 +312,7 @@ namespace NavigatorHMI.Views
         }
         #endregion
 
-        #region 原 变量拖拽（变量行 → 标签页/树节点切画面 → 画布生成绑定 IO Field）（第 1349-1622 行）
+        #region 原 变量拖拽（72daf0e^ 变量行 → 标签页/树节点切画面 → 画布生成绑定 IO Field）（第 1349-1622 行）
         /// <summary>框选起点（空白处按下时为 null；非 null = 框选进行中）。</summary>
         private Point? _tagMarqueeStart;
         /// <summary>悬停切换画面节流时间戳（DragOver 高频触发，200ms 内不重复切换）。</summary>
@@ -756,7 +589,7 @@ namespace NavigatorHMI.Views
         }
         #endregion
 
-        #region 原 变量管理器 Tab（画布标签栏）（第 4154-4210 行）
+        #region 原 变量管理器 Tab（72daf0e^ 画布标签栏）（第 4154-4210 行）
 
         /// <summary>关闭「变量管理器」Tab（当前激活时切回当前画面）。</summary>
         private void VarManagerTabClose_Click(object sender, MouseButtonEventArgs e)

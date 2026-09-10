@@ -13,7 +13,7 @@ namespace NavigatorHMI.ViewModels
     public partial class PropertyViewModel : INotifyPropertyChanged
     {
 
-        #region 原 未分区块（第 52-755 行）
+        #region 原 未分区块（72daf0e^ 第 52-755 行，×18 段）
         /// <summary>事件栏：当前选中控件可用事件行（DESIGN-EVENTS.md §4）。</summary>
         public ObservableCollection<EventRowVM> EventRows { get; } = new();
         private bool _eventBarVisible;

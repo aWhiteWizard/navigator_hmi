@@ -49,7 +49,7 @@ namespace NavigatorHMI.ViewModels
     /// </summary>
     public partial class PropertyViewModel : INotifyPropertyChanged
     {
-        #region 原 未分区块（第 60-2175 行）
+        #region 原 未分区块（72daf0e^ 第 60-2175 行，×88 段）
 
         /// <summary>刷新事件栏（选中控件时调用）：按控件类型映射可用事件 + 已配置函数数。</summary>
         public void RefreshEventBar(Widget? w)
@@ -180,37 +180,8 @@ namespace NavigatorHMI.ViewModels
 
         /// <summary>V-4a：作业点名称重名校验（续28 B 方案）——重名行标 IsDuplicateName（粉红+ToolTip），
         /// 不删行不拦截；空名（placeholder/未输入）不参与。改名/删行后自动恢复。</summary>
-        private void ValidateDuplicateNames()
-        {
-            if (Project?.WorldMap == null) return;
-            var dupNames = WorkPointRows
-                .Where(r => !string.IsNullOrWhiteSpace(r.Name))
-                .GroupBy(r => r.Name, StringComparer.Ordinal)
-                .Where(g => g.Count() > 1)
-                .Select(g => g.Key)
-                .ToHashSet(StringComparer.Ordinal);
-            foreach (var r in WorkPointRows) r.IsDuplicateName = dupNames.Contains(r.Name);
-        }
-
         /// <summary>延迟移除误触空行：在 CollectionChanged 处理器内同步 Remove 同一集合会触发 CheckReentrancy 崩溃，
         /// 改经 Dispatcher 在事件周期结束后移除；移除前复查行仍在集合中（防重复/已删）。</summary>
-        private static void RemoveRowDeferred<T>(ObservableCollection<T> rows, T row)
-        {
-            var dispatcher = System.Windows.Application.Current?.Dispatcher;
-            if (dispatcher != null)
-            {
-                dispatcher.BeginInvoke(() =>
-                {
-                    if (rows.Contains(row)) rows.Remove(row);
-                });
-            }
-            else
-            {
-                // 无 WPF Application（如单测环境）：集合修改不会伴随 DataGrid 重入，直接移除安全
-                if (rows.Contains(row)) rows.Remove(row);
-            }
-        }
-
         // ── P5：世界地图锁定预览 + 视口自适应 ──
 
         private bool _worldMapViewLocked;

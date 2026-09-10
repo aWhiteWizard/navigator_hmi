@@ -13,7 +13,7 @@ namespace NavigatorHMI.ViewModels
     public partial class PropertyViewModel : INotifyPropertyChanged
     {
 
-        #region 原 未分区块（第 552-837 行）
+        #region 原 未分区块（72daf0e^ 第 552-837 行，×6 段）
         /// <summary>当前选中的是画面。</summary>
         public bool IsScreenSelected => _selectedScreen != null;
         /// <summary>画面名称。</summary>

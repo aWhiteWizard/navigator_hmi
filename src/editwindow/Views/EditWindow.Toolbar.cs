@@ -35,7 +35,7 @@ namespace NavigatorHMI.Views
     public partial class EditWindow : Window
     {
 
-        #region 原 工具栏拖拽（第 4372-4435 行）
+        #region 原 工具栏拖拽（72daf0e^ 第 4372-4435 行）
 
         private void Toolbar_MouseDown(object sender, MouseButtonEventArgs e)
         {
@@ -102,7 +102,7 @@ namespace NavigatorHMI.Views
         }
         #endregion
 
-        #region 原 工具栏按钮操作（第 4446-4902 行）
+        #region 原 工具栏按钮操作（72daf0e^ 第 4446-4902 行）
 
         private void ApplyZoom(double level)
         {
