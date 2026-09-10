@@ -2059,15 +2059,15 @@
                                                 </Style>
                                             </DataGrid.RowStyle>
                                             <DataGrid.Columns>
-                                                <!-- ⑤ Z 循环（2026-09-11 用户复测点 1）：基准值列改单 * 占满最后一列；
-                                                     ⚠️ 4_bugs wpf-datagrid-grouped-star-columns：分组视图星号列曾测量异常（挤一坨）→ 显式列宽修复；
-                                                     基准值居末列 + 前 5 列固定宽，改 * 后须分组视图复测（2026-09-11 注记，用户 GUI 复测） -->
+                                                <!-- ⑤ 基准值列占满最后一列（用户复测点 1）：不用 Width="*"——分组视图星号列测量异常
+                                                     （Z 循环 Z-2 曾改单 * → 用户复测列宽又乱，坐实单星号列在分组下同样异常）；
+                                                     改显式宽 + TagGrid_SizeChanged 运行时把末列拉满剩余宽（自适应，规避星号列 bug） -->
                                                 <DataGridTextColumn Header="名称" Binding="{Binding Name}" Width="130"/>
                                                 <DataGridTextColumn Header="类型" Binding="{Binding DataType}" Width="60"/>
                                                 <DataGridTextColumn Header="来源" Binding="{Binding Source}" Width="130"/>
                                                 <DataGridTextColumn Header="单位" Binding="{Binding Unit}" Width="50"/>
                                                 <DataGridTextColumn Header="周期" Binding="{Binding ScanIntervalMs}" Width="55"/>
-                                                <DataGridTextColumn Header="基准值" Binding="{Binding BaseValue}" Width="*"/>
+                                                <DataGridTextColumn Header="基准值" Binding="{Binding BaseValue}" Width="130"/>
                                             </DataGrid.Columns>
                                             <DataGrid.ContextMenu>
                                                 <ContextMenu>

@@ -1425,6 +1425,35 @@ namespace NavigatorHMI.Views
         {
             // 守卫：新旧尺寸相同（初始布局连发/无变化）跳过重建
             if (e.NewSize != e.PreviousSize) RebuildRowRects();
+            FillLastColumn();   // 基准值列拉满剩余宽（不用 Width=*——分组视图星号列测量异常，4_bugs wpf-datagrid-grouped-star-columns）
+        }
+
+        /// <summary>基准值（末列）占满剩余宽——显式宽 + 运行时计算（用户复测点 1：占满最后一列；
+        /// 分组视图下星号列（Width=*）测量异常会挤成一坨，故不用星号而按可视宽动态设宽）。
+        /// 前 5 列（名称/类型/来源/单位/周期）固定宽（以 XAML 为准），末列 = 表格可视宽 − 前列合计 − 余量（下限 120）。
+        /// 余量 = 垂直滚动条 + 表格左右边框 + 分组行缩进（GroupItem 约 5px——实测分组 extent 比列宽合计多 5px，少算会出横向滚动条）。
+        /// 末列为**自适应列**：窗口/面板尺寸变化时重算（用户拖动末列的结果会被下次尺寸变化覆盖）；
+        /// 前 5 列可自由拖动微调，其实际宽会被计入 fixedW（拖动后末列在下次尺寸变化时对齐）。</summary>
+        private void FillLastColumn()
+        {
+            if (TagGrid == null || TagGrid.Columns.Count < 6) return;
+            double fixedW = 0;
+            for (int i = 0; i < TagGrid.Columns.Count - 1; i++)
+                fixedW += TagGrid.Columns[i].ActualWidth;
+            // 🟡-2（reviewer 复审）：列尚未测量（如空列表首次布局 ActualWidth=0）→ 退回 XAML 显式宽安全态，
+            // 防 fixedW=0 时末列被设成整表宽（超宽出横向滚动条，且后续无 SizeChanged 不重算）
+            if (fixedW < 1) return;
+            // 余量：垂直滚动条 + 表格左右边框（实测 2）+ 分组缩进 5 + 2~3px 富余（防 DPI/主题差异溢出）
+            // ——无滚动条时会留 ~18px 空白条：恒定预留的可接受取舍（避免长列表出横向滚动条）
+            double reserve = SystemParameters.VerticalScrollBarWidth
+                           + TagGrid.BorderThickness.Left + TagGrid.BorderThickness.Right
+                           + 8;
+            var avail = TagGrid.ActualWidth - fixedW - reserve;
+            if (avail < 120) avail = 120;   // 下限防过窄（窄窗口时出横向滚动条）
+            var last = TagGrid.Columns[TagGrid.Columns.Count - 1];
+            var target = new DataGridLength(avail);
+            if (Math.Abs(last.Width.Value - target.Value) > 1)   // 防重复赋值触发布局循环
+                last.Width = target;
         }
 
         /// <summary>重建行位置缓存（Items 数量或视口尺寸变化时；框选启动时确保最新）。</summary>
