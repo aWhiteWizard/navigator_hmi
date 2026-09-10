@@ -177,13 +177,13 @@ namespace NavigatorHMI.CommandLayer
                 CliParameterView.P("show-global-overlay", "show_global_overlay"), CliParameterView.P("view-locked", "view_locked")));
 
             // ══ 变量/用户 ══
-            Add(Meta("create-tag", "create_tag", "变量命令", "创建变量 (--name <name> --type <BOOL|INT16|UINT16|INT32|FLOAT|STRING|DATETIME|GPS> [--source <uri>] [--unit <u>] [--scan-interval 100] [--deadband 0] [--description <text>] [--base-value <n>] [--group <组名>]；source 缺省=内部变量)",
-                CliParameterView.Rk("name"), CliParameterView.R("type", "data_type"), CliParameterView.Dk("source", ""), CliParameterView.Dk("unit", ""),
+            Add(Meta("create-tag", "create_tag", "变量命令", "创建变量 (--name <name> --type <BOOL|INT16|UINT16|INT32|FLOAT|STRING|DATETIME|GPS> [--source <uri>] [--device <设备名>] [--unit <u>] [--scan-interval 100] [--deadband 0] [--description <text>] [--base-value <n>] [--group <组名>]；source 缺省=内部变量；AB-4：--device 指定所属设备——设备端据此选 Modbus RTU/TCP 与连接参数)",
+                CliParameterView.Rk("name"), CliParameterView.R("type", "data_type"), CliParameterView.Dk("source", ""), CliParameterView.Dk("device", ""), CliParameterView.Dk("unit", ""),
                 CliParameterView.D("scan-interval", "scan_interval", "100"), CliParameterView.Dk("deadband", "0"), CliParameterView.Dk("description", ""),
                 CliParameterView.D("base-value", "base_value", ""), CliParameterView.D("group", "group", "")));
-            Add(Meta("update-tag", "update_tag", "变量命令", "更新变量 (--name <name> [--new-name <name>] [--type <...>] [--source <uri>] [--unit <u>] [--scan-interval <ms>] [--deadband <n>] [--description <text>] [--base-value <n>] [--group <组名>]；--source \"\" 清空为内部变量；--unit \"\" / --description \"\" / --group \"\" 清空)",
+            Add(Meta("update-tag", "update_tag", "变量命令", "更新变量 (--name <name> [--new-name <name>] [--type <...>] [--source <uri>] [--device <设备名>] [--unit <u>] [--scan-interval <ms>] [--deadband <n>] [--description <text>] [--base-value <n>] [--group <组名>]；--source \"\" 清空为内部变量；--unit \"\" / --description \"\" / --group \"\" / --device \"\" 清空)",
                 CliParameterView.Rk("name"),
-                CliParameterView.P("new-name", "new_name"), CliParameterView.P("type", "data_type"), CliParameterView.Pk("source"), CliParameterView.Pk("unit"),
+                CliParameterView.P("new-name", "new_name"), CliParameterView.P("type", "data_type"), CliParameterView.Pk("source"), CliParameterView.Pk("device"), CliParameterView.Pk("unit"),
                 CliParameterView.P("scan-interval", "scan_interval"), CliParameterView.Pk("deadband"), CliParameterView.Pk("description"),
                 CliParameterView.P("base-value", "base_value"), CliParameterView.P("group", "group")));
             Add(Meta("delete-tag", "delete_tag", "变量命令", "删除变量 (--name <name>；被控件/报警引用时拒绝)",
@@ -247,7 +247,7 @@ namespace NavigatorHMI.CommandLayer
                 CliParameterView.Rk("name")));
 
             // ══ 设备 ══
-            Add(Meta("configure-device", "configure_device", "设备命令", "配置设备通信 (--name <name> --protocol <ModbusRTU|ModbusTCP> --connection <json>；Z 循环：MQTT 移出通讯页——专用 MQTT 根配置连接)",
+            Add(Meta("configure-device", "configure_device", "设备命令", "配置设备通信 (--name <name> --protocol <ModbusRTU|ModbusTCP> --connection <json>；Z 循环：MQTT 移出通讯页——专用 MQTT 根配置连接；AB-4：ModbusRTU 的 port 须为设备端路径 /dev/xxx、baud 须在 1200~115200 八档内)",
                 CliParameterView.Rk("name"), CliParameterView.Rk("protocol"), CliParameterView.R("connection", "connection_info")));
             Add(Meta("update-device", "update_device", "设备命令", "更新设备 (--name <name> [--new-name <name>] [--protocol <...>] [--connection <json>])",
                 CliParameterView.Rk("name"),

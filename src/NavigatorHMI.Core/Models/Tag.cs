@@ -65,7 +65,10 @@ namespace NavigatorHMI.Common
         [ProtoMember(8)]
         public string BaseValue { get; set; } = "";
 
-        /// <summary>W1 所属设备名（通信设备/控制器——RobotList BoundDevice 两态过滤用；空=内部变量）。</summary>
+        /// <summary>W1 所属设备名（通信设备/控制器——RobotList BoundDevice 两态过滤用；空=内部变量）。
+        /// **AB-4（2026-09-11）第二消费方**：设备端采集路由——FW 按 tag.device_name（proto 9）定位
+        /// 连接参数与传输协议（Modbus RTU/TCP 分流 + 一协议多设备/多从站实例），空则回落 TCP 默认连接。
+        /// 改动本字段语义时须同时核对两处消费方（PC RobotList 过滤 / FW acquisition）。</summary>
         [ProtoMember(9)]
         public string DeviceName { get; set; } = "";
 

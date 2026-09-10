@@ -412,6 +412,7 @@ namespace NavigatorHMI.Views
                     ["name"] = result.Name,
                     ["data_type"] = result.DataType.ToString(),
                     ["source"] = result.Source,
+                    ["device"] = result.DeviceName,   // AB-4：所属设备（proto tag.device_name——设备端据此选传输/连接）
                     ["unit"] = result.Unit,
                     ["scan_interval"] = result.ScanIntervalMs,
                     ["deadband"] = result.Deadband,
@@ -427,6 +428,7 @@ namespace NavigatorHMI.Views
                 if (result.Name != tag.Name) p["new_name"] = result.Name;
                 if (result.DataType != tag.DataType) p["data_type"] = result.DataType.ToString();
                 if (result.Source != tag.Source) p["source"] = result.Source;
+                if (result.DeviceName != tag.DeviceName) p["device"] = result.DeviceName;   // AB-4：所属设备变更
                 if (result.Unit != tag.Unit) p["unit"] = result.Unit;
                 if (result.ScanIntervalMs != tag.ScanIntervalMs) p["scan_interval"] = result.ScanIntervalMs;
                 if (result.Deadband != tag.Deadband) p["deadband"] = result.Deadband;

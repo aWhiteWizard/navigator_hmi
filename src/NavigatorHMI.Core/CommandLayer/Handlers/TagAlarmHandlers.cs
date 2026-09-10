@@ -2,6 +2,25 @@ using NavigatorHMI.Common;
 
 namespace NavigatorHMI.CommandLayer.Handlers
 {
+    /// <summary>
+    /// AB-4（2026-09-11）：变量所属设备引用校验（create_tag/update_tag 共用）。
+    /// Tag.DeviceName（proto 9）是设备端定位「连接参数 + 传输协议」的唯一依据——
+    /// 悬空归属会让采集变量在设备端拿不到连接参数（静默不采集），故提供即必须存在。
+    /// </summary>
+    internal static class TagDeviceRef
+    {
+        /// <summary>device 参数为 null（未提供）→ 放行；为空串（显式清除归属）→ 放行；非空但设备不存在 → INVALID_PARAM。</summary>
+        public static CommandResult? Validate(HMIProject project, string? device)
+        {
+            if (string.IsNullOrWhiteSpace(device))
+                return null;
+            var name = device.Trim();
+            if (!project.Devices.Any(d => d.Name == name))
+                return CommandResult.Fail("INVALID_PARAM", $"设备 \"{name}\" 不存在（请先 configure-device 创建设备，或清空 device 参数）");
+            return null;
+        }
+    }
+
     /// <summary>创建变量（Tag），添加到工程变量列表。</summary>
     public class CreateTagHandler : ICommandHandler
     {
@@ -13,6 +32,9 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 ["name"] = new() { Type = "string", Required = true, Description = "变量名" },
                 ["data_type"] = new() { Type = "enum", Required = true, EnumValues = new[] { "BOOL", "INT16", "UINT16", "INT32", "FLOAT", "STRING", "DATETIME", "GPS" }, Description = "数据类型" },
                 ["source"] = new() { Type = "string", DefaultValue = "", Description = "数据来源 (modbus:// 或 mqtt://)，空/缺省 = 内部变量", KeepInCompact = true },
+                // AB-4（2026-09-11）：所属设备（proto tag.device_name）——设备端按它定位连接参数与传输协议
+                // （Modbus RTU/TCP 分流 + 一协议多设备/多从站）；KeepInCompact 让 AI 也能建带设备的采集变量
+                ["device"] = new() { Type = "string", DefaultValue = "", Description = "所属设备名（必须已存在；Modbus 采集变量必填才有连接参数），空 = 无设备", KeepInCompact = true },
                 ["unit"] = new() { Type = "string", DefaultValue = "", Description = "工程单位", KeepInCompact = true },
                 ["scan_interval"] = new() { Type = "int", DefaultValue = 100, Description = "采集周期 ms", KeepInCompact = true },
                 ["deadband"] = new() { Type = "double", DefaultValue = 0, Description = "变化死区", KeepInCompact = true },
@@ -53,6 +75,9 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 return CommandResult.Fail("INVALID_PARAM", $"未知数据类型: {p["data_type"]}");
             var bvErr = BaseValueValidator.Check(p.GetValueOrDefault("base_value")?.ToString(), dt);
             if (bvErr != null) return CommandResult.Fail("INVALID_PARAM", bvErr);
+            // AB-4：所属设备校验（提供则必须已存在——防悬空归属导致设备端采集无连接参数）
+            var devErr = TagDeviceRef.Validate(project, p.GetValueOrDefault("device")?.ToString());
+            if (devErr != null) return devErr;
             // 任务8：DATETIME 变量未提供基准值 → 默认全 0 字面（0000:00:00 00:00:00，年月日冒号分隔）
             // D4/#4：数字变量未提供基准值 → 默认 0（FLOAT 用 0.0；整数用 0；BOOL 用 false）
             var baseValue = BaseValueValidator.Normalize(p.GetValueOrDefault("base_value")?.ToString() ?? "", dt);
@@ -71,6 +96,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 Description = p.GetValueOrDefault("description")?.ToString() ?? "",
                 BaseValue = baseValue,
                 Group = p.GetValueOrDefault("group")?.ToString() ?? "",   // Y-5a：变量分组（空 = 未分组）
+                DeviceName = p.GetValueOrDefault("device")?.ToString()?.Trim() ?? "",   // AB-4：所属设备（proto 9）
             });
             return CommandResult.Ok(new { tag_name = name });
         }
@@ -487,6 +513,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 ["description"] = new() { Type = "string", Description = "描述" },
                 ["base_value"] = new() { Type = "string", Description = "基准值（设计态预览）", KeepInCompact = true },
                 ["group"] = new() { Type = "string", Description = "Y-5a 变量分组；显式空串 = 清空为未分组；留空 = 不改", KeepInCompact = true },
+                // AB-4（2026-09-11）：所属设备（proto tag.device_name）——未提供=保留原值，显式空串=清除归属
+                ["device"] = new() { Type = "string", Description = "所属设备名（必须已存在）；未提供 = 保留现值，显式空串 = 清除归属", KeepInCompact = true },
             }
         };
         public ValidationResult Validate(Dictionary<string, object?> p)
@@ -518,6 +546,9 @@ namespace NavigatorHMI.CommandLayer.Handlers
             if (tag == null) return CommandResult.Fail("NOT_FOUND", $"变量 \"{name}\" 不存在");
 
             // ══ 全部可失败校验前置（组合参数原子性：任何失败不改变任何状态——含重命名级联）══
+            // AB-4：所属设备存在性（提供非空时）
+            var devErr = TagDeviceRef.Validate(project, p.GetValueOrDefault("device")?.ToString());
+            if (devErr != null) return devErr;
             string? newName = null;
             if (p.TryGetValue("new_name", out var nn) && nn != null && !string.IsNullOrWhiteSpace(nn.ToString()) && nn.ToString() != name)
             {
@@ -631,6 +662,9 @@ namespace NavigatorHMI.CommandLayer.Handlers
             // Y-5a：group 分组（显式空串 = 清空为未分组——OptIfProvided 语义：未提供保留现值）
             if (p.TryGetValue("group", out var grp) && grp != null)
                 tag.Group = grp.ToString() ?? "";
+            // AB-4：所属设备（显式空串 = 清除归属；未提供保留现值）
+            if (p.TryGetValue("device", out var devp) && devp != null)
+                tag.DeviceName = devp.ToString()?.Trim() ?? "";
 
             return CommandResult.Ok(new { tag_name = tag.Name });
         }

@@ -40,10 +40,15 @@
                 <StackPanel x:Name="RtuPanel" Visibility="Collapsed">
                     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0" Text="串口:" VerticalAlignment="Center"/>
-                        <TextBox Grid.Column="1" x:Name="RtuPortBox" Text="/dev/ttyS1"/>
+                        <!-- AB-4（2026-09-11）：默认 /dev/ttyS1 → /dev/ttyUSB0——板端 UART 全 disabled，
+                             实际走 USB-RS485 适配器（内核 CH341 驱动 → /dev/ttyUSB0） -->
+                        <TextBox Grid.Column="1" x:Name="RtuPortBox" Text="/dev/ttyUSB0"
+                                 ToolTip="设备端串口路径（USB-RS485 适配器通常为 /dev/ttyUSB0）"/>
                         <TextBlock Grid.Column="2" Text="波特率:" VerticalAlignment="Center"/>
                         <ComboBox Grid.Column="3" x:Name="RtuBaudBox">
-                            <ComboBoxItem Content="9600"/><ComboBoxItem Content="19200"/><ComboBoxItem Content="38400"/><ComboBoxItem Content="57600"/><ComboBoxItem Content="115200"/>
+                            <!-- 八档白名单（AB-4 用户裁决：补三档低速、保留既往 38400/57600 不破坏旧工程）
+                                 须与 ModbusRtuRules.AllowedBaudRates / FW modbus_rtu_driver.cpp 同口径 -->
+                            <ComboBoxItem Content="1200"/><ComboBoxItem Content="2400"/><ComboBoxItem Content="4800"/><ComboBoxItem Content="9600"/><ComboBoxItem Content="19200"/><ComboBoxItem Content="38400"/><ComboBoxItem Content="57600"/><ComboBoxItem Content="115200"/>
                         </ComboBox>
                     </Grid>
                     <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>

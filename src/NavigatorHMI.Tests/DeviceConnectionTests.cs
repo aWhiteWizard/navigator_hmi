@@ -81,8 +81,13 @@ namespace NavigatorHMI.Tests
         {
             var svc = NewService();
             svc.Execute("connect", new Dictionary<string, object?> { ["ip"] = "192.168.1.146", ["model"] = "NavigatorHMI" });
-            var result = svc.Execute("deploy_project", new Dictionary<string, object?> { ["device_ip"] = "192.168.1.146" });
-            // 通过门禁进入 handler（handler 仍为骨架 stub——K-3 转真实），非 CONNECTION_REQUIRED 即门禁通过
+            // AB-5 联调发现（2026-09-11）：原用 device_ip=192.168.1.146 会**真编译真传输到板子**——
+            // deploy_project 早已不是骨架 stub（K 循环落地真实 HTTP 传输），运行整套测试会把板上工程
+            // 覆盖成本测试的空工程（实证：板端 app.navihmi 被写成 96B 的「测试工程」，2026-09-11 01:31）。
+            // 改为本机假设备接收：只验「门禁通过（非 CONNECTION_REQUIRED）」，不做真实外发。
+            var (_, fakeIp, port) = StartFakeDevice("{\"code\":\"SUCCESSFUL_REBOOT\",\"message\":\"假设备\"}");
+            var result = svc.Execute("deploy_project", new Dictionary<string, object?> { ["device_ip"] = $"{fakeIp}:{port}" });
+            // 通过门禁进入 handler（编译/传输结果不作断言——本用例只锁门禁语义）
             Assert.NotEqual("CONNECTION_REQUIRED", result.ErrorCode);
         }
 

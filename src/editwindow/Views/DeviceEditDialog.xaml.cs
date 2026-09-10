@@ -33,7 +33,8 @@ namespace NavigatorHMI.Views
                 Title = "新建设备";
                 // 默认 ModbusTCP（InitializeComponent 已完成，SelectionChanged 正常触发并显示 TCP 参数面板）
                 ProtocolBox.SelectedIndex = 1;
-                RtuBaudBox.SelectedIndex = 0;   // 默认波特率 9600（无 SelectionChanged 处理器，安全）
+                // AB-4（2026-09-11）：下拉改八档白名单后不能再按索引取默认——按内容选 9600（PT100 出厂默认）
+                SelectBaudByContent(ModbusRtuRules.DefaultBaudRate);
                 NameBox.Focus();
             }
             else
@@ -45,6 +46,21 @@ namespace NavigatorHMI.Views
                 ProtocolBox.SelectedIndex = (int)existing.Protocol;   // 触发 SelectionChanged → ShowProtocolPanel
                 PrefillConnectionInfo(existing);
             }
+        }
+
+        /// <summary>按内容选中波特率下拉项（AB-4：八档白名单下索引不再稳定——9600 位于第 4 项）。
+        /// 列表内不存在该档时动态插入（旧工程/非常规波特率的编辑回填路径）。</summary>
+        private void SelectBaudByContent(int baud)
+        {
+            var text = baud.ToString();
+            var item = RtuBaudBox.Items.Cast<System.Windows.Controls.ComboBoxItem>()
+                .FirstOrDefault(i => i.Content?.ToString() == text);
+            if (item == null)
+            {
+                item = new System.Windows.Controls.ComboBoxItem { Content = text };
+                RtuBaudBox.Items.Add(item);
+            }
+            RtuBaudBox.SelectedItem = item;
         }
 
         /// <summary>协议切换：显示对应参数面板。</summary>
@@ -113,6 +129,12 @@ namespace NavigatorHMI.Views
             // 数值字段校验（先于 BuildJson，错误消息统一；intKeys 内的键在此已确保可解析）
             if (pt == ProtocolType.ModbusRTU)
             {
+                // AB-4（2026-09-11 用户裁决）：串口路径必须以 /dev/ 开头（板端只认设备文件）
+                if (!ModbusRtuRules.IsValidPort(RtuPortBox.Text))
+                { ShowError($"串口必须是设备端路径（以 /dev/ 开头，如 {ModbusRtuRules.DefaultPort}）"); return; }
+                // AB-4：波特率八档白名单（与命令层/FW 同口径；下拉外的历史值走 Prefill 动态插入后仍须复核）
+                if (!int.TryParse(RtuBaudBox.Text.Trim(), out var baud) || !ModbusRtuRules.IsAllowedBaudRate(baud))
+                { ShowError($"波特率必须是支持档位之一: {string.Join("/", ModbusRtuRules.AllowedBaudRates)}"); return; }
                 if (!int.TryParse(RtuSlaveBox.Text.Trim(), out var s) || s < 1 || s > 247)
                 { ShowError("从站号必须是 1-247 的整数"); return; }
             }

@@ -19,9 +19,16 @@ namespace NavigatorHMI.CommandLayer.Handlers
                     case ProtocolType.ModbusRTU:
                         if (!root.TryGetProperty("port", out var port) || port.ValueKind != System.Text.Json.JsonValueKind.String)
                             return "ModbusRTU 必须包含字符串 port 字段（串口路径）";
+                        // AB-4（2026-09-11 用户裁决）：串口路径必须是设备端绝对路径（/dev/ 前缀）——
+                        // 板端只认设备文件，Windows 风格 COM1/相对路径到设备上必然打不开
+                        if (!ModbusRtuRules.IsValidPort(port.GetString()))
+                            return $"ModbusRTU port 必须是设备端串口路径（以 /dev/ 开头，如 {ModbusRtuRules.DefaultPort}）";
                         if (!root.TryGetProperty("baud", out var baud) || baud.ValueKind != System.Text.Json.JsonValueKind.Number
                          || baud.GetInt32() <= 0)
                             return "ModbusRTU 必须包含正整数 baud 字段";
+                        // AB-4：波特率八档白名单（与 GUI 下拉、FW modbus_rtu_driver.cpp 同口径）
+                        if (!ModbusRtuRules.IsAllowedBaudRate(baud.GetInt32()))
+                            return $"ModbusRTU baud 必须是支持档位之一: {string.Join("/", ModbusRtuRules.AllowedBaudRates)}";
                         if (!root.TryGetProperty("slaveId", out var sid) || sid.ValueKind != System.Text.Json.JsonValueKind.Number
                          || sid.GetInt32() is < 1 or > 247)
                             return "ModbusRTU slaveId 必须是 1-247 的整数";
@@ -64,7 +71,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
             {
                 ["name"] = new() { Type = "string", Required = true, Description = "设备名称" },
                 ["protocol"] = new() { Type = "enum", Required = true, EnumValues = new[] { "ModbusRTU", "ModbusTCP" }, Description = "通信协议（Z 循环：MQTT 移出通讯页——专用 MQTT 根配置）" },
-                ["connection_info"] = new() { Type = "string", Required = true, Description = "连接信息 (JSON)" },
+                ["connection_info"] = new() { Type = "string", Required = true, Description = "连接信息 (JSON)。ModbusRTU: {\"port\":\"/dev/ttyUSB0\",\"baud\":9600,\"slaveId\":1}（port 须 /dev/ 开头、baud 八档 1200~115200）；ModbusTCP: {\"ip\":\"192.168.1.50\",\"port\":502,\"slaveId\":1}" },
             }
         };
         public ValidationResult Validate(Dictionary<string, object?> p)

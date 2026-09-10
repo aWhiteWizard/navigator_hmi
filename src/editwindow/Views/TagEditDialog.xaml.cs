@@ -218,6 +218,8 @@ namespace NavigatorHMI.Views
 
             // 来源：内部变量 → 空；设备 → 组装 URI；自定义 → 原 URI
             string source;
+            string deviceName = "";   // AB-4（2026-09-11）：变量所属设备（Tag.DeviceName / proto 9）——
+                                      // 设备端按它定位连接参数与传输协议（Modbus RTU / TCP 分流 + 一协议多实例）
             if (SourceBox.SelectedItem is not ComboBoxItem srcItem)
             { ShowError("请选择来源"); return; }
             if (srcItem.Tag is DeviceConfig dev)
@@ -225,10 +227,12 @@ namespace NavigatorHMI.Views
                 var addr = AddressBox.Text.Trim();
                 if (addr.Length == 0) { ShowError("请填写地址（寄存器地址）"); return; }
                 source = $"modbus://{GetSlaveId(dev)}/{addr}";   // Z 循环：来源仅 Modbus（MQTT deprecated——下拉已滤）
+                deviceName = dev.Name;
             }
             else if (srcItem.Tag is string customUri)
             {
                 source = customUri;   // 编辑反推失败兜底：保留原始来源
+                deviceName = _existing?.DeviceName ?? "";   // 同时保留原有设备归属（勿因反推失败丢关联）
             }
             else
             {
@@ -285,6 +289,7 @@ namespace NavigatorHMI.Views
                 Name = name,
                 DataType = dt,
                 Source = source,
+                DeviceName = deviceName,
                 Unit = UnitBox.Text.Trim(),
                 ScanIntervalMs = scan,
                 Deadband = deadband,
