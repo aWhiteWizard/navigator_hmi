@@ -13,7 +13,7 @@ namespace NavigatorHMI.ViewModels
     /// <summary>
     /// Z 循环 MQTT 多连接管理器配置页 ViewModel（2026-09-11 重构，取代 Y-3b 单连接版）。
     /// 数据模型：HMIProject.MqttSettings（EnableMqtt 总开关 + Connections 多连接——每连接 name + Config 内联连接参数
-    /// + Topics + Bindings，西门子同构归属；proto 24 Z-1 契约）。**连接参数真源 = MqttConnection.Config**（Y 循环
+    /// + Topics + Bindings，连接归属：Binding 挂哪棵 Topic 树即属该连接；proto 24 Z-1 契约）。**连接参数真源 = MqttConnection.Config**（Y 循环
     /// DeviceConfig 连接真源废弃——Z-4 通讯页收窄只配 Modbus）。
     /// 页面两态：总览（SelectedConnectionName 空：总开关 + 连接列表/新建）↔ 连接页（参数编辑 + 本连接 Topic/Binding）。
     /// GUI/CLI/AI 同一入口：本页编辑经 CommandService（mqtt_* 命令——Z 循环映射命令带 connection_name）落库（脏标记/撤销一致）；
@@ -153,7 +153,7 @@ namespace NavigatorHMI.ViewModels
         private MqttBinding? _selectedBinding;
         public MqttBinding? SelectedBinding { get => _selectedBinding; set { _selectedBinding = value; OnPropertyChanged(); } }
 
-        /// <summary>Binding 新增行：Topic 下拉选项（当前连接 Topics——西门子同构归属本连接）。</summary>
+        /// <summary>Binding 新增行：Topic 下拉选项（当前连接 Topics——归属本连接）。</summary>
         public ObservableCollection<MqttTopic> BindingTopicOptions { get; } = new();
 
         /// <summary>Binding 新增行：变量下拉选项（工程 Tags）。</summary>
@@ -279,7 +279,7 @@ namespace NavigatorHMI.ViewModels
 
         // ═══ 命令实现 ═══
 
-        /// <summary>新建连接（public——总览页「＋新建连接」按钮与树「＋新建连接」叶子共用；照画面添加模式——
+        /// <summary>新建连接（public——连接管理（总览）页「＋ 新建连接」按钮调用；照画面添加模式——
         /// 默认名「连接N」，命令落库成功后 SelectedConnectionName 置新名进入连接页编辑）。</summary>
         public void AddNewConnection()
         {

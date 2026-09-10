@@ -1499,7 +1499,8 @@
                                         <HierarchicalDataTemplate DataType="{x:Type vm:DeviceRootNode}" ItemsSource="{Binding Children}">
                                             <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
                                         </HierarchicalDataTemplate>
-                                        <!-- Z 循环 MQTT 多连接管理器独立根（2026-09-11：连接管理总览 / ＋新建连接 / 每连接叶子，✅ 随总览/连接页高亮） -->
+                                        <!-- Z 循环 MQTT 多连接管理器独立根（2026-09-11：连接管理总览 + 每连接叶子，✅ 随总览/连接页高亮；
+                                             新建连接入口在连接管理页内，树上不设「＋新建连接」叶子） -->
                                         <HierarchicalDataTemplate DataType="{x:Type vm:MqttRootNode}" ItemsSource="{Binding Children}">
                                             <TextBlock Text="{Binding Name}" FontWeight="Bold"/>
                                         </HierarchicalDataTemplate>
@@ -1508,9 +1509,6 @@
                                                 <TextBlock Text="✅" Visibility="{Binding IsCurrent, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,4,0" FontSize="12"/>
                                                 <TextBlock Text="{Binding Name}"/>
                                             </StackPanel>
-                                        </DataTemplate>
-                                        <DataTemplate DataType="{x:Type vm:AddMqttConnectionNode}">
-                                            <TextBlock Text="{Binding Name}" Foreground="Green" Cursor="Hand"/>
                                         </DataTemplate>
                                         <DataTemplate DataType="{x:Type vm:MqttConnectionLeafNode}">
                                             <StackPanel Orientation="Horizontal">
@@ -2302,7 +2300,7 @@
                                             <RowDefinition Height="*"/>
                                         </Grid.RowDefinitions>
                                         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,6">
-                                            <TextBlock Text="连接列表（多 broker——每连接各自 Topic/Binding，西门子同构归属）" FontWeight="Bold" FontSize="13" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                            <TextBlock Text="连接列表（多 broker——每连接各自连接参数与 Topic/Binding）" FontWeight="Bold" FontSize="13" VerticalAlignment="Center" Margin="0,0,12,0"/>
                                             <Button Content="＋ 新建连接" Width="110" Height="26" FontSize="12" Command="{Binding AddConnectionCommand}" ToolTip="新建 broker 连接（默认名「连接N」，随后编辑连接参数）"/>
                                             <TextBlock Text="双击连接进入编辑；每连接连接参数 + Topic/变量绑定独立" VerticalAlignment="Center" FontSize="11" Foreground="#888888" Margin="12,0,0,0"/>
                                         </StackPanel>
@@ -2410,7 +2408,7 @@
                                                     </WrapPanel>
                                                 </StackPanel>
                                             </Border>
-                                            <!-- Binding 层（本连接变量↔字段；西门子同构：Binding 挂本连接 Topic 树） -->
+                                            <!-- Binding 层（本连接变量↔字段；Binding 挂本连接 Topic 树即属该连接） -->
                                             <Border BorderBrush="#B0B0B0" BorderThickness="1" CornerRadius="3" Padding="8" Background="#FFFFFF">
                                                 <StackPanel>
                                                     <DockPanel Margin="0,0,0,4">

@@ -42,7 +42,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
                         // Z 循环（2026-09-11）：MQTT 移出通讯页——设备协议不再承载 MQTT 连接（连接参数内联
                         // MqttConnection.Config，专用 MQTT 根多连接管理器）；ProtocolType.MQTT 保留 deprecated
                         // （旧工程反序列化兼容），configure/update 直达一律拒绝防绕过
-                        return "MQTT 已移出通讯配置页——请在项目树「MQTT」根「＋新建连接」配置（连接参数内联，Z 循环 2026-09-11）";
+                        return "MQTT 已移出通讯配置页——请在项目树「MQTT」根 →「连接管理」页点「＋ 新建连接」配置（连接参数内联，2026-09-11）";
                 }
                 return null;
             }

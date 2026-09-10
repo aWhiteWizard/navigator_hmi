@@ -11,7 +11,7 @@ namespace NavigatorHMI.Common
     // （字段号 = proto 字段号；两端一致性由 MqttContractTests 字段号审计测试锁——
     // V-3c 8b95036「PC fw/proto 漏同步」N+9 教训直接对治，2026-09-10）
     // 设计源: v1.1-design §5.4 P0-1（Config→Topic→Binding 三层，proto 一次设计到位）
-    //         + §5.4 追加段（Z 循环：MqttSettings.connections 多连接管理器——西门子同构
+    //         + §5.4 追加段（Z 循环：MqttSettings.connections 多连接管理器
     //         Connection→Topic→Binding 三层归属；旧单份字段 3/4/5/6 deprecated 仅迁移读取）
     // ═══════════════════════════════════════════════════════════════
 
@@ -289,7 +289,7 @@ namespace NavigatorHMI.Common
         }
     }
 
-    /// <summary>单个 broker 连接（Z 循环多连接管理器 MqttSettings.Connections 元素；西门子同构——
+    /// <summary>单个 broker 连接（Z 循环多连接管理器 MqttSettings.Connections 元素——
     /// 本连接 Config + Topics + Bindings 三层归属，Binding 挂哪棵 Topic 树即属哪个连接）。</summary>
     [ProtoContract]
     public class MqttConnection : INotifyPropertyChanged
@@ -416,7 +416,7 @@ namespace NavigatorHMI.Common
 
         private List<MqttConnection> _connections = new();
 
-        /// <summary>多连接管理器（Z 循环 2026-09-11：每项 Name + Config + Topics + Bindings——西门子同构归属）</summary>
+        /// <summary>多连接管理器（Z 循环 2026-09-11：每项 Name + Config + Topics + Bindings——连接归属：Binding 挂哪棵 Topic 树即属该连接）</summary>
         [ProtoMember(7)]
         public List<MqttConnection> Connections
         {

@@ -426,7 +426,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
             var alarmRefs = project.Alarms.Where(a => a.TagName == name)
                 .Select(a => a.Name).ToList();
             // Y-6 + Z 循环（2026-09-11）：MQTT 映射引用跨连接遍历（MqttBinding.TagName——所有连接 Bindings；
-            // 引用串带连接名区分——西门子同构 Binding 挂 Topic 树即属该连接）
+            // 引用串带连接名区分（连接归属：Binding 挂哪棵 Topic 树即属该连接）
             var mqttRefs = (project.MqttSettings?.Connections ?? new List<MqttConnection>())
                 .Where(c => c.Bindings.Any(b => b.TagName == name))
                 .SelectMany(c => c.Bindings.Where(b => b.TagName == name)

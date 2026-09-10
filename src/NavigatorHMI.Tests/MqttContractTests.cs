@@ -126,7 +126,7 @@ namespace NavigatorHMI.Tests
         public void MqttSettings_多连接_round_trip_每连接独立三层()
         {
             // Z 循环（2026-09-11）：MqttSettings.Connections 多连接——每连接 name+config+topics+bindings
-            // 独立 round-trip（西门子同构归属：Binding 挂该连接 Topic 树；同名 Topic 跨连接互不干扰）
+            // 独立 round-trip（连接归属：Binding 挂哪棵 Topic 树即属该连接：Binding 挂该连接 Topic 树；同名 Topic 跨连接互不干扰）
             var s = new MqttSettings
             {
                 EnableMqtt = true,
@@ -232,7 +232,7 @@ namespace NavigatorHMI.Tests
                 var nav = ProtoBuf.Serializer.Deserialize<NavihmiProject>(fs);
                 Assert.NotNull(nav.MqttSettings);
                 Assert.True(nav.MqttSettings!.EnableMqtt);
-                var conn = Assert.Single(nav.MqttSettings.Connections);   // Z 循环多连接透传（西门子同构归属）
+                var conn = Assert.Single(nav.MqttSettings.Connections);   // Z 循环多连接透传（连接归属：Binding 挂哪棵 Topic 树即属该连接）
                 Assert.Equal("broker-A", conn.Name);
                 Assert.Equal("192.168.1.100", conn.Config.Broker);
                 Assert.Equal("a/b", conn.Topics[0].Topic);

@@ -368,7 +368,7 @@ namespace NavigatorHMI.ViewModels
         }
 
         /// <summary>打开 MQTT 页（connectionName 空 = 总览态——总开关 + 连接列表；非空 = 该连接页）。
-        /// Z 循环：树「连接管理/＋新建连接/连接叶子」双击触发；页面两态互斥其它画布 Tab。</summary>
+        /// Z 循环：树「连接管理/连接叶子」双击触发；页面两态互斥其它画布 Tab。</summary>
         public void OpenMqttSettings(string connectionName = "")
         {
             MqttTabOpen = true;
@@ -1168,7 +1168,7 @@ namespace NavigatorHMI.ViewModels
         /// <summary>
         /// Z-4c 旧工程 MQTT 迁移（2026-09-11，加载期执行——幂等）：Y 循环单份 MqttSettings
         /// （config=3/topics=4/bindings=5/device_name=6，连接参数真源 = DeviceConfig MQTT 设备 connection_info）
-        /// → 新多连接管理器 Connections[0]（西门子同构归属）。
+        /// → 新多连接管理器 Connections[0]（连接归属：Binding 挂哪棵 Topic 树即属该连接）。
         /// 触发条件：Connections 空 且 旧字段有数据（Topics/Bindings/DeviceName 任一非空）。
         /// 连接名 = DeviceName（原 MQTT 设备名）或「默认连接」；连接参数 = 原 MQTT 设备 connection_info 解析填 Config；
         /// 迁移后移除 MQTT 设备（通讯页只配 Modbus——Z-4a 收窄后 MQTT 设备无编辑入口）。
@@ -1271,8 +1271,9 @@ namespace NavigatorHMI.ViewModels
             return node;
         }
 
-        /// <summary>Z 循环：构建「MQTT」多连接管理器独立根（连接管理总览/＋新建连接/每连接叶子——
-        /// 连接叶子随工程 Connections 重建；双击事件分别开总览/连接页/新建连接）。</summary>
+        /// <summary>Z 循环：构建「MQTT」多连接管理器独立根（连接管理总览 + 每连接叶子——
+        /// 新建连接入口收敛在连接管理页内（树上不再有「＋新建连接」重复入口，用户 2026-09-11 裁决）；
+        /// 连接叶子随工程 Connections 重建；双击事件分别开总览/连接页）。</summary>
         private MqttRootNode BuildMqttRootNode()
         {
             var node = new MqttRootNode();
@@ -1280,11 +1281,6 @@ namespace NavigatorHMI.ViewModels
                 ?? new System.Collections.Generic.List<MqttConnection>());
             node.OnMqttOverviewSelected += () => OpenMqttSettings("");
             node.OnMqttConnectionSelected += name => OpenMqttSettings(name);
-            node.OnAddConnectionRequested += () =>
-            {
-                MqttSettingsVM.AddNewConnection();   // 建默认连接（命令层落库 → CommandExecuted → 树重建）
-                OpenMqttSettings(MqttSettingsVM.SelectedConnectionName);   // 进新建连接页编辑参数
-            };
             return node;
         }
 

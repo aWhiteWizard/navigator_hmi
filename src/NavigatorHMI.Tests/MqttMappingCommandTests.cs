@@ -352,7 +352,7 @@ namespace NavigatorHMI.Tests
         [Fact]
         public void 设置Binding_主题属于他连接_拒绝()
         {
-            // Z 循环：Binding 挂哪棵 Topic 树即属哪个连接——引用他连接 Topic 拒绝（西门子同构归属）
+            // Z 循环：Binding 挂哪棵 Topic 树即属哪个连接——引用他连接 Topic 拒绝（连接归属：Binding 挂哪棵 Topic 树即属该连接）
             var svc = NewService(out _);
             AddConn(svc, "broker-A");
             AddConn(svc, "broker-B", "192.168.1.15");

@@ -209,7 +209,7 @@ namespace NavigatorHMI.Common
             if (mqtt != null && mqtt.EnableMqtt)
             {
                 if (mqtt.Connections.Count == 0)
-                    result.Errors.Add("MQTT 总开关已启用，但未配置任何连接——请在 MQTT 根节点「＋新建连接」创建（连接页填 broker 地址）");
+                    result.Errors.Add("MQTT 总开关已启用，但未配置任何连接——请在「MQTT → 连接管理」页点「＋ 新建连接」创建（连接页填 broker 地址）");
                 foreach (var c in mqtt.Connections)
                 {
                     // 连接参数编译级兜底（命令层已校验格式——此处防绕过：broker 为空即不可建连接）

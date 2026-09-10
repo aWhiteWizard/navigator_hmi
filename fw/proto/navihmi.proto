@@ -418,7 +418,7 @@ message SecuritySettings {
 // ═══════════════════════════════════════════════════════════════════
 // Y-2 MQTT 三层映射（④通信批 B1，2026-09-10 契约先行——与 C# NavihmiDto/Mqtt*.cs 严格对齐）
 // 设计源: v1.1-design §5.4 P0-1（三层 Config→Topic→Binding，proto 一次设计到位）
-//        西门子借鉴: Topic 层挂 QoS/周期/模板/Retain/响应主题；Binding 变量↔字段名
+//        业界实践: Topic 层挂 QoS/周期/模板/Retain/响应主题；Binding 变量↔字段名
 // 边界: 动态 topic（%0-%9）V1.2 预留（topic 字段保留模板字符串语义）；TLS 本轮不做
 //       （字段预留 enable_tls，恒 false——V1.2 按需补）
 // ═══════════════════════════════════════════════════════════════════
@@ -471,7 +471,7 @@ message MqttBinding {
   string field_name = 3;    // JSON 字段名
 }
 
-/// 连接状态（StatusTag 回写 4 态——Z 循环 2026-09-11 按西门子归档定稿；回写 tag 值 = 枚举数值 0-3）
+/// 连接状态（StatusTag 回写 4 态——2026-09-11 定稿；回写 tag 值 = 枚举数值 0-3）
 enum MqttConnectionState {
   MQTT_STATE_DISCONNECTED = 0;  // 未连接（proto3 零值默认）
   MQTT_STATE_CONNECTING = 1;    // 连接中
@@ -480,7 +480,7 @@ enum MqttConnectionState {
 }
 
 /// 单个 broker 连接（Z 循环多连接管理器：MqttSettings.connections 元素；
-/// 西门子同构——本连接 config + topics + bindings 三层归属，Binding 挂哪棵 Topic 树即属哪个连接）
+/// 连接归属——本连接 config + topics + bindings 三层归属，Binding 挂哪棵 Topic 树即属哪个连接）
 message MqttConnection {
   string name = 1;           // 连接名（工程内唯一；UI 树节点名含 broker IP 摘要）
   MqttConfig config = 2;     // 连接参数（复用 MqttConfig——host/port/凭据 DPAPI/keepAlive/TLS/status_tag 按连接）

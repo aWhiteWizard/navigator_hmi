@@ -502,35 +502,31 @@ namespace NavigatorHMI.ViewModels
 
     // ═══════════════════════════════════════════
     // Z 循环 MQTT 多连接管理器独立根（2026-09-11 重构——MQTT 从通信变量拿出；
-    // 树结构：MQTT 根 → 连接管理(总览) / ＋新建连接 / 每连接叶子（名含 broker:port 摘要））
+    // 树结构：MQTT 根 → 连接管理(总览，内含「＋新建连接」按钮) + 每连接叶子（名含 broker:port 摘要））
     // ═══════════════════════════════════════════
 
     /// <summary>「MQTT」独立根节点（与「通信变量」平级——通讯页只配 Modbus，MQTT 连接管理器独立成根）。
-    /// 构造含固定两叶子（连接管理/＋新建连接）；连接叶子由 RebuildConnections 按工程 Connections 重建
-    /// （树命令后全量重建——EditWindowViewModel.RebuildProjectTree 调）。</summary>
+    /// 构造含固定叶子「连接管理」（新建连接入口收敛在连接管理页内——用户 2026-09-11 裁决：树不再放「＋新建连接」重复入口）；
+    /// 连接叶子由 RebuildConnections 按工程 Connections 重建（树命令后全量重建——EditWindowViewModel.RebuildProjectTree 调）。</summary>
     public class MqttRootNode : ProjectTreeViewModel
     {
         public MqttRootNode()
         {
             Name = "MQTT";
             Children.Add(new MqttOverviewNode(this));
-            Children.Add(new AddMqttConnectionNode(this));
+            // 「＋新建连接」叶子移除（2026-09-11 用户裁决：与连接管理页按钮重复，只保留页内入口）
         }
 
-        /// <summary>「连接管理」叶子双击（打开总览页：总开关 + 连接列表）。</summary>
+        /// <summary>「连接管理」叶子双击（打开总览页：总开关 + 连接列表 + ＋新建连接按钮）。</summary>
         public event Action? OnMqttOverviewSelected;
 
         /// <summary>连接叶子双击（打开该连接页）。</summary>
         public event Action<string>? OnMqttConnectionSelected;
 
-        /// <summary>「＋新建连接」叶子双击（建默认连接并进连接页）。</summary>
-        public event Action? OnAddConnectionRequested;
-
         internal void NotifyOverviewSelected() => OnMqttOverviewSelected?.Invoke();
         internal void NotifyConnectionSelected(string name) => OnMqttConnectionSelected?.Invoke(name);
-        internal void NotifyAddConnectionRequested() => OnAddConnectionRequested?.Invoke();
 
-        /// <summary>重建连接叶子（保持固定两节点，其后按 Connections 序重建——每连接叶子名含 broker:port 摘要）。</summary>
+        /// <summary>重建连接叶子（保持固定节点，其后按 Connections 序重建——每连接叶子名含 broker:port 摘要）。</summary>
         public void RebuildConnections(IEnumerable<MqttConnection> conns)
         {
             for (int i = Children.Count - 1; i >= 0; i--)
@@ -540,7 +536,7 @@ namespace NavigatorHMI.ViewModels
         }
     }
 
-    /// <summary>「连接管理」叶子：打开 MQTT 总览页（EnableMqtt 总开关 + 连接列表/新建）。</summary>
+    /// <summary>「连接管理」叶子：打开 MQTT 总览页（EnableMqtt 总开关 + 连接列表 + ＋新建连接按钮）。</summary>
     public class MqttOverviewNode : ProjectTreeViewModel
     {
         private readonly MqttRootNode _parent;
@@ -549,18 +545,6 @@ namespace NavigatorHMI.ViewModels
             _parent = parent;
             Name = "连接管理";
             DoubleClickCommand = new RelayCommand(() => _parent.NotifyOverviewSelected());
-        }
-    }
-
-    /// <summary>「＋新建连接」叶子：照画面添加模式（AddScreenNode）——双击建默认连接并进连接页编辑。</summary>
-    public class AddMqttConnectionNode : ProjectTreeViewModel
-    {
-        private readonly MqttRootNode _parent;
-        public AddMqttConnectionNode(MqttRootNode parent)
-        {
-            _parent = parent;
-            Name = "＋新建连接";
-            DoubleClickCommand = new RelayCommand(() => _parent.NotifyAddConnectionRequested());
         }
     }
 
