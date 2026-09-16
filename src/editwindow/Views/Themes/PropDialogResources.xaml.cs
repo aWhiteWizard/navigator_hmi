@@ -2,7 +2,6 @@
 // 转发目标 = 该字典所服务的窗口实例（运行时由 sender 反查，不持有窗口引用：
 //   Source= 字典由 WPF 按 URI 共享实例，用字段注入窗口会在多变窗口场景串台）。
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Input;
 
 namespace NavigatorHMI.Views.Themes

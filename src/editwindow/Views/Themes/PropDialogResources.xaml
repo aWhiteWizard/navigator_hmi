@@ -6,6 +6,7 @@
         <ResourceDictionary Source="/NavigatorHMI;component/Views/Themes/PropSharedResources.xaml" />
     </ResourceDictionary.MergedDictionaries>
 
+        <!-- AI 消息右键菜单：拖选复制选中段，未选中复制整条（AiMsgCopy_Click 判定） -->
         <!-- 迁移自 EditWindow.xaml 基线 第 34-40 行（7 行；原 key=AiMessageContextMenu） -->
         <ContextMenu x:Key="AiMessageContextMenu">
             <MenuItem Header="复制" Click="AiMsgCopy_Click"/>
@@ -23,5 +24,4 @@
             </Grid>
         </DataTemplate>
 
-        <!-- 属性面板样式 -->
 </ResourceDictionary>

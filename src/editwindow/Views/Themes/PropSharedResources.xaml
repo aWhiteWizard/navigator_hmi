@@ -24,7 +24,7 @@
         <h:InverseBoolConverter x:Key="InverseBoolConverter"/>
         <!-- 迁移自 EditWindow.xaml 基线 第 32-33 行（2 行；原 key=PathToImageConverter） -->
         <h:PathToImageSourceConverter x:Key="PathToImageConverter"/>
-        <!-- AI 消息右键菜单：拖选复制选中段，未选中复制整条（AiMsgCopy_Click 判定） -->
+        <!-- 属性面板样式 -->
         <!-- 迁移自 EditWindow.xaml 基线 第 50-53 行（4 行；原 key=PropGroupHeader） -->
         <Style x:Key="PropGroupHeader" TargetType="TextBlock">
             <Setter Property="FontWeight" Value="Bold"/><Setter Property="FontSize" Value="12"/>
