@@ -230,6 +230,93 @@ namespace NavigatorHMI.Common
                 }
             }
 
+            // 3i. 校验（2026-09-16 缺陷实录）：变量「数据来源 + 设备归属」必须可被设备端采集。
+            //   背景：FW `acquisition.cpp:protocolForTag()` 只认 `mqtt://` 与 `modbus://`，**其余来源返回空 ⇒ 直接跳过**
+            //   （不建驱动、不轮询、不打日志）⇒ 变量值恒 0 且无任何提示。此前 PC 侧零校验：来源写 `4x:0001` 也能编译下发。
+            //   规则：① 非空来源必须是 mqtt:// 或可解析的 modbus://
+            //        ② 归属设备必须存在（悬空归属 → 设备端拿不到连接参数）
+            //        ③ Modbus 设备归属的变量必须有 Modbus 来源，且来源里的从站 == 设备 slaveId（FW 按来源里的从站下发）
+            //   ⚠️ 已知遗留（不拦）：`modbus://` 变量**无设备归属**时设备端会回落到 TCP 默认连接（FW 打一次 warning）——
+            //      属旧行为兼容路径，留给 AB-4 之后的迁移，不在编译期拦（防旧工程突然不可编译）。
+            foreach (var tag in project.Tags)
+            {
+                var tagSrc = tag.Source?.Trim() ?? "";
+                var devName = tag.DeviceName?.Trim() ?? "";
+                DeviceConfig? owner = null;
+                if (devName.Length > 0)
+                {
+                    owner = project.Devices.FirstOrDefault(d => d.Name == devName);
+                    if (owner == null)
+                    {
+                        result.Errors.Add($"变量 \"{tag.Name}\" 所属设备 \"{devName}\" 不存在（悬空归属——设备端拿不到连接参数，采集静默失效）");
+                        continue;
+                    }
+                }
+
+                if (tagSrc.Length > 0 && !ModbusTagSource.IsMqttSource(tagSrc) && !ModbusTagSource.IsModbusSource(tagSrc))
+                {
+                    result.Errors.Add($"变量 \"{tag.Name}\" 的数据来源 \"{tagSrc}\" 设备端无法识别（只认 {ModbusTagSource.Prefix}<从站>/<寄存器> 与 {ModbusTagSource.MqttPrefix}）——" +
+                                      $"设备端会静默跳过该变量（值恒 0、无日志）。寄存器地址请写 modbus://<从站>/<PDU>（如 {ModbusTagSource.Prefix}100/1），" +
+                                      $"或在变量对话框/CLI 只填寄存器地址由系统换算（4x 记法 4x:0002 = PDU 1）");
+                    continue;
+                }
+
+                // 2026-09-16 复审补：Modbus 设备 + mqtt:// 来源 = 该设备不会采集它（FW 按 mqtt:// 归 MQTT，
+                // 归属由 MQTT 连接 bindings 决定）⇒ 同样"编译通过但值恒 0"，须拦
+                if (owner != null && owner.Protocol is ProtocolType.ModbusRTU or ProtocolType.ModbusTCP
+                    && ModbusTagSource.IsMqttSource(tagSrc))
+                {
+                    result.Errors.Add($"变量 \"{tag.Name}\" 的来源是 {ModbusTagSource.MqttPrefix}，但所属设备 \"{owner.Name}\" 是 Modbus 设备——" +
+                                      $"设备端会把它当 MQTT 变量处理、不在该设备上采集（值恒 0）；请改填寄存器地址，或清空设备归属（MQTT 映射请在 MQTT 页配置）");
+                    continue;
+                }
+
+                if (ModbusTagSource.IsModbusSource(tagSrc))
+                {
+                    if (!ModbusTagSource.TryParse(tagSrc, out var srcSlave, out var srcReg, out var parseErr))
+                    {
+                        result.Errors.Add($"变量 \"{tag.Name}\" 的数据来源 \"{tagSrc}\" 格式非法：{parseErr}");
+                        continue;
+                    }
+                    // 规范形式等价性（2026-09-16 复审 R2）：设备端判据是**大小写敏感**的 startsWith("modbus://")，
+                    // 且按串内 PDU 下发 ⇒ 存量手改的 `MODBUS://100/1`、`modbus://100/01` 虽能过前缀检查，
+                    // 到设备端仍可能失效/读错。这里要求与规范串逐字相等。
+                    var canonical = ModbusTagSource.Build(srcSlave, srcReg);
+                    if (!string.Equals(tagSrc, canonical, StringComparison.Ordinal))
+                        result.Errors.Add($"变量 \"{tag.Name}\" 的数据来源 \"{tagSrc}\" 不是规范形式——请改为 \"{canonical}\"" +
+                                          $"（设备端对来源前缀大小写敏感且按串内 PDU 下发）");
+                    if (owner == null)
+                        continue;   // 见上方「已知遗留」：无归属的 modbus:// 变量设备端回落 TCP 默认连接（不拦）
+                    var ownerSlave = owner.TryGetSlaveId();
+                    if (ownerSlave == 0)
+                    {
+                        result.Errors.Add($"变量 \"{tag.Name}\" 所属设备 \"{owner.Name}\" 的连接参数缺少合法 slaveId（1~247）——请先修正设备配置");
+                        continue;
+                    }
+                    if (srcSlave != ownerSlave)
+                    {
+                        result.Errors.Add($"变量 \"{tag.Name}\" 来源里的从站地址 {srcSlave} 与设备 \"{owner.Name}\" 的 slaveId {ownerSlave} 不一致——" +
+                                          $"设备端按来源里的从站下发，会读到别的从站或不应答；请改为 {ModbusTagSource.Build(ownerSlave, srcReg)}");
+                    }
+                }
+                else
+                {
+                    // MQTT 来源：同样要求 scheme 逐字小写（FW 判据大小写敏感）
+                    if (ModbusTagSource.IsMqttSource(tagSrc)
+                        && !tagSrc.StartsWith(ModbusTagSource.MqttPrefix, StringComparison.Ordinal))
+                    {
+                        result.Errors.Add($"变量 \"{tag.Name}\" 的 MQTT 来源 \"{tagSrc}\" 前缀大小写不规范——请改为 " +
+                                          $"{ModbusTagSource.MqttPrefix + tagSrc.Substring(ModbusTagSource.MqttPrefix.Length)}（设备端判据大小写敏感）");
+                    }
+                    if (tagSrc.Length == 0 && owner != null
+                        && owner.Protocol is ProtocolType.ModbusRTU or ProtocolType.ModbusTCP)
+                    {
+                        result.Errors.Add($"变量 \"{tag.Name}\" 关联了 Modbus 设备 \"{owner.Name}\" 但数据来源为空——设备端不会采集" +
+                                          $"（请填寄存器地址；如 {ModbusTagSource.Build(owner.TryGetSlaveId() > 0 ? owner.TryGetSlaveId() : 1, 1)}）");
+                    }
+                }
+            }
+
             if (result.HasErrors)
                 return result;
 

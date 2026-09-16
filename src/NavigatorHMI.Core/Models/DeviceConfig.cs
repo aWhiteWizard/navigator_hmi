@@ -38,6 +38,34 @@ namespace NavigatorHMI.Common
         /// </summary>
         [ProtoMember(3)]
         public string ConnectionInfo { get; set; } = "";
+
+        /// <summary>
+        /// 从 connection_info 里取 Modbus 从站地址（ModbusRTU/ModbusTCP 的 `slaveId`）。
+        /// 返回 0 表示无法解析（JSON 非法/字段缺失/协议非 Modbus）——调用方据此决定"未知从站"分支。
+        /// 用途（2026-09-16）：变量来源归一化（<see cref="ModbusTagSource.TryNormalize"/>）与编译门禁需要它做一致性校验。
+        /// </summary>
+        public int TryGetSlaveId()
+        {
+            if (Protocol is not (ProtocolType.ModbusRTU or ProtocolType.ModbusTCP))
+                return 0;
+            if (string.IsNullOrWhiteSpace(ConnectionInfo))
+                return 0;
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(ConnectionInfo);
+                if (doc.RootElement.ValueKind != System.Text.Json.JsonValueKind.Object)
+                    return 0;
+                if (!doc.RootElement.TryGetProperty("slaveId", out var sid)
+                 || sid.ValueKind != System.Text.Json.JsonValueKind.Number)
+                    return 0;
+                var v = sid.GetInt32();
+                return v is >= ModbusTagSource.SlaveMin and <= ModbusTagSource.SlaveMax ? v : 0;
+            }
+            catch (Exception ex) when (ex is System.Text.Json.JsonException or InvalidOperationException or FormatException)
+            {
+                return 0;
+            }
+        }
     }
 
     /// <summary>

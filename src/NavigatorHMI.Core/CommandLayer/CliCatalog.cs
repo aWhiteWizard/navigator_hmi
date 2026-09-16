@@ -177,11 +177,11 @@ namespace NavigatorHMI.CommandLayer
                 CliParameterView.P("show-global-overlay", "show_global_overlay"), CliParameterView.P("view-locked", "view_locked")));
 
             // ══ 变量/用户 ══
-            Add(Meta("create-tag", "create_tag", "变量命令", "创建变量 (--name <name> --type <BOOL|INT16|UINT16|INT32|FLOAT|STRING|DATETIME|GPS> [--source <uri>] [--device <设备名>] [--unit <u>] [--scan-interval 100] [--deadband 0] [--description <text>] [--base-value <n>] [--group <组名>]；source 缺省=内部变量；AB-4：--device 指定所属设备——设备端据此选 Modbus RTU/TCP 与连接参数)",
+            Add(Meta("create-tag", "create_tag", "变量命令", "创建变量 (--name <name> --type <BOOL|INT16|UINT16|INT32|FLOAT|STRING|DATETIME|GPS> [--source <uri>] [--device <设备名>] [--unit <u>] [--scan-interval 100] [--deadband 0] [--description <text>] [--base-value <n>] [--group <组名>]；source 缺省=内部变量；Modbus 来源可写【寄存器地址】由系统归一化落库：裸数字=PDU（如 1）、4x 记法（如 4x:0002）、PLC 式（如 40002）、或完整 modbus://100/1——落库一律归一化为 modbus://<从站>/<PDU>（设备端只认这种形式），**不可归一化的写法命令层直接拒绝**（此前会静默落库、设备端不采集）；AB-4：--device 指定所属设备——设备端据此选 Modbus RTU/TCP 与连接参数；⚠️ 变量已关联设备时 `--source \"\"` 会被拒，需同时 `--device \"\"` 才能清成内部变量)",
                 CliParameterView.Rk("name"), CliParameterView.R("type", "data_type"), CliParameterView.Dk("source", ""), CliParameterView.Dk("device", ""), CliParameterView.Dk("unit", ""),
                 CliParameterView.D("scan-interval", "scan_interval", "100"), CliParameterView.Dk("deadband", "0"), CliParameterView.Dk("description", ""),
                 CliParameterView.D("base-value", "base_value", ""), CliParameterView.D("group", "group", "")));
-            Add(Meta("update-tag", "update_tag", "变量命令", "更新变量 (--name <name> [--new-name <name>] [--type <...>] [--source <uri>] [--device <设备名>] [--unit <u>] [--scan-interval <ms>] [--deadband <n>] [--description <text>] [--base-value <n>] [--group <组名>]；--source \"\" 清空为内部变量；--unit \"\" / --description \"\" / --group \"\" / --device \"\" 清空)",
+            Add(Meta("update-tag", "update_tag", "变量命令", "更新变量 (--name <name> [--new-name <name>] [--type <...>] [--source <uri>] [--device <设备名>] [--unit <u>] [--scan-interval <ms>] [--deadband <n>] [--description <text>] [--base-value <n>] [--group <组名>]；--source \"\" 清空为内部变量（⚠️ 变量已关联设备时须同时 `--device \"\"`，否则被拒）；--unit \"\" / --description \"\" / --group \"\" / --device \"\" 清空；source 可写寄存器地址（裸数字=PDU / 4x:0002 / 40002 / 完整 modbus://100/1）由系统归一化落库)",
                 CliParameterView.Rk("name"),
                 CliParameterView.P("new-name", "new_name"), CliParameterView.P("type", "data_type"), CliParameterView.Pk("source"), CliParameterView.Pk("device"), CliParameterView.Pk("unit"),
                 CliParameterView.P("scan-interval", "scan_interval"), CliParameterView.Pk("deadband"), CliParameterView.Pk("description"),

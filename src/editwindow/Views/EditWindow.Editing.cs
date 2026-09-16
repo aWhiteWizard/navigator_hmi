@@ -128,6 +128,9 @@ namespace NavigatorHMI.Views
                     ["name"] = name, ["data_type"] = t.DataType.ToString(), ["source"] = t.Source,
                     ["unit"] = t.Unit, ["scan_interval"] = t.ScanIntervalMs, ["deadband"] = t.Deadband,
                     ["description"] = t.Description, ["base_value"] = t.BaseValue,
+                    // 2026-09-16：补 device（+ group）——此前漏传 ⇒ 复制的 Modbus 变量归属丢失，
+                    // 设备端回落到 TCP 默认连接（RTU 变量被按 TCP 轮询），且编译门禁看不见（无归属属豁免路径）
+                    ["device"] = t.DeviceName, ["group"] = t.Group,
                 });
                 if (!r.Success) MessageBox.Show($"{name}: {r.ErrorMessage}", "复制变量", MessageBoxButton.OK, MessageBoxImage.Warning);
             }

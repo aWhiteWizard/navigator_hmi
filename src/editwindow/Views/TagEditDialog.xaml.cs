@@ -102,13 +102,31 @@ namespace NavigatorHMI.Views
                 var addr = slash > 0 ? rest[(slash + 1)..] : "";
                 if (int.TryParse(slaveIdStr, out var slaveId))
                 {
-                    var dev = _project.Devices.FirstOrDefault(d => d.Protocol is ProtocolType.ModbusRTU or ProtocolType.ModbusTCP
-                                                                   && GetSlaveId(d) == slaveId);
-                    if (dev != null)
+                    // 2026-09-16 复审补：同从站的设备可能有多个（如"ModbusTCP设备"与"ModbusRTU设备"都是 slaveId=100），
+                    // 此前"取第一个"会**静默改写归属**（RTU 变量被改成 TCP 设备 ⇒ 设备端换传输，三层防线都看不见）。
+                    // 现在：① 优先按变量原归属（DeviceName）定位；② 唯一候选才自动选；③ 多候选不猜——明示让用户重选。
+                    var candidates = _project.Devices
+                        .Where(d => d.Protocol is ProtocolType.ModbusRTU or ProtocolType.ModbusTCP && GetSlaveId(d) == slaveId)
+                        .ToList();
+                    var byName = !string.IsNullOrEmpty(_existing?.DeviceName)
+                        ? candidates.FirstOrDefault(d => d.Name == _existing!.DeviceName)
+                        : null;
+                    if (byName != null)
                     {
-                        SelectSourceItem(dev);
+                        SelectSourceItem(byName);
                         AddressBox.Text = addr;
                         return;
+                    }
+                    if (candidates.Count == 1)
+                    {
+                        SelectSourceItem(candidates[0]);
+                        AddressBox.Text = addr;
+                        return;
+                    }
+                    if (candidates.Count > 1)
+                    {
+                        ShowError($"来源 \"{source}\" 的从站 {slaveId} 对应多个设备（{string.Join(" / ", candidates.Select(d => d.Name))}）——" +
+                                  $"请在「来源」里重新选择，避免改错传输方式（RTU/TCP）");
                     }
                 }
             }
@@ -117,6 +135,10 @@ namespace NavigatorHMI.Views
             var fallback = new ComboBoxItem { Content = $"自定义: {source}", Tag = source };
             SourceBox.Items.Add(fallback);
             SourceBox.SelectedItem = fallback;
+            // 2026-09-16：不可采集的来源（如 4x:0001 / 手写乱码）打开即提示——这是"值恒 0 且无日志"的典型来源
+            if (!ModbusTagSource.IsMqttSource(source) && !ModbusTagSource.IsModbusSource(source))
+                ShowError($"当前来源 \"{source}\" 设备端无法识别（不会采集，值恒 0）——" +
+                          $"请把「来源」改为对应设备并填寄存器地址（如 1 或 4x:0002）后再保存");
         }
 
         private void SelectSourceItem(DeviceConfig dev)
@@ -185,7 +207,55 @@ namespace NavigatorHMI.Views
             if (SourceBox.SelectedItem is not ComboBoxItem item) return;
             bool needAddress = item.Tag is DeviceConfig;
             AddressLabel.Visibility = needAddress ? Visibility.Visible : Visibility.Collapsed;
-            AddressBox.Visibility = needAddress ? Visibility.Visible : Visibility.Collapsed;
+            AddressPanel.Visibility = needAddress ? Visibility.Visible : Visibility.Collapsed;
+            UpdateAddressHint();
+        }
+
+        /// <summary>
+        /// 2026-09-16：地址框实时换算提示——把用户的写法（裸数字 / 4x 记法 / 40002 式 / 完整 modbus:// 串）
+        /// 立刻显示为"将落库的规范来源"，非法写法当场变红说明原因。
+        /// 背景：此前地址是自由文本，用户写 4x:0001 会被拼成 modbus://&lt;从站&gt;/4x:0001 落库，
+        /// 设备端（只认 modbus://从站/PDU）直接跳过该变量 ⇒ 值恒 0 且无日志。
+        /// </summary>
+        private void AddressBox_TextChanged(object sender, TextChangedEventArgs e) => UpdateAddressHint();
+
+        private void UpdateAddressHint()
+        {
+            if (AddressHint == null) return;
+            if (SourceBox.SelectedItem is not ComboBoxItem item || item.Tag is not DeviceConfig dev)
+            {
+                AddressHint.Visibility = Visibility.Collapsed;
+                return;
+            }
+            AddressHint.Visibility = Visibility.Visible;
+            var text = AddressBox.Text.Trim();
+            if (text.Length == 0)
+            {
+                AddressHint.Foreground = System.Windows.Media.Brushes.DarkSlateGray;
+                AddressHint.Text = "可填：裸数字（= PDU 地址，如 1）· 4x 记法（如 4x:0002）· PLC 式（如 40002）";
+                return;
+            }
+            var slave = dev.TryGetSlaveId();
+            if (slave == 0)
+            {
+                AddressHint.Foreground = System.Windows.Media.Brushes.Firebrick;
+                AddressHint.Text = $"设备 \"{dev.Name}\" 的连接参数缺少合法 slaveId（1~247）——请先在通讯页修正设备";
+                return;
+            }
+            if (!ModbusTagSource.TryParseRegisterInput(text, out var inSlave, out var reg, out var err))
+            {
+                AddressHint.Foreground = System.Windows.Media.Brushes.Firebrick;
+                AddressHint.Text = "✗ " + err;
+                return;
+            }
+            if (inSlave > 0 && inSlave != slave)
+            {
+                AddressHint.Foreground = System.Windows.Media.Brushes.Firebrick;
+                AddressHint.Text = $"✗ 来源里的从站 {inSlave} 与设备从站 {slave} 不一致——将按设备从站保存为 {ModbusTagSource.Build(slave, reg)}";
+                return;
+            }
+            AddressHint.Foreground = System.Windows.Media.Brushes.DarkGreen;
+            AddressHint.Text = $"→ 保存为 {ModbusTagSource.Build(slave, reg)}（保持寄存器 4x 编号 = PDU+1）";
         }
 
         // ═══════════════ 采集周期 ═══════════════
@@ -226,13 +296,24 @@ namespace NavigatorHMI.Views
             {
                 var addr = AddressBox.Text.Trim();
                 if (addr.Length == 0) { ShowError("请填写地址（寄存器地址）"); return; }
-                source = $"modbus://{GetSlaveId(dev)}/{addr}";   // Z 循环：来源仅 Modbus（MQTT deprecated——下拉已滤）
+                // 2026-09-16：走单一来源归一化（裸数字/4x 记法/40002 式/完整串 → modbus://<从站>/<PDU>），
+                // 非法写法当场拦下（此前会拼成 modbus://<从站>/4x:0001 落库，设备端静默跳过 ⇒ 值恒 0）
+                var devSlave = dev.TryGetSlaveId();
+                if (devSlave == 0)
+                { ShowError($"设备 \"{dev.Name}\" 的连接参数缺少合法 slaveId（1~247）——请先在通讯页修正设备"); return; }
+                if (!ModbusTagSource.TryNormalize(addr, devSlave, out var normSource, out var addrErr))
+                { ShowError(addrErr); return; }
+                source = normSource;
                 deviceName = dev.Name;
             }
             else if (srcItem.Tag is string customUri)
             {
                 source = customUri;   // 编辑反推失败兜底：保留原始来源
                 deviceName = _existing?.DeviceName ?? "";   // 同时保留原有设备归属（勿因反推失败丢关联）
+                // 2026-09-16：来源是设备端认不出的写法（如 4x:0001）时明确告警——否则会静默不采集
+                if (!ModbusTagSource.IsMqttSource(source) && !ModbusTagSource.IsModbusSource(source))
+                    ShowError($"注意：来源 \"{source}\" 设备端无法识别（不会采集，值恒 0）——" +
+                              $"请在上方选设备并填寄存器地址（如 1 或 4x:0002）");
             }
             else
             {
@@ -319,14 +400,9 @@ namespace NavigatorHMI.Views
         /// <summary>从设备 ConnectionInfo JSON 解析从站号（缺省 1）。</summary>
         private static int GetSlaveId(DeviceConfig dev)
         {
-            try
-            {
-                using var doc = JsonDocument.Parse(string.IsNullOrWhiteSpace(dev.ConnectionInfo) ? "{}" : dev.ConnectionInfo);
-                if (doc.RootElement.TryGetProperty("slaveId", out var s) && s.ValueKind == JsonValueKind.Number)
-                    return s.GetInt32();
-            }
-            catch (JsonException ex) { Log.Warning(ex, "解析 ConnectionInfo 获取 slaveId 失败，回退默认 1"); }
-            return 1;
+            // 2026-09-16：改用模型层单一口径（缺 slaveId 返回 0 由调用方处理，不再静默回退 1）
+            var sid = dev.TryGetSlaveId();
+            return sid > 0 ? sid : 1;
         }
     }
 }

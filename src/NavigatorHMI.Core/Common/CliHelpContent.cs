@@ -10,8 +10,8 @@ namespace NavigatorHMI.Common
   copy-screen --name <name>                      复制画面
   paste-screen                                   粘贴画面
   add-widget --screen <name> --type button --x 0 --y 0  添加控件
-  create-tag --name <name> --type FLOAT [--source <uri>] [--base-value 25.5]  创建变量（source 缺省 = 内部变量；base-value = 设计态基准值）
-  update-tag --name <name> [--new-name <name>] [--type FLOAT] [--source <uri>] [--unit °C] [--scan-interval 100] [--deadband 0] [--description ...] [--base-value ...]  更新变量（--source """" 清空为内部变量；--unit """" / --description """" 清空）
+  create-tag --name <name> --type FLOAT [--source <uri>] [--base-value 25.5] [--device <设备名>]  创建变量（source 缺省 = 内部变量；Modbus 可填寄存器地址：裸数字=PDU / 4x:0002 / 40002 / modbus://100/1，由系统归一化）
+  update-tag --name <name> [--new-name <name>] [--type FLOAT] [--source <uri>] [--device <设备名>] [--unit °C] [--scan-interval 100] [--deadband 0] [--description ...] [--base-value ...]  更新变量（--source """" 清空为内部变量——⚠️ 变量已关联设备时须同时 --device """"；--unit """" / --description """" 清空；source 可填寄存器地址由系统归一化）
   delete-tag --name <name>                           删除变量（被引用时拒绝）
   bind-tag --screen <name> --widget <name> --tag <name>  绑定变量到控件
   create-list --name <name> --type Text --items 'a|b|c'  创建列表（Text/Image/Video；items 用 | 分隔，图片列表为图片路径、视频列表为源地址）

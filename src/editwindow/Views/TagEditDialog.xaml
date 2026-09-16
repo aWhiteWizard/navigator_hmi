@@ -47,8 +47,12 @@
                       ToolTip="内部变量（无外部来源）或通讯设备（Modbus 寄存器 / MQTT 主题）"/>
 
             <TextBlock Grid.Row="3" Grid.Column="0" x:Name="AddressLabel" Text="地址:" VerticalAlignment="Center" Visibility="Collapsed"/>
-            <TextBox Grid.Row="3" Grid.Column="1" x:Name="AddressBox" Visibility="Collapsed"
-                     ToolTip="Modbus: 寄存器地址如 40001 / 00001；MQTT: 主题路径如 robot/pose/x"/>
+            <!-- 2026-09-16：地址输入实时换算提示（裸数字 / 4x 记法 / 40002 式 / 完整 modbus://串 均可，统一归一化） -->
+            <StackPanel Grid.Row="3" Grid.Column="1" x:Name="AddressPanel" Visibility="Collapsed">
+                <TextBox x:Name="AddressBox" TextChanged="AddressBox_TextChanged"
+                         ToolTip="寄存器地址（三种等价写法）：裸数字 = PDU 地址（如 1）；4x 记法 = 保持寄存器编号（如 4x:0002）；PLC 式（如 40002）。也可直接粘贴完整 modbus://100/1"/>
+                <TextBlock x:Name="AddressHint" FontSize="10" Foreground="DarkSlateGray" Margin="0,2,0,0" TextWrapping="Wrap" IsHitTestVisible="False"/>
+            </StackPanel>
 
             <TextBlock Grid.Row="4" Grid.Column="0" VerticalAlignment="Center"><Run Text="单位:"/><Run Text="（可选）" Foreground="Gray" FontSize="10"/></TextBlock>
             <TextBox Grid.Row="4" Grid.Column="1" x:Name="UnitBox" ToolTip="如 °C / rpm / m（可留空）"/>

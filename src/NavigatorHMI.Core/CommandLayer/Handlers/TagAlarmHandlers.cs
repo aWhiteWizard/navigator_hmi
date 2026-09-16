@@ -21,6 +21,73 @@ namespace NavigatorHMI.CommandLayer.Handlers
         }
     }
 
+    /// <summary>
+    /// 2026-09-16：变量「数据来源」归一化 + 与所属设备一致性校验（create_tag/update_tag 共用）。
+    ///
+    /// 缺陷背景：来源此前是自由文本零校验，CLI/控制台写 `4x:0001` 也能落库，而 FW 只认
+    /// `modbus://&lt;从站&gt;/&lt;寄存器&gt;`（`acquisition.cpp:protocolForTag`）⇒ 该变量被当作"内部变量/未知来源"
+    /// **静默跳过**：不建驱动、不轮询、不打日志、值恒 0。本类把「能落库的来源」收敛为可采集的形式：
+    /// 空（内部变量）· `mqtt://`（旧工程兼容）· 可归一化的 Modbus 来源（裸数字 / 4x 记法 / 40001 式 / 完整串）。
+    /// </summary>
+    internal static class TagSourceRules
+    {
+        /// <summary>
+        /// 校验并归一化来源。成功返回 null 并把规范串写入 <paramref name="normalized"/>；失败返回 INVALID_PARAM 消息。
+        /// <paramref name="source"/> 传 null 表示"本命令未提供来源"（调用方保留现值），此时不做校验。
+        /// </summary>
+        public static string? Check(HMIProject project, string? deviceName, string? source, out string normalized)
+        {
+            normalized = source?.Trim() ?? "";
+            if (source == null)
+                return null;   // 未提供（update_tag 保留现值）
+
+            var dev = deviceName?.Trim() ?? "";
+            var src = normalized;
+            if (src.Length == 0)
+            {
+                if (dev.Length > 0)
+                {
+                    var d0 = project.Devices.FirstOrDefault(x => x.Name == dev);
+                    var hint = d0?.TryGetSlaveId() is > 0 and var sid
+                        ? $"如 {ModbusTagSource.Build(sid, 1)}"
+                        : $"{ModbusTagSource.Prefix}<从站地址>/<寄存器>";
+                    return $"变量关联了设备 \"{dev}\" 但数据来源为空——设备端不会采集（请填寄存器地址，{hint}；或清空 device 参数做成内部变量）";
+                }
+                return null;   // 内部变量
+            }
+
+            // MQTT：Z 循环起 tag 侧 mqtt:// 语义废弃（映射由 MQTT 连接 Bindings 承载），但旧工程仍可能持有 ⇒ 放行不拦。
+            // ⚠️ 但**前缀大小写**要归一：FW 判据是大小写敏感的 `startsWith("mqtt://")`（acquisition.cpp:69），
+            //    `MQTT://x` 能过 PC 侧检查却在设备端静默失效 ⇒ 只把 scheme 归一小写、其余原样保留。
+            if (ModbusTagSource.IsMqttSource(src))
+            {
+                // Modbus 设备 + MQTT 来源 = 该设备不会采集它（FW 按 mqtt:// 归 MQTT，归属由 bindings 决定）⇒ 明确拒绝
+                var mqttDev = dev.Length > 0 ? project.Devices.FirstOrDefault(x => x.Name == dev) : null;
+                if (mqttDev != null && mqttDev.Protocol is ProtocolType.ModbusRTU or ProtocolType.ModbusTCP)
+                    return $"设备 \"{dev}\" 是 Modbus 设备，但来源写的是 {ModbusTagSource.MqttPrefix}——设备端不会在该设备上采集（值恒 0）；" +
+                           $"请改填寄存器地址，或清空 device 参数（MQTT 映射请在 MQTT 页配置）";
+                normalized = ModbusTagSource.MqttPrefix + src.Substring(ModbusTagSource.MqttPrefix.Length);
+                return null;
+            }
+
+            var slaveId = 0;
+            if (dev.Length > 0)
+            {
+                var dev2 = project.Devices.FirstOrDefault(x => x.Name == dev);
+                if (dev2 == null)
+                    return $"设备 \"{dev}\" 不存在（请先 configure-device 创建设备，或清空 device 参数）";
+                slaveId = dev2.TryGetSlaveId();
+                if (slaveId == 0)
+                    return $"设备 \"{dev}\" 的连接参数里没有可用的 slaveId（1~247）——请先 configure-device 修正后再配变量";
+            }
+
+            if (!ModbusTagSource.TryNormalize(src, slaveId, out var norm, out var err))
+                return err;
+            normalized = norm;
+            return null;
+        }
+    }
+
     /// <summary>创建变量（Tag），添加到工程变量列表。</summary>
     public class CreateTagHandler : ICommandHandler
     {
@@ -31,7 +98,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
             {
                 ["name"] = new() { Type = "string", Required = true, Description = "变量名" },
                 ["data_type"] = new() { Type = "enum", Required = true, EnumValues = new[] { "BOOL", "INT16", "UINT16", "INT32", "FLOAT", "STRING", "DATETIME", "GPS" }, Description = "数据类型" },
-                ["source"] = new() { Type = "string", DefaultValue = "", Description = "数据来源 (modbus:// 或 mqtt://)，空/缺省 = 内部变量", KeepInCompact = true },
+                ["source"] = new() { Type = "string", DefaultValue = "", Description = "数据来源：空 = 内部变量；Modbus 可填寄存器地址（裸数字 = PDU，如 1；4x 记法 4x:0002；PLC 式 40002）或完整 modbus://<从站>/<PDU>——命令层统一归一化；mqtt:// 为旧工程兼容", KeepInCompact = true },
                 // AB-4（2026-09-11）：所属设备（proto tag.device_name）——设备端按它定位连接参数与传输协议
                 // （Modbus RTU/TCP 分流 + 一协议多设备/多从站）；KeepInCompact 让 AI 也能建带设备的采集变量
                 ["device"] = new() { Type = "string", DefaultValue = "", Description = "所属设备名（必须已存在；Modbus 采集变量必填才有连接参数），空 = 无设备", KeepInCompact = true },
@@ -78,6 +145,10 @@ namespace NavigatorHMI.CommandLayer.Handlers
             // AB-4：所属设备校验（提供则必须已存在——防悬空归属导致设备端采集无连接参数）
             var devErr = TagDeviceRef.Validate(project, p.GetValueOrDefault("device")?.ToString());
             if (devErr != null) return devErr;
+            // 2026-09-16：来源归一化 + 与设备从站一致性（如 4x:0002/40002/裸数字 → modbus://<从站>/<PDU>）
+            var srcErr = TagSourceRules.Check(project, p.GetValueOrDefault("device")?.ToString(),
+                p.GetValueOrDefault("source")?.ToString() ?? "", out var normalizedSource);
+            if (srcErr != null) return CommandResult.Fail("INVALID_PARAM", srcErr);
             // 任务8：DATETIME 变量未提供基准值 → 默认全 0 字面（0000:00:00 00:00:00，年月日冒号分隔）
             // D4/#4：数字变量未提供基准值 → 默认 0（FLOAT 用 0.0；整数用 0；BOOL 用 false）
             var baseValue = BaseValueValidator.Normalize(p.GetValueOrDefault("base_value")?.ToString() ?? "", dt);
@@ -89,7 +160,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
             project.Tags.Add(new Tag
             {
                 Name = name, DataType = dt,
-                Source = p.GetValueOrDefault("source")?.ToString() ?? "",
+                Source = normalizedSource,   // 2026-09-16：落库即规范串（用户可写 4x:0002/40002/裸数字，统一归一化）
                 Unit = p.GetValueOrDefault("unit")?.ToString() ?? "",
                 ScanIntervalMs = Convert.ToInt32(p.GetValueOrDefault("scan_interval", 100)),
                 Deadband = Convert.ToDouble(p.GetValueOrDefault("deadband", 0), System.Globalization.CultureInfo.InvariantCulture),
@@ -98,7 +169,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 Group = p.GetValueOrDefault("group")?.ToString() ?? "",   // Y-5a：变量分组（空 = 未分组）
                 DeviceName = p.GetValueOrDefault("device")?.ToString()?.Trim() ?? "",   // AB-4：所属设备（proto 9）
             });
-            return CommandResult.Ok(new { tag_name = name });
+            return CommandResult.Ok(new { tag_name = name, source = normalizedSource });   // 回显归一化结果（如 4x:0002 → modbus://100/1）
         }
     }
 
@@ -506,7 +577,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 ["name"] = new() { Type = "string", Required = true, Description = "原变量名" },
                 ["new_name"] = new() { Type = "string", Description = "新变量名（重命名）", KeepInCompact = true },
                 ["data_type"] = new() { Type = "enum", EnumValues = new[] { "BOOL", "INT16", "UINT16", "INT32", "FLOAT", "STRING", "DATETIME", "GPS" }, Description = "数据类型", KeepInCompact = true },
-                ["source"] = new() { Type = "string", Description = "数据来源；未提供=保留现值，空串=清空为内部变量 (modbus:// 或 mqtt://)", KeepInCompact = true },
+                ["source"] = new() { Type = "string", Description = "数据来源；未提供=保留现值，空串=清空为内部变量（⚠️ 变量已关联设备时须同时 device=\"\"，否则被拒）；Modbus 可填寄存器地址（裸数字=PDU / 4x:0002 / 40002 / 完整 modbus://<从站>/<PDU>）由命令层归一化", KeepInCompact = true },
                 ["unit"] = new() { Type = "string", Description = "工程单位", KeepInCompact = true },
                 ["scan_interval"] = new() { Type = "int", Description = "采集周期 ms", KeepInCompact = true },
                 ["deadband"] = new() { Type = "double", Description = "变化死区", KeepInCompact = true },
@@ -606,6 +677,18 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 }
             }
 
+            // ══ 2026-09-16 来源校验（校验全部通过后再落库；原子：不通过则整体不改）══
+            // 用「生效后的（设备, 来源）」组合统一校验——与 create_tag 同口径，覆盖三类编辑：
+            //   ① 只改来源 ② 只改设备（原来源须与新设备从站一致）③ **给内部变量补设备**（生效后来源为空 ⇒ 拒绝，
+            //   否则会落库一个"有设备却没来源"的变量：设备端不采集，且与 create_tag 的拒绝口径不对称）
+            var effDevice = p.TryGetValue("device", out var dvP) && dvP != null
+                ? dvP.ToString()?.Trim() ?? "" : tag.DeviceName;
+            var srcProvided = p.TryGetValue("source", out var svP) && svP != null;
+            var effSource = srcProvided ? svP!.ToString() ?? "" : tag.Source;
+            var effErr = TagSourceRules.Check(project, effDevice, effSource, out var effNormalized);
+            if (effErr != null)
+                return CommandResult.Fail("INVALID_PARAM", effErr);
+
             // ══ 统一落库（校验全部通过后）══
             if (newName != null)
             {
@@ -645,7 +728,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 tag.DataType = targetType;
             if (p.TryGetValue("source", out var src) && src != null)
                 // 显式空串 = 清空为内部变量（OptIfProvided 语义：CLI 未提供不进字典，保留现值）
-                tag.Source = src.ToString()?.Trim() ?? "";
+                // 2026-09-16：用上面校验时算出的归一化结果落库（不再二次 Check——那会在失败路径写回未归一化原串）
+                tag.Source = effNormalized;
             if (p.TryGetValue("unit", out var un) && un != null)
                 tag.Unit = un.ToString() ?? "";
             if (p.TryGetValue("scan_interval", out var si) && si != null && !string.IsNullOrWhiteSpace(si.ToString()))
@@ -666,7 +750,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
             if (p.TryGetValue("device", out var devp) && devp != null)
                 tag.DeviceName = devp.ToString()?.Trim() ?? "";
 
-            return CommandResult.Ok(new { tag_name = tag.Name });
+            return CommandResult.Ok(new { tag_name = tag.Name, source = tag.Source, device = tag.DeviceName });
         }
     }
 
