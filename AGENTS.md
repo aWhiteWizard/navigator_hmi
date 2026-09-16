@@ -61,7 +61,7 @@
 
 ## Plan 环节产物
 - Plan 定稿时输出《项目计划执行书》`<循环>-execution-plan.md`（摘要/根因/修改点/边界/验收 7 字段），Do 阶段以执行书为准；**Check 完成后直接删除执行书**（2026-08-14 用户定：执行书只给 Do 看，Plan 内容已落 PROJECT.md，无需存档）。
-- **更新甘特图状态（2026-08-30 用户定）**：Plan 定稿时本循环纳入的任务在甘特图数据源（pc/fw 03_implementation.md 待做表 + gantt.md）同步更新状态（如待做 → 计划/Do 中），与 Act 转 Plan 时「本轮做完的任务同步更新到甘特图」衔接。
+- **更新甘特图状态（2026-08-30 用户定；2026-09-13 甘特插件换代后订正）**：甘特图 = dsh 插件 **`@navigatorhmi/dsh-client-ui-project-gantt`**（通用项目甘特，2026-09-12 取代旧 `@navigatorhmi/dsh-client-ui-gantt`；旧插件**已摘注册**，实测客户端只加载新插件 bundle）。Plan 定稿时本循环纳入的任务在甘特图数据源（**优先 `<项目>/03_implementation.md`「待做」表，无此文件才回落 pc/fw 03_implementation.md 待做表**）同步更新状态（如待做 → 计划/Do 中），与 Act 转 Plan 时「本轮做完的任务同步更新到甘特图」衔接。⚠️ **`gantt.md` / `project-gantt.md` 都不是数据源**：`project-gantt.md` 由插件每次 load 自动重新生成覆盖（手改无效），`gantt.md` 自换代起**已停更**（新插件只写 `project-gantt.md`、不再触碰它；残留的旧 `gantt.md` 是过期文件，**不得当现状读取**）；改完数据源在 GUI 甘特面板点「刷新」生效。
 - **Do 环节任务清单（2026-08-14 用户期望）**：进入 Do 的第一步，用 todo 清单（todo_write）建立任务分解表——每项任务一行（如 Z-1/Z-2/Z-3、编译+测试、reviewer 审查、修复/复审、提交），随进度更新状态（pending/in_progress/completed），GUI 可视化进度；不得直接开工而不建清单。
 
 ## 任务简报系统（2026-08-23 用户定，dsh 客户端插件）
