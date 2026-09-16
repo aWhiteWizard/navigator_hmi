@@ -1,0 +1,27 @@
+<ResourceDictionary x:Class="NavigatorHMI.Views.Themes.PropDialogResources"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        >
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="/NavigatorHMI;component/Views/Themes/PropSharedResources.xaml" />
+    </ResourceDictionary.MergedDictionaries>
+
+        <!-- 迁移自 EditWindow.xaml 基线 第 34-40 行（7 行；原 key=AiMessageContextMenu） -->
+        <ContextMenu x:Key="AiMessageContextMenu">
+            <MenuItem Header="复制" Click="AiMsgCopy_Click"/>
+        </ContextMenu>
+
+        <!-- 列表名行内编辑模板（2026-09-06 U 循环 Check 用户需求：列表管理左侧列表名双击进入编辑模式——
+             回车/点其它处确认（提交走 VM RenameList → update_list 同类型查重+级联）、Esc 取消不提交；
+             编辑态切换由 code-behind ListNameBox_MouseDoubleClick 视觉树查找控制（TextBlock↔TextBox Visibility）） -->
+        <!-- 迁移自 EditWindow.xaml 基线 第 41-49 行（9 行；原 key=ListNameInlineEditTemplate） -->
+        <DataTemplate x:Key="ListNameInlineEditTemplate">
+            <Grid Background="Transparent" ToolTip="{Binding Name}">
+                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" Margin="2,1" TextTrimming="CharacterEllipsis"/>
+                <TextBox Visibility="Collapsed" VerticalContentAlignment="Center" Margin="1" FontSize="12"
+                         PreviewKeyDown="ListNameEditor_PreviewKeyDown" LostFocus="ListNameEditor_LostFocus"/>
+            </Grid>
+        </DataTemplate>
+
+        <!-- 属性面板样式 -->
+</ResourceDictionary>

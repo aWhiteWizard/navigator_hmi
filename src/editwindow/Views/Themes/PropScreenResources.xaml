@@ -1,0 +1,265 @@
+<ResourceDictionary x:Class="NavigatorHMI.Views.Themes.PropScreenResources"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        >
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="/NavigatorHMI;component/Views/Themes/PropSharedResources.xaml" />
+    </ResourceDictionary.MergedDictionaries>
+
+        <!-- 迁移自 EditWindow.xaml 基线 第 182-328 行（147 行；原 key=PropScreen） -->
+        <DataTemplate x:Key="PropScreen"><StackPanel>
+            <TextBlock Text="画面名称" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="名称:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding ScreenName, UpdateSourceTrigger=LostFocus}" IsReadOnly="{Binding IsScreenNameReadOnly}" Style="{StaticResource PropTextBox}" KeyDown="PropField_KeyDown" />
+            </Grid>
+            <TextBlock Text="尺寸" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="25"/><ColumnDefinition Width="*"/><ColumnDefinition Width="5"/><ColumnDefinition Width="25"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="W:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding ScreenWidth, Mode=OneWay}" IsReadOnly="True" Style="{StaticResource PropNumberBox}"/>
+                <Label Grid.Column="3" Content="H:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="4" Text="{Binding ScreenHeight, Mode=OneWay}" IsReadOnly="True" Style="{StaticResource PropNumberBox}"/>
+            </Grid>
+            <TextBlock Text="类型" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="类型:" Style="{StaticResource PropLabel}"/>
+                <TextBlock Grid.Column="1" Text="{Binding ScreenTypeText}" VerticalAlignment="Center" Margin="4,0" FontSize="11"/>
+            </Grid>
+            <TextBlock Text="全局叠加" Style="{StaticResource PropGroupHeader}" Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}"/>
+            <Grid Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}"><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="显示全局:" Style="{StaticResource PropLabel}"/>
+                <CheckBox Grid.Column="1" IsChecked="{Binding WorldMapShowGlobalOverlay}" VerticalAlignment="Center" ToolTip="勾选后世界地图上叠加显示全局画面内容（设备端运行时同步生效）"/>
+            </Grid>
+            <!-- P5：锁定预览（运行时禁交互 + 组态模拟） + 视口自适应 -->
+            <TextBlock Text="预览与视口" Style="{StaticResource PropGroupHeader}" Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}"/>
+            <Grid Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}"><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="锁定预览:" Style="{StaticResource PropLabel}"/>
+                <CheckBox Grid.Column="1" IsChecked="{Binding WorldMapViewLocked}" VerticalAlignment="Center" ToolTip="勾选后预览锁定：地图禁平移/缩放（滚轮无效）；右键菜单仍可弹；点击切换画面事件由设备端（FW 运行时）执行"/>
+            </Grid>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="4,2" Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}">
+                <Button Content="⛶ 视口自适应" Click="WorldMapZoomToBox_Click" Padding="8,2" FontSize="11" ToolTip="按作业点/作业范围点包围盒缩放地图视口（ZoomToBox）"/>
+            </StackPanel>
+            <!-- P-3（2026-09-02）：设备端地图开关——只影响设备端显示（编译产物过滤 WorldMap Screen），组态软件编辑态始终显示可编辑 -->
+            <TextBlock Text="设备端" Style="{StaticResource PropGroupHeader}" Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}"/>
+            <Grid Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}"><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="显示地图:" Style="{StaticResource PropLabel}"/>
+                <CheckBox Grid.Column="1" IsChecked="{Binding IncludeWorldMapOnDevice}" VerticalAlignment="Center"
+                          ToolTip="勾选（默认）后设备端显示世界地图并作为启动画面；取消勾选后设备端不含世界地图、启动进第一个自定义画面（组态软件中本画面始终可编辑，不受影响）"/>
+            </Grid>
+            <!-- P4：世界地图作业点/作业范围点（表格行内编辑；两列互斥；末行输入自动补行） -->
+            <TextBlock Text="作业点" Style="{StaticResource PropGroupHeader}" Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}"/>
+            <StackPanel Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}">
+                <DataGrid ItemsSource="{Binding WorkPointRows}" SelectedItem="{Binding SelectedWorkPointRow}" CanUserAddRows="True" AutoGenerateColumns="False"
+                          Height="110" Margin="4,2" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                          SelectionMode="Single" SelectionChanged="WorkPointGrid_SelectionChanged" RowEditEnding="WorkPointGrid_RowEditEnding"
+                          PreparingCellForEdit="WorkPointGrid_PreparingCellForEdit" CellEditEnding="WorkPointGrid_CellEditEnding"
+                          PreviewMouseLeftButtonDown="WorkPointGrid_PreviewMouseLeftButtonDown"
+                          ToolTip="末行空白行输入自动补行；经纬度(固定)与绑定变量二选一（互斥）">
+                    <DataGrid.RowStyle>
+                        <!-- V-5b：经纬度输入非法 → 行浅黄 + ToolTip 带示例（不再静默忽略） -->
+                        <Style TargetType="DataGridRow">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasCoordError}" Value="True">
+                                    <Setter Property="Background" Value="LightYellow"/>
+                                    <Setter Property="ToolTip" Value="{Binding CoordError}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.RowStyle>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="名称" Binding="{Binding Name, UpdateSourceTrigger=LostFocus}" Width="70">
+                            <DataGridTextColumn.CellStyle>
+                                <!-- V-4a：续28 B 方案——名称重复 → 单元格粉红 + ToolTip 提示（不删行不拦截，改名恢复） -->
+                                <Style TargetType="DataGridCell">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsDuplicateName}" Value="True">
+                                            <Setter Property="Background" Value="LightPink"/>
+                                            <Setter Property="ToolTip" Value="作业点名称重复，请改名"/>
+                                        </DataTrigger>
+                                        <!-- Y-6：名称含 , | 分隔符 → 粉红 + 提示（不落库） -->
+                                        <DataTrigger Binding="{Binding HasNameError}" Value="True">
+                                            <Setter Property="Background" Value="LightPink"/>
+                                            <Setter Property="ToolTip" Value="{Binding NameError}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGridTextColumn.CellStyle>
+                        </DataGridTextColumn>
+                        <!-- V-5a：续23 方案 B——经纬度拆两列（每格输小数度，正=E/N 负=W/S；存储仍 DMS） -->
+                        <DataGridTextColumn Header="经度(E+)" Binding="{Binding Lng, UpdateSourceTrigger=LostFocus}" Width="*"/>
+                        <DataGridTextColumn Header="纬度(N+)" Binding="{Binding Lat, UpdateSourceTrigger=LostFocus}" Width="*"/>
+                        <DataGridTemplateColumn Header="绑定变量" Width="85">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding BoundTagDisplay}" Margin="2,0" VerticalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                            <DataGridTemplateColumn.CellEditingTemplate>
+                                <DataTemplate>
+                                    <!-- W-2b：绑定变量只下拉（GPS 变量 + 「无」），不可手输 -->
+                                    <ComboBox ItemsSource="{Binding GpsTagNames}" SelectedItem="{Binding BoundTagDisplay, UpdateSourceTrigger=LostFocus}" IsEditable="False"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellEditingTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+                <!-- V-5a：经纬度输入 DMS 实时换算提示（仅编辑态显示，续23 增补 2；Tag 供 DataGrid 事件按 VisualTree 查找） -->
+                <TextBlock Tag="dms-hint" Foreground="DarkSlateGray" FontSize="10" Margin="6,0,4,2" TextWrapping="Wrap" Visibility="Collapsed" IsHitTestVisible="False"/>
+                <Button Content="📍 设置作业点" Click="StartEditWorkPoint_Click" Padding="8,2" HorizontalAlignment="Left" Margin="4,2" FontSize="11" ToolTip="进入选点模式：点击地图追加作业点（名称自动编号），ESC/右键退出"/>
+                <Button Content="🗑 删除选中作业点" Click="DeleteWorkPointRow_Click" Padding="8,2" HorizontalAlignment="Right" Margin="4,2" FontSize="11"/>
+            </StackPanel>
+            <TextBlock Text="作业范围" Style="{StaticResource PropGroupHeader}" Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}"/>
+            <StackPanel Visibility="{Binding IsWorldMapScreen, Converter={StaticResource BoolToVisibilityConverter}}">
+                <DataGrid ItemsSource="{Binding WorkRangeRows}" SelectedItem="{Binding SelectedWorkRangeRow}" CanUserAddRows="True" AutoGenerateColumns="False"
+                          Height="90" Margin="4,2" HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                          SelectionMode="Single" SelectionChanged="WorkRangeGrid_SelectionChanged" RowEditEnding="WorkRangeGrid_RowEditEnding"
+                          PreparingCellForEdit="WorkRangeGrid_PreparingCellForEdit" CellEditEnding="WorkRangeGrid_CellEditEnding"
+                          PreviewMouseLeftButtonDown="WorkRangeGrid_PreviewMouseLeftButtonDown"
+                          ToolTip="作业范围围栏顶点；地图右键「设置作业范围」可加点">
+                    <DataGrid.RowStyle>
+                        <!-- V-5b：经纬度输入非法 → 行浅黄 + ToolTip 带示例 -->
+                        <Style TargetType="DataGridRow">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasCoordError}" Value="True">
+                                    <Setter Property="Background" Value="LightYellow"/>
+                                    <Setter Property="ToolTip" Value="{Binding CoordError}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.RowStyle>
+                    <DataGrid.Columns>
+                        <!-- V-5a：续23 方案 B——经纬度拆两列（范围点无名称列） -->
+                        <DataGridTextColumn Header="经度(E+)" Binding="{Binding Lng, UpdateSourceTrigger=LostFocus}" Width="*"/>
+                        <DataGridTextColumn Header="纬度(N+)" Binding="{Binding Lat, UpdateSourceTrigger=LostFocus}" Width="*"/>
+                        <DataGridTemplateColumn Header="绑定变量" Width="85">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding BoundTagDisplay}" Margin="2,0" VerticalAlignment="Center"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                            <DataGridTemplateColumn.CellEditingTemplate>
+                                <DataTemplate>
+                                    <!-- W-2b：绑定变量只下拉（GPS 变量 + 「无」），不可手输 -->
+                                    <ComboBox ItemsSource="{Binding GpsTagNames}" SelectedItem="{Binding BoundTagDisplay, UpdateSourceTrigger=LostFocus}" IsEditable="False"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellEditingTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+                <!-- V-5a：经纬度输入 DMS 实时换算提示（仅编辑态显示；Tag 供 DataGrid 事件按 VisualTree 查找） -->
+                <TextBlock Tag="dms-hint" Foreground="DarkSlateGray" FontSize="10" Margin="6,0,4,2" TextWrapping="Wrap" Visibility="Collapsed" IsHitTestVisible="False"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="4,2">
+                    <Button Content="📍 地图加点" Click="StartEditWorkRange_Click" Padding="8,2" Margin="0,0,6,0" FontSize="11"/>
+                    <Button Content="🗑 删除选中" Click="DeleteWorkRangeRow_Click" Padding="8,2" FontSize="11"/>
+                </StackPanel>
+            </StackPanel>
+        </StackPanel></DataTemplate>
+        <!-- 迁移自 EditWindow.xaml 基线 第 1198-1304 行（107 行；原 key=PropWindow） -->
+        <DataTemplate x:Key="PropWindow"><StackPanel>
+            <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
+            <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
+            <Separator Margin="4,2"/>
+            <TextBlock Text="窗口" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="标题:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding WindowTitle, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" KeyDown="PropField_KeyDown"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="标题栏:" Style="{StaticResource PropLabel}"/>
+                <CheckBox Grid.Column="1" IsChecked="{Binding WindowShowTitleBar}" VerticalAlignment="Center"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="背景色:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding WindowFillColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" KeyDown="PropField_KeyDown"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="边框色:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding WindowBorderColor, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}" KeyDown="PropField_KeyDown"/>
+            </Grid>
+            <!-- Q-7（2026-09-04 用户 Check）：属性组按 windowType 显隐——UserView 专属组（StackPanel 纵排多子元素——裸 Grid 无 RowDefinitions 会全部叠放 Row0，审查 🔴 P1） -->
+            <StackPanel Visibility="{Binding IsUserView, Converter={StaticResource BoolToVisibilityConverter}}">
+            <!-- UserView 显示开关 -->
+            <TextBlock Text="UserView 显示" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="用户名:" Style="{StaticResource PropLabel}"/>
+                <CheckBox Grid.Column="1" IsChecked="{Binding WindowShowUserName}" VerticalAlignment="Center"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="角色:" Style="{StaticResource PropLabel}"/>
+                <CheckBox Grid.Column="1" IsChecked="{Binding WindowShowRole}" VerticalAlignment="Center"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="运行模式:" Style="{StaticResource PropLabel}"/>
+                <CheckBox Grid.Column="1" IsChecked="{Binding WindowShowMode}" VerticalAlignment="Center"/>
+            </Grid>
+            </StackPanel>
+            <!-- Q-7：AlarmView 专属组 -->
+            <StackPanel Visibility="{Binding IsAlarmView, Converter={StaticResource BoolToVisibilityConverter}}">
+            <!-- AlarmView -->
+            <TextBlock Text="AlarmView" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="显示模式:" Style="{StaticResource PropLabel}"/>
+                <!-- P-5（2026-09-02）：DisplayMode 设计态固定（用户拍板）——要两模式放两个 AlarmView -->
+                <ComboBox Grid.Column="1" SelectedItem="{Binding WindowDisplayMode}" ItemsSource="{Binding WindowDisplayModeOptions}" Style="{StaticResource PropComboBox}" ToolTip="当前报警：活动列表+确认；报警缓冲区：全部历史滚动+清除（未确认活动不清除）。设计态固定——要两模式放两个 AlarmView">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate><TextBlock><TextBlock.Style><Style TargetType="TextBlock">
+                            <Setter Property="Text" Value="当前报警"/>
+                            <Style.Triggers><DataTrigger Binding="{Binding}" Value="History"><Setter Property="Text" Value="报警缓冲区"/></DataTrigger></Style.Triggers>
+                        </Style></TextBlock.Style></TextBlock></DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="含历史:" Style="{StaticResource PropLabel}"/>
+                <CheckBox Grid.Column="1" IsChecked="{Binding WindowShowHistory}" VerticalAlignment="Center" ToolTip="false=仅活动报警（旧字段兼容；新工程用上方显示模式）"/>
+            </Grid>
+            </StackPanel>
+            <!-- Q-7：RobotList 专属组 -->
+            <StackPanel Visibility="{Binding IsRobotList, Converter={StaticResource BoolToVisibilityConverter}}">
+            <!-- RobotList：卡片尺寸 + 信息开关 + 绑定设备 + 选中变量 -->
+            <TextBlock Text="RobotList 卡片" Style="{StaticResource PropGroupHeader}"/>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="卡片宽:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding WindowCardWidth, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}" KeyDown="PropField_KeyDown"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="卡片高:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding WindowCardHeight, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}" KeyDown="PropField_KeyDown"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="显示编号:" Style="{StaticResource PropLabel}"/>
+                <CheckBox Grid.Column="1" IsChecked="{Binding WindowCardShowNumber}" VerticalAlignment="Center"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="显示状态:" Style="{StaticResource PropLabel}"/>
+                <CheckBox Grid.Column="1" IsChecked="{Binding WindowCardShowStatus}" VerticalAlignment="Center"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="显示位置:" Style="{StaticResource PropLabel}"/>
+                <CheckBox Grid.Column="1" IsChecked="{Binding WindowCardShowLocation}" VerticalAlignment="Center"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="绑定设备:" Style="{StaticResource PropLabel}"/>
+                <ComboBox Grid.Column="1" ItemsSource="{Binding WindowDevices}" SelectedItem="{Binding WindowBoundDevice, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource PropComboBox}" ToolTip="RobotList 两态过滤：选设备 → 变量仅该设备（Tag.DeviceName）；「（仅内部变量）」→ 仅内部变量"/>
+            </Grid>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="选中变量:" Style="{StaticResource PropLabel}"/>
+                <ComboBox Grid.Column="1" ItemsSource="{Binding WindowDeviceTags}" SelectedValue="{Binding WindowSelectedTag, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Name" DisplayMemberPath="Name" Style="{StaticResource PropComboBox}" ToolTip="RobotList 选中编号写入变量（STRING）"/>
+            </Grid>
+            <!-- RobotSlots 绑定表 -->
+            <TextBlock Text="机器人绑定组" Style="{StaticResource PropGroupHeader}"/>
+            <ItemsControl ItemsSource="{Binding RobotSlotRows}" Margin="0,2">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="{Binding Label}" VerticalAlignment="Center" FontSize="10"/>
+                            <ComboBox Grid.Column="1" ItemsSource="{Binding Tags}" SelectedValue="{Binding SelectedTag, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Name" DisplayMemberPath="Name" FontSize="10" Height="22"/>
+                        </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            </StackPanel>
+        </StackPanel></DataTemplate>
+</ResourceDictionary>

@@ -104,7 +104,7 @@ namespace NavigatorHMI.Views
         }
 
         /// <summary>AI 消息右键「复制」：拖选了文字则复制选中段，否则复制整条消息。</summary>
-        private void AiMsgCopy_Click(object sender, RoutedEventArgs e)
+        internal void AiMsgCopy_Click(object sender, RoutedEventArgs e)
         {
             if (sender is not MenuItem mi || mi.Parent is not ContextMenu cm) return;
             if (cm.PlacementTarget is System.Windows.Controls.TextBox tb)

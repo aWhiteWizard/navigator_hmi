@@ -122,7 +122,7 @@ namespace NavigatorHMI.Views
         #endregion
 
         // AB-6 复审 🟡-1（2026-09-11）：属性面板输入/字体默认/帮助 自 EditWindow.Canvas.cs 归位（属性域收拢）
-        private void PropField_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        internal void PropField_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
             if (e.Key == System.Windows.Input.Key.Enter)
             {

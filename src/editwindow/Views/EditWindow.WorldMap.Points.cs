@@ -36,7 +36,7 @@ namespace NavigatorHMI.Views
     {
 
         // AB-6 复审（2026-09-11）：世界地图作业点/范围点表格处理器与标记绘制 —— 自 EditWindow.WorldMap.cs 纯搬家（基线 72daf0e 第 210-1019 行，23 个成员；内容零改动）
-        private void StartEditWorkPoint_Click(object sender, RoutedEventArgs e)
+        internal void StartEditWorkPoint_Click(object sender, RoutedEventArgs e)
         {
             WorldMapContextMenu.IsOpen = false;
             if (_viewModel?.CurrentProject?.WorldMap == null) return;
@@ -64,7 +64,7 @@ namespace NavigatorHMI.Views
             return $"作业点{n}";
         }
 
-        private void StartEditWorkRange_Click(object sender, RoutedEventArgs e)
+        internal void StartEditWorkRange_Click(object sender, RoutedEventArgs e)
         {
             WorldMapContextMenu.IsOpen = false;
             if (_viewModel?.CurrentProject?.WorldMap == null) return;
@@ -357,7 +357,7 @@ namespace NavigatorHMI.Views
             }
         }
 
-        private void DeleteWorkPointRow_Click(object sender, RoutedEventArgs e)
+        internal void DeleteWorkPointRow_Click(object sender, RoutedEventArgs e)
         {
             if (_propertyViewModel.SelectedWorkPointRow != null)
             {
@@ -366,7 +366,7 @@ namespace NavigatorHMI.Views
             }
         }
 
-        private void WorkPointGrid_RowEditEnding(object sender, DataGridRowEditEndingEventArgs e)
+        internal void WorkPointGrid_RowEditEnding(object sender, DataGridRowEditEndingEventArgs e)
         {
             if (e.EditAction != DataGridEditAction.Commit) return;
             if (e.Row.Item is not WorkPointRowVM row) return;
@@ -383,23 +383,23 @@ namespace NavigatorHMI.Views
             if (row.IsDuplicateName) ShowErrorBubble(FindDataGridCell(e.Row, 0), "作业点名称重复，请改名");
         }
 
-        private void WorkPointGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        internal void WorkPointGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (sender is System.Windows.Controls.DataGrid dg && dg.SelectedItem != null)
                 dg.ScrollIntoView(dg.SelectedItem);
         }
 
-        private void WorkPointGrid_PreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        internal void WorkPointGrid_PreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             if (IsDataGridBlankHit(e)) ClearGeoSelection();
         }
 
-        private void WorkRangeGrid_PreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        internal void WorkRangeGrid_PreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             if (IsDataGridBlankHit(e)) ClearGeoSelection();
         }
 
-        private void WorkPointGrid_PreparingCellForEdit(object sender, DataGridPreparingCellForEditEventArgs e)
+        internal void WorkPointGrid_PreparingCellForEdit(object sender, DataGridPreparingCellForEditEventArgs e)
         {
             HideErrorBubble();   // W-3a：进入编辑 → 气泡立即消失
             if ((e.Column.Header as string) == "名称" && e.EditingElement is TextBox tb && e.Row?.Item is WorkPointRowVM row)
@@ -421,7 +421,7 @@ namespace NavigatorHMI.Views
             PrepareGeoCellEdit(((FrameworkElement)sender).Parent, e, isRangeTable: false);
         }
 
-        private void WorkPointGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+        internal void WorkPointGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
         {
             UnsubscribeGeoHint();
             HideGeoCellHint(FindDmsHint(((FrameworkElement)sender).Parent));
@@ -436,13 +436,13 @@ namespace NavigatorHMI.Views
             }
         }
 
-        private void WorkRangeGrid_PreparingCellForEdit(object sender, DataGridPreparingCellForEditEventArgs e)
+        internal void WorkRangeGrid_PreparingCellForEdit(object sender, DataGridPreparingCellForEditEventArgs e)
         {
             HideErrorBubble();   // W-3a：进入编辑 → 气泡立即消失
             PrepareGeoCellEdit(((FrameworkElement)sender).Parent, e, isRangeTable: true);
         }
 
-        private void WorkRangeGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+        internal void WorkRangeGrid_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
         {
             UnsubscribeGeoHint();
             HideGeoCellHint(FindDmsHint(((FrameworkElement)sender).Parent));
@@ -456,19 +456,19 @@ namespace NavigatorHMI.Views
             }
         }
 
-        private void WorkRangeGrid_RowEditEnding(object sender, DataGridRowEditEndingEventArgs e)
+        internal void WorkRangeGrid_RowEditEnding(object sender, DataGridRowEditEndingEventArgs e)
         {
             if (e.EditAction != DataGridEditAction.Commit || !e.Row.IsNewItem) return;
             if (e.Row.Item is WorkRangeRowVM row) _propertyViewModel.CommitNewWorkRangeRow(row);
         }
 
-        private void WorkRangeGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        internal void WorkRangeGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (sender is System.Windows.Controls.DataGrid dg && dg.SelectedItem != null)
                 dg.ScrollIntoView(dg.SelectedItem);
         }
 
-        private void DeleteWorkRangeRow_Click(object sender, RoutedEventArgs e)
+        internal void DeleteWorkRangeRow_Click(object sender, RoutedEventArgs e)
         {
             if (_propertyViewModel.SelectedWorkRangeRow != null)
             {
@@ -477,7 +477,7 @@ namespace NavigatorHMI.Views
             }
         }
 
-        private void DeletePolygonPointRow_Click(object sender, RoutedEventArgs e)
+        internal void DeletePolygonPointRow_Click(object sender, RoutedEventArgs e)
         {
             if (sender is FrameworkElement fe && fe.Tag is PolygonPointRowVM row)
             {

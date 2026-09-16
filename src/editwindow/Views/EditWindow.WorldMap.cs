@@ -204,7 +204,7 @@ namespace NavigatorHMI.Views
         }
 
         /// <summary>P5：属性面板「视口自适应」按钮 → ZoomToBox 框选（VM 回调）。</summary>
-        private void WorldMapZoomToBox_Click(object sender, RoutedEventArgs e) => _propertyViewModel.WorldMapZoomToBox();
+        internal void WorldMapZoomToBox_Click(object sender, RoutedEventArgs e) => _propertyViewModel.WorldMapZoomToBox();
 
         /// <summary>C12-9：进入作业点地图选点模式：点击地图追加作业点（名称自动编号；ESC/右键退出）。</summary>
         /// <summary>C12-9：退出作业点选点模式（右键/ESC；不清除已加点）。</summary>
@@ -560,7 +560,7 @@ namespace NavigatorHMI.Views
         /// <summary>C12-1：作业范围表格新行提交（同 WorkPoint 表格）。</summary>
         /// <summary>V-2c：作业范围表格选中变化 → 滚动到该行（同 WorkPointGrid）。</summary>
         /// <summary>C12-1：多边形顶点表格新行提交（同 WorkPoint 表格；已编辑行挂模型、未编辑空行移除）。</summary>
-        private void PolygonPointGrid_RowEditEnding(object sender, DataGridRowEditEndingEventArgs e)
+        internal void PolygonPointGrid_RowEditEnding(object sender, DataGridRowEditEndingEventArgs e)
         {
             if (e.EditAction != DataGridEditAction.Commit || !e.Row.IsNewItem) return;
             if (e.Row.Item is PolygonPointRowVM row) _propertyViewModel.CommitNewPolygonPointRow(row);
@@ -569,8 +569,8 @@ namespace NavigatorHMI.Views
         /// <summary>属性面板：删除选中作业范围点行（P4 表格）。</summary>
         /// <summary>属性面板：删除多边形顶点行（P7 表格；删除后不足 3 点拒绝）。</summary>
         // Q-6（2026-09-04 用户 Check）：HistoryView 变量表格——添加/删除行
-        private void AddHistoryTagRow_Click(object sender, RoutedEventArgs e) => _propertyViewModel.AddHistoryTagRow();
-        private void RemoveHistoryTagRow_Click(object sender, RoutedEventArgs e)
+        internal void AddHistoryTagRow_Click(object sender, RoutedEventArgs e) => _propertyViewModel.AddHistoryTagRow();
+        internal void RemoveHistoryTagRow_Click(object sender, RoutedEventArgs e)
         {
             if (sender is FrameworkElement fe && fe.DataContext is PropertyViewModel.HistoryTagRowVM row)
             {

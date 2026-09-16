@@ -57,13 +57,13 @@ namespace NavigatorHMI.Views
             e.Handled = true;   // 防双击继续冒泡（向后触发拖选等）
         }
 
-        private void ListNameEditor_PreviewKeyDown(object sender, KeyEventArgs e)
+        internal void ListNameEditor_PreviewKeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Enter) { CommitListNameEdit(); e.Handled = true; }
             else if (e.Key == Key.Escape) { CancelListNameEdit(); e.Handled = true; }
         }
 
-        private void ListNameEditor_LostFocus(object sender, RoutedEventArgs e)
+        internal void ListNameEditor_LostFocus(object sender, RoutedEventArgs e)
         {
             if (!_listNameSuppress) CommitListNameEdit();
         }

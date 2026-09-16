@@ -168,7 +168,7 @@ namespace NavigatorHMI.Views
         /// 允许负数前缀态（"-"/"."/"-."）——逐字符输入时中间态，失焦时绑定兜底校验。
         /// 粘贴/IME 等非单字符输入走 PreviewTextInput 统一拦截。
         /// </summary>
-        private void PropNumberBox_PreviewTextInput(object sender, System.Windows.Input.TextCompositionEventArgs e)
+        internal void PropNumberBox_PreviewTextInput(object sender, System.Windows.Input.TextCompositionEventArgs e)
         {
             if (sender is not TextBox tb) return;
             if (tb.IsReadOnly) { e.Handled = true; return; }
