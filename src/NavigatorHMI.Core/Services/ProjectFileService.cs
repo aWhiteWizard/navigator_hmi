@@ -92,6 +92,9 @@ namespace NavigatorHMI.Common
                 using var fs = File.OpenRead(filePath);
                 var project = Serializer.Deserialize<HMIProject>(fs);
                 project.ProjectFilePath = filePath;
+                // AD（2026-10-24 用户裁决）：Frame 恒为视频控件——载入即归一化（旧工程 ShowVideo=false 一律置 true；
+                // 图片模式残留由 ProjectGenerator 编译期校验拦截并逐控件列名，此处不静默改图片字段）
+                FrameVideoMigration.NormalizeShowVideo(project);
                 project.ClearDirty();   // 反序列化 setter/集合事件会置脏——加载完成清脏（K 循环 IsDirty 单点化）
                 return project;
             }

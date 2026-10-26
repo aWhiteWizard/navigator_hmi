@@ -464,7 +464,9 @@ namespace NavigatorHMI.Tests
 
         // ── P-6（2026-09-04）：Frame 视频模式本地视频收集（media/ 前缀 + 单文件 64MB 护栏 + RTSP 不入包）──
 
-        /// <summary>写一个含 Frame 视频控件（ShowVideo/VideoSource）的合法 .navihmi，供视频引用改写验证。</summary>
+        /// <summary>写一个含 Frame 视频控件（ShowVideo/VideoSource）的合法 .navihmi，供视频引用改写验证。
+        /// AD（2026-10-24）起 Frame 恒为视频控件，<paramref name="showVideo"/> 形参**已废弃**（保留只为少改调用点，
+        /// 传入 false 也不再产生"普通 Frame"语义）；新用例请直接省略该参数。</summary>
         private void WriteValidNavihmiWithVideo(string videoSource, bool showVideo = true)
         {
             var dto = new NavihmiProject { Name = "部署测试", Version = "1.0" };
@@ -517,16 +519,19 @@ namespace NavigatorHMI.Tests
         }
 
         [Fact]
-        public void 非视频模式Frame_不收集视频()
+        public void 无视频源的Frame_不收集视频()
         {
+            // AD（2026-10-24 用户裁决）：Frame 恒为视频控件、不再有图片模式 ⇒ 原「非视频模式 Frame」用例改为
+            // 「无视频源的 Frame」：不收集视频（列表空），且背景图按普通图片引用处理（打包侧不感知 Frame 模式）。
+            // 注：图片模式残留的编译期拦截在 ProjectGenerator 侧（见 VideoSizeCompileTests 图片残留用例）。
             WriteImage("bg.png", new byte[] { 0x55 });
-            _project.Screens[0].Widgets.Add(new FrameWidget { ObjectName = "fr1", ShowVideo = false, ImagePath = "bg.png" });
-            WriteValidNavihmiWithVideo("", showVideo: false);
+            _project.Screens[0].Widgets.Add(new FrameWidget { ObjectName = "fr1", ImagePath = "bg.png" });
+            WriteValidNavihmiWithVideo("");
 
             var zipPath = Build();
             var files = ReadZip(zipPath);
             Assert.DoesNotContain(files, f => f.Path.StartsWith("media/"));   // 无视频收集
-            Assert.Contains("res/bg.png", files.Select(f => f.Path));         // 普通 Frame 背景图仍按图收集
+            Assert.Contains("res/bg.png", files.Select(f => f.Path));         // 图片引用仍按图收集
         }
 
         [Fact]

@@ -119,7 +119,9 @@ namespace NavigatorHMI.Common
                 {
                     if (w is ImageWidget im) CheckListRef(screen, w, im.ListRef, ListType.Image);
                     else if (w is TextListWidget tl) CheckListRef(screen, w, tl.ListRef, ListType.Text);
-                    else if (w is FrameWidget fr) CheckListRef(screen, w, fr.ListRef, ListType.Image);   // Frame 图模式
+                    // AD（2026-10-24 复审 🟡3）：**Frame 的 ListRef（图片模式）不再走本校验**——Frame 恒为视频控件，
+                    // 图片配置残留由下方 3f-2 单一出口拦截。若此处仍按 Image 列表校验，一个"引用了不存在的图片列表"
+                    // 的 Frame 会先报「请先 create-list 创建」，与 3f-2「请删除该控件」方向相反，误导用户。
                     if (w is FrameWidget fv) CheckListRef(screen, w, fv.VideoListRef, ListType.Video);   // S-5 视频列表
                 }
 
@@ -166,7 +168,7 @@ namespace NavigatorHMI.Common
             if (string.IsNullOrEmpty(projDirForVideo)) projDirForVideo = ".";
             foreach (var screen in project.Screens)
                 foreach (var w in screen.Widgets)
-                    if (w is FrameWidget fv && fv.ShowVideo && !string.IsNullOrWhiteSpace(fv.VideoSource)
+                    if (w is FrameWidget fv && !string.IsNullOrWhiteSpace(fv.VideoSource)
                         && !fv.VideoSource.StartsWith("rtsp://", StringComparison.OrdinalIgnoreCase)
                         && !fv.VideoSource.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
                         && !fv.VideoSource.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
@@ -184,6 +186,23 @@ namespace NavigatorHMI.Common
                         if (vlen > DeploymentPackageBuilder.MaxUploadBytes)
                             result.Errors.Add($"画面 \"{screen.Name}\" 控件 \"{w.ObjectName}\" 视频源 \"{fv.VideoSource}\" "
                                 + $"超过单文件防呆上限（{DeploymentPackageBuilder.MaxUploadBytes / (1024 * 1024)}MB，实际 {(vlen + 1024 * 1024 - 1) / (1024 * 1024)}MB）——请压缩视频或改用 RTSP 流");
+                    }
+
+            // 3f-2. 校验（AD，2026-10-24 用户裁决）：**Frame 恒为视频控件**——不再支持图片模式。
+            // 命中判据：Frame 残留图片配置（ListRef=图片列表 或 ImagePath=背景图）⇒ 编译失败并逐控件列名，
+            // 用户裁决「不做兼容，对应控件必须删除」（属性面板已删图片配置入口，故唯一出路是删控件）。
+            // 注意：本校验只拦"图片模式残留"，未配视频列表的 Frame 允许编译（设备端出提示「未选择视频列表」）。
+            foreach (var screen in project.Screens)
+                foreach (var w in screen.Widgets)
+                    if (w is FrameWidget fimg)
+                    {
+                        var hits = new List<string>();
+                        if (!string.IsNullOrWhiteSpace(fimg.ListRef)) hits.Add($"图片列表 \"{fimg.ListRef}\"");
+                        if (!string.IsNullOrWhiteSpace(fimg.ImagePath)) hits.Add($"背景图 \"{fimg.ImagePath}\"");
+                        if (hits.Count == 0) continue;
+                        result.Errors.Add($"画面 \"{screen.Name}\" 控件 \"{w.ObjectName}\"：Frame 现为纯视频控件，"
+                            + $"不再支持图片/背景图配置（命中：{string.Join("、", hits)}）——"
+                            + "请删除该控件或改用视频列表（属性面板已不再提供图片配置入口，无法就地改回）");
                     }
 
             // 3g. 校验（X-1，2026-09-08 用户规格——GPS CoordinatePicker 前置；按执行序：先范围规则后 GPS 规则）：
@@ -485,9 +504,15 @@ namespace NavigatorHMI.Common
             Register<FrameWidget>((fr, dto) =>
             {
                 dto.Type = NavihmiWidgetType.Frame; dto.Title = fr.Title;
-                dto.FillColor = fr.FillColor; dto.ImagePath = fr.ImagePath;
+                dto.FillColor = fr.FillColor;
+                // AD（2026-10-24）：ImagePath/ListRef/DefaultIndex（图片模式字段）**仍照原样下发**——
+                // 但 3f-2 编译期校验已保证"编译通过 ⇒ 三者恒为空"，保留赋值只为 DTO 形状稳定（不出现悬空字段语义）。
+                // 图片模式本身已废弃：FW HmiFrame 从不渲染这两项（"并集字段容忍"占位），且属性面板无入口。
+                dto.ImagePath = fr.ImagePath;
                 dto.ListRef = fr.ListRef; dto.DefaultIndex = fr.DefaultIndex;
-                dto.ShowVideo = fr.ShowVideo; dto.VideoSource = fr.VideoSource;   // P-6：视频模式
+                // AD（2026-10-24 用户裁决）：Frame 恒为视频控件——ShowVideo 恒下发 true（不读模型值，
+                // 旧工程残留 false 也不会漏网；图片模式残留由本文件上方编译期校验拦截）
+                dto.ShowVideo = true; dto.VideoSource = fr.VideoSource;
                 dto.PlayTag = fr.PlayTag;   // R-4：播放控制布尔变量
                 dto.VideoListRef = fr.VideoListRef; dto.VideoIndexTag = fr.VideoIndexTag;   // S-5：视频源列表 + 选择索引变量
                 CopyFont(dto, fr);

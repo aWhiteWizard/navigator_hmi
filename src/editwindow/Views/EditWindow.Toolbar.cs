@@ -509,6 +509,9 @@ namespace NavigatorHMI.Views
                 var project = Serializer.Deserialize<HMIProject>(fs);
                 project.ProjectFilePath = dlg.FileName;
                 project.LastModifiedTime = DateTime.UtcNow;
+                // AD（2026-10-24 用户裁决）：Frame 恒为视频控件——文件菜单「打开」也走归一化
+                // （与 ProjectFileService.LoadCore / App.LoadProjectFromFile 共用同一单点，防三处漂移）
+                FrameVideoMigration.NormalizeShowVideo(project);
                 RecentProjectManager.Instance.AddRecentProject(dlg.FileName);
 
                 _skipClosingCheck = true;

@@ -625,82 +625,10 @@
             <ContentControl ContentTemplate="{StaticResource PropPosition}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropSize}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
-            <!-- R 批（2026-09-05 用户 Check）：视频模式下数据绑定与播放控制只能留一个——保留播放控制（播放
-                 控制已能驱动播放态；数据绑定的 BoundTag 普通 Frame 也不被 FW 消费）；勾选「显示视频」隐藏数据绑定块 -->
-            <ContentControl ContentTemplate="{StaticResource PropBinding}" Content="{Binding}">
-                <ContentControl.Style>
-                    <Style TargetType="ContentControl">
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding FrameShowVideo}" Value="True">
-                                <Setter Property="Visibility" Value="Collapsed"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </ContentControl.Style>
-            </ContentControl>
-            <Separator Margin="4,2"/>
-            <!-- Q-3/R-5（2026-09-04 Check + 2026-09-05 用户反馈）：视频模式与图像配置互斥——勾选「显示视频」后
-                 图片列表组**隐藏**（Q-3 灰显用户嫌无用要求删——视频模式整组不显示；模型值保留防丢数据；
-                 设备端视频模式忽略 imagePath/listRef——HmiFrameVideo 全控件视频） -->
-            <Grid>
-                <Grid.Style>
-                    <Style TargetType="Grid">
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding FrameShowVideo}" Value="True">
-                                <Setter Property="Visibility" Value="Collapsed"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </Grid.Style>
-            <TextBlock Text="图片列表" Style="{StaticResource PropGroupHeader}"/>
-            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <Label Grid.Column="0" Content="列表:" Style="{StaticResource PropLabel}"/>
-                <Grid Grid.Column="1">
-                <ComboBox SelectedItem="{Binding FrameListRef}" ItemsSource="{Binding ImageListOptions}" Style="{StaticResource PropComboBox}" ToolTip="选择图片列表（选「（无绑定）」解除，显示自身路径静态背景图）">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate>
-                            <!-- ⚠️ 不能设本地 Text（优先级高于 Style 触发器，会压制 DataTrigger 的「（无绑定）」） -->
-                            <TextBlock>
-                                <TextBlock.Style><Style TargetType="TextBlock">
-                                    <Setter Property="Text" Value="{Binding}"/>
-                                    <Style.Triggers><DataTrigger Binding="{Binding}" Value="">
-                                        <Setter Property="Text" Value="（无绑定）"/>
-                                        <Setter Property="Foreground" Value="#777777"/>
-                                    </DataTrigger></Style.Triggers>
-                                </Style></TextBlock.Style>
-                            </TextBlock>
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
-                    <TextBlock Text="（无绑定）" IsHitTestVisible="False" Margin="8,0,0,0" VerticalAlignment="Center" Foreground="#777777" FontSize="11">
-                        <TextBlock.Style>
-                            <Style TargetType="TextBlock">
-                                <Setter Property="Visibility" Value="Collapsed"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding FrameListRef}" Value="{x:Null}">
-                                        <Setter Property="Visibility" Value="Visible"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBlock.Style>
-                    </TextBlock>
-                </Grid>
-            </Grid>
-            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <Label Grid.Column="0" Content="缺省值:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding FrameDefaultIndex, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}" ToolTip="未绑定变量/变量值无效时显示的列表项索引（0=第1项）" KeyDown="PropField_KeyDown" />
-            </Grid>
-            </Grid>
-            <!-- P-6（2026-09-02）：Frame 视频模式——checkbox 区分视频/普通 Frame（勾选且有源=视频；未勾选/无源=普通） -->
-            <TextBlock Text="视频" Style="{StaticResource PropGroupHeader}"/>
-            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <Label Grid.Column="0" Content="显示视频:" Style="{StaticResource PropLabel}"/>
-                <CheckBox Grid.Column="1" IsChecked="{Binding FrameShowVideo}" VerticalAlignment="Center"
-                          ToolTip="勾选后设备端播放视频——视频源取自下方「视频列表」（列表项=源地址）；未勾选或未选列表为普通 Frame（单源「视频源」输入框已移除，Check ①）"/>
-            </Grid>
+            <TextBlock Text="视频（Frame 恒为视频控件）" Style="{StaticResource PropGroupHeader}"/>
             <!-- R-4（2026-09-05 用户 Check）：播放控制变量——绑定布尔变量驱动播放/暂停（true=播放 false=暂停）；
                  点击控件翻转播放态并同步写回该变量；「（无绑定）」=未绑定仅点击直接控制 -->
-            <Grid Visibility="{Binding IsVideoMode, Converter={StaticResource BoolToVisibilityConverter}}"><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="播放控制:" Style="{StaticResource PropLabel}"/>
                 <ComboBox Grid.Column="1" SelectedValue="{Binding FramePlayTag, UpdateSourceTrigger=PropertyChanged}" ItemsSource="{Binding FramePlayTagOptions}" SelectedValuePath="Name" Style="{StaticResource PropComboBox}"
                           ToolTip="绑定布尔变量控制视频播放/暂停（true=播放 false=暂停；点击控件翻转并写回）；「（无绑定）」=未绑定仅点击控制">
@@ -721,7 +649,7 @@
             </Grid>
             <!-- S-4/S-5（2026-09-05 用户拍板）：视频列表 + 视频源选择索引变量——列表项=源地址，运行时按
                  视频源选择变量（整型非负）取列表对应项切换播放 -->
-            <Grid Visibility="{Binding IsVideoMode, Converter={StaticResource BoolToVisibilityConverter}}"><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="视频列表:" Style="{StaticResource PropLabel}"/>
                 <ComboBox Grid.Column="1" SelectedItem="{Binding FrameVideoListRef}" ItemsSource="{Binding VideoListOptions}" Style="{StaticResource PropComboBox}"
                           ToolTip="选择视频列表（列表管理「视频列表」页创建；项=源地址——本地文件随工程打包 / RTSP 直连）；「（无绑定）」=无源不播放">
@@ -740,7 +668,7 @@
                     </ComboBox.ItemTemplate>
                 </ComboBox>
             </Grid>
-            <Grid Visibility="{Binding IsVideoMode, Converter={StaticResource BoolToVisibilityConverter}}"><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="65"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="视频源选择:" Style="{StaticResource PropLabel}"/>
                 <ComboBox Grid.Column="1" SelectedValue="{Binding FrameVideoIndexTag, UpdateSourceTrigger=PropertyChanged}" ItemsSource="{Binding FrameVideoIndexTagOptions}" SelectedValuePath="Name" Style="{StaticResource PropComboBox}"
                           ToolTip="绑定 UINT16/INT32 变量（非负索引 0/1/2…）——设备端按变量值从视频列表取对应项播放；「（无绑定）」=播放列表首项">

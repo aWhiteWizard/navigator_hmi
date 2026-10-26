@@ -61,11 +61,54 @@ namespace NavigatorHMI.Tests
         }
 
         [Fact]
-        public void 非视频模式Frame_不校验()
+        public void 图片模式残留Frame_编译失败并逐控件列名()
         {
-            // ShowVideo=false（普通 Frame）即使残留大视频源路径也不校验（无文件不报）
-            var r = ProjectGenerator.Compile(MakeProject("C:\\不存在\\huge.mp4", showVideo: false));
+            // AD（2026-10-24 用户裁决）：Frame 恒为视频控件——残留图片配置（图片列表/背景图）⇒ 编译失败并列出控件名。
+            // 用户要求"不做兼容，对应控件必须删除"，故校验必须给出画面+控件名+命中字段，便于批量清理。
+            var p = new HMIProject { Name = "图片残留", ProjectFilePath = Path.Combine(_dir, "img.hmiproj") };
+            p.Screens.Add(new Screen { Name = "画面A", Type = ScreenType.Custom });
+            // 合规 Frame 需引用**真实存在的**视频列表（否则会被"列表不存在"校验命中，与本用例判据混淆）
+            p.Lists.Add(new ListDef { Name = "视频源列表1", Type = ListType.Video, Items = { "video_1.mp4" } });
+            p.Screens[0].Widgets.Add(new FrameWidget { ObjectName = "框架1", ImagePath = "bg.png", ListRef = "图片列表1" });
+            p.Screens[0].Widgets.Add(new FrameWidget { ObjectName = "视频2", VideoListRef = "视频源列表1" });   // 合规 Frame 不误报
+            var r = ProjectGenerator.Compile(p);
+            Assert.True(r.HasErrors);
+            Assert.Contains(r.Errors, e => e.Contains("框架1") && e.Contains("图片列表") && e.Contains("bg.png"));
+            Assert.DoesNotContain(r.Errors, e => e.Contains("视频2"));
+        }
+
+        [Fact]
+        public void 未配视频列表的Frame_编译通过()
+        {
+            // AD（用户裁决 ①）：未配视频列表的 Frame 允许编译——设备端显示「视频源不可用（未选择视频列表）」
+            var p = new HMIProject { Name = "空源", ProjectFilePath = Path.Combine(_dir, "empty.hmiproj") };
+            p.Screens.Add(new Screen { Name = "画面A", Type = ScreenType.Custom });
+            p.Screens[0].Widgets.Add(new FrameWidget { ObjectName = "视频1" });
+            var r = ProjectGenerator.Compile(p);
             Assert.False(r.HasErrors, string.Join("; ", r.Errors));
+        }
+
+        [Fact]
+        public void 编译产物_Frame恒下发ShowVideo真()
+        {
+            // AD：ShowVideo 恒下发 true——即便模型值被人为置 false（旧工程残留），下发也必须为 true
+            var p = MakeProject("rtsp://192.168.1.10:554/stream1", showVideo: false);
+            var result = ProjectGenerator.Compile(p);
+            Assert.False(result.HasErrors, string.Join("; ", result.Errors));
+            using var fs = File.OpenRead(result.OutputPath);
+            var nav = Serializer.Deserialize<NavihmiProject>(fs);
+            Assert.True(nav.Screens.Single().Widgets.Single(w => w.ObjectName == "fr1").ShowVideo);
+        }
+
+        [Fact]
+        public void 落大视频的普通Frame也校验()
+        {
+            // AD：ShowVideo=false 不再豁免大文件校验（Frame 恒视频，源即视频源）
+            var big = MakeBigVideo(_dir);
+            var r = ProjectGenerator.Compile(MakeProject(big, showVideo: false));
+            Assert.True(r.HasErrors, "Frame 恒为视频控件，大文件应照常报错");
+            // 复审 🟡8：必须断言是"超防呆上限"那条，否则将来无关规则命中会让本用例假阳性通过
+            Assert.Contains(r.Errors, e => e.Contains("防呆上限") && e.Contains("fr1"));
         }
 
         [Fact]

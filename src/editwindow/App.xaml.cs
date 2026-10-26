@@ -156,6 +156,10 @@ namespace NavigatorHMI
                 project.ProjectFilePath = filePath;
                 project.LastModifiedTime = DateTime.UtcNow;
 
+                // AD（2026-10-24 用户裁决）：Frame 恒为视频控件——双击文件打开这条路径同样要归一化
+                // （与 ProjectFileService.LoadCore 单点共用 FrameVideoMigration，防两处漂移）
+                FrameVideoMigration.NormalizeShowVideo(project);
+
             }
             catch (Exception ex)
             {

@@ -238,9 +238,14 @@ namespace NavigatorHMI.ViewModels
         private string _frameImagePath = "";
         public string FrameImagePath { get => _frameImagePath; set { if (_frameImagePath != value) { _frameImagePath = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is FrameWidget f) f.ImagePath = value; } } }
 
-        private bool _frameShowVideo = false;
-        /// <summary>P-6（2026-09-02）：Frame 视频模式（checkbox——勾选且有视频源=视频；未勾选或无源=普通 Frame）。</summary>
-        public bool FrameShowVideo { get => _frameShowVideo; set { if (_frameShowVideo != value) { _frameShowVideo = value; OnPropertyChanged(); OnPropertyChanged(nameof(IsVideoMode)); if (!_syncingFromModel) { BeforeModify?.Invoke(); if (_selectedWidget is FrameWidget f) f.ShowVideo = value; } } } }
+        /// <summary>AD（2026-10-24 用户裁决）：**Frame 恒为视频控件**——属性面板已删「显示视频」勾选框。
+        /// 消费点（grep 仅此一处）：<c>PropertyViewModel.Selection.cs</c> 选中控件时回写模型做一次归一化。
+        /// getter 恒 true；setter 只把旧值刷正，不再接受 UI 赋值（面板已无入口）。</summary>
+        public bool FrameShowVideo
+        {
+            get => true;
+            set { if (_selectedWidget is FrameWidget f && !f.ShowVideo) { BeforeModify?.Invoke(); f.ShowVideo = true; } }
+        }
 
         private string _frameVideoSource = "";
         /// <summary>P-6（2026-09-02）：Frame 视频源（模型字段）。Check ①（2026-09-05）删「视频源」单源输入框 UI——
@@ -300,8 +305,9 @@ namespace NavigatorHMI.ViewModels
         /// <summary>S-5：视频列表名选项（工程 Video 型列表——Check 2026-09-05 收紧仅 Video；选中 Frame 时刷新——首项空串=不绑列表）。</summary>
         public System.Collections.ObjectModel.ObservableCollection<string> VideoListOptions { get; } = new();
 
-        /// <summary>P-6：是否视频模式（勾选显示视频——源来自下方「视频源列表」，Check ①删单源框后不再有独立视频源行）。</summary>
-        public bool IsVideoMode => _frameShowVideo;
+        // AD（2026-10-24）：原 IsVideoMode（= FrameShowVideo 的布尔投影）已删除——属性面板收口后 XAML 不再有
+        // 任何 `Visibility="{Binding IsVideoMode}"` 消费点（grep 全仓零命中），属死代码，按"常量属性必须给出
+        // 消费点否则删除"的纪律移除。
 
         private double _progressValue = 0;
         public double ProgressValue { get => _progressValue; set { if (Math.Abs(_progressValue - value) > 0.001) { _progressValue = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is ProgressBarWidget pb) pb.Value = value; } } }

@@ -345,6 +345,14 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 case FrameWidget f when key == "fillColor": f.FillColor = value; break;
                 case FrameWidget f when key == "listRef": f.ListRef = value; break;
                 case FrameWidget f when key == "defaultIndex": f.DefaultIndex = int.Parse(value); break;
+                // AD（2026-10-24）：补齐 Frame **视频属性**的 CLI 对等——此前只有 GUI 属性面板能配
+                // （CLI 报 UNKNOWN_PROPERTY: videoListRef），既违反 GUI↔CLI 对等纪律，也让脚本化上板测试不可行。
+                // 注：videoListRef 的存在性/类型校验在上方 209-230 段统一做（Video 型列表）。
+                case FrameWidget f when key == "videoListRef": f.VideoListRef = value; break;
+                case FrameWidget f when key == "playTag": f.PlayTag = value; break;
+                case FrameWidget f when key == "videoIndexTag": f.VideoIndexTag = value; break;
+                case FrameWidget f when key == "videoSource": f.VideoSource = value; break;   // 单源（P-6 老工程兼容）
+                case FrameWidget f when key == "showVideo": f.ShowVideo = true; break;        // AD：恒 true（保留键位兼容旧脚本）
                 case FrameWidget w when key == "fontSize": w.FontSize = double.Parse(value); break;
                 case FrameWidget w when key == "fontFamily": w.FontFamily = value; break;
                 case FrameWidget w when key == "fontWeight": w.FontWeight = value; break;

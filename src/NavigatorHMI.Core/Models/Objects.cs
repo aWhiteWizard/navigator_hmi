@@ -1099,8 +1099,9 @@ public class FrameWidget : Widget
     [ProtoMember(10)]
     public int DefaultIndex { get => _defaultIndex; set { var v = Math.Max(0, value); if (_defaultIndex != v) { _defaultIndex = v; OnPropertyChanged(); OnPropertyChanged(nameof(DisplayPath)); } } }
 
-    private bool _showVideo = false;
-    /// <summary>P-6（2026-09-02）：是否视频模式（勾选且有视频源=视频；未勾选或无源=普通 Frame——checkbox 决定模式语义）。</summary>
+    private bool _showVideo = true;
+    /// <summary>AD（2026-10-24 用户裁决）：**Frame 恒为视频控件**——该字段保留仅为历史工程反序列化兼容，
+    /// UI 不再暴露、生成器恒下发 true（属性面板已删「显示视频」勾选框；旧工程的图片模式由编译期校验拦截）。</summary>
     [ProtoMember(11, IsRequired = true)]
     public bool ShowVideo { get => _showVideo; set { if (_showVideo != value) { _showVideo = value; OnPropertyChanged(); } } }
 

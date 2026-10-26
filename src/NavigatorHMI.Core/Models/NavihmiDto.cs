@@ -146,7 +146,7 @@ namespace NavigatorHMI.Common
         [ProtoMember(73)] public List<string> HistoryTags { get; set; } = new();  // HistoryView 变量列表（多变量）
         [ProtoMember(74)] public string HistoryDbPath { get; set; } = "";         // HistoryView 数据库路径（空=设备端默认 navihmi_history.db）
         // ── P-6 Frame 视频（75-76；2026-09-02）──
-        [ProtoMember(75, IsRequired = true)] public bool ShowVideo { get; set; }  // Frame 视频模式（checkbox；false=普通 Frame）
+        [ProtoMember(75, IsRequired = true)] public bool ShowVideo { get; set; }  // AD（2026-10-24）：Frame 恒为视频控件 ⇒ 生成器恒下发 true（字段保留仅为契约兼容）
         [ProtoMember(76)] public string VideoSource { get; set; } = "";           // Frame 视频源（本地路径打包/RTSP URL 不入包）
         // ── Q-6 HistoryView 列显示名（77；2026-09-04 用户 Check：变量配置表格化 tag+title）──
         [ProtoMember(77)] public List<string> HistoryTagTitles { get; set; } = new();   // 平行 HistoryTags[i] 的列显示名（空/缺省=显示变量名——老工程兼容）

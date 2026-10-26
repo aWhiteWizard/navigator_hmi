@@ -185,13 +185,12 @@ namespace NavigatorHMI.Common
             foreach (var list in project.Lists.Where(l => l.Type == ListType.Image))
                 imageRefs.AddRange(list.Items);
 
-            // P-6：Frame 视频源汇总（仅视频模式 Frame——ShowVideo 且 VideoSource 非空才收集；
-            // 非视频模式 Frame 即使残留 VideoSource（GUI 勾选关闭后旧源可仍在模型里）也不入列；
+            // P-6/AD：Frame 视频源汇总（Frame 恒为视频控件——VideoSource 非空即收集；
             // RTSP/网络流引用会入列但 ResolveFile 显式拦截不入包不改写——设备端直连原值）
             var videoRefs = new List<string>();
             foreach (var screen in project.Screens)
                 foreach (var w in screen.Widgets)
-                    if (w is FrameWidget frv && frv.ShowVideo && !string.IsNullOrWhiteSpace(frv.VideoSource))
+                    if (w is FrameWidget frv && !string.IsNullOrWhiteSpace(frv.VideoSource))
                         videoRefs.Add(frv.VideoSource);
             // S-4/S-5：Video 型列表项（源地址）入视频收集——本地源打包 media（ASCII 化同单源），RTSP 项 ResolveFile 拦截不入包原样
             // T-3（2026-09-05 T 循环）：**Text 型仅被 Frame.VideoListRef 引用的列表**也入收集——S 循环黑屏根因修复：
@@ -201,7 +200,7 @@ namespace NavigatorHMI.Common
             var videoListRefs = new HashSet<string>(StringComparer.Ordinal);
             foreach (var screen in project.Screens)
                 foreach (var w in screen.Widgets)
-                    if (w is FrameWidget fvl && fvl.ShowVideo && !string.IsNullOrWhiteSpace(fvl.VideoListRef))
+                    if (w is FrameWidget fvl && !string.IsNullOrWhiteSpace(fvl.VideoListRef))
                         videoListRefs.Add(fvl.VideoListRef);
             foreach (var lst in project.Lists.Where(l => l.Type == ListType.Video
                                                         || (l.Type == ListType.Text && videoListRefs.Contains(l.Name))))
@@ -381,10 +380,11 @@ namespace NavigatorHMI.Common
                                 { lst.Items[i] = vPack; changed = true; }
                         // T-3（2026-09-05）：Text 型被 Frame 引用（VideoListRef）的列表项同步改写——与收集侧同条件
                         // （DTO 反序列化后 Lists/Screens 结构同模型；未引用 Text 列表不改——TextList 控件文本语义保留）
+                        // AD（2026-10-24）：Frame 恒为视频控件 ⇒ 不再判 ShowVideo（收集侧已同步去条件，两侧必须一致）
                         var dtoVideoListRefs = new HashSet<string>(StringComparer.Ordinal);
                         foreach (var dsc in dto.Screens)
                             foreach (var dw in dsc.Widgets)
-                                if (dw.ShowVideo && !string.IsNullOrWhiteSpace(dw.VideoListRef))
+                                if (!string.IsNullOrWhiteSpace(dw.VideoListRef))
                                     dtoVideoListRefs.Add(dw.VideoListRef);
                         foreach (var lst in dto.Lists.Where(l => l.Type == ListType.Text && dtoVideoListRefs.Contains(l.Name)))
                             for (int i = 0; i < lst.Items.Count; i++)
