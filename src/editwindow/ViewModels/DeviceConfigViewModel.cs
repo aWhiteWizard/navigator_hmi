@@ -181,8 +181,6 @@ namespace NavigatorHMI.ViewModels
 
             CurrentProject = newProject;
 
-            MessageBox.Show("新项目已创建！");
-
             EditWindow editWindow = new EditWindow(CurrentProject);
 
             editWindow.Show();
