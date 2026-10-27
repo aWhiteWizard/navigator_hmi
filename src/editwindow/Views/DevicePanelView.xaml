@@ -64,11 +64,16 @@
                 </Grid>
 
                 <!-- 发现的设备表格（点击行自动填入并连接；日志进主窗口「输出」） -->
+                <!-- AE（2026-10-26 用户报「表格没有铺满」）：原 `MaxHeight="220"` 把表格钉在 220px、下方留白；
+                     本页 Grid.Row="3" 是 Height="*"，删上限后 DataGrid 即填满该行（随窗口 reflow，非瞬时状态）。
+                     `VerticalAlignment="Stretch"` 虽是默认值，此处显式写出：面板被拖到极矮时 MinHeight 溢出，
+                     Stretch 让下沿贴容器底边（只丢内边距），不写会退化为居中 + 溢出裁切。
+                     `MinHeight="80"` 只作**极矮面板的应急底线**，正常尺寸下不起作用（空表不会塌缩——Stretch 已填满）。 -->
                 <GroupBox Grid.Row="3" Header="发现的设备" Margin="0,0,0,0" Padding="4">
                     <DataGrid ItemsSource="{Binding FoundDevices}" SelectedItem="{Binding SelectedDevice}"
                               AutoGenerateColumns="False" CanUserAddRows="False" IsReadOnly="True" HeadersVisibility="Column"
                               GridLinesVisibility="Horizontal" BorderBrush="LightGray" FontSize="12" RowHeight="24"
-                              MinHeight="80" MaxHeight="220"
+                              MinHeight="80" VerticalAlignment="Stretch"
                               ToolTip="点击行 → 自动填入 IP+型号，再点「连接测试」建立会话">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="IP" Binding="{Binding Ip}" Width="*"/>
