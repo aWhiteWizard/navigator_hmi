@@ -181,8 +181,8 @@ namespace NavigatorHMI.ViewModels
 
             CurrentProject = newProject;
 
-            MessageBox.Show("新项目已创建！");
-
+            // AF（2026-10-26 用户裁决）：删除调试遗留的模态提示「新项目已创建！」——创建完成直接进编辑器（少一次阻塞点击）。
+            // 按口径保留：本方法内「工程文件已存在，是否覆盖？」确认 + ExecuteSave 的「项目已保存！」；且不补日志。
             EditWindow editWindow = new EditWindow(CurrentProject);
 
             editWindow.Show();
