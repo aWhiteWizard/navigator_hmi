@@ -89,9 +89,123 @@ namespace NavigatorHMI.AiAgent
             return OperationVerbs.Any(v => lastUser.Contains(v));
         }
 
+        /// <summary>
+        /// AH（2026-10-30 用户实测）：把模型/后端传来的 dict 型参数归一化成命令层要的 Dictionary&lt;string,string&gt;。
+        ///
+        /// 背景：`CloudLLMBackend.JsonValueToObject` 对嵌套 JSON 对象走 `_ => el.GetRawText()` ⇒ 拿到的是
+        /// **JSON 字符串**；命令层 handler 统一写 `raw is Dictionary&lt;string, string&gt;` ⇒ 不匹配就当空字典，
+        /// 表现为「AI 明明传了 params，动作却报缺必填参数」（用户实测 bind_event 传 9 步全无效即此因）。
+        ///
+        /// 支持的输入形态（按顺序尝试）：
+        ///   · 已是 Dictionary&lt;string,string&gt; ⇒ 原样
+        ///   · Dictionary&lt;string,object?&gt;（本地模型路径产出）⇒ 值 ToString
+        ///   · JSON 对象字符串 {"k":"v"} ⇒ 解析
+        ///   · K=V 逗号串 "k=v,k2=v2"（CLI 风格，模型有时也这么传）⇒ 拆解
+        /// 兼容兜底：模型偶尔把 dict 参数改名成 `params_json`，或把动作参数平铺在顶层
+        /// （如直接传 target_screen=设备诊断）——两种情况都并进 dict 参数。
+        /// </summary>
+        private Dictionary<string, object?> NormalizeDictArgs(string commandName, Dictionary<string, object?> args)
+        {
+            if (args == null || args.Count == 0) return args ?? new Dictionary<string, object?>();
+
+            // 找出该命令定义的 dict 型参数名（如 params）
+            var dictParamNames = new List<string>();
+            try
+            {
+                var def = _commands.GetAvailableCommands().FirstOrDefault(c => c.Name == commandName);
+                if (def?.Parameters != null)
+                    foreach (var kv in def.Parameters)
+                        if (string.Equals(kv.Value.Type, "dict", StringComparison.OrdinalIgnoreCase))
+                            dictParamNames.Add(kv.Key);
+            }
+            catch { /* 取定义失败不阻断执行 */ }
+            if (dictParamNames.Count == 0) return args;
+
+            var result = new Dictionary<string, object?>(args);
+            foreach (var pn in dictParamNames)
+            {
+                var normalized = ToStringDict(result.TryGetValue(pn, out var cur) ? cur : null);
+                // 别名兜底：params 缺失时尝试 params_json
+                if (normalized.Count == 0 && result.TryGetValue(pn + "_json", out var alias))
+                    normalized = ToStringDict(alias);
+                // 平铺兜底：把除已知键之外的标量参数并进 dict（模型常把 target_screen 直接放顶层）
+                if (normalized.Count == 0)
+                {
+                    foreach (var kv in args)
+                    {
+                        if (kv.Key == pn || kv.Key == pn + "_json") continue;
+                        if (kv.Value is string or bool or int or long or double)
+                        {
+                            var s = kv.Value?.ToString() ?? "";
+                            // 只并入"看起来像动作参数"的键：命令行/事件命令的固定入参不并入
+                            if (IsEngineArg(kv.Key)) continue;
+                            normalized[kv.Key] = s;
+                        }
+                    }
+                }
+                result[pn] = normalized;
+            }
+            return result;
+        }
+
+        /// <summary>命令层固定入参（不属于 dict 内容的键）。</summary>
+        private static bool IsEngineArg(string key) => key is
+            "screen_name" or "widget_name" or "event" or "event_type" or "action" or "action_type"
+            or "condition" or "name" or "type" or "params";
+
+        /// <summary>任意形态 → Dictionary&lt;string,string&gt;（无法识别时返回空字典）。</summary>
+        private static Dictionary<string, string> ToStringDict(object? raw)
+        {
+            var dict = new Dictionary<string, string>();
+            switch (raw)
+            {
+                case null:
+                    return dict;
+                case Dictionary<string, string> ds:
+                    foreach (var kv in ds) dict[kv.Key] = kv.Value;
+                    return dict;
+                case IDictionary<string, object?> dobj:
+                    foreach (var kv in dobj) dict[kv.Key] = kv.Value?.ToString() ?? "";
+                    return dict;
+                case string s:
+                    var t = s.Trim();
+                    if (t.Length == 0) return dict;
+                    if (t.StartsWith("{"))
+                    {
+                        try
+                        {
+                            using var doc = System.Text.Json.JsonDocument.Parse(t);
+                            if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object)
+                                foreach (var p in doc.RootElement.EnumerateObject())
+                                    dict[p.Name] = p.Value.ValueKind == System.Text.Json.JsonValueKind.String
+                                        ? (p.Value.GetString() ?? "")
+                                        : p.Value.GetRawText().Trim('"');
+                            return dict;
+                        }
+                        catch { /* 非法 JSON：退回 K=V 解析 */ }
+                    }
+                    foreach (var part in t.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        var i = part.IndexOf('=');
+                        if (i > 0) dict[part[..i].Trim()] = part[(i + 1)..].Trim();
+                    }
+                    return dict;
+                default:
+                    return dict;
+            }
+        }
+
         /// <summary>执行命令：GUI 场景经 Dispatcher 封送到 UI 线程（handler 直接改 ObservableCollection，WPF CollectionView 线程亲和）；CLI 无 WPF 直接执行。</summary>
         private CommandResult ExecuteCommand(string name, Dictionary<string, object?> args)
         {
+            // AH 修复（2026-10-30 用户实测「AI 改了 9 步还是缺参数」根因）：
+            // 云端后端把 tool_call 里的**嵌套 JSON 对象**参数（如 params:{"target_screen":"x"}）经
+            // JsonValueToObject 的 `_ => el.GetRawText()` 转成了**字符串**；而命令层约定 dict 参数必须是
+            // Dictionary<string,string>（`raw is Dictionary<string, string>` 判定）⇒ 不匹配就静默变空字典
+            // ⇒ bind_event/add_event 的 params 全丢 ⇒ 动作永远"缺必填参数"，模型怎么传都无效。
+            // 这里在**执行前**统一归一化（JSON 对象串 / Dictionary<string,object> / "k=v,k2=v2" 都转成
+            // Dictionary<string,string>），并兼容模型常见兜底写法（params_json 别名、动作参数平铺在顶层）。
+            args = NormalizeDictArgs(name, args);
             // 操作清单记录提前：BLOCKED 拒绝、CLI 直接执行都计入（清单是 GUI 展示，但记录逻辑统一）
             if (_blacklist.Contains(name))
             {
