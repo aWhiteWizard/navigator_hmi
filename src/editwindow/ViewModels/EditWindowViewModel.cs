@@ -1514,8 +1514,10 @@ namespace NavigatorHMI.ViewModels
             ToggleAiPanelCommand = new RelayCommand(() => IsAiPanelOpen = !IsAiPanelOpen);
             AiNewSessionCommand = new RelayCommand(() =>
             {
-                _aiAgent?.Reset();   // 清历史保 system 规则
+                _aiAgent?.Reset();   // 清历史保 system 规则（同时清空 ToDo 清单）
                 AiMessages.Clear();
+                AiTasks.Clear();
+                AiTaskProgress = "";
                 AiMessages.Add(new AiChatEntry("ai", "新会话已开始。可以描述操作（如「创建一个画面叫温度监控」）、提问或闲聊。"));
             });
             AiSendCommand = new RelayCommand(async () =>
@@ -1619,6 +1621,40 @@ namespace NavigatorHMI.ViewModels
 
         /// <summary>AI 选项（下拉项：Key 为内部值，Label 为显示名）。</summary>
         public record AiOption(string Key, string Label);
+
+        // ── AI ToDo 清单（AH 2026-10-30 用户需求「Agent 应该有 ToDo」）──
+        /// <summary>侧边栏显示的任务清单行（由 AgentTaskList 投影）。</summary>
+        public ObservableCollection<AiTaskRow> AiTasks { get; } = new();
+
+        private string _aiTaskProgress = "";
+        /// <summary>任务进度文本（如「任务进度 3/7」；空 = 无清单，侧边栏隐藏该区域）。</summary>
+        public string AiTaskProgress
+        {
+            get => _aiTaskProgress;
+            private set { if (_aiTaskProgress != value) { _aiTaskProgress = value; OnPropertyChanged(); OnPropertyChanged(nameof(HasAiTasks)); } }
+        }
+
+        /// <summary>是否有任务清单（控制侧边栏 ToDo 面板可见性）。</summary>
+        public bool HasAiTasks => AiTasks.Count > 0;
+
+        /// <summary>把 Agent 的结构化清单同步到 UI（必须封送到 UI 线程：AI 在后台线程跑）。</summary>
+        private void SyncAiTasks()
+        {
+            void Apply()
+            {
+                var agent = _aiAgent;
+                AiTasks.Clear();
+                if (agent == null) { AiTaskProgress = ""; return; }
+                var i = 0;
+                foreach (var t in agent.Tasks.Items)
+                    AiTasks.Add(new AiTaskRow(++i, t.Title, t.Done));
+                AiTaskProgress = agent.Tasks.ProgressText;
+                OnPropertyChanged(nameof(HasAiTasks));
+            }
+            var disp = System.Windows.Application.Current?.Dispatcher;
+            if (disp != null && !disp.CheckAccess()) disp.Invoke(Apply);
+            else Apply();
+        }
 
         /// <summary>可选模型。AH（2026-10-29 用户需求「换成能使用 DeepSeek 官方最新模型的就行」）：
         /// **实测校准**：DeepSeek API 直接回过「The supported API model names are deepseek-flash,
@@ -1878,6 +1914,8 @@ namespace NavigatorHMI.ViewModels
                                 MaxIterations = SelectedAiDepth.Key switch { "fast" => 4, "deep" => 16, "extreme" => 40, _ => 8 },
                                 MaxHistoryTurns = SelectedAiContext.Key switch { "short" => 4, "long" => 20, _ => 10 },
                             };
+                            _aiAgent.Tasks.Changed += SyncAiTasks;   // AH：ToDo 清单变化 → 侧边栏实时刷新
+                            SyncAiTasks();                                 // 重建 Agent 后按当前清单重画进度
                             AiMessages.Add(new AiChatEntry("status", "本地模型就绪。"));
                         });
                     }
@@ -1912,6 +1950,8 @@ namespace NavigatorHMI.ViewModels
                 MaxIterations = SelectedAiDepth.Key switch { "fast" => 4, "deep" => 16, "extreme" => 40, _ => 8 },
                 MaxHistoryTurns = SelectedAiContext.Key switch { "short" => 4, "long" => 20, _ => 10 },
             };
+            _aiAgent.Tasks.Changed += SyncAiTasks;   // AH：ToDo 清单变化 → 侧边栏实时刷新
+            SyncAiTasks();                                 // 重建 Agent 后按当前清单重画进度
             if (!enableTools)
                 AiMessages.Add(new AiChatEntry("status", "深度思考模式不支持函数调用：命令类指令不会执行，仅对话/分析。"));
         }

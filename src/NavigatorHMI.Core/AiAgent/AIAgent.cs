@@ -54,19 +54,110 @@ namespace NavigatorHMI.AiAgent
         /// <summary>会话历史保留最近 N 轮 user/assistant 对（防长会话超模型上下文）；GUI 上下文长度选项可调。</summary>
         public int MaxHistoryTurns { get; set; } = 10;
 
+        /// <summary>
+        /// 自动续跑上限（AH 2026-10-30）：模型返回纯文本但任务未完成时，Agent 自动推它继续的次数。
+        /// 用户需求「Agent 应根据需求文档自动完成所有任务」——不该要求用户手动回「继续」。
+        /// </summary>
+        public int MaxAutoContinues { get; set; } = 12;
+
+        private int _autoContinues;   // 本次指令已自动续跑次数（ChatAsync 入口复位）
+
         public AIAgent(ICommandService commands, ILLMBackend backend, bool enableTools = true, Action<Action>? commandDispatcher = null)
         {
             _commands = commands ?? throw new ArgumentNullException(nameof(commands));
             _backend = backend ?? throw new ArgumentNullException(nameof(backend));
             _enableTools = enableTools;
             _commandDispatcher = commandDispatcher;   // GUI 注入 Dispatcher：命令执行（改模型集合）必须在 UI 线程，防 CollectionView 跨线程异常
-            var defs = commands.GetAvailableCommands().Where(c => !_blacklist.Contains(c.Name));   // 全量命令（黑名单除外）
+            var defs = commands.GetAvailableCommands().Where(c => !_blacklist.Contains(c.Name)).ToList();   // 全量命令（黑名单除外）
+            // AH（2026-10-30 用户需求「Agent 应该有 ToDo」）：注入 Agent 自有的任务清单工具。
+            // 它不是工程命令（不改工程模型），由 AIAgent 内部拦截处理，因此不注册到命令层/CLI。
+            if (_enableTools) defs.Add(BuildPlanTasksDefinition());
             _toolsJson = _enableTools ? ToolsSchemaBuilder.Build(defs, compact: true) : "";   // 精简 schema（省略参数描述）：模型调工具准确率高；无工具模式空串（后端跳过 tools 注入）
             _history.Add(new ChatMessage("system", BuildSystemPrompt()));   // 会话首条：规则
         }
 
         /// <summary>AI 执行的操作记录（清单：本次会话最新一批做了什么，GUI 展示 + 撤销参考）。</summary>
         public record AiOperation(string CommandName, string ArgsSummary, bool Success);
+
+        /// <summary>plan_tasks 工具名（Agent 自有 ToDo 工具，不走命令层）。</summary>
+        public const string PlanTasksTool = "plan_tasks";
+
+        /// <summary>会话级任务清单（GUI 侧边栏显示进度；自动续跑用它判断是否还有未完成项）。</summary>
+        public AgentTaskList Tasks { get; } = new();
+
+        /// <summary>plan_tasks 工具定义：模型传完整清单（标题 + 可选 done 索引），Agent 整份覆写。</summary>
+        private static CommandDefinition BuildPlanTasksDefinition() => new()
+        {
+            Name = PlanTasksTool,
+            Description = "登记/更新本次任务的 ToDo 清单（大任务第一步必须先调用它；每完成一步再调用一次更新勾选）",
+            Parameters = new()
+            {
+                ["items"] = new()
+                {
+                    Type = "string",
+                    Required = true,
+                    KeepInCompact = true,
+                    Description = "任务项列表，一行一个；已完成的项前面加 [x]，未完成加 [ ]（如 \"[ ] 第1步：建变量\\n[ ] 第2步：建画面\"）",
+                },
+            },
+        };
+
+        /// <summary>
+        /// 处理 plan_tasks：解析模型给的多行清单（支持 `[x]`/`[ ]` 前缀，也支持 JSON 数组），整份覆写 Tasks。
+        /// 返回值文本会回填给模型，让它确知当前进度（避免自说自话）。
+        /// </summary>
+        private CommandResult HandlePlanTasks(Dictionary<string, object?> args)
+        {
+            var raw = args.TryGetValue("items", out var v) ? v?.ToString() ?? "" : "";
+            var items = new List<AgentTaskItem>();
+            var t = raw.Trim();
+            if (t.StartsWith("["))
+            {
+                // JSON 数组形态：["第1步…","第2步…"] 或 [{"title":"…","done":true}, …]
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(t);
+                    foreach (var el in doc.RootElement.EnumerateArray())
+                    {
+                        if (el.ValueKind == System.Text.Json.JsonValueKind.String)
+                            items.Add(new AgentTaskItem(el.GetString() ?? ""));
+                        else if (el.ValueKind == System.Text.Json.JsonValueKind.Object)
+                        {
+                            var title = el.TryGetProperty("title", out var ti) ? (ti.GetString() ?? "") : "";
+                            var done = el.TryGetProperty("done", out var dn) && dn.ValueKind == System.Text.Json.JsonValueKind.True;
+                            if (title.Length > 0) items.Add(new AgentTaskItem(title, done));
+                        }
+                    }
+                }
+                catch { /* JSON 解析失败 → 走下面的行解析 */ }
+            }
+            if (items.Count == 0)
+            {
+                foreach (var line in t.Split('\n'))
+                {
+                    var s = line.Trim().TrimEnd('\r');
+                    if (s.Length == 0) continue;
+                    var done = s.StartsWith("[x]", StringComparison.OrdinalIgnoreCase) || s.StartsWith("- [x]", StringComparison.OrdinalIgnoreCase);
+                    s = s.Replace("- ", "").Trim();
+                    if (s.StartsWith("[x]", StringComparison.OrdinalIgnoreCase)) s = s[3..].Trim();
+                    else if (s.StartsWith("[ ]")) s = s[3..].Trim();
+                    if (s.Length == 0) continue;
+                    items.Add(new AgentTaskItem(s, done));
+                }
+            }
+            if (items.Count == 0)
+                return CommandResult.Fail("INVALID_PARAM", "items 为空——请按行给出任务项（已完成项前缀 [x]，未完成前缀 [ ]）");
+
+            Tasks.Set(items);
+            var line2 = Tasks.ToPromptLine();
+            return CommandResult.Ok(new Dictionary<string, object?>
+            {
+                ["total"] = Tasks.TotalCount,
+                ["done"] = Tasks.DoneCount,
+                ["progress"] = Tasks.ProgressText,
+                ["items"] = line2,
+            });
+        }
 
         public IReadOnlyList<AiOperation> LastOperations => _lastOperations;
         private readonly List<AiOperation> _lastOperations = new();
@@ -206,6 +297,8 @@ namespace NavigatorHMI.AiAgent
             // 这里在**执行前**统一归一化（JSON 对象串 / Dictionary<string,object> / "k=v,k2=v2" 都转成
             // Dictionary<string,string>），并兼容模型常见兜底写法（params_json 别名、动作参数平铺在顶层）。
             args = NormalizeDictArgs(name, args);
+            // AH（2026-10-30）：Agent 自有 ToDo 工具先于命令层拦截（不进命令服务、不计入撤销/黑名单）
+            if (name == PlanTasksTool) return HandlePlanTasks(args);
             // 操作清单记录提前：BLOCKED 拒绝、CLI 直接执行都计入（清单是 GUI 展示，但记录逻辑统一）
             if (_blacklist.Contains(name))
             {
@@ -273,6 +366,7 @@ namespace NavigatorHMI.AiAgent
         public async Task<string> ChatAsync(string userInput, CancellationToken ct = default)
         {
             _lastOperations.Clear();   // 新一批操作清单（GUI 展示 AI 本次做了什么）
+            _autoContinues = 0;        // AH：每次新指令重置自动续跑计数
             TrimHistory();   // 裁剪旧轮次，防会话无限增长
             _retriedPrompt = false;   // 每次新指令重置未命中重试机会
             _retryRollbackIndex = 0;   // 回滚点入口统一复位（含重试失败路径，防下一轮误删历史）
@@ -392,6 +486,8 @@ namespace NavigatorHMI.AiAgent
         public void Reset()
         {
             _history.Clear();
+            Tasks.Clear();   // AH：新会话清空 ToDo 清单（GUI 进度条归零）
+            _autoContinues = 0;
             _retriedPrompt = false;
             _retryRollbackIndex = 0;
             _history.Add(new ChatMessage("system", BuildSystemPrompt()));
@@ -456,6 +552,24 @@ namespace NavigatorHMI.AiAgent
                             "（系统提示：检测到组态操作意图。请直接调用 tools 中的函数执行，不要用文本描述计划或询问确认。）"));
                         continue;
                     }
+                    // AH 修复（2026-10-30 用户实测「只做了 20 个操作就停」）：
+                    // 提示词要求模型"每完成一步就重发清单"，模型照做后返回的是**纯文本**，
+                    // 而本循环遇到纯文本就 return ⇒ 大任务被切成很多短回合，几十步就停下
+                    // （此前不要求汇报，模型能一口气连 98 次工具调用）。
+                    // 这里加**自动续跑**：文本里仍有未勾选项（`- [ ]`）或明显是"阶段汇报/待继续"语气时，
+                    // 自动插一条"继续执行"提示把循环推下去，不打断任务、也不污染用户可见的最终回复。
+                    // AH（2026-10-30）：判据优先用**结构化 ToDo**（plan_tasks 登记过且仍有未完成项），
+                    // 没有登记清单时回落到文本启发式（含 `- [ ]` 或"继续/剩余/未完成"等关键词）。
+                    var unfinished = !Tasks.IsEmpty ? Tasks.HasUnfinished : LooksUnfinished(text);
+                    if (_enableTools && _autoContinues < MaxAutoContinues && i < MaxIterations - 1 && unfinished)
+                    {
+                        _autoContinues++;
+                        _history.Add(new ChatMessage("assistant", text));   // 保留它的进度汇报（上下文连贯）
+                        _history.Add(new ChatMessage("user",
+                            "（系统提示：任务尚未完成——请**继续执行**清单中未勾选的下一步，"
+                            + "不要只输出计划或进度，不要征求确认；全部完成后再给最终总结。）"));
+                        continue;
+                    }
                     _history.Add(new ChatMessage("assistant", text));
                     return string.IsNullOrEmpty(text) ? "（模型未回复）" : text;
                 }
@@ -497,6 +611,18 @@ namespace NavigatorHMI.AiAgent
             }
             // MaxIterations 耗尽：补齐未配对 tool 响应 + assistant 收尾，保证下一轮消息序列闭合（防 API 400）
             return FinishAborted(new List<ToolCall>(), "步骤较多未全部完成，已执行：" + string.Join("；", executed));
+        }
+
+        /// <summary>模型回复是否"任务未完成"（用于自动续跑判定）。命中任一即视为未完成：
+        /// ① 含未勾选清单项 `- [ ]`；② 明确说还要继续/下一步/剩余/未完成。
+        /// 全部勾选（无 `- [ ]`）或纯问答/感谢类回复 → 视为完成，正常结束。</summary>
+        private static bool LooksUnfinished(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return false;
+            if (text.Contains("- [ ]") || text.Contains("* [ ]")) return true;
+            foreach (var kw in new[] { "继续执行", "回复「继续」", "回复继续", "下一步将", "还需要", "剩余步骤", "尚未完成", "未完成" })
+                if (text.Contains(kw)) return true;
+            return false;
         }
 
         private static string Summarize(List<string> executed) => "已完成：" + string.Join("；", executed);
@@ -545,13 +671,18 @@ namespace NavigatorHMI.AiAgent
             // ── AH（2026-10-28 用户需求）：读需求文档 + 自建 ToDo + 自动做完整套工程 ──
             "12. 需求文档：用户消息里若带 `[需求文档内容：路径] … [/需求文档内容]`，那就是需求文档正文——**直接按它执行**，" +
             "不要再问用户要内容、不要说自己读不到文件。需要读文档的其它部分时调用 read_text_file（path / start_line / max_lines）。\n" +
-            "13. 大任务先立清单再动手：用户给了需求文档或要求『按文档实现』时，**第一步先用文本输出一个执行清单**（Markdown 勾选框），" +
-            "格式严格为 `- [ ] 第N步：<动作>（画面/控件/变量明细）`，一步一行、按依赖排序（先变量与列表 → 再画面 → 再控件 → 再事件/绑定 → 最后编译自检）。" +
+            "13. 大任务必须先立 ToDo（结构化，不是画在文本里）：用户给了需求文档或要求『按文档实现』时，" +
+            "**第一个工具调用必须是 plan_tasks**，items 每行一步（已完成前缀 `[x]`，未完成前缀 `[ ]`），" +
+            "按依赖排序（先变量与列表 → 再画面 → 再控件 → 再事件/绑定 → 最后编译自检）。" +
+            "清单登记后**立即开始执行第一步**，不要停下来等用户确认。" +
+            "每完成一步，调用一次 plan_tasks 传**完整清单**并把该步改成 `[x]`（GUI 会实时显示进度 x/y）。\n" +
             "清单之后**立即开始执行第一步**（同一轮里继续调用工具），不要停在只给计划。\n" +
-            "14. 边做边勾：每完成清单里的一步，就在下一条文本回复里重发整份清单并把该步改成 `- [x]`（未做的保持 `- [ ]`），" +
-            "这样用户能随时看到进度；不要重复创建已完成的对象。\n" +
+            "14. 不要在任务中途用纯文本停下：整个任务应尽可能在**同一次回复里连续调用工具**做完（可一次多调，见规则 9）。" +
+            "进度汇报只在两种时机输出：(a) **全部完成后的最终总结**（此时重发整份清单，已完成的写 `- [x]`）；" +
+            "(b) 确实卡住无法继续时说明原因。**绝不允许**做一步就输出一次清单然后停下——那样任务会被截断成碎片。" +
+            "若必须在中途说明进度，也要在**同一条回复里继续调用下一个工具**。\n" +
             "15. 自检：一组操作完成后调用 compile 验证；返回错误时按错误信息修正后重试（同一错误最多修 2 次）。全部完成后再回复总结。\n" +
-            "16. 工具轮次不够时：回复一句『已完成 X/Y，回复「继续」从第 Z 步接着做』，用户回「继续」后按清单断点继续，不要从头再来。\n" +
+            "16. 工具轮次上限由系统管理：快用完时系统会自动推你继续执行未完成的步骤；若最终仍没做完，用一句话说明已完成 X/Y 与下一步要做什么即可（不要在过程中反复征求确认）。\n" +
             // ── AH 修复（2026-10-30 用户实测 AI 建工程的三类错误，逐条立规矩）──
             "17. 事件**每个控件每种事件只绑定一次**：同一控件的 onClick 只能调一次 bind_event/add_event；" +
             "要改动作参数必须用 update_event（不是再调一次 bind_event——重复绑定会让设备端画面白屏）。" +
