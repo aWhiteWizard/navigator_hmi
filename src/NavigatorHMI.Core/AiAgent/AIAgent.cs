@@ -162,7 +162,7 @@ namespace NavigatorHMI.AiAgent
             TrimHistory();   // 裁剪旧轮次，防会话无限增长
             _retriedPrompt = false;   // 每次新指令重置未命中重试机会
             _retryRollbackIndex = 0;   // 回滚点入口统一复位（含重试失败路径，防下一轮误删历史）
-            _history.Add(new ChatMessage("user", InjectCurrentScreen(userInput ?? "")));   // P1-9：注入当前画面（实时跟随切换）
+            _history.Add(new ChatMessage("user", AutoInjectReferencedFiles(InjectCurrentScreen(userInput ?? ""))));   // P1-9：注入当前画面；AH：注入消息里引用的需求文档
             return await RunLoopAsync(ct);
         }
 
@@ -185,6 +185,81 @@ namespace NavigatorHMI.AiAgent
                 prefix += (prefix.Length > 0 ? " " : "") + $"[画面控件：{list}]";
             }
             return string.IsNullOrEmpty(prefix) ? userInput : $"{prefix} {userInput}";
+        }
+
+        /// <summary>
+        /// AH（2026-10-28 用户需求）：用户消息里出现**本地文本文件路径**时，自动读入内容注入上下文。
+        ///
+        /// 为什么需要auto-inject（而不只依赖工具调用）：用户会把需求文档路径直接丢进对话
+        ///（如「按 D:\docs\AI建工程_需求文件.md 实现」），而模型不认识路径 ⇒ 以前只会回"我读不到文件"。
+        /// 这里在**发请求前**把文件正文拼进 user 消息，模型第一轮就能看到内容，无需教它先调 read_text_file。
+        /// 工具仍然保留（长文档可让模型自己分段再读）。
+        ///
+        /// 边界：最多 3 个文件、单文件经 read_text_file 的 200KB/扩展名白名单校验、总注入 ≤ 60KB 字符。
+        /// </summary>
+        private string AutoInjectReferencedFiles(string userInput)
+        {
+            if (string.IsNullOrWhiteSpace(userInput)) return userInput;
+            var paths = ExtractLocalPaths(userInput);
+            if (paths.Count == 0) return userInput;
+
+            var sb = new System.Text.StringBuilder();
+            var injected = 0;
+            foreach (var p in paths.Take(3))
+            {
+                var r = ExecuteCommand("read_text_file", new Dictionary<string, object?> { ["path"] = p, ["start_line"] = 1, ["max_lines"] = 0 });
+                if (!r.Success)
+                {
+                    sb.AppendLine($"[文件读取失败：{SanitizeForPrompt(p)} -> {SanitizeForPrompt(r.ErrorCode + " " + r.ErrorMessage)}]");
+                    continue;
+                }
+                var json = CommandDataToJson(r.Data);
+                var content = ExtractJsonString(json, "content");
+                if (content.Length > 60000)
+                    content = content.Substring(0, 60000) + "\n…（内容过长已截断，可用 read_text_file 分段读取剩余部分）";
+                sb.AppendLine($"[需求文档内容：{SanitizeForPrompt(p)}]");
+                sb.AppendLine(content);
+                sb.AppendLine("[/需求文档内容]");
+                injected++;
+            }
+            if (injected == 0 && sb.Length == 0) return userInput;
+            return $"{sb}\n{userInput}";
+        }
+
+        /// <summary>从文本里抽取看起来是本地绝对路径的片段（Windows 盘符路径，允许中文/空格/方括号，以常见文本扩展名结尾）。</summary>
+        private static List<string> ExtractLocalPaths(string text)
+        {
+            var result = new List<string>();
+            // 例：D:\workspace\FutureTechVideo\[自制]xx\02_脚本\AI建工程_需求文件.md
+            var re = new System.Text.RegularExpressions.Regex(
+                @"[A-Za-z]:\\[^\r\n""'<>|*?]*?\.(?:md|markdown|txt|json|csv|ya?ml|xml|log|ini|conf)",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            foreach (System.Text.RegularExpressions.Match m in re.Matches(text))
+            {
+                var raw = m.Value.Trim();
+                if (raw.Length > 0 && !result.Contains(raw)) result.Add(raw);
+            }
+            return result;
+        }
+
+        /// <summary>命令返回数据 → JSON 文本（read_text_file 返回匿名对象；避免依赖具体类型）。</summary>
+        private static string CommandDataToJson(object? data)
+        {
+            if (data == null) return "{}";
+            try { return System.Text.Json.JsonSerializer.Serialize(data); }
+            catch { return "{}"; }
+        }
+
+        /// <summary>从 JSON 文本取字符串字段（轻量解析，失败返回空串）。</summary>
+        private static string ExtractJsonString(string json, string field)
+        {
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(json);
+                return doc.RootElement.TryGetProperty(field, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.String
+                    ? (v.GetString() ?? "") : "";
+            }
+            catch { return ""; }
         }
 
         /// <summary>任务 3 加固：注入 AI user 消息前的工程数据清洗——剔除方括号/双引号/换行/控制字符，防恶意名称闭合前缀注入伪指令。</summary>
@@ -353,6 +428,16 @@ namespace NavigatorHMI.AiAgent
             "10. 控件与列表：用户让 image/frame/文本列表控件\"按列表显示/显示列表内容/绑定列表\"时，用 set_property 的 listRef 属性" +
             "绑定到列表名（列表不存在则先 create_list）；不要用 imagePath 设单张静态图代替（只有明确要求显示某一张固定图时才设 imagePath）。\n" +
             "11. Text 控件已下线：新建文本输入控件请用 IOField（widget_type=iofield）；旧工程已存在的 Text 控件只读兼容展示，不要新建 text 类型控件。\n" +
+            // ── AH（2026-10-28 用户需求）：读需求文档 + 自建 ToDo + 自动做完整套工程 ──
+            "12. 需求文档：用户消息里若带 `[需求文档内容：路径] … [/需求文档内容]`，那就是需求文档正文——**直接按它执行**，" +
+            "不要再问用户要内容、不要说自己读不到文件。需要读文档的其它部分时调用 read_text_file（path / start_line / max_lines）。\n" +
+            "13. 大任务先立清单再动手：用户给了需求文档或要求『按文档实现』时，**第一步先用文本输出一个执行清单**（Markdown 勾选框），" +
+            "格式严格为 `- [ ] 第N步：<动作>（画面/控件/变量明细）`，一步一行、按依赖排序（先变量与列表 → 再画面 → 再控件 → 再事件/绑定 → 最后编译自检）。" +
+            "清单之后**立即开始执行第一步**（同一轮里继续调用工具），不要停在只给计划。\n" +
+            "14. 边做边勾：每完成清单里的一步，就在下一条文本回复里重发整份清单并把该步改成 `- [x]`（未做的保持 `- [ ]`），" +
+            "这样用户能随时看到进度；不要重复创建已完成的对象。\n" +
+            "15. 自检：一组操作完成后调用 compile 验证；返回错误时按错误信息修正后重试（同一错误最多修 2 次）。全部完成后再回复总结。\n" +
+            "16. 工具轮次不够时：回复一句『已完成 X/Y，回复「继续」从第 Z 步接着做』，用户回「继续」后按清单断点继续，不要从头再来。\n" +
             "示例（严格照此模式：操作指令第一步必须调用工具，不要用文本描述计划）：\n" +
             "用户：创建一个画面叫温度监控\n" +
             "助手：调用 create_screen，参数 {\"name\": \"温度监控\"}\n" +

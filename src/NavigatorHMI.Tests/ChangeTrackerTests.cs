@@ -1,4 +1,4 @@
-using NavigatorHMI.CommandLayer;
+﻿using NavigatorHMI.CommandLayer;
 using NavigatorHMI.Common;
 
 namespace NavigatorHMI.Tests
@@ -22,6 +22,7 @@ namespace NavigatorHMI.Tests
             "current_screen", "list_users",
             "list_devices",   // Y-3a：查询命令（不修改工程，不触发增量编译）
             "list_tags", "list_tag_groups",   // Y-5a：变量/分组查询命令（不修改工程）
+            "read_text_file",   // AH：只读文件内容（不修改工程）
         };
 
         [Fact]

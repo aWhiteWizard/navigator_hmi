@@ -25,6 +25,8 @@ namespace NavigatorHMI.Common
             public string ApiKey { get; set; } = "";
             public string LocalModelPath { get; set; } = "";
             public string Model { get; set; } = "";
+            /// <summary>AH（2026-10-28）：Model=="custom" 时实际使用的模型 id（DeepSeek 换模型不必改代码）。</summary>
+            public string CustomModel { get; set; } = "";
             public string Depth { get; set; } = "";
             public string Context { get; set; } = "";
 

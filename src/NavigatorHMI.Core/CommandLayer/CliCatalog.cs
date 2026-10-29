@@ -300,6 +300,14 @@ namespace NavigatorHMI.CommandLayer
             Add(Meta("mqtt-remove-binding", "mqtt_remove_binding", "MQTT 命令", "移除连接内变量↔字段绑定 (--connection-name <连接名> --topic-name <配置名> --tag-name <变量>)",
                 CliParameterView.R("connection-name", "connection_name"), CliParameterView.R("topic-name", "topic_name"), CliParameterView.R("tag-name", "tag_name")));
 
+            // ══ 文件（custom）══
+            // AH（2026-10-28）：AI 工具与 CLI 共用——把需求文档内容读进上下文/终端
+            Add(Meta("read-text-file", "read_text_file", "文件命令",
+                "读取本地文本文件（.md/.txt/.json/.csv/.yml 等，≤200KB；只读）(--path <文件路径> [--start-line 1] [--max-lines 0])",
+                CliParameterView.Rk("path"),
+                CliParameterView.D("start-line", "start_line", "1"),
+                CliParameterView.D("max-lines", "max_lines", "0")));
+
             // ══ AI（custom）══
             Add(new CliCommandSpec { CliName = "ai", Category = "AI 命令", Handler = CliCustomHandler.Ai, Summary = "<指令> 或 --prompt <指令> [--mode rule|cloud|local]（规则映射默认离线；cloud=DeepSeek API FC；local=本地模型 FC）",
                 Views = new[] { CliParameterView.Pk("prompt"), CliParameterView.Dk("mode", "rule"), CliParameterView.Pk("model") } });

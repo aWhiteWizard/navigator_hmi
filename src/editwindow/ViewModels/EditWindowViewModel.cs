@@ -1620,11 +1620,17 @@ namespace NavigatorHMI.ViewModels
         /// <summary>AI 选项（下拉项：Key 为内部值，Label 为显示名）。</summary>
         public record AiOption(string Key, string Label);
 
-        /// <summary>可选模型。deepseek-reasoner 不支持函数调用（FC 语义 Agent 必需），启用无工具纯对话模式；local 为本地 Qwen GGUF（需配置模型路径）。</summary>
+        /// <summary>可选模型。AH（2026-10-28 用户需求「换成能使用 DeepSeek 官方最新模型的就行」）：
+        /// 预设改成官方当前主力模型（Flash 快/Pro 强），保留 chat 别名与 reasoner（无工具），
+        /// 另加「自定义模型名」兜底——DeepSeek 换 id 时不必改代码（在设置里填真实 id 即可）。
+        /// 工具（函数调用）判定见 <see cref="SelectedAiModelSupportsTools"/>：云端模型默认开工具，仅 reasoner 与 local 例外。</summary>
         public IReadOnlyList<AiOption> AiModels { get; } = new[]
         {
-            new AiOption("deepseek-chat", "DeepSeek Chat（函数调用）"),
+            new AiOption("deepseek-v4.1-flash", "DeepSeek Flash（官方最新·快，函数调用）"),
+            new AiOption("deepseek-v4-pro", "DeepSeek Pro（官方最新·强推理，函数调用）"),
+            new AiOption("deepseek-chat", "DeepSeek Chat（官方别名，函数调用）"),
             new AiOption("deepseek-reasoner", "DeepSeek Reasoner（深度思考，无工具）"),
+            new AiOption("custom", "自定义模型名…（在设置里填写）"),
             new AiOption("local", "本地模型（Qwen2.5-7B GGUF）"),
         };
 
@@ -1634,6 +1640,7 @@ namespace NavigatorHMI.ViewModels
             new AiOption("fast", "快速"),
             new AiOption("balanced", "均衡"),
             new AiOption("deep", "深度"),
+            new AiOption("extreme", "极限（40 轮·按需求文档自动建整套工程）"),
         };
 
         /// <summary>上下文长度：映射会话历史保留轮数（短 4 / 中 10 / 长 20）。</summary>
@@ -1644,7 +1651,7 @@ namespace NavigatorHMI.ViewModels
             new AiOption("long", "长（20 轮）"),
         };
 
-        private AiOption _selectedAiModel = new("deepseek-chat", "DeepSeek Chat（函数调用）");
+        private AiOption _selectedAiModel = new("deepseek-v4.1-flash", "DeepSeek Flash（官方最新·快，函数调用）");
         /// <summary>当前模型。切换时重建 Agent（后端按模型重建；新会话生效）。</summary>
         public AiOption SelectedAiModel
         {
@@ -1657,6 +1664,9 @@ namespace NavigatorHMI.ViewModels
                     OnPropertyChanged();
                     OnPropertyChanged(nameof(IsLocalAiModel));
                     OnPropertyChanged(nameof(IsCloudAiModel));
+                    OnPropertyChanged(nameof(IsCustomAiModel));
+                    OnPropertyChanged(nameof(SelectedAiModelSupportsTools));
+                    OnPropertyChanged(nameof(EffectiveAiModelId));
                     SaveAiConfig();
                     RebuildAiAgent();
                 }
@@ -1667,6 +1677,39 @@ namespace NavigatorHMI.ViewModels
         public bool IsLocalAiModel => SelectedAiModel.Key == "local";
         /// <summary>当前是否云端模型（显示 API Key 输入行）。</summary>
         public bool IsCloudAiModel => SelectedAiModel.Key != "local";
+        /// <summary>是否选中「自定义模型名」（显示模型名输入行）。</summary>
+        public bool IsCustomAiModel => SelectedAiModel.Key == "custom";
+
+        private string _aiCustomModel = "";
+        /// <summary>自定义模型名（IsCustomAiModel 时生效；DeepSeek 换 id 时在此填真实 id，无需改代码）。</summary>
+        public string AiCustomModel
+        {
+            get => _aiCustomModel;
+            set
+            {
+                if (_aiCustomModel != value)
+                {
+                    _aiCustomModel = value;
+                    OnPropertyChanged();
+                    SaveAiConfig();
+                    RebuildAiAgent();
+                }
+            }
+        }
+
+        /// <summary>当前模型是否支持函数调用（AI 建工程必需）：云端模型默认支持，reasoner 与 local 例外。</summary>
+        public bool SelectedAiModelSupportsTools => SelectedAiModel.Key is not ("deepseek-reasoner" or "local");
+
+        /// <summary>实际发给后端的模型 id（自定义时取输入框）。</summary>
+        public string EffectiveAiModelId
+        {
+            get
+            {
+                if (SelectedAiModel.Key == "custom")
+                    return string.IsNullOrWhiteSpace(AiCustomModel) ? CloudLLMBackend.DefaultModel : AiCustomModel.Trim();
+                return SelectedAiModel.Key;
+            }
+        }
 
         private AiOption _selectedAiDepth = new("balanced", "均衡");
         /// <summary>当前推理深度（MaxIterations）。切换时重建 Agent。</summary>
@@ -1705,6 +1748,7 @@ namespace NavigatorHMI.ViewModels
             var cfg = AiConfigStore.Load();
             _aiApiKey = cfg.ApiKey;
             _aiLocalModelPath = cfg.LocalModelPath;
+            _aiCustomModel = cfg.CustomModel ?? "";
             if (!string.IsNullOrEmpty(cfg.Model))
                 _selectedAiModel = AiModels.FirstOrDefault(o => o.Key == cfg.Model) ?? _selectedAiModel;
             if (!string.IsNullOrEmpty(cfg.Depth))
@@ -1722,6 +1766,7 @@ namespace NavigatorHMI.ViewModels
                 ApiKey = _aiApiKey,
                 LocalModelPath = _aiLocalModelPath,
                 Model = _selectedAiModel.Key,
+                CustomModel = _aiCustomModel,
                 Depth = _selectedAiDepth.Key,
                 Context = _selectedAiContext.Key,
                 Blacklist = existing.Blacklist,
@@ -1830,7 +1875,7 @@ namespace NavigatorHMI.ViewModels
                             AIAgent.SetBlacklist(AiConfigStore.Load().Blacklist);   // K-6：持久化黑名单注入
                             _aiAgent = new AIAgent(CommandService, localBackend, enableTools: true, UiCommandDispatcher)
                             {
-                                MaxIterations = SelectedAiDepth.Key switch { "fast" => 4, "deep" => 16, _ => 8 },
+                                MaxIterations = SelectedAiDepth.Key switch { "fast" => 4, "deep" => 16, "extreme" => 40, _ => 8 },
                                 MaxHistoryTurns = SelectedAiContext.Key switch { "short" => 4, "long" => 20, _ => 10 },
                             };
                             AiMessages.Add(new AiChatEntry("status", "本地模型就绪。"));
@@ -1846,10 +1891,12 @@ namespace NavigatorHMI.ViewModels
             }
 
             // 云端：自定义 Key 优先，否则环境变量
-            var enableTools = SelectedAiModel.Key == "deepseek-chat";
+            // AH（2026-10-28）：工具能力改按模型类别判定（云端默认开；reasoner/local 例外），
+            // 并把「自定义模型名」落到实际请求 id —— DeepSeek 换模型不必改代码
+            var enableTools = SelectedAiModelSupportsTools;
             _aiBackend = new CloudLLMBackend(
                 apiKey: string.IsNullOrWhiteSpace(AiApiKey) ? null : AiApiKey,
-                model: SelectedAiModel.Key);
+                model: EffectiveAiModelId);
             if (!_aiBackend.IsAvailable)
             {
                 _aiBackend.Dispose();   // 释放 HttpClient，防重复重试泄漏
@@ -1862,7 +1909,7 @@ namespace NavigatorHMI.ViewModels
             AIAgent.SetBlacklist(AiConfigStore.Load().Blacklist);   // K-6：持久化黑名单注入
             _aiAgent = new AIAgent(CommandService, _aiBackend, enableTools, UiCommandDispatcher)
             {
-                MaxIterations = SelectedAiDepth.Key switch { "fast" => 4, "deep" => 16, _ => 8 },
+                MaxIterations = SelectedAiDepth.Key switch { "fast" => 4, "deep" => 16, "extreme" => 40, _ => 8 },
                 MaxHistoryTurns = SelectedAiContext.Key switch { "short" => 4, "long" => 20, _ => 10 },
             };
             if (!enableTools)

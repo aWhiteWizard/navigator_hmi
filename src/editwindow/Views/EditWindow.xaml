@@ -1641,7 +1641,20 @@
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="模型" VerticalAlignment="Center" Foreground="#555555" FontSize="12"/>
                                 <ComboBox Grid.Column="1" ItemsSource="{Binding AiModels}" SelectedItem="{Binding SelectedAiModel}"
-                                          DisplayMemberPath="Label" Height="26" FontSize="12"/>
+                                          DisplayMemberPath="Label" Height="26" FontSize="12"
+                                          ToolTip="DeepSeek Flash/Pro = 官方最新（函数调用，能建工程）；选「自定义模型名」可在下方填任意 id"/>
+                            </Grid>
+                            <!-- AH（2026-10-29）：自定义模型名——DeepSeek 换模型 id 时不必改代码，选中「自定义模型名…」后在这里填 -->
+                            <Grid Margin="0,0,0,6"
+                                  Visibility="{Binding IsCustomAiModel, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="74"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="模型名" VerticalAlignment="Center" Foreground="#555555" FontSize="12"/>
+                                <TextBox Grid.Column="1" Height="26" FontSize="12" Padding="4,2" VerticalContentAlignment="Center"
+                                         Text="{Binding AiCustomModel, UpdateSourceTrigger=LostFocus}"
+                                         ToolTip="填 DeepSeek 官方模型 id（如 deepseek-v4.1-flash / deepseek-v4-pro / deepseek-chat）；留空则用 deepseek-chat"/>
                             </Grid>
                             <Grid>
                                 <Grid.ColumnDefinitions>

@@ -123,6 +123,9 @@ namespace NavigatorHMI.CommandLayer
                 ["list_tags"]       = new ListTagsHandler(),        // Y-5a：变量清单 CLI 查询口
                 ["list_tag_groups"] = new ListTagGroupsHandler(),   // Y-5a：分组名清单
 
+                // ── 文件读取（AH 2026-10-28：AI 按需求文档建工程 + CLI 对等）──
+                ["read_text_file"]  = new ReadTextFileHandler(),
+
                 // ── 列表操作 ──
                 ["create_list"]     = new CreateListHandler(),
                 ["update_list"]     = new UpdateListHandler(),
