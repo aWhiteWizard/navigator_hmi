@@ -1620,17 +1620,17 @@ namespace NavigatorHMI.ViewModels
         /// <summary>AI 选项（下拉项：Key 为内部值，Label 为显示名）。</summary>
         public record AiOption(string Key, string Label);
 
-        /// <summary>可选模型。AH（2026-10-28 用户需求「换成能使用 DeepSeek 官方最新模型的就行」）：
-        /// 预设改成官方当前主力模型（Flash 快/Pro 强），保留 chat 别名与 reasoner（无工具），
-        /// 另加「自定义模型名」兜底——DeepSeek 换 id 时不必改代码（在设置里填真实 id 即可）。
-        /// 工具（函数调用）判定见 <see cref="SelectedAiModelSupportsTools"/>：云端模型默认开工具，仅 reasoner 与 local 例外。</summary>
+        /// <summary>可选模型。AH（2026-10-29 用户需求「换成能使用 DeepSeek 官方最新模型的就行」）：
+        /// **实测校准**：DeepSeek API 直接回过「The supported API model names are deepseek-flash,
+        /// deepseek-v4-pro」——预设只放这两个官方当前支持的 id（此前按第三方目录猜的
+        /// `deepseek-v4.1-flash` 实测 400 BadRequest，已剔除）；旧的 deepseek-chat / reasoner 已不在
+        /// 官方支持列表内，同样移除（要试旧 id 用「自定义模型名」）。另留自定义兜底，官方再换 id 不必改代码。
+        /// 工具（函数调用）判定见 <see cref="SelectedAiModelSupportsTools"/>：云端模型默认开，local 例外。</summary>
         public IReadOnlyList<AiOption> AiModels { get; } = new[]
         {
-            new AiOption("deepseek-v4.1-flash", "DeepSeek Flash（官方最新·快，函数调用）"),
-            new AiOption("deepseek-v4-pro", "DeepSeek Pro（官方最新·强推理，函数调用）"),
-            new AiOption("deepseek-chat", "DeepSeek Chat（官方别名，函数调用）"),
-            new AiOption("deepseek-reasoner", "DeepSeek Reasoner（深度思考，无工具）"),
-            new AiOption("custom", "自定义模型名…（在设置里填写）"),
+            new AiOption("deepseek-flash", "DeepSeek Flash（官方最新·快，函数调用）"),
+            new AiOption("deepseek-v4-pro", "DeepSeek V4 Pro（官方·强推理，函数调用）"),
+            new AiOption("custom", "自定义模型名…（在下方填写）"),
             new AiOption("local", "本地模型（Qwen2.5-7B GGUF）"),
         };
 
@@ -1651,7 +1651,7 @@ namespace NavigatorHMI.ViewModels
             new AiOption("long", "长（20 轮）"),
         };
 
-        private AiOption _selectedAiModel = new("deepseek-v4.1-flash", "DeepSeek Flash（官方最新·快，函数调用）");
+        private AiOption _selectedAiModel = new("deepseek-flash", "DeepSeek Flash（官方最新·快，函数调用）");
         /// <summary>当前模型。切换时重建 Agent（后端按模型重建；新会话生效）。</summary>
         public AiOption SelectedAiModel
         {
@@ -1698,7 +1698,7 @@ namespace NavigatorHMI.ViewModels
         }
 
         /// <summary>当前模型是否支持函数调用（AI 建工程必需）：云端模型默认支持，reasoner 与 local 例外。</summary>
-        public bool SelectedAiModelSupportsTools => SelectedAiModel.Key is not ("deepseek-reasoner" or "local");
+        public bool SelectedAiModelSupportsTools => SelectedAiModel.Key != "local";
 
         /// <summary>实际发给后端的模型 id（自定义时取输入框）。</summary>
         public string EffectiveAiModelId

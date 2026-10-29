@@ -13,7 +13,7 @@ namespace NavigatorHMI.AiAgent
     /// <summary>
     /// 云端 LLM 后端：OpenAI 兼容 Chat Completions API（DeepSeek / 通义千问 / 任意兼容服务）。
     /// 原生 tools 字段 + tool_calls 循环。配置：环境变量 NAVIGATOR_HMI_AI_KEY（必填）、
-    /// NAVIGATOR_HMI_AI_ENDPOINT（默认 DeepSeek）、NAVIGATOR_HMI_AI_MODEL（默认 deepseek-chat）。
+    /// NAVIGATOR_HMI_AI_ENDPOINT（默认 DeepSeek）、NAVIGATOR_HMI_AI_MODEL（默认 deepseek-flash）。
     /// </summary>
     public class CloudLLMBackend : ILLMBackend
     {
@@ -24,7 +24,7 @@ namespace NavigatorHMI.AiAgent
         private readonly int _maxTokens;
 
         public const string DefaultEndpoint = "https://api.deepseek.com/v1";
-        public const string DefaultModel = "deepseek-chat";
+        public const string DefaultModel = "deepseek-flash";   // AH 2026-10-29：API 实测支持的官方 id（deepseek-chat 已不在支持列表）
         /// <summary>HTTP 请求超时（AI 推理慢模型/长上下文的宽松上限，2026-08-26 魔法数字整改命名）。</summary>
         public static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(120);
 

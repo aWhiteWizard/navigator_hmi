@@ -1654,7 +1654,7 @@
                                 <TextBlock Text="模型名" VerticalAlignment="Center" Foreground="#555555" FontSize="12"/>
                                 <TextBox Grid.Column="1" Height="26" FontSize="12" Padding="4,2" VerticalContentAlignment="Center"
                                          Text="{Binding AiCustomModel, UpdateSourceTrigger=LostFocus}"
-                                         ToolTip="填 DeepSeek 官方模型 id（如 deepseek-v4.1-flash / deepseek-v4-pro / deepseek-chat）；留空则用 deepseek-chat"/>
+                                         ToolTip="填 DeepSeek 官方模型 id（当前支持：deepseek-flash / deepseek-v4-pro）；留空则用 deepseek-flash"/>
                             </Grid>
                             <Grid>
                                 <Grid.ColumnDefinitions>
