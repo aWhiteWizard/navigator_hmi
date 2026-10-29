@@ -24,6 +24,9 @@ namespace NavigatorHMI.Common
             /// <summary>错误信息列表（人类可读）</summary>
             public List<string> Errors { get; } = new();
 
+            /// <summary>告警信息列表（不阻断编译，仅提示；AH 2026-10-30 新增：重复事件类型等）</summary>
+            public List<string> Warnings { get; } = new();
+
             /// <summary>输出文件路径（仅在 HasErrors 为 false 时有值）</summary>
             public string? OutputPath { get; set; }
         }
@@ -205,6 +208,14 @@ namespace NavigatorHMI.Common
                             + "请删除该控件或改用视频列表（属性面板已不再提供图片配置入口，无法就地改回）");
                     }
 
+            // 3f-3. 校验（AH 修复，2026-10-30 用户实测 AI 建工程暴露的两个坑）：
+            //   ① **事件动作缺必填参数** ⇒ 编译**错误**：这类动作在设备端是"点了没反应"（runtimebus 有
+            //      checkActionRequiredParams 但只告警），用户/AI 都看不出问题。编译期拦住并给出参数名，
+            //      AI 的 compile 自检就能自己发现并修（这是它唯一的自检手段）。
+            //   ② **同一控件重复定义同一事件类型** ⇒ 编译**告警**：FW 生成器已做去重（不会再白屏），
+            //      但重复定义本身是配置噪音（且旧版本设备固件仍会因重复赋值白屏），提示清理。
+            AddEventActionValidations(project, result);
+
             // 3g. 校验（X-1，2026-09-08 用户规格——GPS CoordinatePicker 前置；按执行序：先范围规则后 GPS 规则）：
             //   ① 设备端含世界地图的画面 ⇒ 划定作业范围——「有地图必须划作业范围（作业范围生成地图底图）」
             //   ② GPS 变量 ⇔ 工程含世界地图画面 + 设备端包含 + 划定作业范围（≥3 点）——「无地图工程不能配置 GPS 变量」
@@ -373,6 +384,59 @@ namespace NavigatorHMI.Common
 
             result.OutputPath = outputPath;
             return result;
+        }
+
+        /// <summary>
+        /// AH（2026-10-30 用户实测 AI 建工程暴露）：事件动作校验。
+        ///
+        /// ① **缺必填参数 ⇒ 错误**：设备端 runtimebus 虽会告警，但表现为"点了没反应"，
+        ///    用户与 AI 都无从发现；编译期拦下并点名参数，AI 的 compile 自检即可自行修复。
+        ///    必填参数与 FW `runtimebus.cpp actionRequiredParams()` 严格对齐（两处常改须同步）。
+        /// ② **同一控件重复定义同一事件类型 ⇒ 告警**：旧固件 FW 生成器逐条输出同名 handler，
+        ///    QML 报 "Property value set multiple times" ⇒ 整个画面加载失败（纯色屏）。
+        ///    新固件已做去重，但配置侧仍应清理；这里只告警不阻断。
+        /// </summary>
+        private static void AddEventActionValidations(HMIProject project, CompileResult result)
+        {
+            var required = new Dictionary<string, string[]>
+            {
+                ["tag_write"] = new[] { "tag_name", "value" },
+                ["screen_switch"] = new[] { "target_screen" },
+                ["run_command"] = new[] { "command" },
+                ["set_property"] = new[] { "key" },
+                ["tag_add"] = new[] { "tag_name", "value" },
+                ["tag_subtract"] = new[] { "tag_name", "value" },
+                ["tag_step"] = new[] { "tag_name", "step", "min", "max" },
+                ["tag_toggle"] = new[] { "tag_name" },
+                ["set_bit"] = new[] { "tag_name" },
+                ["reset_bit"] = new[] { "tag_name" },
+            };
+            foreach (var screen in project.Screens)
+                foreach (var w in screen.Widgets)
+                {
+                    // ② 重复事件类型
+                    foreach (var dup in w.Events.GroupBy(e => e.Type).Where(g => g.Count() > 1))
+                        result.Warnings.Add($"画面 \"{screen.Name}\" 控件 \"{w.ObjectName}\" 重复定义了 "
+                            + $"{dup.Count()} 条 {dup.Key} 事件（生成器已自动合并，建议用 remove_event 清理为一条）");
+                    // ① 动作缺必填参数（按"控件+事件+动作+缺参"聚合，避免重复事件刷出 7 条同样错误）
+                    foreach (var grp in w.Events
+                                 .SelectMany(e => e.Actions.Select(a => new { e.Type, Action = a }))
+                                 .Where(x => required.ContainsKey(x.Action.Type.ToString()))
+                                 .GroupBy(x =>
+                                 {
+                                     var keys = required[x.Action.Type.ToString()];
+                                     var miss = keys.Where(k => !x.Action.Parameters.TryGetValue(k, out var v) || string.IsNullOrWhiteSpace(v)).ToArray();
+                                     return new { x.Type, ActionType = x.Action.Type, Key = string.Join(",", miss) };
+                                 })
+                                 .Where(g => g.Key.Key.Length > 0))
+                    {
+                        var keys0 = required[grp.Key.ActionType.ToString()];
+                        var cnt = grp.Count() > 1 ? $"（共 {grp.Count()} 处）" : "";
+                        result.Errors.Add($"画面 \"{screen.Name}\" 控件 \"{w.ObjectName}\" 的 {grp.Key.Type} → {grp.Key.ActionType} 动作"
+                            + $"缺少必填参数：{grp.Key.Key}{cnt}（设备端会静默无效：点了没反应）"
+                            + $"——请用 update_event 补参数（如 params \"{keys0[0]}=值\"）");
+                    }
+                }
         }
 
         // ═══════ 模型 → 编译契约 DTO 转换（navihmi.proto） ═══════

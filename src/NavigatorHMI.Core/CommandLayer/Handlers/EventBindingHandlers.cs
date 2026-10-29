@@ -120,8 +120,22 @@ namespace NavigatorHMI.CommandLayer.Handlers
             // I-3：condition 参数（可选）——传了则设置该事件触发条件（未传保持现状）
             if (p.TryGetValue("condition", out var cond) && cond != null)
                 we.Condition = cond.ToString() ?? "";
+            // AH 修复（2026-10-30 用户实测）：**完全相同的动作（类型+参数）不再重复追加**——
+            // 旧行为让 AI 反复调 add_event 累积出 N 份相同动作（点一次执行 N 遍），并把编译错误刷爆。
+            if (we.Actions.Any(a => a.Type == act && SameParams(a.Parameters, actionParams)))
+                return CommandResult.Fail("DUPLICATE",
+                    $"事件 {evt} 下已存在相同动作 {act}（参数一致）——如需改参数请用 update_event");
             we.Actions.Add(new EventAction { Type = act, Parameters = actionParams });
             return CommandResult.Ok(new Dictionary<string, object?> { ["event"] = evt.ToString(), ["action"] = act.ToString(), ["action_index"] = we.Actions.Count - 1 });
+        }
+
+        /// <summary>参数键值对是否完全一致（顺序无关）——重复动作判据（AH 2026-10-30）。</summary>
+        private static bool SameParams(Dictionary<string, string> a, Dictionary<string, string> b)
+        {
+            if (a.Count != b.Count) return false;
+            foreach (var kv in a)
+                if (!b.TryGetValue(kv.Key, out var v) || v != kv.Value) return false;
+            return true;
         }
     }
 
@@ -194,15 +208,26 @@ namespace NavigatorHMI.CommandLayer.Handlers
                     return CommandResult.Fail("INVALID_PARAM", $"目标画面 \"{target}\" 未找到" + (cands.Count > 0 ? $"；候选: {string.Join(", ", cands)}" : ""));
                 dict["target_screen"] = resolved;   // 落库为正式画面名
             }
-            var we = events.FirstOrDefault(e => e.Type == evt);
-            // 语义：同事件下同 action_type 重复添加时，update 只改首个匹配（与 remove 的 RemoveAll 全删不对称，属有意设计——UI 层按 action_index 精确操作，不会出现重复）
-            var action = we?.Actions.FirstOrDefault(a => a.Type == act);
-            if (action == null) return CommandResult.Fail("NOT_FOUND", $"事件 {evt} 下未找到动作 {act}");
-            // I-3：condition 参数（可选）——传了则更新该事件触发条件
-            if (p.TryGetValue("condition", out var cond) && cond != null)
-                we!.Condition = cond.ToString() ?? "";
-            action.Parameters = dict;
-            return CommandResult.Ok();
+            // AH 修复（2026-10-30 用户实测「改了不生效」）：原来取 events.FirstOrDefault(...) + Actions.FirstOrDefault(...)，
+            // **只改第一条**——而历史数据里同一事件类型可能有多条（旧 bind_event 每次新建一条），
+            // 于是 AI 改完 7 条里的 1 条、编译仍报错、用户看到"改了没生效"。
+            // 改为**更新所有匹配的（事件类型 × 动作类型）组合**，语义与 remove_event 的 RemoveAll 对齐。
+            var targets = events.Where(e => e.Type == evt).ToList();
+            if (targets.Count == 0) return CommandResult.Fail("NOT_FOUND", $"未找到事件 {evt}");
+            var updated = 0;
+            foreach (var we0 in targets)
+            {
+                // I-3：condition 参数（可选）——传了则更新该事件触发条件
+                if (p.TryGetValue("condition", out var cond) && cond != null)
+                    we0.Condition = cond.ToString() ?? "";
+                foreach (var a in we0.Actions.Where(x => x.Type == act))
+                {
+                    a.Parameters = dict;   // 整组替换（同一份 dict 只读共享即可：后续不再改动）
+                    updated++;
+                }
+            }
+            if (updated == 0) return CommandResult.Fail("NOT_FOUND", $"事件 {evt} 下未找到动作 {act}");
+            return CommandResult.Ok(new Dictionary<string, object?> { ["updated_actions"] = updated });
         }
     }
 }

@@ -1,3 +1,4 @@
+using System.Linq;
 using NavigatorHMI.Common;
 
 namespace NavigatorHMI.CommandLayer.Handlers
@@ -57,8 +58,25 @@ namespace NavigatorHMI.CommandLayer.Handlers
             if (!Enum.TryParse<EventType>(p["event"]!.ToString(), ignoreCase: true, out var evt)) return CommandResult.Fail("INVALID_PARAM", $"未知事件: {p["event"]}");
             if (!Enum.TryParse<ActionType>(p["action"]!.ToString(), ignoreCase: true, out var act)) return CommandResult.Fail("INVALID_PARAM", $"未知动作: {p["action"]}");
             var actionParams = p.TryGetValue("params", out var raw) && raw is Dictionary<string, string> dict ? dict : new();
-            widget!.Events.Add(new WidgetEvent { Type = evt, Actions = new() { new EventAction { Type = act, Parameters = actionParams } } });
-            return CommandResult.Ok();
+            // AH 修复（2026-10-30 用户实测）：**同事件类型必须合并，不得每次都新建 WidgetEvent**。
+            // 原实现无条件 Events.Add(new WidgetEvent...) ⇒ AI 反复调 bind_event 会堆出 N 条同类型事件；
+            // FW 生成器逐条输出 `onHmiClicked:` ⇒ QML 报 "Property value set multiple times" ⇒
+            // **整个画面组件加载失败 = 设备纯色屏**（实测 7 条同类型 onClick 即白屏）。
+            // 语义对齐 AddEventHandler：同类型事件已存在则追加动作，不存在才新建。
+            var we = widget!.Events.FirstOrDefault(e => e.Type == evt);
+            if (we == null)
+            {
+                we = new WidgetEvent { Type = evt };
+                widget.Events.Add(we);
+            }
+            we.Actions.Add(new EventAction { Type = act, Parameters = actionParams });
+            return CommandResult.Ok(new Dictionary<string, object?>
+            {
+                ["event"] = evt.ToString(),
+                ["action"] = act.ToString(),
+                ["action_index"] = we.Actions.Count - 1,
+                ["merged"] = we.Actions.Count > 1,   // true = 并入已有同类型事件（非新建）
+            });
         }
     }
 
