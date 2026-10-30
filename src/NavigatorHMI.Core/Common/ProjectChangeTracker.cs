@@ -100,7 +100,7 @@ namespace NavigatorHMI.Common
             "set_default_font" => ChangeDomain.Font,
             // 世界地图
             "add_work_point" or "delete_work_point" or "add_work_range_point"
-                or "clear_work_range" or "update_world_map" => ChangeDomain.WorldMap,
+                or "clear_work_range" or "update_world_map" or "set_world_map_visible" => ChangeDomain.WorldMap,
             _ => ChangeDomain.None,
         };
 

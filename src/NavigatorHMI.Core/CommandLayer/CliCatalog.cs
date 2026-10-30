@@ -171,6 +171,10 @@ namespace NavigatorHMI.CommandLayer
                 CliParameterView.R("screen", "screen_name"), CliParameterView.Rk("name")));
             // 注：update_world_map 全参数 provided-only（旧 OptMap 默认 "" 恒写 → P 语义；handler 对 "" 与 absent 均 no-op——
             // UpdateWorldMapHandler 仅对非空 TryParse/赋值，空串不落模型），等价已证。
+            // AH（2026-10-30）：设备端是否显示世界地图（此前无 CLI/AI 入口，AI 只能去删受保护的画面）
+            Add(Meta("set-world-map-visible", "set_world_map_visible", "世界地图命令",
+                "设置设备端是否显示世界地图画面 (--visible <true|false>；false = 编译产物不含世界地图画面与地图配置，PC 编辑内容保留)",
+                CliParameterView.Rk("visible")));
             Add(Meta("update-world-map", "update_world_map", "世界地图命令", "更新世界地图设置 (--screen <name> [--tile-source <offline|amap|自定义>] [--zoom-level <n>] [--show-global-overlay true|false] [--view-locked true|false])",
                 CliParameterView.R("screen", "screen_name"),
                 CliParameterView.P("tile-source", "tile_source"), CliParameterView.P("zoom-level", "zoom_level"),

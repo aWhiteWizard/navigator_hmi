@@ -697,7 +697,11 @@ namespace NavigatorHMI.AiAgent
             "20. 编译自检必须真做：每组操作后调 compile；报错逐条修（错误信息点名了画面/控件/参数），" +
             "警告也要读（如重复事件类型），修完再 compile 一次确认 0 错误再汇报完成。\n" +
             // AH 修复（2026-10-30 用户实测：AI 建的深色屏出现白字压灰底）
-            "21. 文字控件（label/numeric/iofield/textlist）**自带背景色**（fillColor 默认 #EEEEEE 灰底，PC 与设备端一致）：" +
+            // AH（2026-10-30）：世界地图开关（此前只有 GUI 能改，AI 只能去删受保护画面然后失败）
+            "22. 世界地图**不要删**（delete_screen 世界地图会返回 PROTECTED——它是固定画面）。工程不需要 GPS/地图时，" +
+            "调用 set_world_map_visible 传 visible=false：设备端就不再下发世界地图画面与地图配置（PC 端画面与作业范围配置保留，" +
+            "随时可 visible=true 恢复）。反过来，**保留**世界地图（visible=true，默认）时，编译前必须有 ≥3 个作业范围点" +
+            "（add_work_range_point），否则编译会报 BUILD_FAILED。\n" +            "21. 文字控件（label/numeric/iofield/textlist）**自带背景色**（fillColor 默认 #EEEEEE 灰底，PC 与设备端一致）：" +
             "放在**深色/彩色背景**上时必须把 fillColor 显式设为空串（透明）或与所在背景同色，" +
             "否则会出现「灰条压深色底、白字看不清」。浅色背景上同理别用白字。" +
             "自己铺全屏底色（rectangle）时要把整屏配色想清楚，不要用默认值硬套。\n" +

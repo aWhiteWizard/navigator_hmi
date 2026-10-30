@@ -97,6 +97,7 @@ namespace NavigatorHMI.CommandLayer
                 ["add_work_range_point"] = new AddWorkRangePointHandler(),
                 ["clear_work_range"]    = new ClearWorkRangeHandler(),
                 ["update_world_map"]    = new UpdateWorldMapHandler(),
+                ["set_world_map_visible"] = new SetWorldMapVisibleHandler(),   // AH：设备端是否显示世界地图（此前只有 GUI 属性面板能改）
                 // ── MQTT 多连接管理器（Y-3b 单连接 2026-09-10 + Z 循环多连接重构 2026-09-11：
                 //    连接 CRUD（mqtt_add/delete/update_connection）+ 映射命令带 connection_name；mqtt_set_device 废弃删除）──
                 ["mqtt_set_enabled"]    = new MqttSetEnabledHandler(),

@@ -216,4 +216,69 @@ namespace NavigatorHMI.CommandLayer.Handlers
             return CommandResult.Ok();
         }
     }
+
+    /// <summary>
+    /// AH（2026-10-30 用户实测）：`set_world_map_visible`——设备端是否显示世界地图画面。
+    ///
+    /// 背景：该开关（`HMIProject.IncludeWorldMapOnDevice`，proto 23）在 P-3 循环就已实现：
+    /// 关掉后编译产物**不含** WorldMap 画面与地图配置（`ProjectGenerator` 已过滤），设备端因此没有地图画面，
+    /// 也不再要求"作业范围至少 3 点"。但此前**只有 GUI 的世界地图属性面板能改它**，命令层没有任何入口
+    /// ⇒ AI/CLI 想让工程"不要地图"时只能去 `delete_screen 世界地图`，而它受保护（PROTECTED），
+    /// 于是表现为「AI 取消不了世界地图」。
+    ///
+    /// 语义：关掉只是"设备端不下发"，PC 编辑态的世界地图画面与作业范围配置**原样保留**，随时可再打开。
+    /// </summary>
+    public class SetWorldMapVisibleHandler : ICommandHandler
+    {
+        public CommandDefinition Definition => new()
+        {
+            Name = "set_world_map_visible",
+            Description = "设置设备端是否显示世界地图画面（false = 编译产物不含世界地图画面与地图配置；PC 编辑内容保留）",
+            Parameters = new()
+            {
+                ["visible"] = new()
+                {
+                    Type = "bool",
+                    Required = true,
+                    KeepInCompact = true,
+                    Description = "true=设备端显示世界地图；false=不下发（工程不需要 GPS/地图时用）",
+                },
+            },
+        };
+
+        public ValidationResult Validate(Dictionary<string, object?> p)
+        {
+            if (!p.ContainsKey("visible") || p["visible"] == null)
+                return ValidationResult.Fail("缺少必填参数: visible（true/false）");
+            return ValidationResult.Ok;
+        }
+
+        public CommandResult Execute(HMIProject project, Dictionary<string, object?> p)
+        {
+            if (!TryParseBool(p["visible"], out var visible))
+                return CommandResult.Fail("INVALID_PARAM", $"visible 需为 true/false，收到: {p["visible"]}");
+
+            project.IncludeWorldMapOnDevice = visible;   // setter 内已 MarkDirty
+            return CommandResult.Ok(new Dictionary<string, object?>
+            {
+                ["include_world_map_on_device"] = project.IncludeWorldMapOnDevice,
+                ["note"] = visible
+                    ? "设备端将包含世界地图画面（需至少 3 个作业范围点才允许编译）"
+                    : "设备端不再下发世界地图画面与地图配置（PC 端世界地图画面与作业范围配置保留）",
+            });
+        }
+
+        /// <summary>宽松布尔解析：兼容 true/false、1/0、是/否、开/关、显示/隐藏（AI 与人类都可能这样传）。</summary>
+        internal static bool TryParseBool(object? raw, out bool value)
+        {
+            value = false;
+            var s = raw?.ToString()?.Trim() ?? "";
+            switch (s.ToLowerInvariant())
+            {
+                case "true" or "1" or "yes" or "y" or "on" or "是" or "开" or "显示": value = true; return true;
+                case "false" or "0" or "no" or "n" or "off" or "否" or "关" or "隐藏" or "不显示": value = false; return true;
+                default: return false;
+            }
+        }
+    }
 }
