@@ -82,5 +82,28 @@ namespace NavigatorHMI.Common
 
         /// <summary>「未分组」哨兵（Y-5a reviewer 🟡：保留字——真实组名禁用它，防 list-tags 过滤语义分裂；见 <see cref="GroupLabel"/>）。</summary>
         public const string UngroupedSentinel = "未分组";
+
+        /// <summary>
+        /// AH（2026-10-30 用户需求）：**换算系数**——设备端采集到原始值后按
+        /// `工程值 = 原始值 × Scale + Offset` 换算再写入（1 位小数的温度传感器常见：原始 199 → 19.9℃ 用 Scale=0.1）。
+        /// 默认 1 = 不换算。换算在**采集入口**统一做（Modbus/MQTT 同一条链路），
+        /// 因此死区/报警阈值/事件动作/界面显示全部使用换算后的工程值，无需各自处理。
+        /// </summary>
+        [ProtoMember(11)]
+        public double Scale { get; set; } = 1;
+
+        /// <summary>AH：换**偏移**（工程值 = 原始值 × Scale + Offset），默认 0。用于"零漂修正/量程平移"。</summary>
+        [ProtoMember(12)]
+        public double Offset { get; set; } = 0;
+
+        /// <summary>
+        /// AH：对采集原始值做换算（PC 侧设计态预览/FW 设备端采集共用同一公式）。
+        /// 结果按 6 位小数四舍五入——避免二进制浮点把 199×0.1 显示成 19.900000000000002。
+        /// </summary>
+        public double ApplyScale(double raw)
+        {
+            if (Scale == 1 && Offset == 0) return raw;   // 未配置：完全不变（含类型语义）
+            return Math.Round(raw * Scale + Offset, 6);
+        }
     }
 }

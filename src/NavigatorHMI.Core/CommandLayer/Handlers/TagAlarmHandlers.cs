@@ -108,6 +108,9 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 ["description"] = new() { Type = "string", DefaultValue = "", Description = "描述" },
                 ["base_value"] = new() { Type = "string", DefaultValue = "", Description = "基准值（设计态预览）", KeepInCompact = true },
                 ["group"] = new() { Type = "string", DefaultValue = "", Description = "Y-5a 变量分组（空 = 未分组）", KeepInCompact = true },
+                // AH（2026-10-30）：换算——工程值 = 原始值 × scale + offset（1 位小数传感器：原始 199 + scale 0.1 → 19.9）
+                ["scale"] = new() { Type = "double", DefaultValue = 1.0, Description = "换算系数（工程值 = 原始值×系数+偏移；默认 1 = 不换算；如 0.1）", KeepInCompact = true },
+                ["offset"] = new() { Type = "double", DefaultValue = 0.0, Description = "换算偏移（默认 0）", KeepInCompact = true },
             }
         };
         public ValidationResult Validate(Dictionary<string, object?> p)
@@ -168,9 +171,24 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 BaseValue = baseValue,
                 Group = p.GetValueOrDefault("group")?.ToString() ?? "",   // Y-5a：变量分组（空 = 未分组）
                 DeviceName = p.GetValueOrDefault("device")?.ToString()?.Trim() ?? "",   // AB-4：所属设备（proto 9）
+                Scale = ToDouble(p.GetValueOrDefault("scale"), 1.0),     // AH：换算系数（默认 1）
+                Offset = ToDouble(p.GetValueOrDefault("offset"), 0.0),   // AH：换算偏移（默认 0）
             });
             return CommandResult.Ok(new { tag_name = name, source = normalizedSource });   // 回显归一化结果（如 4x:0002 → modbus://100/1）
         }
+        /// <summary>AH：宽松 double 解析（字典值可能是 string/long/double；空 → 回落默认）。</summary>
+        private static double ToDouble(object? raw, double fallback)
+        {
+            if (raw == null) return fallback;
+            if (raw is double d) return d;
+            if (raw is float f) return f;
+            if (raw is int i) return i;
+            if (raw is long l) return l;
+            var s = raw.ToString();
+            return double.TryParse(s, System.Globalization.NumberStyles.Any,
+                                   System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : fallback;
+        }
+
     }
 
     /// <summary>将控件绑定到变量（tag_name 为空 = 解除绑定）。</summary>
@@ -584,6 +602,9 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 ["description"] = new() { Type = "string", Description = "描述" },
                 ["base_value"] = new() { Type = "string", Description = "基准值（设计态预览）", KeepInCompact = true },
                 ["group"] = new() { Type = "string", Description = "Y-5a 变量分组；显式空串 = 清空为未分组；留空 = 不改", KeepInCompact = true },
+                // AH（2026-10-30）：换算系数/偏移
+                ["scale"] = new() { Type = "double", DefaultValue = 1.0, Description = "换算系数（工程值=原始值×系数+偏移）", KeepInCompact = true },
+                ["offset"] = new() { Type = "double", DefaultValue = 0.0, Description = "换算偏移（默认 0）", KeepInCompact = true },
                 // AB-4（2026-09-11）：所属设备（proto tag.device_name）——未提供=保留原值，显式空串=清除归属
                 ["device"] = new() { Type = "string", Description = "所属设备名（必须已存在）；未提供 = 保留现值，显式空串 = 清除归属", KeepInCompact = true },
             }
@@ -746,6 +767,15 @@ namespace NavigatorHMI.CommandLayer.Handlers
             // Y-5a：group 分组（显式空串 = 清空为未分组——OptIfProvided 语义：未提供保留现值）
             if (p.TryGetValue("group", out var grp) && grp != null)
                 tag.Group = grp.ToString() ?? "";
+            // AH（2026-10-30）：换算系数/偏移（工程值 = 原始值 × Scale + Offset）
+            if (p.TryGetValue("scale", out var scv) && scv != null
+                && double.TryParse(scv.ToString(), System.Globalization.NumberStyles.Any,
+                                   System.Globalization.CultureInfo.InvariantCulture, out var scd))
+                tag.Scale = scd;
+            if (p.TryGetValue("offset", out var ofv) && ofv != null
+                && double.TryParse(ofv.ToString(), System.Globalization.NumberStyles.Any,
+                                   System.Globalization.CultureInfo.InvariantCulture, out var ofd))
+                tag.Offset = ofd;
             // AB-4：所属设备（显式空串 = 清除归属；未提供保留现值）
             if (p.TryGetValue("device", out var devp) && devp != null)
                 tag.DeviceName = devp.ToString()?.Trim() ?? "";
@@ -785,6 +815,9 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 unit = t.Unit,
                 scan_interval_ms = t.ScanIntervalMs,
                 group = string.IsNullOrEmpty(t.Group) ? "未分组" : t.Group,   // 空分组归一显示名
+                scale = t.Scale,      // AH：换算系数（1 = 不换算）
+                offset = t.Offset,    // AH：换算偏移
+                device = t.DeviceName,
                 description = t.Description,
             }).ToList();
             return CommandResult.Ok(new { count = list.Count, tags = list });
