@@ -51,7 +51,16 @@ public static class Program
             else if (a is "--help" or "-h")
                 { ShowHelp(); return 0; }
             else if (a.StartsWith("--"))
-                { if (i + 1 < args.Length && !args[i + 1].StartsWith("--")) _opts[a[2..]] = args[++i]; else _flagOpts.Add(a[2..]); }
+                {
+                    // AH（2026-10-30）：支持 --key=value 形式（含 --value= 空值 = 显式清空，
+                    // 用于把 fillColor/textColor 设成透明）。PowerShell/cmd 会吞掉裸空串参数，
+                    // 等号写法是可靠的空值传递方式。
+                    var body = a[2..];
+                    var eq = body.IndexOf('=');
+                    if (eq >= 0) _opts[body[..eq]] = body[(eq + 1)..];
+                    else if (i + 1 < args.Length && !args[i + 1].StartsWith("--")) _opts[body] = args[++i];
+                    else _flagOpts.Add(body);
+                }
             else if (!a.StartsWith("-"))
                 { if (_command.Length == 0) _command = a; else _promptArgs.Add(a); }
             i++;
@@ -191,7 +200,7 @@ public static class Program
         {
             if (v.Required)
             {
-                parameters[v.CmdKey] = RequireVal(v.CliKey);
+                parameters[v.CmdKey] = RequireVal(v.CliKey, v.AllowEmpty);
             }
             else if (v.Default != null)
             {
@@ -409,10 +418,13 @@ public static class Program
             Console.Error.WriteLine($"✗ {msg}");
     }
 
-    private static string RequireVal(string key)
+    private static string RequireVal(string key, bool allowEmpty = false)
     {
-        if (_opts.TryGetValue(key, out var v) && !string.IsNullOrWhiteSpace(v))
-            return SanitizeParam(key, v);
+        if (_opts.TryGetValue(key, out var v))
+        {
+            if (!string.IsNullOrWhiteSpace(v)) return SanitizeParam(key, v);
+            if (allowEmpty) return "";   // AH：显式清空（如 set-property --value ""）
+        }
         PrintError($"缺少必填参数: --{key}");
         Environment.Exit(1);
         throw new InvalidOperationException("unreachable");

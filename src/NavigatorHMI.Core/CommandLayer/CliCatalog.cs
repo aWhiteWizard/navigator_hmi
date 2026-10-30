@@ -21,6 +21,13 @@ namespace NavigatorHMI.CommandLayer
         public bool Required { get; init; }
 
         /// <summary>
+        /// 必填但**允许空值**（AH 2026-10-30）：`--value ""` 这种"显式清空"必须能传进来。
+        /// 典型场景：set-property 把 fillColor/textColor 清空成透明（PC 端空串 = 不显示背景，
+        /// 见 WidgetItemsControlFactory.ColorStringToBrushConverter）。默认 false（空串视为缺参）。
+        /// </summary>
+        public bool AllowEmpty { get; init; }
+
+        /// <summary>
         /// CLI 默认值（未提供时写入该串；含空串 = 显式写空，handler 自行解释，如 create-screen --width "" → 设备尺寸兜底）。
         /// null = 未提供不进参数字典（保留现值语义，update 类命令）。
         /// </summary>
@@ -30,6 +37,8 @@ namespace NavigatorHMI.CommandLayer
         public static CliParameterView D(string cliKey, string cmdKey, string defaultValue) => new() { CliKey = cliKey, CmdKey = cmdKey, Default = defaultValue };
         /// <summary>同键必填（cli 键 = cmd 键）</summary>
         public static CliParameterView Rk(string key) => R(key, key);
+        /// <summary>同键必填且允许空值（显式清空语义，如 set-property --value ""）</summary>
+        public static CliParameterView Rke(string key) => new() { CliKey = key, CmdKey = key, Required = true, AllowEmpty = true };
         /// <summary>同键带默认</summary>
         public static CliParameterView Dk(string key, string defaultValue) => D(key, key, defaultValue);
         /// <summary>同键 provided-only（显式提供才写，未提供保留现值）</summary>
@@ -122,7 +131,7 @@ namespace NavigatorHMI.CommandLayer
             Add(Meta("delete-widget", "delete_widget", "控件命令", "删除控件 (--screen <name> --widget <name>)",
                 CliParameterView.R("screen", "screen_name"), CliParameterView.R("widget", "widget_name")));
             Add(Meta("set-property", "set_property", "控件命令", "修改控件属性 (--screen <name> --widget <name> --key <键> --value <值>)",
-                CliParameterView.R("screen", "screen_name"), CliParameterView.R("widget", "widget_name"), CliParameterView.Rk("key"), CliParameterView.Rk("value")));
+                CliParameterView.R("screen", "screen_name"), CliParameterView.R("widget", "widget_name"), CliParameterView.Rk("key"), CliParameterView.Rke("value")));
             Add(Meta("bind-robot-slot", "bind_robot_slot", "控件命令", "机器人列表槽位绑定变量 (--screen <name> --widget <name> --slot <n> [--id-tag <t>] [--status-tag <t>] [--location-tag <t>] [--detail-tag <t>] [--oper-tag <t>]；--slot 指定未占用序号=新增槽位，5 变量留空=不改)",
                 CliParameterView.R("screen", "screen_name"), CliParameterView.R("widget", "widget_name"), CliParameterView.Rk("slot"),
                 CliParameterView.P("id-tag", "id_tag"), CliParameterView.P("status-tag", "status_tag"), CliParameterView.P("location-tag", "location_tag"),
