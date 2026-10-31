@@ -195,13 +195,15 @@ namespace NavigatorHMI.CommandLayer
                 CliParameterView.D("scan-interval", "scan_interval", "100"), CliParameterView.Dk("deadband", "0"), CliParameterView.Dk("description", ""),
                 CliParameterView.D("base-value", "base_value", ""), CliParameterView.D("group", "group", ""),
                 CliParameterView.D("scale", "scale", "1"),      // AH：换算系数（工程值 = 原始值×系数+偏移）
-                CliParameterView.D("offset", "offset", "0")));  // AH：换算偏移
+                CliParameterView.D("offset", "offset", "0"),
+                CliParameterView.D("decimals", "decimals", "0")));  // AH：小数位（自动推导 scale=10^-N）
             Add(Meta("update-tag", "update_tag", "变量命令", "更新变量 (--name <name> [--new-name <name>] [--type <...>] [--source <uri>] [--device <设备名>] [--unit <u>] [--scan-interval <ms>] [--deadband <n>] [--description <text>] [--base-value <n>] [--group <组名>]；--source \"\" 清空为内部变量（⚠️ 变量已关联设备时须同时 `--device \"\"`，否则被拒）；--unit \"\" / --description \"\" / --group \"\" / --device \"\" 清空；source 可写寄存器地址（裸数字=PDU / 4x:0002 / 40002 / 完整 modbus://100/1）由系统归一化落库)",
                 CliParameterView.Rk("name"),
                 CliParameterView.P("new-name", "new_name"), CliParameterView.P("type", "data_type"), CliParameterView.Pk("source"), CliParameterView.Pk("device"), CliParameterView.Pk("unit"),
                 CliParameterView.P("scan-interval", "scan_interval"), CliParameterView.Pk("deadband"), CliParameterView.Pk("description"),
                 CliParameterView.P("base-value", "base_value"), CliParameterView.P("group", "group"),
-                CliParameterView.Pk("scale"), CliParameterView.Pk("offset")));  // AH：换算系数/偏移（显式提供才改）
+                CliParameterView.Pk("scale"), CliParameterView.Pk("offset"),
+                CliParameterView.Pk("decimals")));  // AH：换算系数/偏移/小数位（显式提供才改）
             Add(Meta("delete-tag", "delete_tag", "变量命令", "删除变量 (--name <name>；被控件/报警引用时拒绝)",
                 CliParameterView.Rk("name")));
             Add(Meta("list-tags", "list_tags", "变量命令", "列出变量 ([--group <组名>]；空=全部；\"未分组\"=空分组变量——Y-5a)",

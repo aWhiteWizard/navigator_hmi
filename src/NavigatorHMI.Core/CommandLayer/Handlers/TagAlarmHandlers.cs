@@ -111,6 +111,8 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 // AH（2026-10-30）：换算——工程值 = 原始值 × scale + offset（1 位小数传感器：原始 199 + scale 0.1 → 19.9）
                 ["scale"] = new() { Type = "double", DefaultValue = 1.0, Description = "换算系数（工程值 = 原始值×系数+偏移；默认 1 = 不换算；如 0.1）", KeepInCompact = true },
                 ["offset"] = new() { Type = "double", DefaultValue = 0.0, Description = "换算偏移（默认 0）", KeepInCompact = true },
+                // AH（2026-10-30 用户需求）：需求表常见的「小数位 N」直接可用——自动推导 scale=10^-N
+                ["decimals"] = new() { Type = "int", DefaultValue = 0, Description = "小数位 N（设备用放大整数传小数时自动换算 scale=10^-N，如 N=1 → 0.1）；0=不设置", KeepInCompact = true },
             }
         };
         public ValidationResult Validate(Dictionary<string, object?> p)
@@ -173,10 +175,30 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 DeviceName = p.GetValueOrDefault("device")?.ToString()?.Trim() ?? "",   // AB-4：所属设备（proto 9）
                 Scale = ToDouble(p.GetValueOrDefault("scale"), 1.0),     // AH：换算系数（默认 1）
                 Offset = ToDouble(p.GetValueOrDefault("offset"), 0.0),   // AH：换算偏移（默认 0）
+                Decimals = ToInt(p.GetValueOrDefault("decimals"), 0),   // AH：小数位（>0 且未显式给 scale 时，下面统一推导）
             });
+            // AH（2026-10-30）：**小数位 → 换算系数**推导（需求表「小数位 1」⇒ scale=0.1）。
+            // 显式传了 scale 时以 scale 为准（decimals 只作显示精度）。
+            {
+                var added = project.Tags[^1];
+                if (added.Decimals > 0 && added.Decimals <= 6
+                    && Math.Abs(added.Scale - 1.0) < 1e-12 && Math.Abs(added.Offset) < 1e-12)
+                {
+                    added.Scale = Math.Pow(10, -added.Decimals);   // decimals 推导
+                }
+            }
             return CommandResult.Ok(new { tag_name = name, source = normalizedSource });   // 回显归一化结果（如 4x:0002 → modbus://100/1）
         }
         /// <summary>AH：宽松 double 解析（字典值可能是 string/long/double；空 → 回落默认）。</summary>
+
+        /// <summary>AH：宽松 int 解析（字典值可能是 string/long/int）。</summary>
+        private static int ToInt(object? raw, int fallback)
+        {
+            if (raw == null) return fallback;
+            if (raw is int i) return i;
+            if (raw is long l) return (int)l;
+            return int.TryParse(raw.ToString(), out var v) ? v : fallback;
+        }
         private static double ToDouble(object? raw, double fallback)
         {
             if (raw == null) return fallback;
@@ -604,6 +626,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 ["group"] = new() { Type = "string", Description = "Y-5a 变量分组；显式空串 = 清空为未分组；留空 = 不改", KeepInCompact = true },
                 // AH（2026-10-30）：换算系数/偏移
                 ["scale"] = new() { Type = "double", DefaultValue = 1.0, Description = "换算系数（工程值=原始值×系数+偏移）", KeepInCompact = true },
+                ["decimals"] = new() { Type = "int", DefaultValue = 0, Description = "小数位 N（自动推导 scale=10^-N）", KeepInCompact = true },
                 ["offset"] = new() { Type = "double", DefaultValue = 0.0, Description = "换算偏移（默认 0）", KeepInCompact = true },
                 // AB-4（2026-09-11）：所属设备（proto tag.device_name）——未提供=保留原值，显式空串=清除归属
                 ["device"] = new() { Type = "string", Description = "所属设备名（必须已存在）；未提供 = 保留现值，显式空串 = 清除归属", KeepInCompact = true },
@@ -776,6 +799,14 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 && double.TryParse(ofv.ToString(), System.Globalization.NumberStyles.Any,
                                    System.Globalization.CultureInfo.InvariantCulture, out var ofd))
                 tag.Offset = ofd;
+            // AH（2026-10-30）：小数位（>0 且 scale/offset 未显式给 ⇒ 推导 scale=10^-N）
+            if (p.TryGetValue("decimals", out var dcv) && dcv != null
+                && int.TryParse(dcv.ToString(), out var dci) && dci >= 0 && dci <= 6)
+            {
+                tag.Decimals = dci;
+                if (dci > 0 && !p.ContainsKey("scale") && Math.Abs(tag.Scale - 1.0) < 1e-12)
+                    tag.Scale = Math.Pow(10, -dci);
+            }
             // AB-4：所属设备（显式空串 = 清除归属；未提供保留现值）
             if (p.TryGetValue("device", out var devp) && devp != null)
                 tag.DeviceName = devp.ToString()?.Trim() ?? "";
@@ -817,6 +848,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 group = string.IsNullOrEmpty(t.Group) ? "未分组" : t.Group,   // 空分组归一显示名
                 scale = t.Scale,      // AH：换算系数（1 = 不换算）
                 offset = t.Offset,    // AH：换算偏移
+                decimals = t.Decimals,   // AH：小数位
                 device = t.DeviceName,
                 description = t.Description,
             }).ToList();

@@ -125,6 +125,9 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 output_path = result.OutputPath,
                 changed_domains = changed.Domains.Select(DomainLabel).OrderBy(x => x).ToList(),
                 changed_screens = changed.Screens,
+                // AH（2026-10-30）：把编译**告警**透出（此前只在 GUI 可见，CLI/AI 拿不到）——
+                // AI 的 compile 自检必须能看见告警（如 FLOAT 变量未配换算系数、重复事件类型）
+                warnings = result.Warnings,
             });
         }
 

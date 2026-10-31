@@ -216,6 +216,15 @@ namespace NavigatorHMI.Common
             //      但重复定义本身是配置噪音（且旧版本设备固件仍会因重复赋值白屏），提示清理。
             AddEventActionValidations(project, result);
 
+            // AH（2026-10-30 用户裁决）：FLOAT 类型变量**不再内置 ÷100**——单寄存器 float 的放大倍数
+            // 因设备而异（×10/×100/×1000），一律改用「变量换算系数 scale」显式配置。
+            // 未配 scale 的 FLOAT 变量给出告警，避免老工程静默变值（2.06 → 206）却查不出原因。
+            foreach (var t in project.Tags)
+                if (t.DataType == TagDataType.FLOAT && t.Scale == 1 && t.Offset == 0)
+                    result.Warnings.Add($"变量 \"{t.Name}\" 为 FLOAT 类型但未配换算系数："
+                        + "设备端已不再自动 ÷100，显示值将是寄存器原始整数——"
+                        + "若设备用放大整数传小数，请设置换算系数（如 ×10 设备用 0.1、×100 用 0.01）");
+
             // 3g. 校验（X-1，2026-09-08 用户规格——GPS CoordinatePicker 前置；按执行序：先范围规则后 GPS 规则）：
             //   ① 设备端含世界地图的画面 ⇒ 划定作业范围——「有地图必须划作业范围（作业范围生成地图底图）」
             //   ② GPS 变量 ⇔ 工程含世界地图画面 + 设备端包含 + 划定作业范围（≥3 点）——「无地图工程不能配置 GPS 变量」

@@ -92,6 +92,14 @@ namespace NavigatorHMI.Common
         [ProtoMember(11)]
         public double Scale { get; set; } = 1;
 
+        /// <summary>
+        /// AH（2026-10-30 用户需求）：**小数位**——需求表常见的「小数位 N」写法。
+        /// 语义按 N 自动推导换算系数 Scale = 10^-N（设备用放大整数传小数时成立），
+        /// 也用于界面显示精度（0 = 不限制/原样显示）。显式给了 Scale 时以 Scale 为准。
+        /// </summary>
+        [ProtoMember(13)]
+        public int Decimals { get; set; } = 0;
+
         /// <summary>AH：换**偏移**（工程值 = 原始值 × Scale + Offset），默认 0。用于"零漂修正/量程平移"。</summary>
         [ProtoMember(12)]
         public double Offset { get; set; } = 0;
