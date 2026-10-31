@@ -142,6 +142,30 @@ namespace NavigatorHMI.Tests
             Assert.Contains("textColor", help);
         }
 
+        /// <summary>
+        /// AH（2026-10-31，reviewer [NEED_RULE] 落地）：**set_property 的 key 枚举 ⊆ 帮助文本**。
+        /// 动机：可写键集合（WidgetHandlers 的 EnumValues）与帮助说明（SetPropertyKeyHelp）是两份手写清单，
+        /// 此前只断言了 "textColor 出现在帮助里" ⇒ sourceMode/listRef/objectName/format/videoListRef 静默漏项。
+        /// 本测试锁死全集：新增任何可写键若忘了写进帮助，这里直接红。
+        /// </summary>
+        [Fact]
+        public void set_property可写键全集_必须全部出现在帮助文本中()
+        {
+            // 取命令层真实定义（EnumValues 在 CommandDefinition.Parameters 里，不在 CLI 视图上）
+            var def = AllDefinitions().First(d => d.Name == "set_property");
+            Assert.True(def.Parameters.ContainsKey("key"), "set_property 缺少 key 参数定义");
+            var enumValues = def.Parameters["key"].EnumValues;
+            Assert.NotNull(enumValues);
+
+            var help = CliCatalog.BuildHelpText();
+            var missing = enumValues!
+                .Where(v => !help.Contains(v, StringComparison.Ordinal))
+                .ToList();
+            Assert.True(missing.Count == 0,
+                "以下 set_property 可写键未出现在 --help 的属性键说明里（请在 CliCatalog.SetPropertyKeyHelp 补齐）："
+                + string.Join(", ", missing));
+        }
+
         /// <summary>视图语义约束：Required 参数不得带 Default（冲突）；CLI 键/CmdKey 非空；同命令 CLI 键唯一。</summary>
         [Fact]
         public void 参数视图_语义合法()

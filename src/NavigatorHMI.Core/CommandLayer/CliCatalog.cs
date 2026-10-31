@@ -409,7 +409,10 @@ set-property 属性键 (--screen <画面> --widget <控件> --key <键> --value 
   颜色: textColor | fillColor | strokeColor
   字体: fontFamily | fontSize | fontWeight | fontStyle | textDecoration
   数值: value | min | max | strokeThickness | x2 | y2
-  其他: hAlign | imagePath | stretchMode | isOn | isChecked | isReadOnly | fillStyle
+  图片: imagePath | listRef | defaultIndex | sourceMode
+  其他: hAlign | stretchMode | isOn | isChecked | isReadOnly | fillStyle
+  ⚠️ 本说明必须与 WidgetHandlers 中 key 的枚举**完全一致**（CliCatalogConsistencyTests 有断言锁）：
+     漏一个键 ⇒ 帮助里看不到，但命令照样接受（= 静默的可用性差异）。
 
 示例:
   navihmi create-project --name "产线监控" --path "./"
