@@ -212,11 +212,32 @@
             <ContentControl ContentTemplate="{StaticResource PropName}" Content="{Binding}"/>
             <ContentControl ContentTemplate="{StaticResource PropBinding}" Content="{Binding}"/>
             <Separator Margin="4,2"/>
-            <TextBlock Text="图片列表" Style="{StaticResource PropGroupHeader}"/>
-            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+            <!-- AH（2026-10-31 用户裁决）：原「图片列表」区与「图片来源」区合并为**一个区**——
+                 先选来源（单选），下方只显示该来源对应的输入行（另一行隐藏，配置仍保留、切回还在）。
+                 互斥依据 = ImageWidget.SourceMode（static/list；空=自动按旧规则解析成确定值）。 -->
+            <TextBlock Text="图片来源" Style="{StaticResource PropGroupHeader}"/>
+            <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                <RadioButton Content="单张图片" IsChecked="{Binding IsImageStaticMode, Mode=TwoWay}" GroupName="ImgSrc" Margin="0,0,14,0"
+                             ToolTip="固定显示一张图——下方填「图片路径」"/>
+                <RadioButton Content="按图片列表切换" IsChecked="{Binding IsImageListMode, Mode=TwoWay}" GroupName="ImgSrc"
+                             ToolTip="按绑定变量切换列表中的图片——下方选「图片列表」"/>
+            </StackPanel>
+            <TextBlock Text="{Binding ImageSourceModeHint}" Foreground="#2D7DD2" FontSize="10" Margin="0,4,0,0" TextWrapping="Wrap" IsHitTestVisible="False"/>
+
+            <!-- 单图模式：图片路径 -->
+            <Grid Margin="0,4,0,0" Visibility="{Binding IsImageStaticMode, Converter={StaticResource BoolToVisibilityConverter}}"><Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="图片路径:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding ImagePath, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"
+                         KeyDown="PropField_KeyDown" ToolTip="单张静态图片路径（PC 本地路径或工程内相对路径；打包时会把文件放进设备 res/）"/>
+                <Button Grid.Column="2" Content="浏览…" Height="24" Padding="8,0" Margin="4,0,0,0" Cursor="Hand"
+                        Click="BrowseImagePath_Click" ToolTip="选择图片文件（自动转成工程内相对路径）"/>
+            </Grid>
+
+            <!-- 列表模式：图片列表 + 缺省值 -->
+            <Grid Visibility="{Binding IsImageListMode, Converter={StaticResource BoolToVisibilityConverter}}"><Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="列表:" Style="{StaticResource PropLabel}"/>
                 <Grid Grid.Column="1">
-                <ComboBox SelectedItem="{Binding ImageListRef}" ItemsSource="{Binding ImageListOptions}" Style="{StaticResource PropComboBox}" ToolTip="选择图片列表（选「（无绑定）」解除，显示自身路径静态图）">
+                <ComboBox SelectedItem="{Binding ImageListRef}" ItemsSource="{Binding ImageListOptions}" Style="{StaticResource PropComboBox}" ToolTip="选择图片列表（按绑定变量切换列表项）">
                     <ComboBox.ItemTemplate>
                         <DataTemplate>
                             <!-- ⚠️ 不能设本地 Text（优先级高于 Style 触发器，会压制 DataTrigger 的「（无绑定）」） -->
@@ -246,32 +267,11 @@
                     </TextBlock>
                 </Grid>
             </Grid>
-            <!-- AH（2026-10-31 用户裁决「图片列表与图片路径是否重复」→ 来源二选一）：
-                 顶部单选决定**生效来源**，另一侧配置保留（切回还在）但不生效；下方提示当前生效值。 -->
-            <Separator Margin="4,2"/>
-            <TextBlock Text="图片来源" Style="{StaticResource PropGroupHeader}"/>
-            <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
-                <RadioButton Content="单张图片" IsChecked="{Binding IsImageStaticMode, Mode=TwoWay}" GroupName="ImgSrc" Margin="0,0,14,0"
-                             ToolTip="固定显示一张图（用下方「图片路径」）；列表配置保留但不生效"/>
-                <RadioButton Content="按图片列表切换" IsChecked="{Binding IsImageListMode, Mode=TwoWay}" GroupName="ImgSrc"
-                             ToolTip="按绑定变量切换列表中的图片（用下方「图片列表」）；图片路径保留但不生效"/>
-            </StackPanel>
-            <TextBlock Text="{Binding ImageSourceModeHint}" Foreground="#2D7DD2" FontSize="10" Margin="0,4,0,0" TextWrapping="Wrap" IsHitTestVisible="False"/>
-
-            <!-- AH（2026-10-31 用户反馈「没看到绑定图片列表，图片从哪里来的」）：补「图片路径」入口——
-                 单张静态图片走 ImagePath（属性面板此前**没有这个字段**，只有列表绑定，用户无从查看/修改）。
-                 优先级：绑定了列表 ⇒ 列表优先（按变量切图）；列表为空 ⇒ 用本路径。 -->
-            <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                <Label Grid.Column="0" Content="图片路径:" Style="{StaticResource PropLabel}"/>
-                <TextBox Grid.Column="1" Text="{Binding ImagePath, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"
-                         KeyDown="PropField_KeyDown" ToolTip="单张静态图片路径（PC 本地路径或工程内相对路径；打包时会把文件放进设备 res/）。绑定了图片列表时以列表为准"/>
-                <Button Grid.Column="2" Content="浏览…" Height="24" Padding="8,0" Margin="4,0,0,0" Cursor="Hand"
-                        Click="BrowseImagePath_Click" ToolTip="选择图片文件（自动转成工程内相对路径）"/>
-            </Grid>
-            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+            <Grid Visibility="{Binding IsImageListMode, Converter={StaticResource BoolToVisibilityConverter}}"><Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="缺省值:" Style="{StaticResource PropLabel}"/>
                 <TextBox Grid.Column="1" Text="{Binding ImageDefaultIndex, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}" ToolTip="未绑定变量/变量值无效时显示的列表项索引（0=第1项）" KeyDown="PropField_KeyDown" />
             </Grid>
+
             <TextBlock Text="外观" Style="{StaticResource PropGroupHeader}"/>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="Color:" Style="{StaticResource PropLabel}"/>
