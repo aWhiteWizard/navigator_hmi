@@ -143,5 +143,40 @@ namespace NavigatorHMI.Views
             dialog.ShowDialog();
         }
 
+        /// <summary>
+        /// AH（2026-10-31）：Image 控件「图片路径」浏览——选本地图片文件，写入 VM.ImagePath。
+        /// 说明：属性面板此前没有 ImagePath 入口（只有图片列表绑定），用户看不到单张图片的来源。
+        /// 路径策略：工程目录内的文件转成**相对路径**（便于换机/迁移与打包）；目录外保留绝对路径，
+        /// 部署打包（DeploymentPackageBuilder）会统一把文件收进 res/ 并改写引用。
+        /// </summary>
+        internal void BrowseImagePath_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "选择图片",
+                Filter = "图片文件|*.png;*.jpg;*.jpeg;*.bmp;*.gif|所有文件|*.*",
+                CheckFileExists = true,
+            };
+            if (dlg.ShowDialog(this) != true) return;
+
+            var path = dlg.FileName;
+            var projectDir = System.IO.Path.GetDirectoryName(_currentProject?.ProjectFilePath ?? "");
+            if (!string.IsNullOrEmpty(projectDir))
+            {
+                try
+                {
+                    var full = System.IO.Path.GetFullPath(path);
+                    var root = System.IO.Path.GetFullPath(projectDir);
+                    if (full.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+                        path = System.IO.Path.GetRelativePath(root, full).Replace('\\', '/');
+                }
+                catch { /* 相对化失败就用绝对路径，不影响功能 */ }
+            }
+            // 写属性面板 VM 的 ImagePath（其 setter 内写回模型并挂撤销点）；IsImageWidget 保证当前选中的是 Image
+            if (_propertyViewModel.IsImageWidget)
+                _propertyViewModel.ImagePath = path;
+        }
+
+
     }
 }

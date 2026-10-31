@@ -39,6 +39,9 @@ namespace NavigatorHMI.Views.Themes
         private void PropField_KeyDown(object sender, System.Windows.Input.KeyEventArgs e) =>
             TargetWindow(sender)?.PropField_KeyDown(sender, e);
 
+        private void BrowseImagePath_Click(object sender, RoutedEventArgs e) =>
+            TargetWindow(sender)?.BrowseImagePath_Click(sender, e);
+
         private void RemoveHistoryTagRow_Click(object sender, RoutedEventArgs e) =>
             TargetWindow(sender)?.RemoveHistoryTagRow_Click(sender, e);
     }

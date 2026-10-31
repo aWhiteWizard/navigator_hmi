@@ -246,6 +246,16 @@
                     </TextBlock>
                 </Grid>
             </Grid>
+            <!-- AH（2026-10-31 用户反馈「没看到绑定图片列表，图片从哪里来的」）：补「图片路径」入口——
+                 单张静态图片走 ImagePath（属性面板此前**没有这个字段**，只有列表绑定，用户无从查看/修改）。
+                 优先级：绑定了列表 ⇒ 列表优先（按变量切图）；列表为空 ⇒ 用本路径。 -->
+            <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <Label Grid.Column="0" Content="图片路径:" Style="{StaticResource PropLabel}"/>
+                <TextBox Grid.Column="1" Text="{Binding ImagePath, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropTextBox}"
+                         KeyDown="PropField_KeyDown" ToolTip="单张静态图片路径（PC 本地路径或工程内相对路径；打包时会把文件放进设备 res/）。绑定了图片列表时以列表为准"/>
+                <Button Grid.Column="2" Content="浏览…" Height="24" Padding="8,0" Margin="4,0,0,0" Cursor="Hand"
+                        Click="BrowseImagePath_Click" ToolTip="选择图片文件（自动转成工程内相对路径）"/>
+            </Grid>
             <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="75"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                 <Label Grid.Column="0" Content="缺省值:" Style="{StaticResource PropLabel}"/>
                 <TextBox Grid.Column="1" Text="{Binding ImageDefaultIndex, UpdateSourceTrigger=LostFocus}" Style="{StaticResource PropNumberBox}" ToolTip="未绑定变量/变量值无效时显示的列表项索引（0=第1项）" KeyDown="PropField_KeyDown" />
