@@ -44,7 +44,7 @@ namespace NavigatorHMI.Views
             {
                 // 滚动条 Thumb 视觉链止于 ScrollViewer（模板元素不经过内容 TextBox），须同时检查 Scroller 本身
                 if (ReferenceEquals(node, CliOutput) || ReferenceEquals(node, CliOutputScroller)) return true;
-                node = System.Windows.Media.VisualTreeHelper.GetParent(node);
+                node = GetParentSafe(node);
             }
             return false;
         }
@@ -55,7 +55,7 @@ namespace NavigatorHMI.Views
             while (node != null)
             {
                 if (ReferenceEquals(node, CliInput)) return true;
-                node = System.Windows.Media.VisualTreeHelper.GetParent(node);
+                node = GetParentSafe(node);
             }
             return false;
         }

@@ -103,7 +103,7 @@ namespace NavigatorHMI.Views
             while (src != null)
             {
                 if (src is FrameworkElement fe && fe.Tag as string == "workpoint-marker") return true;
-                src = System.Windows.Media.VisualTreeHelper.GetParent(src);
+                src = GetParentSafe(src);
             }
             return false;
         }

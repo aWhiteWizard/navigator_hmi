@@ -388,7 +388,7 @@ namespace NavigatorHMI.Views
                 if (f is System.Windows.Controls.DataGrid or System.Windows.Controls.ListBox) return true;
                 // Z3：TabControl 仅用户面板子页 / 列表管理器命中（其余 TabControl 如画布 DocumentPane 不命中，画布快捷键才可用）
                 if (f is System.Windows.Controls.TabControl tab && (ReferenceEquals(tab, UserPanelTabs) || ReferenceEquals(tab, ListManagerTabs))) return true;
-                f = System.Windows.Media.VisualTreeHelper.GetParent(f);
+                f = GetParentSafe(f);
             }
             return false;
         }
@@ -510,7 +510,7 @@ namespace NavigatorHMI.Views
             while (child != null)
             {
                 if (child is System.Windows.Controls.Primitives.ButtonBase) return true;   // P3-11：覆盖 Button/ToggleButton/RepeatButton（🛰 开关不被工具栏拖拽拦截）
-                child = VisualTreeHelper.GetParent(child);
+                child = GetParentSafe(child);
             }
             return false;
         }

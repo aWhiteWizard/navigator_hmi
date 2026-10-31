@@ -233,7 +233,7 @@ namespace NavigatorHMI.Views.Helpers
             while (child != null)
             {
                 if (child is T parent) return parent;
-                child = VisualTreeHelper.GetParent(child);
+                child = NavigatorHMI.Views.EditWindow.GetParentSafe(child);
             }
             return null;
         }

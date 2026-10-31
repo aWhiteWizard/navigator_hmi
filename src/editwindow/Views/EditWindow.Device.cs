@@ -191,11 +191,11 @@ namespace NavigatorHMI.Views
         /// <summary>视觉祖先查找（MediaEnded/Failed 的 sender=MediaElement → 所属预览 Border）。</summary>
         private static T? FindAncestor<T>(DependencyObject d) where T : DependencyObject
         {
-            var p = System.Windows.Media.VisualTreeHelper.GetParent(d);
+            var p = GetParentSafe(d);
             while (p != null)
             {
                 if (p is T t) return t;
-                p = System.Windows.Media.VisualTreeHelper.GetParent(p);
+                p = GetParentSafe(p);
             }
             return null;
         }

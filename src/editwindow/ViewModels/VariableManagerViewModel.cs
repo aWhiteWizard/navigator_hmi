@@ -71,7 +71,36 @@ namespace NavigatorHMI.ViewModels
             CommandService.CommandExecuted += OnCommandExecuted;
             // Y-5a：分组视图配置（按 Tag.GroupLabel 分组——空组归一「未分组」；分组描述常驻，收起状态由 UI 维护会话）
             TagView.GroupDescriptions.Add(new PropertyGroupDescription(nameof(Tag.GroupLabel)));
+            // AH（2026-10-30 用户反馈「为什么还有组」）：分组可关——UI 上「按分组显示」开关控制
+            // （关掉 = 平铺按创建顺序列出，不再出现「组: 未分组 (N)」组头行）
             Refresh();
+        }
+
+        private bool _isGrouped = true;
+        /// <summary>
+        /// 是否按变量分组显示（AH 2026-10-30 用户反馈新增开关）。
+        /// true = 按 Tag.GroupLabel 分组（组头行显示「组: X (N)」，可收起展开）；
+        /// false = 平铺列出（不再有组头，适合不需要分组的工程）。
+        /// </summary>
+        public bool IsGrouped
+        {
+            get => _isGrouped;
+            set
+            {
+                if (_isGrouped == value) return;
+                _isGrouped = value;
+                if (value)
+                {
+                    if (TagView.GroupDescriptions.OfType<PropertyGroupDescription>()
+                               .All(g => g.PropertyName != nameof(Tag.GroupLabel)))
+                        TagView.GroupDescriptions.Add(new PropertyGroupDescription(nameof(Tag.GroupLabel)));
+                }
+                else
+                {
+                    TagView.GroupDescriptions.Clear();
+                }
+                OnPropertyChanged();
+            }
         }
 
         private void OnCommandExecuted(string cmdName, Dictionary<string, object?> parameters, CommandResult result)

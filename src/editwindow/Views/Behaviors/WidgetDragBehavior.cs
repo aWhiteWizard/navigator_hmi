@@ -66,7 +66,7 @@ namespace NavigatorHMI.Views.Behaviors
             while (child != null)
             {
                 if (child is Thumb thumb) return thumb;
-                child = System.Windows.Media.VisualTreeHelper.GetParent(child);
+                child = NavigatorHMI.Views.EditWindow.GetParentSafe(child);
             }
             return null;
         }

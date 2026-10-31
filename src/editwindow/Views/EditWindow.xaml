@@ -743,6 +743,7 @@
                                         <Button Content="＋ 新建变量" Command="{Binding NewTagCommand}" Width="90" Height="26" Margin="0,0,4,0" ToolTip="新建变量"/>
                                         <Button Content="✏ 编辑" Command="{Binding EditTagCommand}" Width="60" Height="26" Margin="0,0,4,0" ToolTip="编辑选中变量（或双击行）"/>
                                         <Button Content="🗑 删除" Width="60" Height="26" Click="TagDelete_Click" ToolTip="删除选中变量（被引用时拒绝；多选可批量）"/>
+                                        <CheckBox Content="按分组显示" IsChecked="{Binding IsGrouped}" VerticalAlignment="Center" Margin="10,0,0,0" FontSize="12" ToolTip="勾选=按变量分组显示（组头「组: X (N)」）；取消=平铺列出"/>
                                     </StackPanel>
                                     <DockPanel Grid.Row="1" Margin="0,0,0,4">
                                         <TextBlock DockPanel.Dock="Left" Text="搜索:" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="12"/>

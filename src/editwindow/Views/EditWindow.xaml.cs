@@ -556,13 +556,32 @@ namespace NavigatorHMI.Views
         }
 
 
-        /// <summary>沿视觉树上溯查找指定类型父元素（图片路径回车确认定位 DataGrid 用）。</summary>
+        /// <summary>
+        /// 上溯一层父节点——**兼容 ContentElement**（AH 2026-10-30 用户实测崩溃修复）。
+        ///
+        /// 背景：`VisualTreeHelper.GetParent` 只接受 Visual/Visual3D；命中的若是内联元素
+        /// （`Run`/`Bold` 等 `ContentElement`，例如变量表分组组头的 <c>&lt;Run Text="组: "/&gt;</c>），
+        /// 会抛 <see cref="InvalidOperationException"/>「System.Windows.Documents.Run 不是 Visual 或 Visual3D」。
+        /// 这类元素走逻辑树：先用 <see cref="LogicalTreeHelper"/>，再退到 <see cref="ContentOperations"/>。
+        /// </summary>
+        internal static DependencyObject? GetParentSafe(DependencyObject? node)
+        {
+            if (node == null) return null;
+            if (node is System.Windows.Media.Visual || node is System.Windows.Media.Media3D.Visual3D)
+                return VisualTreeHelper.GetParent(node);
+            var logical = LogicalTreeHelper.GetParent(node);
+            if (logical != null) return logical;
+            if (node is ContentElement ce) return ContentOperations.GetParent(ce);
+            return null;
+        }
+
+        /// <summary>沿树上溯查找指定类型父元素（图片路径回车确认定位 DataGrid 用）。</summary>
         private static T? FindVisualParent<T>(DependencyObject? source) where T : DependencyObject
         {
             while (source != null)
             {
                 if (source is T t) return t;
-                source = VisualTreeHelper.GetParent(source);
+                source = GetParentSafe(source);   // AH：ContentElement（Run 等）安全上溯
             }
             return null;
         }

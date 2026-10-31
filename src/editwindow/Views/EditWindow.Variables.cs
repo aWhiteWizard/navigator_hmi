@@ -183,7 +183,7 @@ namespace NavigatorHMI.Views
         {
             var el = e.OriginalSource as System.Windows.DependencyObject;
             while (el != null && el is not System.Windows.Controls.DataGridRow)
-                el = System.Windows.Media.VisualTreeHelper.GetParent(el);
+                el = GetParentSafe(el);
             return el as System.Windows.Controls.DataGridRow;
         }
 
@@ -461,13 +461,20 @@ namespace NavigatorHMI.Views
             foreach (var t in hit) TagGrid.SelectedItems.Add(t);
         }
 
-        /// <summary>沿视觉树上溯查找指定类型 DataContext（DataGridRow/TreeViewItem 通用）。</summary>
+        /// <summary>
+        /// 沿树上溯查找指定类型 DataContext（DataGridRow/TreeViewItem 通用）。
+        ///
+        /// AH（2026-10-30 用户实测崩溃修复）：命中内联 `Run`（变量表分组组头的 &lt;Run Text="组: "/&gt;）时，
+        /// 原来的 `VisualTreeHelper.GetParent` 会抛「Run 不是 Visual 或 Visual3D」⇒ 改走 <see cref="GetParentSafe"/>，
+        /// 同时把 <see cref="System.Windows.FrameworkContentElement"/> 的 DataContext 也纳入判定。
+        /// </summary>
         private static T? FindDataContext<T>(DependencyObject? source) where T : class
         {
             while (source != null)
             {
                 if (source is System.Windows.FrameworkElement fe && fe.DataContext is T t) return t;
-                source = VisualTreeHelper.GetParent(source);
+                if (source is System.Windows.FrameworkContentElement fce && fce.DataContext is T t2) return t2;
+                source = GetParentSafe(source);
             }
             return null;
         }

@@ -115,7 +115,7 @@ namespace NavigatorHMI.Views
             {
                 if (child is FrameworkElement fe && fe.DataContext is Widget)
                     return fe;
-                child = VisualTreeHelper.GetParent(child);
+                child = GetParentSafe(child);
             }
             return null;
         }

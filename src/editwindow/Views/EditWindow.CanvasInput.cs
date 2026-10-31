@@ -193,7 +193,7 @@ namespace NavigatorHMI.Views
             while (node != null)
             {
                 if (node is System.Windows.Documents.Adorner) return true;
-                node = System.Windows.Media.VisualTreeHelper.GetParent(node);
+                node = GetParentSafe(node);
             }
             return false;
         }
