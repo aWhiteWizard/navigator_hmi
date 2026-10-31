@@ -421,6 +421,9 @@ namespace NavigatorHMI.Views
                     ["deadband"] = result.Deadband,
                     ["description"] = result.Description,
                     ["base_value"] = result.BaseValue,
+                    ["scale"] = result.Scale,          // AH：换算系数
+                    ["offset"] = result.Offset,        // AH：换算偏移
+                    ["decimals"] = result.Decimals,    // AH：小数位
                 });
                 if (!r.Success) MessageBox.Show(r.ErrorMessage ?? "创建变量失败", "变量", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
@@ -437,6 +440,9 @@ namespace NavigatorHMI.Views
                 if (result.Deadband != tag.Deadband) p["deadband"] = result.Deadband;
                 if (result.Description != tag.Description) p["description"] = result.Description;
                 if (result.BaseValue != tag.BaseValue) p["base_value"] = result.BaseValue;
+                if (Math.Abs(result.Scale - tag.Scale) > 1e-12) p["scale"] = result.Scale;          // AH：换算系数
+                if (Math.Abs(result.Offset - tag.Offset) > 1e-12) p["offset"] = result.Offset;      // AH：换算偏移
+                if (result.Decimals != tag.Decimals) p["decimals"] = result.Decimals;               // AH：小数位
                 if (p.Count > 1)
                 {
                     var r = _viewModel.CommandService.Execute("update_tag", p);

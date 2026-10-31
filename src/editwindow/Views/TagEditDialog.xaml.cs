@@ -28,6 +28,7 @@ namespace NavigatorHMI.Views
         public TagEditDialog(Tag? existing, HMIProject project)
         {
             InitializeComponent();
+            DecimalsBox.TextChanged += (_, __) => UpdateDecimalsHint();   // AH：小数位提示实时刷新
             _existing = existing;
             _project = project;
             PopulateSourceBox();
@@ -50,6 +51,11 @@ namespace NavigatorHMI.Views
                 DataTypeBox.SelectedItem = dtItem;
                 UnitBox.Text = existing.Unit;
                 DeadbandBox.Text = existing.Deadband.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            // AH（2026-10-30）：换算字段装载
+            ScaleBox.Text = existing.Scale.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            OffsetBox.Text = existing.Offset.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            DecimalsBox.Text = existing.Decimals.ToString();
+            UpdateDecimalsHint();
                 DescriptionBox.Text = existing.Description;
                 BaseValueBox.Text = existing.BaseValue;
                 if (existing.DataType == TagDataType.GPS)   // V-5a：GPS 基准值回填两框（解析 BaseValue 拆经度/纬度）
@@ -365,6 +371,29 @@ namespace NavigatorHMI.Views
              && !IsZeroDateText(baseValue))
             { ShowError("DATETIME 变量的基准值必须是有效日期时间（如 2026-08-08 12:30:00）"); return; }
 
+            // AH（2026-10-30）：换算字段解析与校验
+            var scaleText = ScaleBox.Text.Trim();
+            if (scaleText.Length == 0) scaleText = "1";
+            if (!double.TryParse(scaleText, System.Globalization.NumberStyles.Any,
+                                 System.Globalization.CultureInfo.InvariantCulture, out var scale) || scale <= 0)
+            { ShowError("换算系数必须是大于 0 的数字（默认 1 = 不换算）"); return; }
+
+            var offsetText = OffsetBox.Text.Trim();
+            if (offsetText.Length == 0) offsetText = "0";
+            if (!double.TryParse(offsetText, System.Globalization.NumberStyles.Any,
+                                 System.Globalization.CultureInfo.InvariantCulture, out var offset))
+            { ShowError("偏移必须是数字（默认 0）"); return; }
+
+            var decText = DecimalsBox.Text.Trim();
+            if (decText.Length == 0) decText = "0";
+            if (!int.TryParse(decText, out var decimals) || decimals < 0 || decimals > 6)
+            { ShowError("小数位必须是 0~6 的整数（0 = 不限制）"); return; }
+
+            // 小数位优先：用户只填了「小数位 1」而没动系数（仍是默认 1）时，自动推出系数 0.1
+            var effectiveScale = (decimals > 0 && Math.Abs(scale - 1.0) < 1e-12 && Math.Abs(offset) < 1e-12)
+                ? Math.Pow(10, -decimals)
+                : scale;
+
             Result = new Tag
             {
                 Name = name,
@@ -376,8 +405,29 @@ namespace NavigatorHMI.Views
                 Deadband = deadband,
                 Description = DescriptionBox.Text.Trim(),
                 BaseValue = baseValue,
+                // AH（2026-10-30）：换算（小数位 >0 且未显式改系数 ⇒ 系数 = 10^-小数位）
+                Scale = effectiveScale,
+                Offset = offset,
+                Decimals = decimals,
             };
             DialogResult = true;
+        }
+
+        /// <summary>小数位提示：填 N 时反馈「将自动换算系数 = 10^-N」（AH 2026-10-30）。</summary>
+        private void UpdateDecimalsHint()
+        {
+            var text = DecimalsBox.Text.Trim();
+            if (int.TryParse(text, out var n) && n >= 1 && n <= 6)
+            {
+                var derivedScale = Math.Pow(10, -n);
+                DecimalsHint.Text = "→ 自动换算系数 "
+                    + derivedScale.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                    + "（若系数已手动改过，以系数为准）";
+            }
+            else
+            {
+                DecimalsHint.Text = "";
+            }
         }
 
         private void Cancel_Click(object sender, RoutedEventArgs e) => DialogResult = false;
