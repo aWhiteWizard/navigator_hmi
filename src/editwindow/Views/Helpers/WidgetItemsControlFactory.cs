@@ -482,13 +482,13 @@ namespace NavigatorHMI.Views.Helpers
             //   ⇒ 字号/字体/对齐/加粗/斜体/下划线全部不一致。改用与其他文本控件相同的 BindTextFormatting：
             //   一并绑 FontFamily/FontSize/FontWeight/FontStyle/TextDecoration + TextColor/FillColor 前景自适应 + HAlign。
             BindTextFormatting(tb);
-            // D8：白底可读（与画布区分）——AH 2026-10-30 起改为绑模型 FillColor（默认 #FFFFFF），
-            // 使"用户改背景色"两端一致（此前 PC 硬编码白色、设备端也硬编码白色，用户改不了）。
-            tb.SetBinding(TextBlock.BackgroundProperty, new Binding("FillColor") { Converter = new ColorStringToBrushConverter() });
+            // D8：白底可读（与画布区分）——AH 2026-10-30：背景改由**外层 Border** 承载（bindFillBackground: true），
+            // 与 Label/IOField 等文本控件一致。原因：TextBlock.Background 只覆盖"文字所在高度"的条带，
+            // 而设备端背景填满整个控件矩形 ⇒ 用户看到"两端背景不一样"。挂到 Border 后两端都是整块填充。
             tb.SetValue(TextBlock.VerticalAlignmentProperty, System.Windows.VerticalAlignment.Center);
             // 元素铺满（文本对齐交由 TextAlignment=HAlign 处理；元素居中会吃掉 Left/Right 语义）
             tb.SetValue(TextBlock.HorizontalAlignmentProperty, System.Windows.HorizontalAlignment.Stretch);
-            dt.VisualTree = WrapWithBorder(tb, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU);
+            dt.VisualTree = WrapWithBorder(tb, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU, bindFillBackground: true);
             return dt;
         }
         private static DataTemplate CreateRectangleTemplate(RoutedEventHandler click, MouseButtonEventHandler pmLBD, MouseButtonEventHandler mLBD,

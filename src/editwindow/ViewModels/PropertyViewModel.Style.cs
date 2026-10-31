@@ -50,6 +50,33 @@ namespace NavigatorHMI.ViewModels
         /// <summary>图片背景色（CSS 格式，默认浅灰；图片透明区域/无图片时可见）。</summary>
         public string ImageFillColor { get => _imageFillColor; set { if (_imageFillColor != value) { _imageFillColor = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is ImageWidget img) img.FillColor = value; } } }
 
+        // ── AH（2026-10-30 用户反馈「GUI 设置不了 DateTime 的字体和字号」）：DateTime 样式属性 ──
+        // 模型此前没有这些字段（本轮已补 ProtoMember 3~10），属性面板同步补齐，写法与 Label/Button 一致。
+        private string _dateTimeFontFamily = "Microsoft YaHei UI";
+        /// <summary>DateTimeWidget 字体族。</summary>
+        public string DateTimeFontFamily { get => _dateTimeFontFamily; set { if (_dateTimeFontFamily != value) { _dateTimeFontFamily = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is DateTimeWidget w) w.FontFamily = value; } } }
+        private double _dateTimeFontSize = 14;
+        /// <summary>DateTimeWidget 字体大小。</summary>
+        public double DateTimeFontSize { get => _dateTimeFontSize; set { if (Math.Abs(_dateTimeFontSize - value) > 0.001) { _dateTimeFontSize = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is DateTimeWidget w) w.FontSize = value; } } }
+        private string _dateTimeFontWeight = "Normal";
+        /// <summary>DateTimeWidget 字重（Normal / Bold）。</summary>
+        public string DateTimeFontWeight { get => _dateTimeFontWeight; set { if (_dateTimeFontWeight != value) { _dateTimeFontWeight = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is DateTimeWidget w) w.FontWeight = value; } } }
+        private string _dateTimeFontStyle = "Normal";
+        /// <summary>DateTimeWidget 字型（Normal / Italic）。</summary>
+        public string DateTimeFontStyle { get => _dateTimeFontStyle; set { if (_dateTimeFontStyle != value) { _dateTimeFontStyle = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is DateTimeWidget w) w.FontStyle = value; } } }
+        private string _dateTimeTextDecoration = "None";
+        /// <summary>DateTimeWidget 下划线（None / Underline）。</summary>
+        public string DateTimeTextDecoration { get => _dateTimeTextDecoration; set { if (_dateTimeTextDecoration != value) { _dateTimeTextDecoration = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is DateTimeWidget w) w.TextDecoration = value; } } }
+        private string _dateTimeTextColor = "#000000";
+        /// <summary>DateTimeWidget 文字颜色。</summary>
+        public string DateTimeTextColor { get => _dateTimeTextColor; set { if (_dateTimeTextColor != value) { _dateTimeTextColor = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is DateTimeWidget w) w.TextColor = value; } } }
+        private string _dateTimeFillColor = "#FFFFFF";
+        /// <summary>DateTimeWidget 背景色。</summary>
+        public string DateTimeFillColor { get => _dateTimeFillColor; set { if (_dateTimeFillColor != value) { _dateTimeFillColor = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is DateTimeWidget w) w.FillColor = value; } } }
+        private string _dateTimeHAlign = "Center";
+        /// <summary>DateTimeWidget 水平对齐（Left / Center / Right）。</summary>
+        public string DateTimeHAlign { get => _dateTimeHAlign; set { if (_dateTimeHAlign != value) { _dateTimeHAlign = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is DateTimeWidget w) w.HAlign = value; } } }
+
         private string _buttonFontFamily = "Microsoft YaHei UI";
         /// <summary>ButtonWidget 字体族。</summary>
         public string ButtonFontFamily { get => _buttonFontFamily; set { if (_buttonFontFamily != value) { _buttonFontFamily = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is ButtonWidget w) w.FontFamily = value; } } }

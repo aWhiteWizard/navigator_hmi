@@ -230,7 +230,18 @@ namespace NavigatorHMI.ViewModels
                             case TextListWidget tl: TextListFontFamily = tl.FontFamily; TextListFontSize = tl.FontSize; TextListFontWeight = tl.FontWeight; TextListFontStyle = tl.FontStyle; TextListTextDecoration = tl.TextDecoration; TextListTextColor = tl.TextColor; TextListFillColor = tl.FillColor; TextListListRef = tl.ListRef; TextListDefaultIndex = tl.DefaultIndex; break;
                             case FrameWidget f: FrameTitle = f.Title; FrameFillColor = f.FillColor; FrameImagePath = f.ImagePath; FrameFontFamily = f.FontFamily; FrameFontSize = f.FontSize; FrameFontWeight = f.FontWeight; FrameFontStyle = f.FontStyle; FrameTextDecoration = f.TextDecoration; FrameListRef = f.ListRef; FrameDefaultIndex = f.DefaultIndex; FrameShowVideo = f.ShowVideo; FrameVideoSource = f.VideoSource; FramePlayTag = f.PlayTag; FrameVideoListRef = f.VideoListRef; FrameVideoIndexTag = f.VideoIndexTag; break;   // P-6 视频 / R-4 播放控制 / S-5 视频源列表
                             case ProgressBarWidget pb: ProgressValue = pb.Value; ProgressMin = pb.Min; ProgressMax = pb.Max; ProgressFillColor = pb.FillColor; ProgressFillStyle = pb.FillStyle; break;
-                case DateTimeWidget dt: DateTimeFormat = dt.Format; break;
+                case DateTimeWidget dt:
+                    DateTimeFormat = dt.Format;
+                    // AH（2026-10-30）：样式字段同步（否则面板显示旧值/空）
+                    DateTimeFontFamily = dt.FontFamily;
+                    DateTimeFontSize = dt.FontSize;
+                    DateTimeFontWeight = dt.FontWeight;
+                    DateTimeFontStyle = dt.FontStyle;
+                    DateTimeTextDecoration = dt.TextDecoration;
+                    DateTimeTextColor = dt.TextColor;
+                    DateTimeFillColor = dt.FillColor;
+                    DateTimeHAlign = dt.HAlign;
+                    break;
                 case WindowWidget ww:
                     WindowTitle = ww.Title;
                     WindowShowTitleBar = ww.ShowTitleBar;
