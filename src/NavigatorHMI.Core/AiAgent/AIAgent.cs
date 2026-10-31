@@ -701,6 +701,8 @@ namespace NavigatorHMI.AiAgent
             "寄存器 206 表示 20.6℃ ⇒ scale=0.1；表示 2.06 ⇒ scale=0.01；再叠加零点漂移加 offset。" +
             "⚠️ FLOAT 类型**不再自动 ÷100**（旧约定已取消）：FLOAT 与 UINT16 现在都返回寄存器原始整数，" +
             "小数一律靠 scale。双寄存器 32 位 float 暂不支持——直接把两个寄存器建成两个变量、用两个 IOField 并排显示即可。" +
+            "⚠️ **整型变量（BOOL/INT16/UINT16/INT32）换算后取整**（211×0.1 ⇒ 21，不是 21.1）：要显示小数请把变量类型设成 FLOAT；" +
+            "`decimals`（小数位）**只对 FLOAT 有效**，对整型传 decimals>0 会被命令层拒绝。" +
             "需求表里若有「小数位 N」（或「保留 N 位小数」），create_tag/update_tag 直接传 --decimals N：" +
             "命令层会自动推导 scale=10^-N（N=1 → 0.1、N=2 → 0.01），无需你手算。" +
             "用户说「显示成 19.9」「除以 10」时自动换算成 scale 传参，别让用户自己算。\n" +

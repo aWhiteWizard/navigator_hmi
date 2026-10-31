@@ -219,6 +219,14 @@ namespace NavigatorHMI.Common
             // AH（2026-10-30 用户裁决）：FLOAT 类型变量**不再内置 ÷100**——单寄存器 float 的放大倍数
             // 因设备而异（×10/×100/×1000），一律改用「变量换算系数 scale」显式配置。
             // 未配 scale 的 FLOAT 变量给出告警，避免老工程静默变值（2.06 → 206）却查不出原因。
+            // AH（2026-10-31 用户裁决 A）：整型变量配了换算 ⇒ 设备端**取整显示**（21.1 → 21）。
+            // 需要小数请改用 FLOAT；这里在编译期提示一次，避免"填了 0.1 却看不到小数"的困惑。
+            foreach (var t in project.Tags)
+                if ((t.DataType is TagDataType.INT16 or TagDataType.UINT16 or TagDataType.INT32)
+                    && (Math.Abs(t.Scale - 1.0) > 1e-12 || Math.Abs(t.Offset) > 1e-12))
+                    result.Warnings.Add($"变量 \"{t.Name}\" 为 {t.DataType} 整型但配了换算系数 {t.Scale}："
+                        + "设备端会**取整显示**（如 21.1 → 21）——需要小数请把类型改为 FLOAT");
+
             foreach (var t in project.Tags)
                 if (t.DataType == TagDataType.FLOAT && t.Scale == 1 && t.Offset == 0)
                     result.Warnings.Add($"变量 \"{t.Name}\" 为 FLOAT 类型但未配换算系数："

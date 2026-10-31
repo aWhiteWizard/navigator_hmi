@@ -162,6 +162,13 @@ namespace NavigatorHMI.CommandLayer.Handlers
             else if (string.IsNullOrEmpty(baseValue) && dt is TagDataType.INT16 or TagDataType.UINT16 or TagDataType.INT32) baseValue = "0";
             else if (string.IsNullOrEmpty(baseValue) && dt is TagDataType.BOOL) baseValue = "false";   // #4：BOOL 基准值默认 false
             if (dt == TagDataType.BOOL && baseValue.Length > 0) baseValue = baseValue.ToLowerInvariant();   // #4：BOOL 归一存储（True/TRUE→true，源头消除大小写变体防 GUI 回填翻转）
+            // AH（2026-10-31 用户裁决）：**小数位只对 FLOAT 有效**——整型（BOOL/INT16/UINT16/INT32）
+            // 的换算结果在设备端取整（21.1 → 21），填小数位没有意义 ⇒ 直接拒绝，避免"填了却看不到小数"。
+            if (ToInt(p.GetValueOrDefault("decimals"), 0) > 0 && dt != TagDataType.FLOAT)
+                return CommandResult.Fail("INVALID_PARAM",
+                    $"小数位（decimals）只支持 FLOAT 类型；当前 {dt} 为整型——"
+                    + "整型变量请用 scale 做换算（设备端取整显示），需要小数请把类型改为 FLOAT");
+
             project.Tags.Add(new Tag
             {
                 Name = name, DataType = dt,
@@ -800,6 +807,13 @@ namespace NavigatorHMI.CommandLayer.Handlers
                                    System.Globalization.CultureInfo.InvariantCulture, out var ofd))
                 tag.Offset = ofd;
             // AH（2026-10-30）：小数位（>0 且 scale/offset 未显式给 ⇒ 推导 scale=10^-N）
+            // AH（2026-10-31）：**小数位只对 FLOAT 有效**——整型换算后设备端取整，填小数位无意义 ⇒ 拒绝
+            if (p.TryGetValue("decimals", out var dcv0) && dcv0 != null
+                && int.TryParse(dcv0.ToString(), out var dci0) && dci0 > 0 && tag.DataType != TagDataType.FLOAT)
+                return CommandResult.Fail("INVALID_PARAM",
+                    $"小数位（decimals）只支持 FLOAT 类型；变量 \"{tag.Name}\" 当前为 {tag.DataType} 整型——"
+                    + "需要小数请先用 --type FLOAT 改类型");
+
             if (p.TryGetValue("decimals", out var dcv) && dcv != null
                 && int.TryParse(dcv.ToString(), out var dci) && dci >= 0 && dci <= 6)
             {

@@ -44,13 +44,48 @@ namespace NavigatorHMI.Tests
         public void 小数位N_推导10的负N次(int decimals, double expectedScale)
         {
             var (svc, project) = Create();
+            // AH（2026-10-31 用户裁决）：小数位只对 FLOAT 有效（整型换算后设备端取整）
             svc.Execute("create_tag", new Dictionary<string, object?>
             {
                 ["name"] = "v",
-                ["data_type"] = "UINT16",
+                ["data_type"] = "FLOAT",
                 ["decimals"] = decimals,
             });
             Assert.Equal(expectedScale, project.Tags.Single().Scale, 8);
+        }
+
+        [Theory]
+        [InlineData("UINT16")]
+        [InlineData("INT16")]
+        [InlineData("INT32")]
+        [InlineData("BOOL")]
+        public void 整型变量不接受小数位_报INVALID_PARAM(string dataType)
+        {
+            var (svc, project) = Create();
+            var r = svc.Execute("create_tag", new Dictionary<string, object?>
+            {
+                ["name"] = "温度",
+                ["data_type"] = dataType,
+                ["decimals"] = 1,
+            });
+            Assert.False(r.Success);
+            Assert.Equal("INVALID_PARAM", r.ErrorCode);
+            Assert.Empty(project.Tags);   // 一个变量都没落库
+        }
+
+        [Fact]
+        public void 整型变量仍可用scale换算_但小数位必须为0()
+        {
+            var (svc, project) = Create();
+            var r = svc.Execute("create_tag", new Dictionary<string, object?>
+            {
+                ["name"] = "温度",
+                ["data_type"] = "UINT16",
+                ["scale"] = 0.1,      // 允许：设备端换算后取整显示（211×0.1 ⇒ 21）
+            });
+            Assert.True(r.Success, r.ErrorMessage);
+            Assert.Equal(0.1, project.Tags.Single().Scale, 6);
+            Assert.Equal(0, project.Tags.Single().Decimals);
         }
 
         [Fact]

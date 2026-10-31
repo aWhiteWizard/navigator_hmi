@@ -167,6 +167,26 @@ namespace NavigatorHMI.Views
             LngBaseBox.Visibility = isGps ? Visibility.Visible : Visibility.Collapsed;
             LatBaseBox.Visibility = isGps ? Visibility.Visible : Visibility.Collapsed;
             if (!isGps) GpsDmsHint.Visibility = Visibility.Collapsed;
+
+            // AH（2026-10-31 用户裁决）：**小数位只对 FLOAT 可填**——整型变量换算后设备端取整（21.1 → 21），
+            // 填小数位没意义 ⇒ 非 FLOAT 时禁用输入框并给灰字说明（值保留，改回 FLOAT 还能用）。
+            bool isFloat = bi.Content?.ToString() == nameof(TagDataType.FLOAT);
+            DecimalsBox.IsEnabled = isFloat;
+            ScaleBox_UpdateHint(isFloat);
+        }
+
+        /// <summary>小数位可用性提示（AH 2026-10-31）：非 FLOAT 时说明"整型换算后取整"。</summary>
+        private void ScaleBox_UpdateHint(bool isFloat)
+        {
+            if (DecimalsHint == null) return;
+            if (!isFloat)
+            {
+                DecimalsHint.Text = "整型变量不支持小数位（换算结果在设备端取整）——需要小数请选 FLOAT";
+                DecimalsHint.Foreground = System.Windows.Media.Brushes.Gray;
+                return;
+            }
+            DecimalsHint.Foreground = System.Windows.Media.Brushes.DarkSlateGray;
+            UpdateDecimalsHint();
         }
 
         /// <summary>V-5a：GPS 两框输入 → DMS 实时换算提示（TextChanged 显示；LostFocus 隐藏，续23 增补 2）。</summary>
