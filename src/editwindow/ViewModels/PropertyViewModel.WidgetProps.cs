@@ -59,7 +59,47 @@ namespace NavigatorHMI.ViewModels
 
         public string LabelText { get => _labelText; set { if (_labelText != value) { _labelText = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is LabelWidget lbl) lbl.Text = value; } } }
 
-        private string _imagePath = "";
+        /// <summary>
+    /// AH（2026-10-31 用户裁决）：图片来源模式（GUI 三选一）——"static" 单图 / "list" 列表 / "" 自动。
+    /// 与 `set_property key=sourceMode` 同一致；切换只改模式，**不清另一侧配置**（切回还在）。
+    /// </summary>
+    public string ImageSourceMode
+    {
+        get => _selectedWidget is ImageWidget img ? img.SourceMode : "";
+        set
+        {
+            if (_selectedWidget is not ImageWidget img || img.SourceMode == value) return;
+            BeforeModify?.Invoke();
+            img.SourceMode = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsImageStaticMode));
+            OnPropertyChanged(nameof(IsImageListMode));
+            OnPropertyChanged(nameof(ImageSourceModeHint));
+        }
+    }
+
+    /// <summary>GUI 单选「静态图片」是否选中（自动模式下按实际生效值显示）。</summary>
+    public bool IsImageStaticMode
+    {
+        get => _selectedWidget is ImageWidget img && img.EffectiveSourceMode == "static";
+        set { if (value) ImageSourceMode = "static"; }
+    }
+
+    /// <summary>GUI 单选「图片列表」是否选中（自动模式下按实际生效值显示）。</summary>
+    public bool IsImageListMode
+    {
+        get => _selectedWidget is ImageWidget img && img.EffectiveSourceMode == "list";
+        set { if (value) ImageSourceMode = "list"; }
+    }
+
+    /// <summary>当前生效来源的提示（避免"两个都配了不知道谁生效"）。</summary>
+    public string ImageSourceModeHint => _selectedWidget is ImageWidget im
+        ? (im.EffectiveSourceMode == "list"
+            ? (string.IsNullOrWhiteSpace(im.ListRef) ? "⚠ 列表模式但未选列表——将显示底色" : "当前生效：图片列表（图片路径不生效）")
+            : (string.IsNullOrWhiteSpace(im.ImagePath) ? "⚠ 单图模式但未选图片——将显示底色" : "当前生效：单张图片（列表不生效）"))
+        : "";
+
+    private string _imagePath = "";
         public string ImagePath { get => _imagePath; set { if (_imagePath != value) { _imagePath = value; OnPropertyChanged(); if (!_syncingFromModel) BeforeModify?.Invoke(); if (_selectedWidget is ImageWidget img) img.ImagePath = value; } } }
         private string _imageFillColor = "#EEEEEE";
 

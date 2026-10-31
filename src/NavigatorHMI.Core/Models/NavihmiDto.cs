@@ -98,6 +98,8 @@ namespace NavigatorHMI.Common
         [ProtoMember(22)] public string StretchMode { get; set; } = "";
         [ProtoMember(23)] public string ListRef { get; set; } = "";
         [ProtoMember(24)] public int DefaultIndex { get; set; }
+        /// <summary>AH（2026-10-31）：图片来源模式 "static"/"list"/""（自动）——见 ImageWidget.SourceMode（proto 81）。</summary>
+        [ProtoMember(81)] public string ImageSourceMode { get; set; } = "";
         [ProtoMember(25)] public double Value { get; set; }
         [ProtoMember(26)] public double Min { get; set; }
         [ProtoMember(27)] public double Max { get; set; }

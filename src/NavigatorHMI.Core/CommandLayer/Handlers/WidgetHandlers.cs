@@ -184,7 +184,7 @@ namespace NavigatorHMI.CommandLayer.Handlers
                         "text", "content", "title", "imagePath", "listRef", "defaultIndex",
                         "fontSize", "fontFamily", "fontWeight", "fontStyle", "textDecoration",
                         "textColor", "fillColor", "strokeColor", "strokeThickness",
-                        "hAlign", "stretchMode", "fillStyle",
+                        "hAlign", "stretchMode", "fillStyle", "sourceMode",
                         "isOn", "onText", "offText", "isChecked", "isReadOnly",
                         "value", "min", "max", "x2", "y2",
                     },
@@ -279,6 +279,23 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 case DateTimeWidget dtg when key == "fillColor": dtg.FillColor = value; break;
                 case DateTimeWidget dtg when key == "fontSize": dtg.FontSize = double.Parse(value); break;
                 case DateTimeWidget dtg when key == "format": dtg.Format = value; break;
+                // AH（2026-10-31 用户裁决）：图片来源模式二选一（static=单图 / list=列表 / auto=自动旧规则）
+                case ImageWidget img when key == "sourceMode":
+                {
+                    var m = value.Trim().ToLowerInvariant();
+                    var norm = m switch
+                    {
+                        "static" or "single" or "image" or "单图" or "静态" or "图片路径" => "static",
+                        "list" or "列表" or "图片列表" => "list",
+                        "auto" or "自动" or "" => "",
+                        _ => null,
+                    };
+                    if (norm == null)
+                        return CommandResult.Fail("INVALID_VALUE",
+                            $"sourceMode 只接受 static / list / auto（也支持中文：单图/列表/自动），收到: \"{value}\"");
+                    img.SourceMode = norm;
+                    break;
+                }
                 case TextWidget w when key == "fontFamily": w.FontFamily = value; break;
                 case TextWidget w when key == "fontStyle": w.FontStyle = value; break;
                 case TextWidget w when key == "textDecoration": w.TextDecoration = value; break;

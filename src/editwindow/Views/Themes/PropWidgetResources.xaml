@@ -246,6 +246,18 @@
                     </TextBlock>
                 </Grid>
             </Grid>
+            <!-- AH（2026-10-31 用户裁决「图片列表与图片路径是否重复」→ 来源二选一）：
+                 顶部单选决定**生效来源**，另一侧配置保留（切回还在）但不生效；下方提示当前生效值。 -->
+            <Separator Margin="4,2"/>
+            <TextBlock Text="图片来源" Style="{StaticResource PropGroupHeader}"/>
+            <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                <RadioButton Content="单张图片" IsChecked="{Binding IsImageStaticMode, Mode=TwoWay}" GroupName="ImgSrc" Margin="0,0,14,0"
+                             ToolTip="固定显示一张图（用下方「图片路径」）；列表配置保留但不生效"/>
+                <RadioButton Content="按图片列表切换" IsChecked="{Binding IsImageListMode, Mode=TwoWay}" GroupName="ImgSrc"
+                             ToolTip="按绑定变量切换列表中的图片（用下方「图片列表」）；图片路径保留但不生效"/>
+            </StackPanel>
+            <TextBlock Text="{Binding ImageSourceModeHint}" Foreground="#2D7DD2" FontSize="10" Margin="0,4,0,0" TextWrapping="Wrap" IsHitTestVisible="False"/>
+
             <!-- AH（2026-10-31 用户反馈「没看到绑定图片列表，图片从哪里来的」）：补「图片路径」入口——
                  单张静态图片走 ImagePath（属性面板此前**没有这个字段**，只有列表绑定，用户无从查看/修改）。
                  优先级：绑定了列表 ⇒ 列表优先（按变量切图）；列表为空 ⇒ 用本路径。 -->

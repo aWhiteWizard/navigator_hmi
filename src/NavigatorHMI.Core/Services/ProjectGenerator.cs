@@ -530,6 +530,7 @@ namespace NavigatorHMI.Common
                 dto.Type = NavihmiWidgetType.Image; dto.ImagePath = img.ImagePath;
                 dto.StretchMode = img.StretchMode; dto.FillColor = img.FillColor;
                 dto.ListRef = img.ListRef; dto.DefaultIndex = img.DefaultIndex;
+                dto.ImageSourceMode = img.EffectiveSourceMode;   // AH：来源模式（static/list，已把"自动"解析成确定值）
             });
             Register<NumericDisplayWidget>((nd, dto) =>
             {

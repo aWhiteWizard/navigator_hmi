@@ -495,6 +495,25 @@ public class ImageWidget : Widget
     [ProtoMember(4)]
     public string ListRef { get => _listRef; set { if (_listRef != value) { _listRef = value; OnPropertyChanged(); OnPropertyChanged(nameof(DisplayPath)); } } }
 
+    private string _sourceMode = "";
+    /// <summary>
+    /// AH（2026-10-31 用户裁决）**图片来源模式**——显式二选一，解决"既配了图片路径又配了图片列表谁生效"的歧义：
+    ///   "static" = 只用 ImagePath（单张静态图）
+    ///   "list"   = 只用 ListRef 列表（按变量切换，忽略 ImagePath）
+    ///   ""       = **自动**（沿用旧规则：列表非空用列表，否则单图）——存量工程序列化即空，行为不变
+    /// GUI 单选 / `set_property key=sourceMode` / AI 三入口共用同一字段。
+    /// </summary>
+    [ProtoMember(6)]
+    public string SourceMode
+    {
+        get => _sourceMode;
+        set { if (_sourceMode != value) { _sourceMode = value; OnPropertyChanged(); OnPropertyChanged(nameof(DisplayPath)); } }
+    }
+
+    /// <summary>实际生效的来源（把"自动"解析成确定值）："list" 或 "static"。</summary>
+    public string EffectiveSourceMode =>
+        _sourceMode is "static" or "list" ? _sourceMode : (string.IsNullOrWhiteSpace(ListRef) ? "static" : "list");
+
     private int _defaultIndex = 0;
     /// <summary>缺省值：未绑定变量/变量值无效时显示的列表项索引（0=第1项）</summary>
     [ProtoMember(5)]
