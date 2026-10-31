@@ -604,6 +604,14 @@ namespace NavigatorHMI.Common
                 // （FW HmiDateTime 同步补绑定订阅）；未绑定由 FW 按 dtFormat 1Hz 实时系统时间。
                 dto.DtText = "";
                 dto.DtFormat = dt.Format;
+                // AH（2026-10-30 用户实测「DateTime 两端不一致」）：本分支此前**只下发 DtText/DtFormat**，
+                // 不下发字体/对齐/颜色 ⇒ 设备端只能用默认值（14px/居中/黑字）。
+                // 现按其他文本控件同口径下发（DateTimeWidget 已补 FontFamily/FontSize/FontWeight/FontStyle/
+                // TextDecoration/TextColor/FillColor/HAlign 字段）。
+                CopyFont(dto, dt);
+                dto.TextColor = dt.TextColor;
+                dto.FillColor = dt.FillColor;
+                dto.HAlign = dt.HAlign;
             });
             Register<PolygonWidget>((pg, dto) =>
             {

@@ -24,6 +24,50 @@ namespace NavigatorHMI.Common
             set { if (_format != value) { _format = value; OnPropertyChanged(); OnPropertyChanged(nameof(DisplayText)); } }   // 改格式立即刷新显示
         }
 
+        // ── AH（2026-10-30 用户实测「DateTime 两端不一致」）：补齐文本样式字段 ──
+        // 此前 DateTimeWidget 只有 Text/Format，**没有字体/对齐/颜色字段** ⇒ 属性面板改不了、
+        // 生成器下发不了、设备端只能用默认值（14px/居中/黑字），而 PC 模板又恒用 WPF 默认字体，
+        // 两端必然不同。这些字段与其他文本控件（Label/Text/IOField…）同口径，序列化字段号 3-10。
+        private string _fontFamily = WidgetFontDefaults.FontFamily;
+        /// <summary>字体族（如 "Microsoft YaHei UI" / "Arial"）</summary>
+        [ProtoMember(3)]
+        public string FontFamily { get => _fontFamily; set { if (!string.IsNullOrEmpty(value) && _fontFamily != value) { _fontFamily = value; OnPropertyChanged(); } } }
+
+        private double _fontSize = WidgetFontDefaults.FontSize;
+        /// <summary>字体大小（像素）</summary>
+        [ProtoMember(4)]
+        public double FontSize { get => _fontSize; set { _fontSize = value; OnPropertyChanged(); } }
+
+        private string _fontWeight = WidgetFontDefaults.FontWeight;
+        /// <summary>字重：Normal / Bold</summary>
+        [ProtoMember(5)]
+        public string FontWeight { get => _fontWeight; set { _fontWeight = value; OnPropertyChanged(); } }
+
+        private string _fontStyle = WidgetFontDefaults.FontStyle;
+        /// <summary>字型：Normal / Italic</summary>
+        [ProtoMember(6)]
+        public string FontStyle { get => _fontStyle; set { _fontStyle = value; OnPropertyChanged(); } }
+
+        private string _textDecoration = WidgetFontDefaults.TextDecoration;
+        /// <summary>下划线：None / Underline</summary>
+        [ProtoMember(7)]
+        public string TextDecoration { get => _textDecoration; set { _textDecoration = value; OnPropertyChanged(); } }
+
+        private string _textColor = "#000000";
+        /// <summary>文字颜色（CSS 格式）</summary>
+        [ProtoMember(8)]
+        public string TextColor { get => _textColor; set { _textColor = value; OnPropertyChanged(); } }
+
+        private string _fillColor = "#FFFFFF";
+        /// <summary>背景色（默认白底——"D8：白底可读"，与 PC 模板/设备端一致）</summary>
+        [ProtoMember(9)]
+        public string FillColor { get => _fillColor; set { _fillColor = value; OnPropertyChanged(); } }
+
+        private string _hAlign = "Center";
+        /// <summary>水平对齐：Left / Center / Right（默认居中，沿用历史行为）</summary>
+        [ProtoMember(10)]
+        public string HAlign { get => _hAlign; set { _hAlign = value; OnPropertyChanged(); } }
+
         /// <summary>按 Format 格式化（非法格式回退默认，防 IsEditable 输入异常值抛 FormatException）。</summary>
         private string FormatNow()
         {

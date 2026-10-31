@@ -268,6 +268,17 @@ namespace NavigatorHMI.CommandLayer.Handlers
                 case TextWidget txt when key == "textColor": txt.TextColor = value; break;
                 case TextWidget txt when key == "hAlign": txt.HAlign = value; break;
                 case LabelWidget lbl when key == "hAlign": lbl.HAlign = value; break;
+                // AH 修复（2026-10-30）：DateTime 此前**没有任何 set_property 分支**——属性面板/CLI 改字号、
+                // 加粗、对齐、文字色全部静默丢失（设备端只能用默认值）。补齐与其他文本控件同口径的键。
+                case DateTimeWidget dtg when key == "hAlign": dtg.HAlign = value; break;
+                case DateTimeWidget dtg when key == "fontFamily": dtg.FontFamily = value; break;
+                case DateTimeWidget dtg when key == "fontWeight": dtg.FontWeight = value; break;
+                case DateTimeWidget dtg when key == "fontStyle": dtg.FontStyle = value; break;
+                case DateTimeWidget dtg when key == "textDecoration": dtg.TextDecoration = value; break;
+                case DateTimeWidget dtg when key == "textColor": dtg.TextColor = value; break;
+                case DateTimeWidget dtg when key == "fillColor": dtg.FillColor = value; break;
+                case DateTimeWidget dtg when key == "fontSize": dtg.FontSize = double.Parse(value); break;
+                case DateTimeWidget dtg when key == "format": dtg.Format = value; break;
                 case TextWidget w when key == "fontFamily": w.FontFamily = value; break;
                 case TextWidget w when key == "fontStyle": w.FontStyle = value; break;
                 case TextWidget w when key == "textDecoration": w.TextDecoration = value; break;

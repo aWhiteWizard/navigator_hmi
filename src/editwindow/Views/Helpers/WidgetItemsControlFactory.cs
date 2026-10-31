@@ -477,13 +477,17 @@ namespace NavigatorHMI.Views.Helpers
             var dt = new DataTemplate();
             var tb = new FrameworkElementFactory(typeof(TextBlock));
             tb.SetBinding(TextBlock.TextProperty, new Binding("DisplayText"));   // D6：未绑定实时时钟/绑定基准值
-            var fg = new MultiBinding { Converter = new SafeTextColorConverter() };   // TextColor + FillColor（与其他文本控件一致）
-            fg.Bindings.Add(new Binding("TextColor"));
-            fg.Bindings.Add(new Binding("FillColor"));
-            tb.SetBinding(TextBlock.ForegroundProperty, fg);
-            tb.SetValue(TextBlock.BackgroundProperty, System.Windows.Media.Brushes.White);   // D8：白底可读（与画布区分）
+            // AH 修复（2026-10-30 用户实测「DateTime 两端表现不一致」）：本模板此前**不绑字体/对齐**——
+            //   PC 侧恒用 WPF 默认字体（≈12px）+ 元素居中，而设备端按模型 fontSize(14)/fontFamily/hAlign 渲染
+            //   ⇒ 字号/字体/对齐/加粗/斜体/下划线全部不一致。改用与其他文本控件相同的 BindTextFormatting：
+            //   一并绑 FontFamily/FontSize/FontWeight/FontStyle/TextDecoration + TextColor/FillColor 前景自适应 + HAlign。
+            BindTextFormatting(tb);
+            // D8：白底可读（与画布区分）——AH 2026-10-30 起改为绑模型 FillColor（默认 #FFFFFF），
+            // 使"用户改背景色"两端一致（此前 PC 硬编码白色、设备端也硬编码白色，用户改不了）。
+            tb.SetBinding(TextBlock.BackgroundProperty, new Binding("FillColor") { Converter = new ColorStringToBrushConverter() });
             tb.SetValue(TextBlock.VerticalAlignmentProperty, System.Windows.VerticalAlignment.Center);
-            tb.SetValue(TextBlock.HorizontalAlignmentProperty, System.Windows.HorizontalAlignment.Center);
+            // 元素铺满（文本对齐交由 TextAlignment=HAlign 处理；元素居中会吃掉 Left/Right 语义）
+            tb.SetValue(TextBlock.HorizontalAlignmentProperty, System.Windows.HorizontalAlignment.Stretch);
             dt.VisualTree = WrapWithBorder(tb, click, pmLBD, mLBD, mMove, mLBU, pmRBD, mRBU);
             return dt;
         }
