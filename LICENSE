@@ -1,0 +1,136 @@
+NavigatorHMI 源码公开许可协议（Source-Available License）v1.1
+================================================================
+
+版权所有 (c) 2026 aWhiteWizard（https://github.com/aWhiteWizard）
+保留一切权利 (All Rights Reserved)。
+
+本协议适用于本仓库（NavigatorHMI 组态软件，含 PC 端 / CLI / Command Layer）内的全部
+源代码、构建脚本、配置文件、资源与文档（以下统称“本软件”）。
+
+⚠️ 本软件为“源码公开（source-available）”，并非 OSI 定义的开源软件：本协议允许阅读、
+fork 与学习，但不允许公开发布修改版本，也不允许商业使用。完整条款如下。
+
+
+一、授予的许可（你可以做的事）
+------------------------------
+1. 浏览、阅读、检索本软件源码与文档；
+2. 使用 GitHub 的 Fork 功能创建本仓库副本，并在 GitHub 平台内保留该副本；
+3. 在自己或自有设备上克隆、编译并运行本软件，用于个人学习、技术研究与功能评估；
+4. 在“不公开、不再分发”的前提下自行做实验性修改，修改结果仅限本人使用；
+5. 本协议未明示授予的一切权利，均由作者保留；任何未列明的使用方式，请视为未获授权。
+
+二、禁止的行为（未经作者书面授权不得做）
+----------------------------------------
+1. 公开发布或向第三方提供本软件的修改版本、演绎作品或衍生分支，包括但不限于：在
+   GitHub / Gitee / GitCode / 个人网站等平台公开自己的二次开发仓库（含先从 Fork 脱离
+   （detach）再另建公开仓库的手法）、发布补丁、或以二进制/安装包形式分发改造后的版本；
+2. 任何商业性使用，包括但不限于：销售、出租、许可、随硬件产品捆绑销售、集成进商业
+   产品或服务、作为云服务或 SaaS 对外提供、以收费形式为客户交付；
+3. 移除、遮蔽或修改本文件、源代码文件头部及其他位置的版权声明与许可声明；
+4. 使用本项目名称或标识（NavigatorHMI、FutureTechHMI 等）暗示与作者存在授权、合作、
+   代理或背书关系，或在二次开发成果的对外展示中使用上述名称；本协议不授予任何商标权、
+   商号权；
+5. 对本软件进行再许可（sublicense）。
+
+三、Fork 的特别约定
+--------------------
+Fork 功能本身被允许，但 Fork 出的副本必须遵守：
+1. 原样保留本 LICENSE 文件与全部版权声明；
+2. 若对代码做了任何修改，你不得将该修改推送到公开可见的仓库。GitHub 的公开 Fork 无法
+   单独设为私有，如需保存你的修改，请先将 Fork 从 GitHub 的 fork 网络中脱离（detach）
+   后创建私有仓库，并且不得以任何方式对外分发或提供；
+3. 作者没有义务接受任何 Pull Request，合并与否完全由作者决定。
+
+四、第三方组件（重要）
+----------------------
+本仓库内可能包含第三方组件或第三方许可的源码（例如 Qt、Buildroot 及其补丁、第三方
+库与工具链脚本）。上述组件不受本协议约束，其授权范围以各自的原始许可证为准，并且
+优先于本协议。分发包含第三方组件的产物时，请自行核对该组件的许可证要求。
+
+作者自行编写的构建脚本、配置、工具链封装、界面资源与文档不属于第三方组件，仍受本协议
+约束；某项内容是否属于第三方，以文件头部的版权声明或原始出处说明为准。
+
+五、权利归属与无担保
+--------------------
+1. 本软件的著作权及其他一切知识产权归作者所有；本协议不构成任何权利转让或独占许可，
+   亦不授予任何专利权、商标权、商号权或专利申请权；
+2. 本软件按“现状（AS-IS）”提供，不提供任何明示或默示担保，包括但不限于适销性、
+   特定用途适用性、权利完整性及不侵权担保；
+3. 在适用法律允许的最大范围内，作者不对因使用或无法使用本软件而产生的任何直接、
+   间接、附带、特殊或后果性损失（含利润损失、数据丢失、生产中断）承担责任；
+4. 本软件面向工业控制场景，使用者须自行完成安全评估、验证与合规责任，作者不承担
+   任何现场安全责任。
+
+六、终止
+--------
+违反本协议任何条款，本协议对违约方立即自动终止，违约方应立即停止使用并删除本软件的
+全部副本；作者的其他权利与救济不因此受影响。
+
+七、授权申请
+------------
+如需商业使用、二次开发或公开发布衍生版本，请通过以下渠道联系作者获取书面授权：
+GitHub: https://github.com/aWhiteWizard （Issue 或私信）
+
+八、适用法律
+------------
+本协议适用中华人民共和国法律（不含香港、澳门及台湾地区法律）。因本协议产生的争议，
+双方应友好协商解决；协商不成时，提交作者住所地或主要营业地有管辖权的人民法院管辖。
+经双方另行签署的中文书面授权协议，其约定优先于本协议。
+
+
+------------------------------------------------------------------
+English version — for reference only; the Chinese text above prevails.
+------------------------------------------------------------------
+
+NavigatorHMI Source-Available License v1.1
+
+Copyright (c) 2026 aWhiteWizard (https://github.com/aWhiteWizard). All rights reserved.
+
+"Software" means all source code, build scripts, configuration files, assets and
+documentation in this repository. The Software is SOURCE-AVAILABLE, not open source
+under the OSI definition.
+
+1. PERMITTED. You may: (a) read and browse the Software; (b) fork it on GitHub and keep
+   the fork on GitHub; (c) clone, build and run it — for personal study, technical research
+   and evaluation only; (d) make experimental local modifications that are neither
+   published nor distributed. All rights not expressly granted are reserved by the author;
+   any use not listed in this clause is unauthorized.
+
+2. PROHIBITED without prior written permission. You may not: (a) publish, distribute or
+   otherwise make available any modified version, derivative work, patch or binary build,
+   including by detaching a fork and republishing it as a new public repository;
+   (b) use the Software commercially, including selling, licensing, bundling with hardware,
+   incorporating it into commercial products or services, or offering it as a service;
+   (c) remove or alter any copyright or license notice; (d) use the project names or marks
+   (NavigatorHMI, FutureTechHMI) in a way implying authorization, partnership or
+   endorsement; (e) sublicense the Software.
+
+3. FORKS. Forking is permitted provided the fork retains this LICENSE and all notices. If
+   you modify the code, you must not push that modification to any publicly visible
+   repository; since a public GitHub fork cannot be made private on its own, detach the
+   fork and create a private repository if you want to keep your changes, and do not
+   distribute or make them available to others. The author is under no obligation to accept
+   any pull request.
+
+4. THIRD-PARTY COMPONENTS. Third-party components (e.g. Qt, Buildroot and their patches,
+   third-party libraries and toolchain scripts) are governed by their own licenses, which
+   prevail over this license. Build scripts, configuration, toolchain wrappers, UI assets
+   and documentation written by the author are not third-party components and remain
+   subject to this license.
+
+5. OWNERSHIP AND WARRANTY. All rights remain with the author; this license transfers no
+   ownership and grants no patent, trademark or trade-name rights. THE SOFTWARE IS PROVIDED
+   "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. TO THE MAXIMUM EXTENT
+   PERMITTED BY LAW, THE AUTHOR SHALL NOT BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+   SPECIAL OR CONSEQUENTIAL DAMAGES ARISING FROM THE USE OF OR INABILITY TO USE THE
+   SOFTWARE. THE SOFTWARE IS INTENDED FOR INDUSTRIAL CONTROL; USERS ARE RESPONSIBLE FOR
+   SAFETY ASSESSMENT, VALIDATION AND COMPLIANCE.
+
+6. TERMINATION. This license terminates automatically upon any breach; you must stop using
+   and delete all copies.
+
+7. COMMERCIAL LICENSING. Contact the author at https://github.com/aWhiteWizard for written
+   permission.
+
+8. GOVERNING LAW. The laws of the People's Republic of China apply. A separately signed
+   written agreement in Chinese prevails over this license.

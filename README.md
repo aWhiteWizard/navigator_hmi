@@ -1,8 +1,28 @@
 # FutureTechHMI_V1 (NavigatorHMI)
 
-工业 HMI 系统：PC 组态软件（C# WPF）+ HMI 设备端（i.MX6ULL / Qt）
+工业 HMI 系统：PC 组态软件（C# WPF）+ HMI 设备端（RK3562 / Qt）
 
 本项目实现与现有工业 HMI 相同功能，支持 Type-C 接口作串口检测读取使用的 HMI 设备。
+
+## ⚖️ 版权与使用声明（先看这里）
+
+Copyright (c) 2026 aWhiteWizard. All rights reserved.
+
+本项目是 **源码公开（source-available）**，**不是** OSI 定义的开源项目：
+
+- ✅ **欢迎**：浏览源码、**Fork** 学习、个人研究与功能评估、本地编译运行
+- ❌ **未经书面授权禁止**：修改后公开发布或分发（含在 GitHub/Gitee/GitCode 等平台公开衍生仓库、发布补丁、分发改造后的二进制/安装包）、任何商业使用（销售、出租、随硬件捆绑出货、集成进商业产品或服务、作为 SaaS/云服务对外提供、以收费形式交付）、再许可、移除或篡改版权声明
+- ⚠️ 二次开发成果对外展示时，**不得使用 NavigatorHMI / FutureTechHMI 名称**暗示与本项目存在授权、合作或背书关系
+- 📄 完整条款见 [`LICENSE`](LICENSE)；商业授权或二次开发合作请联系 [@aWhiteWizard](https://github.com/aWhiteWizard)
+
+> 仓库内第三方组件（Qt / Buildroot / 第三方库与补丁等）依其**原始许可证**授权，不受本声明约束。
+
+## 🔗 相关仓库
+
+| 仓库 | 内容 |
+|------|------|
+| [aWhiteWizard/navigator_hmi](https://github.com/aWhiteWizard/navigator_hmi)（本仓库） | PC 组态软件（C# / WPF）+ 独立 CLI + Command Layer |
+| [aWhiteWizard/NavigatorHMI_FW](https://github.com/aWhiteWizard/NavigatorHMI_FW) | 设备端固件（RK3562 / Qt 6.4.3 / QML），消费本仓编译出的 `.navihmi` 工程 |
 
 ## 仓库结构
 
@@ -137,4 +157,4 @@ AI 可执行全部组态命令（黑名单为空，机制保留）；执行后�
 ## 当前状态（2026-08-08）
 
 - PC 端核心功能就绪：画面编辑/多选批量/撤销重做/变量列表报警管理/三管理器多选批量删除/AI 语义 Agent/本地 Qwen
-- FW 端：9 模块设计完成；目标平台迅为 RK3562（Qt 6.5.6），开发板到货后配环境 + 编码
+- FW 端：9 模块设计完成；目标平台迅为 RK3562（Qt 6.4.3），开发板到货后配环境 + 编码
